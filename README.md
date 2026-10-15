@@ -8,6 +8,8 @@ Nhân viên có thể hỏi bằng ngôn ngữ tự nhiên, xem thông tin nhà 
 
 > **Đang phát triển:** Backend hiện có **28 operation Open-Core trả dữ liệu mẫu** khi bật sample mode, cùng mapping route Gateway và ví dụ gọi. Web/mobile, AI và các engine/dữ liệu thật chưa được tích hợp. Xem [hướng dẫn API mẫu](examples/sample-api/README.md) và [trạng thái triển khai](#trạng-thái-và-hướng-phát-triển).
 
+RAG đã có ingestion 6 hồ sơ Markdown, Qwen3 + Chroma/BM25/RRF, CLI và endpoint retrieval development bật riêng trên loopback. Xem [cách chạy CLI/Postman/PowerShell](examples/rag/README.md) và [báo cáo triển khai](docs/rag-local-report.md); document store, ACL thật và Langflow chưa được nối.
+
 [Chức năng](#chức-năng-chính) · [Kiến trúc](#kiến-trúc-tổng-thể) · [Cài đặt](#cài-đặt-và-chạy-backend) · [Changelog](CHANGELOG.md) · [GPL-3.0-or-later](LICENSE)
 
 ## Mục lục
@@ -154,7 +156,7 @@ Git không lưu các thư mục trống; chúng có thể chưa xuất hiện kh
 | Truy cập dữ liệu và HTTP | SQLAlchemy, asyncpg, Alembic, HTTPX | Đã khai báo dependency; có lifecycle HTTP/engine/session, chưa có migration hoặc kết nối DB thật. |
 | Công cụ phát triển | uv 0.13.1, Hatchling, Ruff, pytest | Đã cấu hình; dependency khóa trong [uv.lock](uv.lock). |
 | Nền tảng Open-Core | Keycloak, Apache APISIX, PostgreSQL, storage tương thích S3, engine BPMN | Hướng tích hợp; chưa triển khai engine. |
-| AI | Langflow, LLM, ML cho dữ liệu bảng, RAG và kho vector | Thiết kế; chưa chốt toàn bộ model, phiên bản và dịch vụ. |
+| AI | Qwen3, Chroma, BM25/RRF; Langflow và ML theo thiết kế | RAG có CLI và HTTP development trên fixture; các công cụ AI khác chưa được tích hợp. |
 | Giao diện | Web và mobile dùng chung REST/JSON | Chưa triển khai, chưa chốt framework. |
 
 Phiên bản thư viện Python cụ thể được khai báo trong [pyproject.toml](pyproject.toml) và khóa trong `uv.lock`. Engine workflow, model và dữ liệu cần được kiểm chứng trước khi tích hợp.
@@ -265,6 +267,7 @@ Với bộ công cụ local, thay `uv` trong các lệnh bằng `& ./.tools/uv/b
 | `FLOWBRIDGE_LOG_LEVEL` | `INFO` | Mức log khi chạy module Python. |
 | `FLOWBRIDGE_DOCS_ENABLED` | `false` | Bật `/docs` và `/openapi.json` trong môi trường phát triển. |
 | `FLOWBRIDGE_SAMPLE_MODE` | `false` | Bật 28 operation trả dữ liệu mẫu trong development/test; từ chối production hoặc DSN không trống. |
+| `FLOWBRIDGE_RAG_DEV_ENABLED` | `false` | Bật HTTP retrieval thật trên catalog fixture; chỉ loopback development/test, DSN trống. Hướng dẫn trong examples/rag. |
 | `FLOWBRIDGE_SAMPLE_UPLOAD_MAX_BYTES` | `1048576` | Giới hạn bytes upload mẫu, 1–10485760; vượt giới hạn trả 422. |
 | `FLOWBRIDGE_DATABASE_URL` | Trống | Development/test hiện chạy không DB; khi tích hợp dùng DSN `postgresql+asyncpg://…`. |
 | `FLOWBRIDGE_HTTP_TIMEOUT_SECONDS` | `10` | Timeout HTTP client dùng chung của app. |
@@ -319,7 +322,7 @@ Nhóm dependency `build` khóa Hatchling cùng dependency bắc cầu. Sau khi s
 | Nền backend | Có package, app factory, Settings, lifecycle, lỗi chuẩn, correlation, probes vận hành và unit test mock. |
 | Open-Core | Có 28 operation trả mẫu và mapping Gateway; chưa có migration, dữ liệu hoặc engine thật. |
 | Ứng dụng mua hàng | Đã có thiết kế luồng; chưa có API nghiệp vụ và giao diện. |
-| AI và tự động hóa | Đã có thiết kế chat, ML/RAG, so sánh và worker; chưa triển khai. |
+| AI và tự động hóa | RAG local có CLI và HTTP development; chat, ML, so sánh và worker chưa được tích hợp. |
 | Demo và phát hành | Chưa có demo đầu cuối; version package 0.1.0 chưa phải release công khai. |
 
 Các giai đoạn tiếp theo:

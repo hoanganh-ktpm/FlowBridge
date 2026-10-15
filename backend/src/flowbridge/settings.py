@@ -8,6 +8,7 @@
 
 # Validated runtime configuration; dotenv paths resolve from the working directory.
 
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -35,6 +36,10 @@ class Settings(BaseSettings):
     docs_enabled: bool = False
     sample_mode: bool = False
     sample_upload_max_bytes: int = Field(default=1048576, ge=1, le=10485760)
+    rag_dev_enabled: bool = False
+    rag_dev_catalog_path: Path = Path("examples/rag/catalog.json")
+    rag_dev_index_path: Path = Path(".cache/rag")
+    rag_dev_model_cache_path: Path = Path(".cache/models")
     database_url: SecretStr | None = None
     database_pool_size: int = Field(default=5, ge=1, le=100)
     database_max_overflow: int = Field(default=10, ge=0, le=100)
@@ -74,6 +79,13 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def require_production_database(self) -> Self:
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
+        if self.rag_dev_enabled:
+            if self.environment == "production":
+                raise ValueError("rag_dev_enabled is unavailable in production")
+            if self.host.lower() not in {"127.0.0.1", "localhost", "::1"}:
+                raise ValueError("rag_dev_enabled requires a loopback host")
+            if self.database_url is not None:
+                raise ValueError("rag_dev_enabled uses fixture sources and requires an empty DSN")
         if self.sample_mode:
             if self.environment == "production":
                 raise ValueError("sample_mode is unavailable in production")

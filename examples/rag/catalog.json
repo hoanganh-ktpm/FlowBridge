@@ -1,0 +1,78 @@
+{
+  "format_version": "flowbridge-local-knowledge-v1",
+  "dataset_id": "supplier-script-20261015-seed-20261015",
+  "documents": [
+    {
+      "document_id": "1f9360e0-fe70-5238-acf1-dbc5403fcbb9",
+      "path": "supplier_reviews/DEMO-S01.md",
+      "supplier_id": "3806e329-2ebe-5cfc-895d-1bd60894b348",
+      "supplier_code": "DEMO-S01",
+      "supplier_name": "Demo Supplier 1",
+      "reviewer_user_id": "bc7cf79e-ccce-5dea-8ac6-097ddc2a1a53",
+      "reviewer_name": "demo-warehouse-0",
+      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "d0e48264682fdc523e4f30e47d930700c5d1bddb69f30b168bedcd3817723785",
+      "known_from": "2026-10-15T16:09:51.385505+00:00"
+    },
+    {
+      "document_id": "902e54a8-6038-51fe-9be8-076287bca958",
+      "path": "supplier_reviews/DEMO-S02.md",
+      "supplier_id": "9de0c226-1892-56b5-8413-5c77dab2efd0",
+      "supplier_code": "DEMO-S02",
+      "supplier_name": "Demo Supplier 2",
+      "reviewer_user_id": "e2a6df0a-7a4d-513b-a086-249621f86042",
+      "reviewer_name": "demo-warehouse-2",
+      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "8c2d22d31b3762a39a4fe9529e4bc56a272cab241cdf9d0d1816ff6c2addfe0c",
+      "known_from": "2026-10-15T16:09:51.385505+00:00"
+    },
+    {
+      "document_id": "a3a10a02-c6ff-546b-8ef4-685344e4dfa3",
+      "path": "supplier_reviews/DEMO-S03.md",
+      "supplier_id": "f503174a-a5b3-59e0-ad8b-16bf0ff56c49",
+      "supplier_code": "DEMO-S03",
+      "supplier_name": "Demo Supplier 3",
+      "reviewer_user_id": "fc6936d6-1f3f-5b21-bd23-710350bec97f",
+      "reviewer_name": "demo-warehouse-1",
+      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "6413e44c1e6dff1a53238594c19eac4a54b3ad0dc9158a615f03d640b89144d9",
+      "known_from": "2026-10-15T16:09:51.385505+00:00"
+    },
+    {
+      "document_id": "85a98efb-482b-5e47-846b-c9a18590c294",
+      "path": "supplier_reviews/DEMO-S04.md",
+      "supplier_id": "3c1f0266-f8ac-5e30-a24a-46764abb57ee",
+      "supplier_code": "DEMO-S04",
+      "supplier_name": "Demo Supplier 4",
+      "reviewer_user_id": "bc7cf79e-ccce-5dea-8ac6-097ddc2a1a53",
+      "reviewer_name": "demo-warehouse-0",
+      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "2a37fb08e339c99f543ae6188ab4d2155074a14e60aad203afd13d97ab160d89",
+      "known_from": "2026-10-15T16:09:51.385505+00:00"
+    },
+    {
+      "document_id": "73ba84bd-876b-56ac-aaca-96ed020865c1",
+      "path": "supplier_reviews/DEMO-S05.md",
+      "supplier_id": "07e0fee3-729c-5935-b03a-c5af8fc574ee",
+      "supplier_code": "DEMO-S05",
+      "supplier_name": "Demo Supplier 5",
+      "reviewer_user_id": "e2a6df0a-7a4d-513b-a086-249621f86042",
+      "reviewer_name": "demo-warehouse-2",
+      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "2171254e021105a549147256ba8307da2a6341a28c89242d30d0d1fc5022e3fe",
+      "known_from": "2026-10-15T16:09:51.385505+00:00"
+    },
+    {
+      "document_id": "6980cc3c-af0e-5384-a442-082186e7b5a3",
+      "path": "supplier_reviews/DEMO-S06.md",
+      "supplier_id": "6b803be4-eaa1-5bac-bb84-1b7334475e7c",
+      "supplier_code": "DEMO-S06",
+      "supplier_name": "Demo Supplier 6",
+      "reviewer_user_id": "fdc1abf2-029b-5404-80a3-cec2ec18cae3",
+      "reviewer_name": "demo-warehouse-3",
+      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "9a5c2f634ed8165882c4963cdd3380dd972fe57aae03d84dabe266887e78a799",
+      "known_from": "2026-10-15T16:09:51.385505+00:00"
+    }
+  ]
+}

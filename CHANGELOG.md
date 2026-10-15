@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Thêm `POST /internal/v1/tools/retrieve-knowledge` bật bằng `FLOWBRIDGE_RAG_DEV_ENABLED` cho loopback development/test: RAG thật trên fixture, model dùng lại theo lifespan, worker không chặn event loop, giới hạn một lượt tìm kiếm và lỗi chuẩn. Giữ nguyên Core sample/OpenAPI khi flag tắt; ghép Swagger RAG có namespace khi cùng bật sample.
+- Thêm hướng dẫn Postman/PowerShell và kiểm thử HTTP/lifecycle; chế độ này chưa dùng caller/ACL production, không tự tải model hoặc lập chỉ mục.
+- Thêm RAG local bằng CLI: 6 hồ sơ Markdown, Qwen3-Embedding-0.6B pin revision, Chroma cosine + BM25/RRF, chỉ mục theo thế hệ, nguồn/version/checksum/heading/reviewer và lọc document/supplier/known_from. Reranker mặc định tắt.
+- Thêm extra `rag`, lockfile, kiểm thử và tài liệu sử dụng/báo cáo; chưa nối RAG vào HTTP, Langflow, document store hoặc ACL production.
+
 - Thêm chế độ API mẫu bật tường minh trong development/test: 28 operation Identity, Data/Storage, Workflow và events/notifications/audit; response đúng hợp đồng v0.2.0, chưa persistence hoặc xác thực OIDC thật.
 - Thêm multipart upload, download bytes tổng hợp và metadata/hash nhất quán; dữ liệu fixture có ID dùng chung, request ghi không thay đổi fixture.
 - Thêm mapping Gateway từ contract, ví dụ gọi đủ operation, Swagger schema sample và script kiểm tra HTTP có assertion. APISIX/engine thật để giai đoạn sau.
