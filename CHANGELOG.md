@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Thêm Prediction Service bật bằng `FLOWBRIDGE_ML_ENABLED`: 19 features, context có provenance/cutoff, TabICLv2 2.2.0 và batch inference ngoài event loop; model readiness riêng, không tải checkpoint trong HTTP/startup.
+- Thêm 5 endpoint `/api/v1/ml/*` và `/internal/v1/ml/*` cho scenario, ranking, chấm/lưu PO và đọc prediction/rủi ro hiện hành. Tái sử dụng IdP/role/ownership, PostgreSQL và idempotency; rủi ro PO là MAX các item còn mở, trả đúng item/deadline và trạng thái thiếu dữ liệu.
+- Thêm optional dependency `ml`, CLI chuẩn bị/kiểm tra artifacts, typed HTTP client, custom component Langflow và hướng dẫn cấu hình. Giữ API AI 0.4.1 cũ/RAG; không migration hoặc scheduler/cảnh báo. Điểm ML chưa hiệu chuẩn; context synthetic không dùng production.
+
 - Thêm `POST /internal/v1/tools/retrieve-knowledge` bật bằng `FLOWBRIDGE_RAG_DEV_ENABLED` cho loopback development/test: RAG thật trên fixture, model dùng lại theo lifespan, worker không chặn event loop, giới hạn một lượt tìm kiếm và lỗi chuẩn. Giữ API PostgreSQL và OpenAPI có xác thực khi flag tắt; không khôi phục các API sample đã bỏ trên main.
 - Thêm hướng dẫn Postman/PowerShell và kiểm thử HTTP/lifecycle; chế độ này chưa dùng caller/ACL production, không tự tải model hoặc lập chỉ mục.
 - Thêm RAG local bằng CLI: 6 hồ sơ Markdown, Qwen3-Embedding-0.6B pin revision, Chroma cosine + BM25/RRF, chỉ mục theo thế hệ, nguồn/version/checksum/heading/reviewer và lọc document/supplier/known_from. Reranker mặc định tắt.

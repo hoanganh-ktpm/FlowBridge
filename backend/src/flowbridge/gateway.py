@@ -23,13 +23,24 @@ class GatewayRoute:
     upstream: str
 
 
-def route_map(upstream: str = "http://127.0.0.1:8000") -> tuple[GatewayRoute, ...]:
+def route_map(
+    upstream: str = "http://127.0.0.1:8000", *, include_ml: bool = False
+) -> tuple[GatewayRoute, ...]:
     # Kiểm tra base URL rồi phân loại public/internal theo path.
     parts = urlsplit(upstream)
     if parts.scheme not in {"http", "https"} or not parts.netloc:
         raise ValueError("upstream must be an HTTP base URL")
     if parts.username or parts.password or parts.query or parts.fragment or parts.path.strip("/"):
         raise ValueError("upstream must have no credentials, path, query or fragment")
+    operations = list(application_operations())
+    if include_ml:
+        from flowbridge.supplier_assistant.prediction.router import router
+
+        operations.extend(
+            (method, route.path, {"operationId": route.operation_id})
+            for route in router.routes
+            for method in route.methods
+        )
     return tuple(
         GatewayRoute(
             method=method,
@@ -42,7 +53,7 @@ def route_map(upstream: str = "http://127.0.0.1:8000") -> tuple[GatewayRoute, ..
             else "public",
             upstream=upstream.rstrip("/"),
         )
-        for method, path, spec in application_operations()
+        for method, path, spec in operations
     )
 
 
@@ -52,8 +63,9 @@ def main() -> None:
         description="Export PostgreSQL API gateway mapping; no proxy starts"
     )
     parser.add_argument("--upstream", default="http://127.0.0.1:8000")
+    parser.add_argument("--include-ml", action="store_true")
     args = parser.parse_args()
-    routes = route_map(args.upstream)
+    routes = route_map(args.upstream, include_ml=args.include_ml)
     print(json.dumps([asdict(route) for route in routes], indent=2))
 
 

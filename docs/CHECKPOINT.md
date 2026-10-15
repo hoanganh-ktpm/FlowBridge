@@ -1,5 +1,56 @@
 # Checkpoint FlowBridge
 
+## 2026-10-16 — CODE-ML-01: Prediction Service (hoàn tất code và kiểm thử)
+
+- Yêu cầu: triển khai hai luồng ML cho custom node sau khi pull code mới; rủi ro PO
+  đại diện bằng MAX điểm các PO item còn phải giao, kèm item/deadline quyết định.
+- Repo `D:\OLP MNM 2025\FlowBridge`, branch `hoanganhdev_features`, HEAD đầu vào
+  `ae20b282f4009634f97ddede1396f1e53397732c`; Git sạch khi bắt đầu. Không có plan/task
+  được dẫn chiếu trong checkout; dùng ID bổ sung CODE-ML-01.
+- Đã đọc hướng dẫn `D:\OLP MNM 2025\AGENTS.md`, checkpoint và auth/repository hiện có.
+  Tích hợp cùng package và chính sách DB/IdP; không tạo microservice hoặc giả danh.
+- Đã thêm `supplier_assistant/prediction/`: 19 features, SQL repository có giới hạn,
+  context có provenance/cutoff, TabICLv2 adapter, API scenario/rank, lưu/đọc PO risk.
+  Runtime bật bằng ML_ENABLED, giữ hợp đồng AI 0.4.1 cũ và RAG hiện có.
+- Không đổi schema/migration, `.env`, dữ liệu nghiệp vụ, không commit/push/deploy.
+  Dependency optional `ml`: tabicl 2.2.0 (BSD-3-Clause), pandas 2.3.3 (BSD-3-Clause);
+  checkpoint upstream BSD-3-Clause, tải riêng ngoài source. uv lock cập nhật 142 packages.
+- `uv lock` và `uv sync --locked --extra ml --inexact` hoàn tất ngoài sandbox; mạng
+  sandbox chặn registry. Lock 142 packages, thêm 6 package vào graph đã có RAG. Không
+  cài lại môi trường hoặc đổi pin dependency RAG.
+- Đã tải checkpoint chính thức vào `.cache/models`, SHA-256
+  `bdc7dbd5e4ff21f8f0456fcf90c6b7cdf72dbea960f2d05b19bec19f9b3d4ed0`.
+  Context `.cache/ml/context.json` là 192 snapshot A/B giả lập riêng, có source_kind;
+  không lấy CSV simulator lỗi làm context. Chỉ dùng smoke/integration; không có bằng
+  chứng calibration/chất lượng nghiệp vụ, production chặn context synthetic.
+- Model smoke chạy fit + predict_proba TabICLv2 thật thành công; startup thử riêng A
+  categorical toàn NULL. Model/context nạp một lần, inference ở thread có serialization
+  và giới hạn queue. Không tải model từ HTTP/startup, không đọc pickle do client cung cấp.
+- HTTP: scenario/rank read-only; PO POST synchronous trả 200 sau commit (dependency
+  function scope), giữ risk_predictions + durable retry atomically; GET theo quyền/
+  freshness/context hash/checkpoint/policy. Không tạo report/proposal/analysis task giả.
+- Thêm typed HTTP client, component Langflow ranking chỉ đọc, CLI download/demo/
+  validate/smoke, docs/ML-SERVICE.md, ví dụ request, env template, gateway --include-ml,
+  README/CHANGELOG. API AI 0.4.1 cũ vẫn fail closed, không thay wire contract cũ.
+- `pytest tests/unit -q -rs`: **186 passed, 13 skipped in 8.45s**. 41 test ML mới đều
+  qua; 13 skip nằm ở test_knowledge.py do thiếu optional rank_bm25 có sẵn từ code RAG.
+  Không coi skip là test RAG đã qua. Ruff check + format (18 file thay đổi/code ML)
+  và git diff --check đạt; uv lock --check --offline đạt.
+- `pytest tests/integration/test_prediction_database.py -m integration`: **2 passed
+  in 27.94s** ngoài sandbox. SQL và TabICL thật: HTTP rank/scenario qua lifecycle thật,
+  read-only không tăng rows, PO persistence, cùng key không ghi trùng, ACL và rollback
+  khi inference lỗi. Test tiêm Identity/approval, không chứng minh SSO/workflow thật.
+  Fixture write rollback; không sửa/nạp lại dữ liệu demo. Không chạy migration/seed.
+- Build offline wheel + source tar.gz đạt `.cache/ml-build/`; audit 118 source/52 wheel
+  members, một source root, có ML docs/component, không secret/cache/weights/dependency
+  binary. Import wheel bằng Python -I và validate OpenAPI đạt (45 paths/51 operations).
+- Không còn session kiểm thử/download đang chạy. Chưa khởi động server lâu dài,
+  sửa .env, cấu hình IdP, test trong Langflow UI, calibration/evaluation hoặc scheduler.
+  Kiểm tra Settings cuối (chỉ boolean): DB đã cấu hình; ML_ENABLED=false,
+  DOCS_ENABLED=false, 5 trường OIDC chưa đầy đủ. Không đưa credential vào log.
+  Để dùng: cài extra ml, bật ML_ENABLED/DOCS_ENABLED, cấu hình IdP và mapping/grants
+  theo docs, restart backend; dùng context observed đã review cho nghiệp vụ thật.
+
 ## 2026-10-16 — Giải quyết conflict PR #4 (RAG development)
 
 - Yêu cầu: sửa conflict của PR #4 hiện có, cập nhật nhánh minnhungdev_features; không merge PR vào main.

@@ -10,6 +10,12 @@ Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằn
 
 RAG đã có ingestion 6 hồ sơ Markdown, Qwen3 + Chroma/BM25/RRF, CLI và endpoint retrieval development bật riêng trên loopback. Xem [cách chạy CLI/Postman/PowerShell](examples/rag/README.md) và [báo cáo triển khai](docs/rag-local-report.md); document store, ACL thật và Langflow chưa được nối.
 
+ML đã có API riêng để chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO bằng TabICLv2.
+Rủi ro đại diện PO lấy điểm cao nhất của các món còn phải giao, kèm món/deadline quyết định.
+Bật bằng `FLOWBRIDGE_ML_ENABLED=true` sau khi cài extra `ml`, chuẩn bị checkpoint/context
+và cấu hình Identity. Xem [hướng dẫn ML và custom node Langflow](docs/ML-SERVICE.md).
+Context giả lập chỉ dùng smoke test; chưa có đánh giá chất lượng hoặc hiệu chuẩn trên dữ liệu thật.
+
 [Chức năng](#chức-năng-chính) · [Kiến trúc](#kiến-trúc-tổng-thể) · [Cài đặt](#cài-đặt-và-chạy-backend) · [Changelog](CHANGELOG.md) · [GPL-3.0-or-later](LICENSE)
 
 ## Mục lục

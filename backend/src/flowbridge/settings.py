@@ -39,6 +39,26 @@ class Settings(BaseSettings):
     rag_dev_catalog_path: Path = Path("examples/rag/catalog.json")
     rag_dev_index_path: Path = Path(".cache/rag")
     rag_dev_model_cache_path: Path = Path(".cache/models")
+    ml_enabled: bool = False
+    ml_context_path: Path = Path(".cache/ml/context.json")
+    ml_checkpoint_path: Path = Path(".cache/models/tabicl-classifier-v2-20260212.ckpt")
+    ml_checkpoint_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    ml_model_version: Literal["tabicl-classifier-v2-20260212.ckpt"] = (
+        "tabicl-classifier-v2-20260212.ckpt"
+    )
+    ml_device: Literal["cpu", "cuda"] = "cpu"
+    ml_n_estimators: int = Field(default=8, ge=1, le=32)
+    ml_cpu_threads: int = Field(default=4, ge=1, le=64)
+    ml_max_context_rows: int = Field(default=5000, ge=2, le=50000)
+    ml_max_candidates: int = Field(default=100, ge=1, le=1000)
+    ml_max_history_rows: int = Field(default=20000, ge=100, le=1000000)
+    ml_history_days: int = Field(default=180, ge=1, le=3650)
+    ml_queue_timeout_seconds: float = Field(default=5, gt=0, le=60)
+    ml_request_timeout_seconds: float = Field(default=120, gt=0, le=600)
+    ml_prediction_max_age_seconds: int = Field(default=86400, ge=1, le=604800)
+    ml_risk_threshold: float = Field(default=0.70, ge=0, le=1, allow_inf_nan=False)
+    # False until operations confirms receipt reporting coverage; absence is not zero.
+    ml_receipt_coverage_confirmed: bool = False
     database_url: SecretStr | None = None
     database_host: str | None = Field(default=None, min_length=1)
     database_port: int = Field(default=5432, ge=1, le=65535)
@@ -141,4 +161,6 @@ class Settings(BaseSettings):
                 raise ValueError("rag_dev_enabled uses fixture sources and requires an empty DSN")
         if self.environment == "production" and self.database_url is None:
             raise ValueError("database_url is required in production")
+        if self.ml_enabled and self.database_url is None:
+            raise ValueError("ml_enabled requires the application database")
         return self
