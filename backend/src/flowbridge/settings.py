@@ -12,7 +12,7 @@ from typing import Literal, Self
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
 
@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     sample_mode: bool = False
     sample_upload_max_bytes: int = Field(default=1048576, ge=1, le=10485760)
     database_url: SecretStr | None = None
+    database_host: str | None = Field(default=None, min_length=1)
+    database_port: int = Field(default=5432, ge=1, le=65535)
+    database_name: str = Field(default="postgres", min_length=1)
+    database_user: str | None = Field(default=None, min_length=1)
+    database_password: SecretStr | None = None
+    database_ssl: Literal["disable", "require", "verify-full"] = "require"
+    database_pool_mode: Literal["queue", "null"] = "queue"
     database_pool_size: int = Field(default=5, ge=1, le=100)
     database_max_overflow: int = Field(default=10, ge=0, le=100)
     database_pool_timeout_seconds: float = Field(default=10, gt=0, le=300)
@@ -73,6 +80,25 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_production_database(self) -> Self:
+        # URL.create accepts a raw password, including @, /, %, # and other special characters.
+        # An explicit DSN takes precedence; a blank password keeps development unconfigured.
+        password = self.database_password.get_secret_value() if self.database_password else ""
+        if self.database_url is None and password:
+            if not self.database_host or not self.database_user:
+                raise ValueError(
+                    "database_host and database_user are required with database_password"
+                )
+            url = URL.create(
+                "postgresql+asyncpg",
+                username=self.database_user,
+                password=password,
+                host=self.database_host,
+                port=self.database_port,
+                database=self.database_name,
+            )
+            object.__setattr__(
+                self, "database_url", SecretStr(url.render_as_string(hide_password=False))
+            )
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
         if self.sample_mode:
             if self.environment == "production":

@@ -54,6 +54,8 @@ include = [
     "/infra/gateway/README.md",
     "/examples/sample-api",
     "/scripts",
+    "/alembic",
+    "/alembic.ini",
     "/pyproject.toml",
     "/uv.lock",
     "/uv.lock.license",
@@ -68,6 +70,7 @@ include = [
 ]
 
 [tool.ruff]
+extend-exclude = ["scripts/supplier_demo_source.py"]
 target-version = "py312"
 line-length = 100
 src = ["backend/src"]

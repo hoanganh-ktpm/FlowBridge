@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Tích hợp script Supplier Assistant: baseline Alembic tạo 27 bảng/293 cột, 56 FK, 83 CHECK và 3 helper cùng RLS; thêm đủ ORM mapping, wrapper seed async và báo cáo CSV. Đã áp dụng revision `0001_supplier_schema`, nạp và đọc lại 25.422 dòng trên Supabase; `alembic check` đạt.
+- Thiết lập Base ORM và Alembic async dùng chung Settings/engine, SSL và tùy chọn NullPool; thêm cấu hình Supabase theo trường riêng với password được encode tự động, script `SELECT 1` và hướng dẫn migration/seed. Chưa thêm model nghiệp vụ, revision hoặc seed của nhóm.
 - Thêm chế độ API mẫu bật tường minh trong development/test: 28 operation Identity, Data/Storage, Workflow và events/notifications/audit; response đúng hợp đồng v0.2.0, chưa persistence hoặc xác thực OIDC thật.
 - Thêm multipart upload, download bytes tổng hợp và metadata/hash nhất quán; dữ liệu fixture có ID dùng chung, request ghi không thay đổi fixture.
 - Thêm mapping Gateway từ contract, ví dụ gọi đủ operation, Swagger schema sample và script kiểm tra HTTP có assertion. APISIX/engine thật để giai đoạn sau.
@@ -17,4 +19,4 @@
 - Bổ sung template môi trường, ignore rules và cấu hình LF.
 - Áp dụng quy tắc code/review/license/test/release theo thể lệ hiện tại.
 
-Chưa có release công khai; API hiện trả dữ liệu mẫu, chưa triển khai dữ liệu nghiệp vụ thật, migration hoặc kết nối engine.
+Chưa có release công khai; API hiện trả dữ liệu mẫu. Đã có nền SQLAlchemy/Alembic; chưa triển khai model/migration nghiệp vụ hoặc dữ liệu thật.

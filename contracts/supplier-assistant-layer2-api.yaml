@@ -1,0 +1,5583 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FlowBridge; redistribution/modification under GNU GPL v3 or later.
+# Provided without warranty. See LICENSE.
+# Hợp đồng thiết kế; chưa triển khai runtime.
+openapi: 3.1.0
+info:
+  title: Supplier Assistant Layer 2 Service Contract
+  version: 0.1.0
+  description: |-
+    Hợp đồng tầng 02 API Tools trong sơ đồ Supplier Assistant, phục vụ tầng 03
+    Langflow/custom nodes và tầng 04 Web/App. Tầng 2 gồm API nghiệp vụ, cầu nối
+    Langflow, công cụ đọc dữ liệu/ML/RAG/so sánh và giao diện worker bền vững.
+    Đây là bản thiết kế độc lập để review trước triển khai, không thay snapshot
+    app-api.yaml/ai-tools-api.yaml đang được runtime sample sử dụng.
+
+    OpenCore 0.2.0 là tầng nền: Identity, Structured Data, Files, Workflow,
+    Events, Notifications và Audit. Tầng 2 dùng các API này, không truy vấn SQL
+    trực tiếp, không viết lại IAM/workflow/storage và không mở tool nội bộ cho browser.
+    Các collection, projection và workflow mua hàng do ứng dụng đăng ký, không phải
+    nghiệp vụ hardcode của OpenCore. Một yêu cầu có nhiều dòng; ML và so sánh chạy
+    theo dòng, báo cáo tự động tổng hợp đủ các dòng của cùng revision.
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: http://localhost:8001
+    description: URL ví dụ; public route qua Gateway, internal route chỉ trong mạng dịch vụ.
+security:
+  - BearerAuth: []
+x-contract-status: design-only; chưa triển khai hoặc chứng minh tích hợp thật
+x-architecture-layer: 02 API Tools; không nhầm với cách đánh số không gian ứng dụng DX-OS
+x-upstream:
+  contract: opencore-api.yaml
+  version: 0.2.0
+  shared_components:
+    - Id
+    - Timestamp
+    - Money
+    - ErrorResponse
+    - Evidence
+    - Event
+  rule: Các component trên được chép nguyên định nghĩa từ contract tầng 1 để file này tự chứa. Đối chiếu cấu trúc
+    khi nâng version; không dùng bản runtime đóng gói khác byte làm nguồn thay thế ngầm. Schema riêng là DTO dịch
+    vụ, không phải ORM/DDL.
+  sha256: 3cd8cd7e97f5e018aeadaca55952c07d9d1d93d2e40797cb2641298ee0d376f2
+x-compatibility:
+  relation_to_existing_sample: Bản review mới, không có cam kết tương thích wire với snapshot runtime 0.4.1. Một
+    số tên route/operationId được giữ để dễ đối chiếu; chưa được thay snapshot, sinh client production hoặc tuyên
+    bố endpoint đã tồn tại từ file này.
+  persistence_adapter: UUID nội bộ, input_revision/version_no và decimal bốn chữ số trong schema DB hiện có cần
+    adapter tường minh sang DTO này. Core Record.version là revision envelope của tài nguyên/projection, không yêu
+    cầu mọi bảng có cột version. Money giữ hai chữ số như Core 0.2.0; giá trị bốn chữ số không biểu diễn chính xác
+    phải bị từ chối hoặc nâng đồng bộ contract, không âm thầm làm tròn đơn giá.
+  evolution: Consumer phải bỏ qua response field mới và xử lý enum chưa biết bằng trạng thái không hỗ trợ. Request
+    được kiểm chặt. Đổi ý nghĩa, đơn vị, trường bắt buộc hoặc nhánh thành công cần version API mới; thay mô hình/chỉ
+    mục không đổi giao diện tool.
+x-boundaries:
+  layer4: Web/App đăng nhập qua Core Identity, đọc danh sách/chi tiết qua Core Data, tải PDF qua Core Files, xem
+    task/notification qua Core Workflow/Events. Báo cáo đầy đủ đọc qua getRiskReport để kiểm ACL nguồn; Core chỉ
+    expose metadata report khi policy nguồn không thể enforce trong Core. Gọi tầng 2 cho chat và command nghiệp
+    vụ; polling không chạy AI. Không đưa ServiceAuth hoặc Langflow key xuống client.
+  layer3: N04/N05/N06/N07 chỉ gọi bốn tool phân tích nội bộ. Node chỉ chuyển DTO và lỗi, không chứa SQL, tính giá,
+    feature engineering hoặc gửi email. Dịch vụ so sánh tái dùng Data Lookup, Prediction, Retrieval mà không gọi
+    vòng lại Agent.
+  automation: Worker nhận sự kiện, claim lease, gọi flow rồi commit kết quả qua API riêng. Flow không tự ghi job
+    succeeded, không quyết định phê duyệt và không phát hành PO. Nạp RAG là tác vụ riêng, không phải bước bắt buộc
+    mỗi lượt chat.
+  purchasing: Agent chỉ đề xuất action_intents. Web/App hiển thị dữ liệu cho người dùng và dùng endpoint nghiệp
+    vụ sau thao tác xác nhận rõ ràng. Phiếu đề xuất cần người có quyền phê duyệt; chỉ PO worker được phát hành/gửi
+    đơn sau guard Workflow.
+x-consumer-map:
+  N01-N03-N11:
+    - createChatSession
+    - sendChatMessage
+    - getChatTurn
+    - getChatHistory
+  N04:
+    - lookupSupplierData
+  N05:
+    - predictDeliveryRisk
+  N06:
+    - retrieveSupplierKnowledge
+  N07:
+    - compareSuppliers
+  N08-N12:
+    - runRiskAnalysis
+  Web-App:
+    - createPurchaseRequest
+    - revisePurchaseRequest
+    - createAnalysisJob
+    - getAnalysisJob
+    - getRiskReport
+    - createPurchaseProposal
+    - decidePurchaseProposal
+    - requestEmailRetry
+  risk-worker:
+    - registerAutomaticAnalysis
+    - claimAnalysisJob
+    - renewAnalysisLease
+    - runRiskAnalysis
+    - completeAnalysisJob
+    - failAnalysisJob
+  rag-worker:
+    - createKnowledgeIndexJob
+    - getKnowledgeIndexJob
+  po-worker:
+    - issueApprovedPurchaseOrder
+    - recordOrderDispatch
+    - claimOrderDispatch
+x-security-policy:
+  enforcement: Các x-required-*-scope và x-resource-policy là yêu cầu bắt buộc ở receiver; OpenAPI không tự thi
+    hành. Gateway chặn external /internal/* và xóa các header ngữ cảnh nội bộ do browser tự gửi. Token người dùng
+    và token dịch vụ không hoán đổi.
+  contexts: 'Tool cần ServiceAuth AND đúng một UserContext hoặc JobContext. Nếu cả hai có mặt hoặc bất kỳ context
+    nào sai thì từ chối, không fallback để nâng quyền. UserContext xác minh chữ ký/issuer/audience/expiry/tenant
+    và caller service binding; quyền hiệu lực là giao quyền dịch vụ với quyền người dùng hiện tại. JobContext chỉ
+    là id: phải đọc job phía server, tenant, initiator, scope, trạng thái và lease ở bước có tác động. Worker không
+    giữ access token người dùng vô hạn.'
+  resources: Kiểm tra tenant, application, ownership/department và quyền từng tài nguyên trước lọc, phân trang,
+    đếm, lấy excerpt hoặc cache. 404 che tài nguyên ngoài phạm vi; 403 cho thao tác bị cấm trên tài nguyên được
+    phép biết. Quyền quản trị không tự cấp quyền phê duyệt hoặc bỏ qua phân tách người lập/người duyệt.
+  cache_and_history: Cache và replay chỉ trả sau xác thực/kiểm quyền hiện tại; key bao gồm tenant, scope fingerprint,
+    source versions, cutoff và model/index version. Chat history, báo cáo và citation không được làm lộ lại nội
+    dung sau thu hồi ACL; lọc/che phần nguồn tương ứng và báo warning. Không trả lease/fencing token trong public
+    DTO.
+  untrusted_content: Prompt, tool arguments, Markdown/PDF và nội dung truy xuất là dữ liệu không tin cậy; không
+    được chọn URL upstream, header auth, tenant, role, SQL hoặc workflow action. Chỉ backend cấu hình allowlist
+    tool, flow ID, model, dataset, email template và recipient.
+  downstream_scopes: Token dịch vụ có audience từng receiver; dùng IAM delegation/token exchange hoặc credential
+    binding theo registry. Comparison service cần tools:data:read, tools:prediction:run và tools:knowledge:read
+    tương ứng criteria, không suy ra các scope này chỉ từ tools:comparison:run. Quyền user/job vẫn giữ nguyên khi
+    gọi con. Backend cần Core data/workflow/file scopes đúng thao tác; không gửi raw user token tới bên ngoài allowlist.
+x-conventions:
+  identity: ID opaque theo Core Id; mã PR/SUP/PO là display_code, không suy ra quyền từ mã.
+  time: Timestamp UTC kết thúc Z; ngày nghiệp vụ theo Asia/Ho_Chi_Minh. as_of do server chốt ở lần chấp nhận thao
+    tác, retry giữ nguyên. Không dùng thời gian từ prompt để dựng lịch sử; không nhận cutoff tương lai. Historical
+    replay chỉ worker được cấp scope.
+  quantities: Chuỗi decimal tối đa bốn chữ số thập phân kèm unit; không dùng float để tính tiền.
+  money: Money đồng nhất Core 0.2.0. Tính decimal; tổng dòng làm tròn half-up hai chữ số sau nhân quantity; tổng
+    đơn bằng tổng dòng. Không gộp/so sánh tiền khác currency; v1 không tự đổi tỷ giá. Giá/thuế/chiết khấu ngoài
+    snapshot không được tự bổ sung. Nếu quantity/total vượt miền biểu diễn Money trả 422 VALIDATION_ERROR, không
+    overflow hoặc cắt phần lẻ.
+  errors: Giữ ErrorResponse và bộ code của Core. Chẩn đoán chi tiết dùng details.field/reason được lọc; không thêm
+    stack trace, token hoặc raw upstream response. Request sai hình dạng 400; điều kiện nghiệp vụ/thiếu dữ liệu
+    422; conflict 409; phụ thuộc 503/504.
+  empty: 200 với items/chunks/candidates rỗng là kết quả hợp lệ; lỗi upstream không giả thành danh sách rỗng.
+  nullable: null nghĩa chưa có/không thể tính; khác 0 hoặc tiêu chí chưa được yêu cầu.
+x-idempotency-policy:
+  applies_to: Mọi POST có header Idempotency-Key, kể cả chat và suy luận tính phí.
+  scope:
+    - verified_principal_id
+    - tenant_id
+    - method
+    - canonical_path
+    - Idempotency-Key
+  retention: Tối thiểu 86400 giây; không expire khi job/turn/action còn chạy, sau terminal giữ ít nhất 86400 giây.
+    Hash JSON canonical giữ kiểu và thứ tự mảng. Cùng key/payload trả status/body/resource id đã chấp nhận, không
+    chạy lại Agent hoặc phát thêm event.
+  in_flight: 409 IDEMPOTENCY_CONFLICT, retryable=true, Retry-After=2 trước khi có durable acceptance.
+  mismatch: 409 IDEMPOTENCY_CONFLICT, retryable=false khi cùng key khác payload.
+  recovery: Timeout/5xx không chứng minh chưa có tác động. Đối soát outcome bền vững trước retry; key sự kiện/proposal/dispatch
+    và fence revision tiếp tục bảo vệ sau TTL. Pure tool giữ cùng source snapshot/model/index/cutoff khi replay;
+    key mới là phép tính mới.
+  tool_isolation: Với bốn tool, scope idempotency còn gồm execution_id/caller context đã xác minh để token dịch
+    vụ dùng chung không replay outcome giữa hai người dùng. JSON canonical request và manifest versions cùng tham
+    gia fingerprint. Scope thu hẹp này bổ sung quy tắc Core, không nới quyền.
+x-jobs-policy:
+  acceptance: 202 chỉ sau ghi job/turn + outbox bền vững qua Core transaction. Location trỏ tài nguyên theo dõi;
+    Retry-After gợi ý polling. Request timeout client không hủy job. v1 không có cancel công khai; worker bắt buộc
+    deadline, retry budget và kết thúc hữu hạn.
+  leases: Claim queued hoặc running hết lease bằng compare-and-set; lease token chỉ nội bộ, attempt tăng mỗi claim.
+    Renew không tạo attempt mới. Mỗi commit kiểm tra token, expiry, attempt, request_version và trạng thái chưa
+    terminal; stale worker trả 409 LEASE_EXPIRED/REQUEST_CHANGED. Public job không lộ token/worker identity.
+  equivalence: Unique active analysis theo tenant + request_id + request_version + analysis policy. Hai lần bấm
+    khác key khi còn active trả 409 ANALYSIS_IN_PROGRESS, details.reason chứa job id được phép xem. Replay cùng
+    key trả job cũ. Đổi input bắt buộc revision mới.
+  result: Job succeeded chỉ khi toàn bộ dòng có Prediction hợp lệ và báo cáo đã commit. Không dự đoán được một dòng
+    thì job failed; không thay missing score bằng 0. Lỗi ML/RAG phụ trong phương án thay thế có thể tạo warning/partial
+    comparison; không biến lỗi dự đoán chính thành low. Báo cáo cũ giữ nguyên, không thành kết quả mới.
+  retries: Worker chỉ retry lỗi retryable=true trong budget cấu hình đóng băng vào job. Inbox dedup event_id, backoff
+    có jitter; hết budget ghi terminal failed và đưa vào dead-letter/đối soát. Recovery không tự phát hành nghiệp
+    vụ lần hai.
+x-ml-policy:
+  profile: API độc lập mô hình, không khóa DTO vào tên TabICLv2/checkpoint hoặc 19 feature của DB. feature_schema_version/model_version/preprocessing_version
+    và context_dataset_version bắt buộc trong kết quả để tái hiện. Cấu hình chọn phía server.
+  source: Prediction tái dùng Data Lookup và đọc đủ mọi trang lịch sử có quyền; không lấy trang đầu làm thống kê.
+    Chỉ dùng record có event time và thời điểm hệ thống biết dữ liệu trước as_of, giữ version/checksum/manifest;
+    loại label/kết quả tương lai và đơn đang dự đoán khỏi context. Không dùng model sau này để giả kết quả lịch
+    sử.
+  decisions: high iff risk_score >= threshold; low iff nhỏ hơn. Điểm/threshold phải hữu hạn trong [0,1]. calibrated_probability
+    cần calibration_version và evidence đánh giá; điểm còn lại chỉ gọi là điểm rủi ro. Thống kê lịch sử không phải
+    giải thích nhân quả. Thiếu lịch sử ngoài phạm vi model chấp nhận trả 422 INSUFFICIENT_DATA, model lỗi trả 503
+    MODEL_UNAVAILABLE. Không tạo Prediction thành công có null/NaN score.
+x-rag-policy:
+  input_scope: Demo index Markdown qua Core Files, scan_status=clean; PDF gốc là nguồn tham chiếu nếu đã có bản
+    Markdown được chuyển đổi có provenance. Không hứa OCR/PDF ingestion trong v1. File id/revision/checksum/dataset
+    đều xác minh qua Core, không nhận URL tùy ý. Version nguồn tệp ánh xạ File.sha256 theo x-source-version-mapping.
+  visibility: Index cách ly tenant/application/dataset, lọc ACL trước top_k rồi kiểm lại Core ACL, source version
+    và clean trước trả text/citation. Thu hồi ACL, sửa/xóa nguồn phải chặn retrieval ngay cả khi index job chưa
+    reconcile. Không leak tổng số nguồn bị cấm.
+  generations: Upsert theo tenant + file_id + file_version + checksum + chunker/embedding version; publish generation
+    nguyên tử sau hoàn tất. File thay đổi giữa lượt index phải fail hoặc tạo job revision mới; không trộn chunks
+    cũ/mới. Delete gỡ mọi generation của file trong phạm vi, tombstone chặn đọc khi chờ xóa vật lý. Cùng payload
+    không nhân đôi chunks.
+  answer: Trả excerpt bounded và source ổn định; không trả raw vector, đường dẫn storage, credential hay URL download
+    dài hạn. Không có chunks nghĩa chưa có bằng chứng trong phạm vi tìm kiếm; không kết luận nhà cung cấp không
+    có vấn đề.
+x-comparison-policy:
+  evaluation: Một dòng/yêu cầu mỗi lần so sánh. Cùng quantity, unit, deadline, as_of và currency. criteria=price
+    không chạy ML/RAG; delivery_risk mới gọi Prediction; internal_reviews mới gọi Retrieval. Tất cả nhà cung cấp
+    phải active và cung ứng đúng product/unit.
+  ranking: rank_by là thứ tự ưu tiên tiêu chí, không chứa trọng số ngầm do LLM bịa. V1 chỉ rank theo price hoặc
+    delivery_risk tăng dần, tie-break supplier_id. internal_reviews trả nguồn định tính, không biến thành điểm số.
+    Thiếu tiêu chí rank thì rank=null, không coi unknown là tốt nhất; expose evaluated/excluded/count/truncation.
+    Giới hạn giá/budget là hard filter; missing currency/price bị excluded với lý do.
+  bounds: Tối đa 20 supplier explicit, 100 candidate khi discovery, trả tối đa 20. Khi truncated=true không được
+    khẳng định tốt nhất trên toàn bộ tập. Một số candidate lỗi thì status=partial; tất cả phụ thuộc bắt buộc lỗi
+    trả 503/504. Tool không tự chọn thay người dùng hoặc cập nhật yêu cầu/PO.
+x-consistency:
+  transactions: Core Data transaction chứa records + revision + outbox; không ghi DB trực tiếp. Lưu report + job
+    terminal + event trong cùng local transaction. Unique report/job và fence revision chống ghi đè. Yêu cầu thay
+    đổi sau cutoff làm completion cũ trả 409 REQUEST_CHANGED; worker ghi job failed, không publish kết quả là current.
+  workflow: Workflow là nguồn authoritative của quyết định. Nếu Core Data và Workflow không chung local transaction,
+    dùng durable outbox/inbox + saga + reconciliation theo x-workflow-consistency của Core; không giả định distributed
+    ACID. Proposal có workflow_pending cho tới khi binding instance được xác nhận; chỉ pending mới được duyệt. Projection
+    ghi workflow_version cuối; approved event chỉ sau engine commit.
+  po: Worker đọc lại Workflow/task binding, proposal version và snapshot được duyệt, kiểm separation of duties trước
+    tạo PO. Unique proposal_id bảo đảm một PO cho một phiếu; nhiều supplier tạo nhiều phiếu cần duyệt riêng. Đổi
+    giá/quantity/deadline hoặc supplier của snapshot cần phiếu mới, không sửa PO đã phát hành bằng AI. PDF lưu qua
+    Core Files, phải clean và đúng snapshot/checksum trước dispatch.
+  email: 'Recipient từ hồ sơ supplier đã xác minh; template và PDF thuộc cùng PO version. Durable dispatch identity;
+    provider hỗ trợ idempotency thì tái dùng key. SMTP không bảo đảm exactly-once: outcome unknown phải đối soát
+    trước retry. sent chỉ là provider nhận, không đồng nghĩa supplier xác nhận hoặc giao hàng.'
+  confirmation: Token bí mật ngẫu nhiên, lưu hash, scope đúng một PO/action, có expiry; URL link chuyển token sang
+    header và bỏ khỏi address/referrer/log. GET không có tác động. Quyết định nguyên tử + audit/outbox; replay cùng
+    quyết định khi token hợp lệ trả kết quả cũ; quyết định ngược hoặc token đã revoke trả lỗi. Xác nhận PO không
+    phải nhận hàng.
+x-opencore-bindings:
+  identity:
+    - getIdentityConfig
+    - getPrincipal
+  data_read:
+    - listRecords
+    - getRecord
+    - getCollectionSchema
+  data_write:
+    - registerCollectionSchema
+    - commitTransaction
+  files:
+    - getFile
+    - downloadFile
+    - uploadFile
+    - searchFiles
+  workflow:
+    - registerWorkflow
+    - startWorkflow
+    - getWorkflowInstance
+    - getWorkflowTask
+    - applyWorkflowAction
+  events:
+    - publishEvent
+  note: OperationId khớp Core 0.2.0. Public CRUD trên collection giao dịch bị policy chặn; command service mới ghi.
+    Đăng ký schema/workflow khi provision, không mỗi lượt gọi tool.
+x-data-projections:
+  envelope: Core Record={id,version,data,created_at,updated_at}; business fields ở data. Tầng 2 chuẩn hóa envelope
+    thành DTO, không lặp id/version trong data. Những tên dưới là collection/projection ứng dụng cần đăng ký, không
+    cam kết bảng vật lý mới.
+  collections:
+    suppliers: SupplierView
+    products: ProductView
+    supplier_products: OfferView
+    purchase_requests: PurchaseRequest
+    delivery_history: DeliveryHistoryView
+    risk_assessments: RiskReport
+    proposals: Proposal
+    purchase_orders: PurchaseOrder
+    analysis_jobs: AnalysisJob
+    email_logs: DispatchView
+  reads: Đọc các projection bằng Core Data id/filter/pagination, task/instance qua Core Workflow, thông báo qua
+    Core Notifications. risk_assessments ở Core chỉ expose metadata nếu không enforce ACL từng source; report đầy
+    đủ đi qua getRiskReport hoặc Data Lookup. Chat không có public raw collection bypass ACL. DTO không thay việc
+    đăng ký collection schema, policy, business keys và lifecycle với Core.
+  materialization: Projection application ánh xạ từ schema DB hiện có qua Core adapter. Header/dòng không bắt buộc
+    thành bảng mới theo tên DTO. Aggregate snapshot và outbox phải commit nguyên tử trong một Core transaction,
+    không chia thành nhiều commit để vượt giới hạn 50 operations của Core. Giới hạn lô phải kiểm trước acceptance
+    nếu adapter cần nhiều operations hơn cho cùng aggregate.
+  line_identity: Mỗi revision trả item_id phía server và client_line_id để UI map lại. Giữ item_id với client_line_id
+    đã có khi chỉnh sửa dòng chưa ràng buộc phiếu; dòng mới cấp id mới, dòng bỏ giữ trong history revision cũ. Mọi
+    SavedItemRef luôn kèm request version; không dùng item_id đơn lẻ làm input đầy đủ.
+x-execution-policy:
+  binding: 'Mỗi chat turn hoặc analysis job có execution manifest bền vững do backend/worker tạo: execution_id,
+    tenant, principal/scope, as_of, deadline, model/feature/preprocessing/context dataset/threshold/index profile
+    versions. UserContext chứa execution_id được ký và đối chiếu manifest; JobContext phân giải manifest từ job.
+    Không tạo manifest từ prompt.'
+  fanout: Data Lookup/Prediction/Retrieval/Comparison dùng cùng context đã xác minh; lời gọi con giữ execution_id/cutoff
+    và giảm deadline còn lại. Không lấy clock mới mỗi fanout, không mở rộng scope, không dùng ServiceAuth-only thay
+    caller context. Scenario tính thời gian từ cutoff tới delivery_date theo lịch nghiệp vụ versioned.
+  snapshots: snapshot_id của Data Lookup ràng buộc execution_id/resource/selectors/page_size/ACL; hết hạn không
+    nối bằng dữ liệu mới. Model/index snapshot giữ ít nhất tới deadline và retry window. ACL hiện tại vẫn kiểm lại
+    dù snapshot cũ.
+  replay: Tái hiện lịch sử cần snapshot/manifest còn lưu và scope analysis:replay riêng; không cho user sửa cutoff.
+    V1 không công bố endpoint chạy lịch sử tùy ý.
+x-service-budgets:
+  limits: 'Trần cấu hình: lookup/retrieval 10s, prediction 30s, comparison 60s, flow 120s; chat turn 180s, analysis
+    job 900s. Khi deadline cha ngắn hơn thì dùng phần còn lại. Quá budget trả UPSTREAM_TIMEOUT, không báo kết quả
+    dở là thành công.'
+  concurrency: Một active turn/session; tin nhắn mới khác key khi active trả 409 INVALID_STATE với turn id được
+    phép xem. Có giới hạn fanout/concurrency, không chạy Agent vô hạn. Worker renew lease khi chờ flow; không gia
+    hạn quá deadline.
+  versioning: Budget, retry budget và profile versions đóng băng trong manifest; cấu hình có thể nhỏ hơn trần, không
+    âm thầm đổi giữa retry.
+x-contract-invariants:
+  - client_line_id và item_id unique trong request; một currency mỗi phiếu/PO; total khớp quy tắc decimal.
+  - SavedItemRef.item_id thuộc purchase_request_id và expected_version; không pha scenario với saved_item.
+  - Prediction.risk_level khớp so risk_score/threshold; FeatureValue.name unique theo feature_schema_version; value=null
+    phải có missing_reason và ngược lại.
+  - Report item ids đúng bằng tập dòng request revision, không thiếu/trùng; scenario/as_of/versions khớp manifest.
+    Report high khi bất kỳ dòng high.
+  - ComparisonCandidate có đủ ba CriterionResult khác tên; not_requested không có prediction/chunks; available delivery_risk
+    cần prediction. Rank chỉ cho candidate đủ rank_by, unique và liên tiếp.
+  - Chat partial phải có warning phần thiếu; câu trả lời giá/rủi ro/đánh giá phải có source đúng tool outcome.
+  - ConfirmationPreview.can_decide chỉ true khi awaiting_confirmation và token hợp lệ. Public DTO không chứa lease/token,
+    email nội bộ hoặc ACL bí mật.
+x-report-policy:
+  visibility: Report lưu bất biến; GET/facade có thể che text/source vừa mất quyền và thêm warning SOURCE_REDACTED.
+    Không ghi đè bản gốc để redaction. Nếu không thể che mà vẫn bảo toàn DTO và quyền thì trả 403/404, không rò
+    nội dung trong summary/features.
+  current: Current report là report từ job thành công mới nhất có đúng request_version và policy version hiện hành.
+    Truy vấn lịch sử giữ report id cũ và nhãn revision; không tạo current record bằng cách sửa report cũ.
+  lineage: Flow output có thể bị LLM sửa hoặc hallucinate; receiver phải đối chiếu Prediction ids/scenarios và source
+    ids với outcome trong manifest, kiểm cutoff/model/threshold/version và risk gate phía server trước commit.
+x-ordering-policy:
+  dispatch: issueApprovedPurchaseOrder tạo durable pending dispatch và PO. Dispatch claim không đổi approved snapshot.
+    PDF có application binding và approved snapshot digest; sender xác minh clean/checksum trước gửi và đối soát
+    registry dispatch. Callback outcome chỉ ghi log/status, không thể tự cấp quyền gửi.
+  unknown: Khi timeout gửi hoặc lease hết sau bắt đầu gửi, reaper/đối soát provider đưa attempt vào unknown. Chỉ
+    service scope orders:reconcile được cập nhật unknown thành sent hoặc failed qua recordOrderDispatch kèm cùng
+    dispatch_id/attempt và evidence registry phía server; lúc đó không dùng lease hết hạn để cấp quyền gửi lại.
+    Mọi endpoint cho phép nhánh này phải kiểm scope bổ sung và audit. Không expose thao tác này cho LLM.
+  confirmation_race: Một PO cùng lúc chỉ một quyết định xác nhận. Trang/link có thể được nhận trước callback sent;
+    API đối soát dispatch provider nếu có outcome đã xác minh, nếu chưa có thì can_decide=false và 409 INVALID_STATE,
+    không tự coi đã sent. Callback đến sau confirmed chỉ cập nhật attempt log, giữ order status confirmed.
+x-events:
+  envelope:
+    $ref: '#/components/schemas/Event'
+  delivery: At-least-once, thứ tự chỉ theo aggregate; inbox dedup tenant/event_id. Trùng id khác payload hoặc version
+    xung đột phải quarantine/audit, không drop im lặng. Consumer stale event đối soát state authoritative trước
+    ack; gap version thì hoãn/reconcile, không skip guard.
+  publication: Producer không POST lại cùng event để giả outbox. Ghi local outbox cùng commit rồi dispatcher gọi
+    Core publishEvent; event_type/schema_version có registry allowlist. tenant/producer từ server. aggregate_id/version
+    khớp record nêu trong data; không chứa token, full report, email body hoặc tài liệu nguồn.
+  workflow_bridge: Workflow approval và app projection có thể khác local transaction. Workflow commit decision/outbox
+    trước; bridge reconcile proposal, sau đó phát domain event với proposal_version. PO worker vẫn kiểm Workflow
+    authoritative trước tác động. Không lấy thứ tự đến của notification làm bằng chứng phê duyệt.
+  catalog:
+    - type: purchase_request.created
+      schema:
+        $ref: '#/components/schemas/PurchaseRequestCreatedEvent'
+      producer: purchasing-service
+      consumer: risk-worker
+      guard: Request revision đã commit; register job theo event_id.
+    - type: purchase_request.revised
+      schema:
+        $ref: '#/components/schemas/PurchaseRequestRevisedEvent'
+      producer: purchasing-service
+      consumer: risk-worker
+      guard: Revision mới đã commit; không dùng event cũ cho input mới.
+    - type: analysis.requested
+      schema:
+        $ref: '#/components/schemas/AnalysisRequestedEvent'
+      producer: analysis-service
+      consumer: risk-worker
+      guard: Job queued và manifest đã commit; claim đúng job.
+    - type: analysis.completed
+      schema:
+        $ref: '#/components/schemas/AnalysisCompletedEvent'
+      producer: analysis-service
+      consumer: notification-service
+      guard: Report/job succeeded đã commit cùng transaction; notification theo scope.
+    - type: analysis.failed
+      schema:
+        $ref: '#/components/schemas/AnalysisFailedEvent'
+      producer: analysis-service
+      consumer: notification-service
+      guard: Job terminal failed, lỗi lọc; không thay report cũ.
+    - type: proposal.submitted
+      schema:
+        $ref: '#/components/schemas/ProposalSubmittedEvent'
+      producer: proposal-service
+      consumer: workflow-binding-worker
+      guard: Snapshot/workflow_pending đã commit; startWorkflow business key unique.
+    - type: proposal.approved
+      schema:
+        $ref: '#/components/schemas/ProposalApprovedEvent'
+      producer: workflow-adapter
+      consumer: po-worker
+      guard: Engine authoritative đã commit approved; event aggregate version khớp projection proposal đã reconcile;
+        receiver đọc lại engine.
+    - type: proposal.rejected
+      schema:
+        $ref: '#/components/schemas/ProposalRejectedEvent'
+      producer: workflow-adapter
+      consumer: notification-service
+      guard: Quyết định rejected và lý do đã ghi ở Workflow; không phát hành PO.
+    - type: purchase_order.issued
+      schema:
+        $ref: '#/components/schemas/PurchaseOrderIssuedEvent'
+      producer: ordering-service
+      consumer: po-worker
+      guard: PO preparing và durable dispatch pending đã commit; dựng PDF rồi claim dispatch.
+    - type: purchase_order.email_dispatched
+      schema:
+        $ref: '#/components/schemas/PurchaseOrderEmailDispatchedEvent'
+      producer: ordering-service
+      consumer: notification-service
+      guard: Outcome được đối soát và log đã commit; sent không nghĩa confirmed.
+    - type: supplier_confirmation.recorded
+      schema:
+        $ref: '#/components/schemas/SupplierConfirmationRecordedEvent'
+      producer: confirmation-service
+      consumer: notification-service
+      guard: Decision/order/audit/outbox commit; không tạo receipt giao hàng.
+x-state-machines:
+  analysis_job:
+    transitions:
+      - 'queued -> running: claim lease'
+      - 'running -> running: renew hoặc reclaim lease hết hạn với attempt mới'
+      - 'running -> succeeded: report validated và commit'
+      - 'running -> failed: hết retry/deadline hoặc request changed'
+    terminal:
+      - succeeded
+      - failed
+    rule: Không chạy lại terminal job; manual reanalysis tạo job mới với key mới.
+  chat_turn:
+    transitions:
+      - queued -> running -> completed
+      - running -> partial
+      - 'queued/running -> failed: deadline hoặc dependency error'
+    rule: completed có thể needs_clarification=true. Partial phải ghi warning, không có action intent dựa trên input
+      thiếu.
+  proposal:
+    transitions:
+      - 'workflow_pending -> pending: binding instance thành công'
+      - 'workflow_pending -> workflow_failed: retry budget hết'
+      - 'workflow_failed -> workflow_pending: tác vụ đối soát được cấp quyền, cùng business key'
+      - 'pending -> approved hoặc rejected: authoritative Workflow decision'
+    rule: Mỗi line chỉ có một proposal active (workflow_pending/pending/approved); rejected giải phóng reservation.
+      approved giữ reservation tới PO, không phát hành lại.
+  request_projection:
+    rule: 'Trạng thái từng dòng nằm trong PurchaseRequestLine.workflow_status/analysis_status/proposal_id/order_id.
+      Status tổng: ordered khi mọi dòng ordered; nếu còn bất kỳ pending_approval thì pending_approval; approved
+      khi mọi dòng thuộc approved/ordered và chưa tất cả ordered; rejected khi không có dòng pending/approved và
+      có dòng rejected; còn lại open. Không dùng status tổng để cấp quyền phát hành PO.'
+  purchase_order:
+    transitions:
+      - 'preparing -> awaiting_confirmation: email sent đã xác minh'
+      - 'awaiting_confirmation -> confirmed hoặc rejected: supplier token decision'
+    rule: Không có delivered trong v1; email_status có lifecycle riêng pending/sent/failed/unknown. confirmed/rejected
+      không bị callback muộn ghi đè.
+x-use-cases:
+  - id: TH01
+    calls:
+      - Core.getIdentityConfig
+      - Core.getPrincipal
+    result: Identity/SSO; không gọi AI.
+  - id: TH02
+    calls:
+      - Core.listRecords
+      - Core.getRecord
+      - Core.getFile
+      - getRiskReport
+    result: Danh sách/chi tiết/báo cáo đã lưu; không suy luận lại.
+  - id: TH03
+    calls:
+      - createPurchaseRequest
+      - registerAutomaticAnalysis
+      - claimAnalysisJob
+      - runRiskAnalysis
+      - completeAnalysisJob
+    result: PR commit trước event; job/report theo revision.
+  - id: TH04
+    calls:
+      - createChatSession
+      - sendChatMessage
+      - lookupSupplierData
+      - getChatTurn
+    result: Tra cứu, trả nguồn hoặc hỏi rõ định danh.
+  - id: TH05
+    calls:
+      - lookupSupplierData
+      - predictDeliveryRisk
+    result: Ưu tiên report đã có; suy luận mới chỉ khi được yêu cầu/cần thiết.
+  - id: TH06
+    calls:
+      - retrieveSupplierKnowledge
+    result: Đoạn đánh giá và source; rỗng không nghĩa không rủi ro.
+  - id: TH07
+    calls:
+      - compareSuppliers
+    result: So sánh theo criteria, không gọi ML/RAG không cần thiết.
+  - id: TH08
+    calls:
+      - createAnalysisJob
+      - getAnalysisJob
+      - getRiskReport
+    result: Queue/poll; không giữ HTTP chờ flow.
+  - id: TH09
+    calls:
+      - createPurchaseProposal
+      - decidePurchaseProposal
+      - issueApprovedPurchaseOrder
+      - claimOrderDispatch
+      - recordOrderDispatch
+    result: Người lập chọn, quản lý duyệt, worker phát hành/gửi.
+  - id: TH10
+    calls:
+      - previewSupplierConfirmation
+      - recordSupplierConfirmation
+    result: GET đọc, POST quyết định token scope một PO.
+x-acceptance-scenarios:
+  - case: Retry cùng chat key
+    expect: Cùng turn id, một user message, không gọi Agent lần hai.
+  - case: Service token hợp lệ nhưng UserContext giả/sai tenant
+    expect: 401/403/404 theo policy; không fallback ServiceAuth-only hoặc leak tổng/excerpt.
+  - case: ML score đúng bằng threshold
+    expect: risk_level=high; score missing/NaN không qua success schema hoặc gate.
+  - case: ML thiếu lịch sử hoặc model lỗi
+    expect: 422 INSUFFICIENT_DATA hoặc 503 MODEL_UNAVAILABLE; không gán low; job chính failed.
+  - case: criteria chỉ price
+    expect: Không gọi Prediction/Retrieval; criterion khác not_requested; rank dựa giá cùng currency.
+  - case: Một supplier ML lỗi khi so sánh
+    expect: partial, prediction=null, criterion unavailable, rank=null nếu rank cần risk; không bịa score.
+  - case: Thu hồi ACL hoặc sửa/xóa file khi index còn stale
+    expect: Không trả đoạn/text/summary bị cấm; tombstone chặn đọc trước reconcile.
+  - case: Request đổi revision khi flow chạy hoặc worker cũ hoàn tất sau reclaim
+    expect: 409 REQUEST_CHANGED/LEASE_EXPIRED; không publish current report hoặc overwrite kết quả mới.
+  - case: Workflow đã duyệt nhưng app projection chậm
+    expect: Receipt projection pending; bridge reconcile; PO worker đọc authoritative trước cấp tác động.
+  - case: Email timeout không rõ provider nhận
+    expect: unknown, không retry mù, không tạo PO thứ hai; đối soát trước gửi lại.
+  - case: Email scanner GET link xác nhận
+    expect: Không đổi trạng thái. Hai POST ngược quyết định chỉ một commit, request còn lại 409.
+  - case: Một request nhiều dòng, một dòng thiếu dự đoán
+    expect: Không report succeeded giả; giữ report cũ và ghi failed theo policy.
+  - case: Hỏi tiếp hoặc mất quyền nguồn trong phiên chat
+    expect: Chỉ một turn active; needs_clarification có câu hỏi và không có action_intent; đọc lại vẫn kiểm ACL,
+      không dùng history làm quyền truy cập.
+tags:
+  - name: Purchasing
+  - name: Chat
+  - name: Analysis
+  - name: Tools
+  - name: Worker
+  - name: Knowledge indexing
+  - name: Ordering
+  - name: Supplier confirmation
+paths:
+  /api/v1/purchase-requests:
+    post:
+      operationId: createPurchaseRequest
+      tags:
+        - Purchasing
+      summary: Tạo yêu cầu mua hàng nhiều dòng
+      description: TH03 hoặc xác nhận draft từ chat. Kiểm supplier/product/unit/deadline, dòng unique và giá hiện
+        hành phía server. Không nhận giá/tổng/actor/tenant từ client. Ghi request và outbox purchase_request.created
+        cùng Core transaction; một dòng lỗi rollback toàn bộ. 201 sau commit, không đợi ML.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/core/data/purchase_requests/{id}'
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: User active được tạo trong department được cấp; actor từ principal.
+      x-visibility: authenticated-public
+      x-required-user-scope: purchase:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseCreate'
+            example:
+              items:
+                - client_line_id: line-1
+                  supplier_id: SUP-A
+                  product_id: PROD-X
+                  quantity: '100'
+                  unit: piece
+                  delivery_date: '2026-10-20'
+              note: Ví dụ thiết kế, không phải bản ghi thật.
+  /api/v1/purchase-requests/{request_id}/revisions:
+    post:
+      operationId: revisePurchaseRequest
+      tags:
+        - Purchasing
+      summary: Tạo revision mới trước khi gửi duyệt
+      description: Thay toàn bộ items của request open/rejected chưa có proposal active hoặc PO. Kiểm expected_version,
+        tính lại giá từ nguồn server; revision và outbox purchase_request.revised nguyên tử. Không sửa snapshot
+        đã gửi duyệt/đã phát hành. Phân tích cũ chỉ là lịch sử, không gán current cho revision mới.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Owner/department, đúng trạng thái và quyền hiện tại.
+      x-visibility: authenticated-public
+      x-required-user-scope: purchase:update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRevision'
+  /api/v1/chat/sessions:
+    post:
+      operationId: createChatSession
+      tags:
+        - Chat
+      summary: Tạo phiên chat thuộc người dùng
+      description: Ghi owner/tenant phía server. Session không cấp quyền dữ liệu. Backend chọn flow/config, không
+        trả provider session/key cho client.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/chat/sessions/{session_id}/messages'
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Owner từ principal, không nhận owner_id.
+      x-visibility: authenticated-public
+      x-required-user-scope: chat:use
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSessionCreate'
+            example:
+              title: Tra cứu nhà cung cấp
+  /api/v1/chat/sessions/{session_id}/messages:
+    post:
+      operationId: sendChatMessage
+      tags:
+        - Chat
+      summary: Queue một lượt chat
+      description: TH04-TH07. Ghi user message + turn queued + outbox nguyên tử, 202 để UI polling getChatTurn.
+        Backend dựng context tin cậy, N01→N02→N03 gọi tools theo ý định→N11. Hỏi kết quả đã lưu chỉ dùng Data Lookup.
+        Thiếu input/trùng tên trả needs_clarification trong turn. Action intents chỉ là draft; không tự tạo request/phiếu
+        hoặc phê duyệt/gửi email. Một active turn/session; replay không append message trùng.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/chat/turns/{turn_id}'
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              description: Khoảng polling gợi ý, giây.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatTurn'
+              example:
+                turn_id: TURN-001
+                session_id: CHAT-001
+                status: queued
+                result: null
+                error: null
+                created_at: '2026-10-15T03:00:00Z'
+                finished_at: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Owner session và quyền resource tham chiếu.
+      x-visibility: authenticated-public
+      x-required-user-scope: chat:use
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageInput'
+            example:
+              message: So sánh A và B cho PR-001
+              purchase_request_id: PR-001
+    get:
+      operationId: getChatHistory
+      tags:
+        - Chat
+      summary: Đọc lịch sử theo cursor
+      description: created_at tăng dần, tie-break message_id; cursor opaque ràng buộc owner/session, trang ổn định.
+        Chỉ user/assistant content đã lọc, không trả system prompt, raw tool traces, token hoặc nội dung nguồn bị
+        thu hồi ACL. Không gọi Agent khi đọc.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatHistory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Chỉ chủ phiên; admin không mặc định đọc mọi lịch sử.
+      x-visibility: authenticated-public
+      x-required-user-scope: chat:use
+  /api/v1/chat/turns/{turn_id}:
+    get:
+      operationId: getChatTurn
+      tags:
+        - Chat
+      summary: Đọc kết quả hoặc trạng thái lượt chat
+      description: queued/running có result/error=null. completed có answer, partial có căn cứ đã có và warning
+        phần thiếu, failed có lỗi. Không chạy tool lại khi polling. Kiểm ACL nguồn trong result mỗi lần đọc.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: turn_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatTurn'
+              example:
+                turn_id: TURN-001
+                session_id: CHAT-001
+                status: completed
+                result:
+                  answer: Bạn muốn so sánh cho sản phẩm nào và hạn giao ngày nào?
+                  needs_clarification: true
+                  clarification_questions:
+                    - Sản phẩm và hạn giao mong muốn là gì?
+                  sources: []
+                  action_intents: []
+                  warnings: []
+                error: null
+                created_at: '2026-10-15T03:00:00Z'
+                finished_at: '2026-10-15T03:00:02Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Owner session gắn turn và scope tài nguyên hiện tại.
+      x-visibility: authenticated-public
+      x-required-user-scope: chat:use
+  /api/v1/analysis-jobs:
+    post:
+      operationId: createAnalysisJob
+      tags:
+        - Analysis
+      summary: Queue phân tích lại revision đã lưu
+      description: TH08. Kiểm expected_version, chốt manifest, ghi job + outbox analysis.requested cùng Core transaction,
+        trả 202. Input phải lưu trước qua revision command. Job tương đương active trả 409 ANALYSIS_IN_PROGRESS;
+        cùng key replay trả job cũ.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/analysis-jobs/{job_id}'
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              description: Khoảng polling gợi ý, giây.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJob'
+              example:
+                job_id: JOB-001
+                purchase_request_id: PR-001
+                request_version: 1
+                status: queued
+                trigger: manual
+                as_of: '2026-10-15T03:00:00Z'
+                policy_version: policy-demo-v1
+                attempt: 0
+                report_id: null
+                error: null
+                created_at: '2026-10-15T03:00:00Z'
+                finished_at: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Quyền đọc và yêu cầu phân tích request; client không chọn cutoff/model/threshold.
+      x-visibility: authenticated-public
+      x-required-user-scope: analysis:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisCreate'
+            example:
+              purchase_request_id: PR-001
+              expected_version: 1
+  /api/v1/analysis-jobs/{job_id}:
+    get:
+      operationId: getAnalysisJob
+      tags:
+        - Analysis
+      summary: Đọc trạng thái phân tích
+      description: Chỉ đọc queued/running/succeeded/failed; succeeded có report_id. Không trả lease/worker identity.
+        Poll không suy luận lại; lỗi lần chạy mới không sửa báo cáo cũ.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJob'
+              example:
+                job_id: JOB-001
+                purchase_request_id: PR-001
+                request_version: 1
+                status: queued
+                trigger: manual
+                as_of: '2026-10-15T03:00:00Z'
+                policy_version: policy-demo-v1
+                attempt: 0
+                report_id: null
+                error: null
+                created_at: '2026-10-15T03:00:00Z'
+                finished_at: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Quyền đọc request gốc và job trong tenant.
+      x-visibility: authenticated-public
+      x-required-user-scope: analysis:read
+  /api/v1/risk-reports/{report_id}:
+    get:
+      operationId: getRiskReport
+      tags:
+        - Analysis
+      summary: Đọc báo cáo bất biến đã lưu
+      description: Đọc report đúng job/revision, kiểm ACL/citations. UI hiển thị version/as_of phân biệt báo cáo
+        cũ. Không gán current khi request đổi và không chạy lại ML. Che nguồn bị thu hồi và trả warning; report
+        không cấp quyền vượt ACL.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Quyền đọc request/report và từng nguồn.
+      x-visibility: authenticated-public
+      x-required-user-scope: analysis:read
+  /internal/v1/tools/data-lookup:
+    post:
+      operationId: lookupSupplierData
+      tags:
+        - Tools
+      summary: Tra cứu DTO theo scope và snapshot
+      description: N04→Data Lookup→Core Structured Data API. Selector allowlist, chuẩn hóa Record envelope. resource
+        quyết định duy nhất kiểu items, không trộn DTO. Search tên trả ứng viên để Agent hỏi lại nếu mơ hồ. Rỗng
+        trả items=[]. Duyệt đủ history qua snapshot để tính ML. Đọc risk_assessment không chạy AI. risk_assessment
+        áp cùng redaction/ACL nguồn như getRiskReport, không đọc raw report để vượt facade.
+      security:
+        - ServiceAuth: []
+          UserContext: []
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupResponse'
+              example:
+                resource: supplier_product
+                items: []
+                page:
+                  page: 1
+                  page_size: 20
+                  total: 0
+                  as_of: '2026-10-15T03:00:00Z'
+                  snapshot_id: SNAP-001
+                sources: []
+                warnings: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Giao scope dịch vụ với user/job; không lấy field ngoài quyền caller.
+      x-visibility: internal-only
+      x-required-service-scope: tools:data:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupRequest'
+            example:
+              resource: supplier_product
+              product_id: PROD-X
+              page: 1
+              page_size: 20
+      x-agent-tool: true
+  /internal/v1/tools/predict-risk:
+    post:
+      operationId: predictDeliveryRisk
+      tags:
+        - Tools
+      summary: Dự đoán một dòng đã lưu hoặc scenario
+      description: N05→Prediction→Data Lookup. Đúng một saved_item hoặc scenario. Saved item lấy toàn bộ input từ
+        revision đã xác minh. Scenario chỉ what-if, không sửa request/current report. Cutoff và versions từ manifest.
+        200 chỉ có score hợp lệ; thiếu dữ liệu 422, model lỗi 503; không phân loại low khi lỗi.
+      security:
+        - ServiceAuth: []
+          UserContext: []
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prediction'
+              example:
+                id: PRED-001
+                scenario:
+                  supplier_id: SUP-A
+                  product_id: PROD-X
+                  quantity: '100'
+                  unit: piece
+                  delivery_date: '2026-10-20'
+                as_of: '2026-10-15T03:00:00Z'
+                risk_score: 0.7
+                score_kind: risk_score
+                calibration_version: null
+                threshold: 0.7
+                threshold_version: policy-demo-v1
+                risk_level: high
+                model_version: model-demo-v1
+                feature_schema_version: features-demo-v1
+                preprocessing_version: preprocess-demo-v1
+                context_dataset_version: context-demo-v1
+                history_sample_size: 50
+                features:
+                  - name: historical_late_rate
+                    value: 0.4
+                    unit: null
+                    missing_reason: null
+                sources:
+                  - evidence:
+                      source_type: structured_data
+                      source_id: HISTORY-001
+                      title: Snapshot lịch sử giao hàng minh họa
+                      supplier_id: SUP-A
+                    source_version: '1'
+                    observed_at: '2026-10-15T03:00:00Z'
+                warnings:
+                  - code: ILLUSTRATIVE_EXAMPLE
+                    message: Số liệu minh họa hợp đồng, không phải kết quả mô hình đã chạy.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Quyền request/item hoặc supplier/product/history cần dùng; fanout cùng context.
+      x-visibility: internal-only
+      x-required-service-scope: tools:prediction:run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictionRequest'
+            example:
+              scenario:
+                supplier_id: SUP-A
+                product_id: PROD-X
+                quantity: '100'
+                unit: piece
+                delivery_date: '2026-10-20'
+      x-agent-tool: true
+  /internal/v1/tools/retrieve-knowledge:
+    post:
+      operationId: retrieveSupplierKnowledge
+      tags:
+        - Tools
+      summary: Truy xuất đánh giá nội bộ có nguồn
+      description: N06→Retrieval→Vector Database đã index. Filter tenant/dataset/supplier/product/ACL, revalidate
+        nguồn qua Core trước trả text. Không index lại kho ở query path. chunks=[] là chưa tìm thấy bằng chứng;
+        lỗi index/nguồn không giả thành rỗng. relevance_score không là xác suất chất lượng supplier.
+      security:
+        - ServiceAuth: []
+          UserContext: []
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrievalResponse'
+              example:
+                chunks: []
+                index_version: index-demo-v1
+                as_of: '2026-10-15T03:00:00Z'
+                warnings: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Tài liệu clean, đúng version/cutoff và ACL hiện tại; không expose storage URL.
+      x-visibility: internal-only
+      x-required-service-scope: tools:knowledge:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetrievalRequest'
+            example:
+              query: Có đánh giá chất lượng nào cần lưu ý?
+              supplier_id: SUP-B
+              top_k: 5
+      x-agent-tool: true
+  /internal/v1/tools/compare-suppliers:
+    post:
+      operationId: compareSuppliers
+      tags:
+        - Tools
+      summary: So sánh hoặc tìm phương án cho một dòng
+      description: N07 dùng Data Lookup tìm cùng product/unit, giữ quantity/deadline/currency/cutoff giống nhau.
+        Chỉ gọi Prediction/Retrieval khi criteria yêu cầu. Trả giá/rủi ro có kiểu và trạng thái từng tiêu chí; partial
+        khi một phần thiếu, không bịa score/rank. Không có ứng viên trả candidates=[] với căn cứ excluded. Tất cả
+        phụ thuộc bắt buộc lỗi trả lỗi dịch vụ. Không sửa đơn hoặc chọn thay người dùng.
+      security:
+        - ServiceAuth: []
+          UserContext: []
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResponse'
+              example:
+                status: complete
+                as_of: '2026-10-15T03:00:00Z'
+                candidates: []
+                excluded:
+                  - supplier_id: SUP-A
+                    reason: inactive
+                evaluated_count: 1
+                truncated: false
+                warnings: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Quyền từng supplier/offer/history/document; nested scope kiểm lại ở receiver.
+      x-visibility: internal-only
+      x-required-service-scope: tools:comparison:run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComparisonRequest'
+            example:
+              input:
+                saved_item:
+                  purchase_request_id: PR-001
+                  item_id: ITEM-001
+                  expected_version: 1
+              options:
+                criteria:
+                  - price
+                  - delivery_risk
+                  - internal_reviews
+                rank_by:
+                  - delivery_risk
+                  - price
+                supplier_ids:
+                  - SUP-A
+                  - SUP-B
+                limit: 10
+      x-agent-tool: true
+  /internal/v1/analysis-jobs:
+    post:
+      operationId: registerAutomaticAnalysis
+      tags:
+        - Worker
+      summary: Đăng ký job từ sự kiện tạo hoặc sửa yêu cầu
+      description: TH03. Worker nhận sự kiện đã commit, kiểm producer/event_id/tenant/aggregate/version và nguồn
+        inbox; Idempotency-Key=event_id. Một job cho event/revision, actor/policy từ server. Không phát analysis.requested
+        thêm vòng lặp; worker tiếp tục claim. Event stale trả 409 REQUEST_CHANGED, không tạo current job cho revision
+        mới; ack theo stale-event policy.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/analysis-jobs/{job_id}'
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Service đúng ứng dụng/tenant, event đã xác minh; không tin role/actor từ event.data.
+      x-visibility: internal-only
+      x-required-service-scope: analysis:register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRegister'
+  /internal/v1/analysis-jobs/{job_id}/claim:
+    post:
+      operationId: claimAnalysisJob
+      tags:
+        - Worker
+      summary: Claim job và cấp lease có fencing
+      description: CAS queued hoặc running lease hết hạn; một lease active, tăng attempt, cấp token/expires/deadline
+        phía server. Replay trả lease cũ dù đã hết hạn; claim lại cần key mới, không gia hạn qua replay. Terminal
+        job trả 409 INVALID_STATE.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Worker registry/tenant/job binding; không cho Agent gọi.
+      x-visibility: internal-only
+      x-required-service-scope: analysis:work
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaseRequest'
+            example:
+              lease_seconds: 120
+  /internal/v1/analysis-jobs/{job_id}/lease:
+    post:
+      operationId: renewAnalysisLease
+      tags:
+        - Worker
+      summary: Gia hạn lease đang sở hữu
+      description: CAS lease_id/attempt còn hiệu lực, không đổi attempt/cutoff và không kéo quá deadline. Worker
+        renew trước expiry khi chờ flow. Token cũ/expired trả 409 LEASE_EXPIRED.
+      security:
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: JobContext trùng path; lease thuộc worker hiện tại.
+      x-visibility: internal-only
+      x-required-service-scope: analysis:work
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaseRenew'
+            example:
+              lease_id: LEASE-001
+              attempt: 1
+              lease_seconds: 120
+  /internal/v1/flows/risk-analysis:
+    post:
+      operationId: runRiskAnalysis
+      tags:
+        - Worker
+      summary: Chạy flow tự động và trả báo cáo
+      description: N08→N02→N04→N05→N09 cho mọi dòng cùng revision. high khi score>=threshold; chỉ dòng high mới
+        tìm phương án N07 theo policy. N10 tổng hợp→N12 trả report, chưa lưu succeeded; worker gọi completion. JobContext
+        trùng job_id, lease/attempt còn hiệu lực đầu/cuối. Report sai schema/thiếu dòng trả lỗi, không giữ nhánh
+        low giả. Backend giữ URL/flow/key; retry cùng key tái dùng outcome đã tính.
+      security:
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Chỉ risk worker và manifest đúng job; node không đổi cutoff/lease.
+      x-visibility: internal-only
+      x-required-service-scope: analysis:run-flow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskAnalysisRun'
+            example:
+              job_id: JOB-001
+              lease_id: LEASE-001
+              attempt: 1
+  /internal/v1/analysis-jobs/{job_id}/result:
+    post:
+      operationId: completeAnalysisJob
+      tags:
+        - Worker
+      summary: Commit báo cáo và kết thúc job nguyên tử
+      description: Kiểm lease/attempt/expiry, job running, current request_version và report lineage/as_of/versions/item
+        snapshots đúng manifest. Đối chiếu tool outcome đã ghi, không tin score từ flow chỉ vì đúng schema. Lưu
+        immutable report + job succeeded + outbox analysis.completed cùng Core transaction. Sai report 409 REPORT_MISMATCH;
+        request đổi 409 REQUEST_CHANGED; không publish kết quả dở.
+      security:
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Path/context/report cùng job; worker sở hữu lease.
+      x-visibility: internal-only
+      x-required-service-scope: analysis:complete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisCompletion'
+  /internal/v1/analysis-jobs/{job_id}/failure:
+    post:
+      operationId: failAnalysisJob
+      tags:
+        - Worker
+      summary: Ghi lỗi sau khi hết retry budget
+      description: Kiểm lease/attempt, ghi job failed + lỗi lọc + outbox analysis.failed nguyên tử. Request đổi
+        vẫn cho kết thúc job cũ bằng REQUEST_CHANGED, không sửa report mới. Worker hết lease phải claim lại; reaper
+        có policy khôi phục job mồ côi riêng.
+      security:
+        - ServiceAuth: []
+          JobContext: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Path/context/job binding và lease hợp lệ; không cho Agent ghi terminal.
+      x-visibility: internal-only
+      x-required-service-scope: analysis:complete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisFailure'
+  /internal/v1/knowledge-index-jobs:
+    post:
+      operationId: createKnowledgeIndexJob
+      tags:
+        - Knowledge indexing
+      summary: Queue upsert hoặc gỡ chỉ mục
+      description: Chỉ index service, không Tool Mode. Kiểm dataset/files/version/checksum và Core scan/ACL hoặc
+        tombstone cho delete. Chốt chunker/embedding profile; 202 sau durable acceptance. Worker chia đoạn/embed,
+        publish generation nguyên tử, đối soát khi lỗi. Một file đổi revision giữa lượt không publish cả lô là success;
+        tạo lô mới sau xác minh.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /internal/v1/knowledge-index-jobs/{job_id}'
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              description: Khoảng polling gợi ý, giây.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeIndexJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Dataset/file đúng ứng dụng/tenant; index quyền service không cấp retrieval quyền user.
+      x-visibility: internal-only
+      x-required-service-scope: knowledge:index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeIndexCreate'
+  /internal/v1/knowledge-index-jobs/{job_id}:
+    get:
+      operationId: getKnowledgeIndexJob
+      tags:
+        - Knowledge indexing
+      summary: Đọc tiến độ nạp tri thức
+      description: GET chỉ đọc status/counters/generation/lỗi. succeeded chỉ khi generation mới publish hoặc tombstone/delete
+        đã áp dụng. Không tự index lại khi polling.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeIndexJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Service có quyền dataset của job và đúng tenant/application.
+      x-visibility: internal-only
+      x-required-service-scope: knowledge:index:read
+  /api/v1/proposals:
+    post:
+      operationId: createPurchaseProposal
+      tags:
+        - Purchasing
+      summary: Chốt phương án thành phiếu gửi duyệt
+      description: TH09. Người dùng xác nhận lựa chọn. Kiểm request revision, report, selections, giá/offer version
+        và trùng dòng active. Chốt snapshot cùng supplier/currency, tạo workflow_pending + outbox để start Workflow
+        với business key unique. 201 sau commit; chỉ pending sau binding instance xác nhận. Engine lỗi chuyển workflow_failed
+        và đối soát, không auto approve. Giá đã đổi trả 409 VERSION_CONFLICT để xem lại, không âm thầm lấy giá mới.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/core/data/proposals/{id}'
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Owner/department có quyền; không nhận approver_id/role/approved flag.
+      x-visibility: authenticated-public
+      x-required-user-scope: proposal:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposalCreate'
+            example:
+              purchase_request_id: PR-001
+              expected_version: 1
+              selections:
+                - item_id: ITEM-001
+                  selected_supplier_id: SUP-B
+                  expected_offer_version: 2
+              report_id: RISK-001
+              reason: Người dùng chọn sau khi xem báo cáo.
+  /api/v1/proposals/{proposal_id}/decisions:
+    post:
+      operationId: decidePurchaseProposal
+      tags:
+        - Purchasing
+      summary: Phê duyệt hoặc từ chối qua Workflow
+      description: TH09. Người có quyền và được giao task, đúng proposal/task binding, trạng thái pending và cả
+        hai version. Chặn tự duyệt theo separation policy; rejected cần lý do. Gọi Core applyWorkflowAction với
+        delegated UserContext; quyết định/audit/outbox commit ở Workflow. Receipt trả sau engine commit, projection
+        có thể pending. Không đợi PO/email và không dùng LLM. Timeout đối soát Workflow bằng cùng key trước retry.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: proposal_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Scope AND task/department assignment AND separation of duties; admin không tự có quyền.
+      x-visibility: authenticated-public
+      x-required-user-scope: proposal:decide
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposalDecision'
+            example:
+              decision: rejected
+              expected_version: 1
+              workflow_task_id: TASK-001
+              expected_workflow_version: 1
+              reason: Cần xem lại ngân sách.
+  /internal/v1/purchase-orders:
+    post:
+      operationId: issueApprovedPurchaseOrder
+      tags:
+        - Ordering
+      summary: Tạo một PO từ snapshot được duyệt
+      description: Worker nhận proposal.approved đã commit, đọc lại Workflow authoritative và proposal/version/binding.
+        Unique proposal_id; phát lại cùng phiếu trả cùng PO. Dữ liệu từ approved snapshot, không nhận giá/supplier/recipient
+        từ body. Ghi PO preparing + dispatch pending + outbox cùng Core transaction. Worker dựng PDF lưu Core Files
+        clean, claimOrderDispatch trước gửi.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/core/data/purchase_orders/{id}'
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: PO service riêng; event/binding đúng proposal/tenant/application.
+      x-visibility: internal-only
+      x-required-service-scope: orders:issue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderIssue'
+  /internal/v1/purchase-orders/{order_id}/dispatch-claim:
+    post:
+      operationId: claimOrderDispatch
+      tags:
+        - Ordering
+      summary: Claim tác vụ gửi email cho PO
+      description: Kiểm version, approved snapshot/Workflow và dispatch pending; CAS lease/attempt cho một sender.
+        Cấp durable dispatch_id làm provider idempotency key. Lease 120s, sender timeout tối đa 30s. Lease hết khi
+        đã bắt đầu gửi mà chưa rõ outcome chuyển unknown, không reclaim gửi mù; đối soát provider trước. Definitive
+        failed retry cùng PO/logical dispatch, attempt mới. Không claim khi PO confirmed/rejected hoặc email sent/unknown.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchLease'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: PO worker đúng registry/order binding; không dùng Agent credential.
+      x-visibility: internal-only
+      x-required-service-scope: orders:dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchClaim'
+  /internal/v1/purchase-orders/{order_id}/dispatch-result:
+    post:
+      operationId: recordOrderDispatch
+      tags:
+        - Ordering
+      summary: Ghi kết quả gửi email theo dispatch
+      description: Đối chiếu lease/attempt, PO version, dispatch record và PDF clean/version/hash thuộc approved
+        snapshot. Lưu email log + status + outbox nguyên tử. sent→awaiting_confirmation; failed lưu lỗi cho retry;
+        unknown chờ đối soát. provider_message_id không chứng minh delivered. Stale completion không ghi đè PO confirmed;
+        đối soát đúng attempt log. Replay không gửi email hoặc notification lần hai. Ngoại lệ lease hết hạn chỉ
+        cho đối soát unknown với scope orders:reconcile và evidence server, không cấp quyền gửi lại.
+      security:
+        - ServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Sender sở hữu dispatch; guard authoritative trước tác động.
+      x-visibility: internal-only
+      x-required-service-scope: orders:dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchResult'
+      x-required-reconciliation-scope: orders:reconcile
+  /api/v1/purchase-orders/{order_id}/email-retries:
+    post:
+      operationId: requestEmailRetry
+      tags:
+        - Ordering
+      summary: Queue gửi lại email thất bại rõ ràng
+      description: Version đúng, email_status=failed và PO chưa confirmed/rejected. Queue/outbox trên cùng PO, giữ
+        dispatch identity; không tạo PO mới. unknown trả 409 INVALID_STATE để đối soát. 202 theo dõi qua Core purchase_orders/email_logs;
+        không đợi SMTP trong HTTP.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã ghi bền vững.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+            Location:
+              description: 'Tài nguyên theo dõi: /api/v1/core/data/purchase_orders/{order_id}'
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              description: Khoảng polling gợi ý, giây.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Người phụ trách PO được cấp quyền và department scope.
+      x-visibility: authenticated-public
+      x-required-user-scope: orders:retry-email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRetry'
+            example:
+              expected_version: 3
+              reason: Provider xác nhận lần gửi trước thất bại.
+  /api/v1/supplier-confirmations/{order_id}:
+    get:
+      operationId: previewSupplierConfirmation
+      tags:
+        - Supplier confirmation
+      summary: Xem PO theo token xác nhận
+      description: TH10. Token đúng PO/chưa hết hạn/chưa revoke. GET chỉ đọc dù email scanner mở link. Chỉ thông
+        tin cần quyết định, không lịch sử nội bộ, AI report hoặc approver. Trang xác nhận chuyển link token sang
+        header; API không nhận query token.
+      security:
+        - ConfirmationToken: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmationPreview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Token capability đúng order/action; IAM token không thay được token xác nhận.
+      x-visibility: supplier-token
+    post:
+      operationId: recordSupplierConfirmation
+      tags:
+        - Supplier confirmation
+      summary: Xác nhận hoặc từ chối PO
+      description: 'TH10. Token hợp lệ và PO awaiting_confirmation; rejected cần lý do. Decision + order state +
+        audit/outbox supplier_confirmation.recorded nguyên tử. Token còn hiệu lực: cùng quyết định trả kết quả cũ
+        dù key khác; quyết định ngược trả 409 INVALID_STATE. Sai/hết hạn token trả 401 TOKEN_INVALID/TOKEN_EXPIRED.
+        confirmed không phải đã giao hàng.'
+      security:
+        - ConfirmationToken: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Kết quả hợp lệ; kiểm quyền khi replay.
+          headers:
+            X-Correlation-Id:
+              description: Mã truy vết chuẩn hóa.
+              schema:
+                $ref: '#/components/schemas/Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierConfirmation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/Timeout'
+      x-resource-policy: Đúng một PO; idempotency principal là capability id server, không lưu raw token.
+      x-visibility: supplier-token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmationDecision'
+            example:
+              decision: confirmed
+components:
+  schemas:
+    Version:
+      type: integer
+      minimum: 1
+    Date:
+      type: string
+      format: date
+    Quantity:
+      type: string
+      pattern: ^(0|[1-9][0-9]{0,13})(\.[0-9]{1,4})?$
+      description: Decimal dương; server kiểm > 0 và quy tắc unit, không chấp nhận số 0.
+      not:
+        pattern: ^0(\.0{1,4})?$
+      examples:
+        - '100'
+        - '10.5000'
+    Warning:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        item_id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+    SourceRef:
+      type: object
+      additionalProperties: false
+      required:
+        - evidence
+        - source_version
+        - observed_at
+      properties:
+        evidence:
+          $ref: '#/components/schemas/Evidence'
+        source_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: 'Theo x-source-version-mapping: Record.version dạng chuỗi hoặc File.sha256; không giả định
+            Core File có version.'
+        observed_at:
+          $ref: '#/components/schemas/Timestamp'
+        checksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        chunk_id:
+          $ref: '#/components/schemas/Id'
+        locator:
+          type: string
+          maxLength: 300
+          description: Heading/page nếu biết; không bịa số trang.
+    PageMeta:
+      type: object
+      additionalProperties: false
+      required:
+        - page
+        - page_size
+        - total
+        - as_of
+        - snapshot_id
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+          description: Tổng có quyền xem trong snapshot.
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        snapshot_id:
+          $ref: '#/components/schemas/Id'
+    SupplierView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - display_code
+        - name
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        display_code:
+          type: string
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 300
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+    ProductView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - display_code
+        - name
+        - unit
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        display_code:
+          type: string
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 300
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+    OfferView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - supplier_id
+        - product_id
+        - unit
+        - unit_price
+        - available
+        - observed_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        unit_price:
+          $ref: '#/components/schemas/Money'
+        available:
+          type: boolean
+        observed_at:
+          $ref: '#/components/schemas/Timestamp'
+    PurchaseLineInput:
+      type: object
+      additionalProperties: false
+      required:
+        - client_line_id
+        - supplier_id
+        - product_id
+        - quantity
+        - unit
+        - delivery_date
+      properties:
+        client_line_id:
+          $ref: '#/components/schemas/Id'
+          description: Unique trong request để UI đối chiếu lỗi/dòng trả về.
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        delivery_date:
+          $ref: '#/components/schemas/Date'
+    PurchaseCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PurchaseLineInput'
+        note:
+          type: string
+          maxLength: 2000
+    PurchaseRevision:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_version
+        - items
+        - reason
+      properties:
+        expected_version:
+          $ref: '#/components/schemas/Version'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PurchaseLineInput'
+        note:
+          type: string
+          maxLength: 2000
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+    PurchaseLine:
+      type: object
+      additionalProperties: false
+      required:
+        - item_id
+        - client_line_id
+        - supplier_id
+        - product_id
+        - quantity
+        - unit
+        - delivery_date
+        - offer_id
+        - offer_version
+        - unit_price
+        - total_price
+      properties:
+        item_id:
+          $ref: '#/components/schemas/Id'
+        client_line_id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        delivery_date:
+          $ref: '#/components/schemas/Date'
+        offer_id:
+          $ref: '#/components/schemas/Id'
+        offer_version:
+          $ref: '#/components/schemas/Version'
+        unit_price:
+          $ref: '#/components/schemas/Money'
+        total_price:
+          $ref: '#/components/schemas/Money'
+    PurchaseRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - display_code
+        - items
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        display_code:
+          type: string
+          maxLength: 80
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PurchaseRequestLine'
+        note:
+          type: string
+          maxLength: 2000
+        status:
+          type: string
+          enum:
+            - open
+            - pending_approval
+            - approved
+            - rejected
+            - ordered
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+    DeliveryHistoryView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - supplier_id
+        - product_id
+        - quantity
+        - unit
+        - ordered_at
+        - promised_date
+        - received_date
+        - known_at
+        - late
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        ordered_at:
+          $ref: '#/components/schemas/Timestamp'
+        promised_date:
+          $ref: '#/components/schemas/Date'
+        received_date:
+          $ref: '#/components/schemas/Date'
+        known_at:
+          $ref: '#/components/schemas/Timestamp'
+        late:
+          type: boolean
+          description: Theo định nghĩa label versioned; không phải prediction.
+    LookupRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+      properties:
+        resource:
+          type: string
+          enum:
+            - supplier
+            - product
+            - supplier_product
+            - purchase_request
+            - delivery_history
+            - risk_assessment
+            - purchase_order
+        id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        query:
+          type: string
+          minLength: 1
+          maxLength: 200
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        snapshot_id:
+          $ref: '#/components/schemas/Id'
+          description: Bắt buộc từ page>1, cùng resource/selectors/page_size; page đầu bỏ trống để server cấp.
+      description: Selector có kiểu, không nhận SQL/filter động. supplier_id áp supplier_product, delivery_history,
+        purchase_order; product_id áp supplier_product/delivery_history; purchase_request_id chỉ risk_assessment;
+        query chỉ supplier/product. Field không phù hợp resource trả 400. Trang sau phải giữ snapshot_id; snapshot
+        hết hạn trả 409 INVALID_STATE, không trộn dữ liệu mới vào phép tính cũ.
+      allOf:
+        - if:
+            properties:
+              page:
+                minimum: 2
+            required:
+              - page
+          then:
+            required:
+              - snapshot_id
+    PredictionScenario:
+      type: object
+      additionalProperties: false
+      required:
+        - supplier_id
+        - product_id
+        - quantity
+        - unit
+        - delivery_date
+      properties:
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        delivery_date:
+          $ref: '#/components/schemas/Date'
+    SavedItemRef:
+      type: object
+      additionalProperties: false
+      required:
+        - purchase_request_id
+        - item_id
+        - expected_version
+      properties:
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        item_id:
+          $ref: '#/components/schemas/Id'
+        expected_version:
+          $ref: '#/components/schemas/Version'
+    PredictionRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - saved_item
+          properties:
+            saved_item:
+              $ref: '#/components/schemas/SavedItemRef'
+        - type: object
+          additionalProperties: false
+          required:
+            - scenario
+          properties:
+            scenario:
+              $ref: '#/components/schemas/PredictionScenario'
+    FeatureValue:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - value
+        - unit
+        - missing_reason
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        value:
+          type:
+            - number
+            - string
+            - boolean
+            - 'null'
+        unit:
+          type:
+            - string
+            - 'null'
+          maxLength: 40
+        missing_reason:
+          type:
+            - string
+            - 'null'
+          maxLength: 300
+    Prediction:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - scenario
+        - as_of
+        - risk_score
+        - score_kind
+        - calibration_version
+        - threshold
+        - threshold_version
+        - risk_level
+        - model_version
+        - feature_schema_version
+        - preprocessing_version
+        - context_dataset_version
+        - history_sample_size
+        - features
+        - sources
+        - warnings
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        scenario:
+          $ref: '#/components/schemas/PredictionScenario'
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        risk_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        score_kind:
+          type: string
+          enum:
+            - risk_score
+            - calibrated_probability
+        calibration_version:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+        threshold_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        risk_level:
+          type: string
+          enum:
+            - low
+            - high
+        model_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        feature_schema_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        preprocessing_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        context_dataset_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        history_sample_size:
+          type: integer
+          minimum: 0
+        features:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/FeatureValue'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+      allOf:
+        - if:
+            properties:
+              score_kind:
+                const: calibrated_probability
+            required:
+              - score_kind
+          then:
+            properties:
+              calibration_version:
+                type: string
+                minLength: 1
+          else:
+            properties:
+              calibration_version:
+                type: 'null'
+    RetrievalRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+      description: Query không có supplier_id chỉ tìm trên toàn bộ dataset mà caller có quyền; không suy ra scope
+        từ prompt.
+    KnowledgeChunk:
+      type: object
+      additionalProperties: false
+      required:
+        - chunk_id
+        - supplier_id
+        - text
+        - source
+        - relevance_score
+      properties:
+        chunk_id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        text:
+          type: string
+          minLength: 1
+          maxLength: 3000
+        source:
+          $ref: '#/components/schemas/SourceRef'
+        relevance_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Độ liên quan chuẩn hóa trong index profile; không phải mức tin cậy sự thật.
+    RetrievalResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - chunks
+        - index_version
+        - as_of
+        - warnings
+      properties:
+        chunks:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/KnowledgeChunk'
+        index_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    ComparisonCriteria:
+      type: object
+      additionalProperties: false
+      required:
+        - criteria
+        - rank_by
+      properties:
+        criteria:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - price
+              - delivery_risk
+              - internal_reviews
+        rank_by:
+          type: array
+          maxItems: 2
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - price
+              - delivery_risk
+        supplier_ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Id'
+        exclude_supplier_ids:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Id'
+        max_unit_price:
+          $ref: '#/components/schemas/Money'
+        max_total_price:
+          $ref: '#/components/schemas/Money'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 10
+      description: rank_by là tập con có thứ tự của criteria; server kiểm tra, không suy diễn trọng số. Không có
+        supplier_ids thì discovery.
+    ComparisonRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - input
+        - options
+      properties:
+        input:
+          $ref: '#/components/schemas/PredictionRequest'
+        options:
+          $ref: '#/components/schemas/ComparisonCriteria'
+    CriterionResult:
+      type: object
+      additionalProperties: false
+      required:
+        - criterion
+        - status
+        - reason
+      properties:
+        criterion:
+          type: string
+          enum:
+            - price
+            - delivery_risk
+            - internal_reviews
+        status:
+          type: string
+          enum:
+            - available
+            - no_evidence
+            - unavailable
+            - not_requested
+        reason:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+    ComparisonCandidate:
+      type: object
+      additionalProperties: false
+      required:
+        - supplier
+        - offer
+        - scenario
+        - total_price
+        - rank
+        - prediction
+        - knowledge_chunks
+        - criteria
+        - warnings
+      properties:
+        supplier:
+          $ref: '#/components/schemas/SupplierView'
+        offer:
+          $ref: '#/components/schemas/OfferView'
+        scenario:
+          $ref: '#/components/schemas/PredictionScenario'
+        total_price:
+          $ref: '#/components/schemas/Money'
+        rank:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        prediction:
+          anyOf:
+            - $ref: '#/components/schemas/Prediction'
+            - type: 'null'
+        knowledge_chunks:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/KnowledgeChunk'
+        criteria:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/CriterionResult'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    ExcludedCandidate:
+      type: object
+      additionalProperties: false
+      required:
+        - supplier_id
+        - reason
+      properties:
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        reason:
+          type: string
+          enum:
+            - inactive
+            - not_supplied
+            - unavailable
+            - wrong_unit
+            - currency_mismatch
+            - over_budget
+            - missing_price
+            - excluded_by_request
+    ComparisonResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - as_of
+        - candidates
+        - excluded
+        - evaluated_count
+        - truncated
+        - warnings
+      properties:
+        status:
+          type: string
+          enum:
+            - complete
+            - partial
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        candidates:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ComparisonCandidate'
+        excluded:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ExcludedCandidate'
+        evaluated_count:
+          type: integer
+          minimum: 0
+          maximum: 100
+        truncated:
+          type: boolean
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    ReportLine:
+      type: object
+      additionalProperties: false
+      required:
+        - item_id
+        - prediction
+        - alternatives
+      properties:
+        item_id:
+          $ref: '#/components/schemas/Id'
+        prediction:
+          $ref: '#/components/schemas/Prediction'
+        alternatives:
+          anyOf:
+            - $ref: '#/components/schemas/ComparisonResponse'
+            - type: 'null'
+      description: alternatives=null khi không yêu cầu; candidates=[] khi đã tìm nhưng không có phương án.
+    RiskReport:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - job_id
+        - purchase_request_id
+        - request_version
+        - as_of
+        - policy_version
+        - flow_version
+        - items
+        - risk_level
+        - summary
+        - sources
+        - warnings
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        job_id:
+          $ref: '#/components/schemas/Id'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        policy_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        flow_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ReportLine'
+        risk_level:
+          type: string
+          enum:
+            - low
+            - high
+          description: high nếu ít nhất một dòng high; không tính trung bình để che dòng rủi ro cao.
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        sources:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+    AnalysisCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - purchase_request_id
+        - expected_version
+      properties:
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        expected_version:
+          $ref: '#/components/schemas/Version'
+    AnalysisRegister:
+      type: object
+      additionalProperties: false
+      required:
+        - event
+      properties:
+        event:
+          allOf:
+            - $ref: '#/components/schemas/Event'
+            - properties:
+                event_type:
+                  enum:
+                    - purchase_request.created
+                    - purchase_request.revised
+                schema_version:
+                  const: '1.0'
+                aggregate_type:
+                  const: purchase_request
+                data:
+                  $ref: '#/components/schemas/PurchaseRequestEventData'
+      description: Event lấy từ broker/inbox tin cậy; JSON event đơn lẻ không tự cấp quyền hoặc chứng minh đã commit.
+    AnalysisJob:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - purchase_request_id
+        - request_version
+        - status
+        - trigger
+        - as_of
+        - policy_version
+        - attempt
+        - report_id
+        - error
+        - created_at
+        - finished_at
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - succeeded
+            - failed
+        trigger:
+          type: string
+          enum:
+            - manual
+            - purchase_request.created
+            - purchase_request.revised
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        policy_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+        attempt:
+          type: integer
+          minimum: 0
+        report_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorResponse'
+            - type: 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        finished_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+      allOf:
+        - if:
+            properties:
+              status:
+                const: succeeded
+            required:
+              - status
+          then:
+            properties:
+              report_id:
+                $ref: '#/components/schemas/Id'
+              error:
+                type: 'null'
+              finished_at:
+                $ref: '#/components/schemas/Timestamp'
+        - if:
+            properties:
+              status:
+                const: failed
+            required:
+              - status
+          then:
+            properties:
+              report_id:
+                type: 'null'
+              error:
+                $ref: '#/components/schemas/ErrorResponse'
+              finished_at:
+                $ref: '#/components/schemas/Timestamp'
+        - if:
+            properties:
+              status:
+                enum:
+                  - queued
+                  - running
+            required:
+              - status
+          then:
+            properties:
+              report_id:
+                type: 'null'
+              error:
+                type: 'null'
+              finished_at:
+                type: 'null'
+    LeaseRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        lease_seconds:
+          type: integer
+          minimum: 30
+          maximum: 300
+          default: 120
+    Lease:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - attempt
+        - lease_id
+        - expires_at
+        - deadline_at
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        deadline_at:
+          $ref: '#/components/schemas/Timestamp'
+    LeaseRenew:
+      type: object
+      additionalProperties: false
+      required:
+        - lease_id
+        - attempt
+      properties:
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+        lease_seconds:
+          type: integer
+          minimum: 30
+          maximum: 300
+          default: 120
+    RiskAnalysisRun:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - lease_id
+        - attempt
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+      description: request/version/cutoff/policy/flow lấy từ job đã xác minh, không lấy từ LLM.
+    AnalysisCompletion:
+      type: object
+      additionalProperties: false
+      required:
+        - lease_id
+        - attempt
+        - report
+      properties:
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+        report:
+          $ref: '#/components/schemas/RiskReport'
+    AnalysisFailure:
+      type: object
+      additionalProperties: false
+      required:
+        - lease_id
+        - attempt
+        - error
+      properties:
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+        error:
+          $ref: '#/components/schemas/ErrorResponse'
+    ChatSessionCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+    ChatSession:
+      type: object
+      additionalProperties: false
+      required:
+        - session_id
+        - created_at
+      properties:
+        session_id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+    ChatMessageInput:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 8000
+          pattern: \S
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+      description: Không nhận system message, history tùy ý, role, tenant, credentials hoặc flow id.
+    ActionIntent:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - label
+      properties:
+        kind:
+          type: string
+          enum:
+            - draft_purchase_request
+            - draft_proposal
+            - request_analysis
+        label:
+          type: string
+          minLength: 1
+          maxLength: 200
+        purchase_draft:
+          $ref: '#/components/schemas/PurchaseCreate'
+        proposal_draft:
+          $ref: '#/components/schemas/ProposalCreate'
+        analysis_draft:
+          $ref: '#/components/schemas/AnalysisCreate'
+      oneOf:
+        - properties:
+            kind:
+              const: draft_purchase_request
+          required:
+            - purchase_draft
+          not:
+            anyOf:
+              - required:
+                  - proposal_draft
+              - required:
+                  - analysis_draft
+        - properties:
+            kind:
+              const: draft_proposal
+          required:
+            - proposal_draft
+          not:
+            anyOf:
+              - required:
+                  - purchase_draft
+              - required:
+                  - analysis_draft
+        - properties:
+            kind:
+              const: request_analysis
+          required:
+            - analysis_draft
+          not:
+            anyOf:
+              - required:
+                  - purchase_draft
+              - required:
+                  - proposal_draft
+      description: Bản nháp để UI xác nhận; không phải quyền thực thi. Backend kiểm lại mọi giá trị khi nhận command.
+    ChatAnswer:
+      type: object
+      additionalProperties: false
+      required:
+        - answer
+        - needs_clarification
+        - clarification_questions
+        - sources
+        - action_intents
+        - warnings
+      properties:
+        answer:
+          type: string
+          minLength: 1
+          maxLength: 16000
+        needs_clarification:
+          type: boolean
+        clarification_questions:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 1000
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        action_intents:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/ActionIntent'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+      allOf:
+        - if:
+            properties:
+              needs_clarification:
+                const: true
+            required:
+              - needs_clarification
+          then:
+            properties:
+              clarification_questions:
+                minItems: 1
+              action_intents:
+                maxItems: 0
+          else:
+            properties:
+              clarification_questions:
+                maxItems: 0
+    ChatTurn:
+      type: object
+      additionalProperties: false
+      required:
+        - turn_id
+        - session_id
+        - status
+        - result
+        - error
+        - created_at
+        - finished_at
+      properties:
+        turn_id:
+          $ref: '#/components/schemas/Id'
+        session_id:
+          $ref: '#/components/schemas/Id'
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - completed
+            - partial
+            - failed
+        result:
+          anyOf:
+            - $ref: '#/components/schemas/ChatAnswer'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorResponse'
+            - type: 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        finished_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+      description: completed/partial có result; partial nêu phần tool lỗi trong warnings; failed có error và result=null.
+      allOf:
+        - if:
+            properties:
+              status:
+                enum:
+                  - completed
+                  - partial
+            required:
+              - status
+          then:
+            properties:
+              result:
+                $ref: '#/components/schemas/ChatAnswer'
+              error:
+                type: 'null'
+              finished_at:
+                $ref: '#/components/schemas/Timestamp'
+        - if:
+            properties:
+              status:
+                const: failed
+            required:
+              - status
+          then:
+            properties:
+              result:
+                type: 'null'
+              error:
+                $ref: '#/components/schemas/ErrorResponse'
+              finished_at:
+                $ref: '#/components/schemas/Timestamp'
+        - if:
+            properties:
+              status:
+                enum:
+                  - queued
+                  - running
+            required:
+              - status
+          then:
+            properties:
+              result:
+                type: 'null'
+              error:
+                type: 'null'
+              finished_at:
+                type: 'null'
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - message_id
+        - turn_id
+        - role
+        - content
+        - sources
+        - created_at
+      properties:
+        message_id:
+          $ref: '#/components/schemas/Id'
+        turn_id:
+          $ref: '#/components/schemas/Id'
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+          maxLength: 16000
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+    ChatHistory:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        next_cursor:
+          type:
+            - string
+            - 'null'
+          maxLength: 1024
+    ProposalLineSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - item_id
+        - selected_supplier_id
+        - expected_offer_version
+      properties:
+        item_id:
+          $ref: '#/components/schemas/Id'
+        selected_supplier_id:
+          $ref: '#/components/schemas/Id'
+        expected_offer_version:
+          $ref: '#/components/schemas/Version'
+    ProposalCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - purchase_request_id
+        - expected_version
+        - selections
+        - report_id
+        - reason
+      properties:
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        expected_version:
+          $ref: '#/components/schemas/Version'
+        selections:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ProposalLineSelection'
+        report_id:
+          $ref: '#/components/schemas/Id'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+      description: Một phiếu cho một supplier/currency, có thể chọn tập con dòng yêu cầu; không để cùng dòng nằm
+        trong hai phiếu active. Mọi selection thuộc request revision, report phải cùng revision và có quyền xem;
+        giá hiện hành phải khớp offer version. Report là căn cứ, không tự cấp quyền đặt hàng. Server chốt snapshot
+        trước gửi duyệt.
+    Proposal:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - purchase_request_id
+        - request_version
+        - report_id
+        - supplier_id
+        - items
+        - total_price
+        - status
+        - workflow_instance_id
+        - workflow_version
+        - reason
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+        report_id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PurchaseLine'
+        total_price:
+          $ref: '#/components/schemas/Money'
+        status:
+          type: string
+          enum:
+            - workflow_pending
+            - pending
+            - approved
+            - rejected
+            - workflow_failed
+        workflow_instance_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+        workflow_version:
+          anyOf:
+            - $ref: '#/components/schemas/Version'
+            - type: 'null'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+      allOf:
+        - if:
+            properties:
+              status:
+                enum:
+                  - pending
+                  - approved
+                  - rejected
+            required:
+              - status
+          then:
+            properties:
+              workflow_instance_id:
+                $ref: '#/components/schemas/Id'
+              workflow_version:
+                $ref: '#/components/schemas/Version'
+    ProposalDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - decision
+        - expected_version
+        - workflow_task_id
+        - expected_workflow_version
+      properties:
+        decision:
+          type: string
+          enum:
+            - approved
+            - rejected
+        expected_version:
+          $ref: '#/components/schemas/Version'
+        workflow_task_id:
+          $ref: '#/components/schemas/Id'
+        expected_workflow_version:
+          $ref: '#/components/schemas/Version'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+      allOf:
+        - if:
+            properties:
+              decision:
+                const: rejected
+            required:
+              - decision
+          then:
+            required:
+              - reason
+    DecisionReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        - proposal_id
+        - workflow_task_id
+        - workflow_version
+        - decision
+        - decided_at
+        - projection_status
+      properties:
+        proposal_id:
+          $ref: '#/components/schemas/Id'
+        workflow_task_id:
+          $ref: '#/components/schemas/Id'
+        workflow_version:
+          $ref: '#/components/schemas/Version'
+        decision:
+          type: string
+          enum:
+            - approved
+            - rejected
+        decided_at:
+          $ref: '#/components/schemas/Timestamp'
+        projection_status:
+          type: string
+          enum:
+            - pending
+            - synced
+      description: Receipt từ quyết định authoritative đã commit; projection pending thì UI tiếp tục đọc Workflow/Core.
+    PurchaseOrderIssue:
+      type: object
+      additionalProperties: false
+      required:
+        - proposal_id
+        - expected_version
+        - source_event_id
+      properties:
+        proposal_id:
+          $ref: '#/components/schemas/Id'
+        expected_version:
+          $ref: '#/components/schemas/Version'
+        source_event_id:
+          $ref: '#/components/schemas/Id'
+    PurchaseOrder:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - proposal_id
+        - supplier_id
+        - items
+        - total_price
+        - status
+        - email_status
+        - pdf_file_id
+        - issued_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        version:
+          $ref: '#/components/schemas/Version'
+        proposal_id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PurchaseLine'
+        total_price:
+          $ref: '#/components/schemas/Money'
+        status:
+          type: string
+          enum:
+            - preparing
+            - awaiting_confirmation
+            - confirmed
+            - rejected
+        email_status:
+          type: string
+          enum:
+            - pending
+            - sent
+            - failed
+            - unknown
+        pdf_file_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+        issued_at:
+          $ref: '#/components/schemas/Timestamp'
+    DispatchResult:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_version
+        - dispatch_id
+        - outcome
+        - pdf_file_id
+        - pdf_version
+        - pdf_sha256
+        - provider_message_id
+        - error_code
+        - lease_id
+        - attempt
+      properties:
+        expected_version:
+          $ref: '#/components/schemas/Version'
+        dispatch_id:
+          $ref: '#/components/schemas/Id'
+        outcome:
+          type: string
+          enum:
+            - sent
+            - failed
+            - unknown
+        pdf_file_id:
+          $ref: '#/components/schemas/Id'
+        pdf_version:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          description: Core File.sha256; phải bằng pdf_sha256.
+        pdf_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        provider_message_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 300
+        error_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 80
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+      description: Không nhận email recipient/body/token; đối soát dispatch record đã claim, không tin outcome tự
+        khai. Kiểm lease/attempt/expiry và đúng PO snapshot.
+    DispatchView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - order_id
+        - outcome
+        - attempted_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        order_id:
+          $ref: '#/components/schemas/Id'
+        outcome:
+          type: string
+          enum:
+            - pending
+            - sent
+            - failed
+            - unknown
+        attempted_at:
+          $ref: '#/components/schemas/Timestamp'
+    EmailRetry:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_version
+        - reason
+      properties:
+        expected_version:
+          $ref: '#/components/schemas/Version'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+    ActionAccepted:
+      type: object
+      additionalProperties: false
+      required:
+        - action_id
+        - resource_id
+        - status
+      properties:
+        action_id:
+          $ref: '#/components/schemas/Id'
+        resource_id:
+          $ref: '#/components/schemas/Id'
+        status:
+          const: queued
+    ConfirmationDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - decision
+      properties:
+        decision:
+          type: string
+          enum:
+            - confirmed
+            - rejected
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+      allOf:
+        - if:
+            properties:
+              decision:
+                const: rejected
+            required:
+              - decision
+          then:
+            required:
+              - reason
+    ConfirmationPreview:
+      type: object
+      additionalProperties: false
+      required:
+        - order_id
+        - items
+        - total_price
+        - status
+        - can_decide
+        - expires_at
+      properties:
+        order_id:
+          $ref: '#/components/schemas/Id'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ConfirmationLine'
+        total_price:
+          $ref: '#/components/schemas/Money'
+        status:
+          type: string
+          enum:
+            - preparing
+            - awaiting_confirmation
+            - confirmed
+            - rejected
+        can_decide:
+          type: boolean
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+    ConfirmationLine:
+      type: object
+      additionalProperties: false
+      required:
+        - product_name
+        - quantity
+        - unit
+        - delivery_date
+        - unit_price
+        - total_price
+      properties:
+        product_name:
+          type: string
+          minLength: 1
+          maxLength: 300
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        delivery_date:
+          $ref: '#/components/schemas/Date'
+        unit_price:
+          $ref: '#/components/schemas/Money'
+        total_price:
+          $ref: '#/components/schemas/Money'
+    SupplierConfirmation:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - order_id
+        - decision
+        - reason
+        - recorded_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        order_id:
+          $ref: '#/components/schemas/Id'
+        decision:
+          type: string
+          enum:
+            - confirmed
+            - rejected
+        reason:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+        recorded_at:
+          $ref: '#/components/schemas/Timestamp'
+    IndexFileRef:
+      type: object
+      additionalProperties: false
+      required:
+        - file_id
+        - source_version
+        - checksum
+      properties:
+        file_id:
+          $ref: '#/components/schemas/Id'
+        source_version:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          description: SHA-256 từ Core getFile; phải bằng checksum, không phải field version chưa được Core Files
+            công bố.
+        checksum:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    KnowledgeIndexCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - dataset_id
+        - files
+      properties:
+        operation:
+          type: string
+          enum:
+            - upsert
+            - delete
+        dataset_id:
+          $ref: '#/components/schemas/Id'
+        files:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/IndexFileRef'
+      description: Delete dựa tombstone/registry có quyền khi file đã xóa; không đòi download lại tệp đã mất.
+    KnowledgeIndexJob:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - operation
+        - status
+        - index_version
+        - processed_files
+        - indexed_chunks
+        - error
+        - warnings
+        - created_at
+        - finished_at
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        operation:
+          type: string
+          enum:
+            - upsert
+            - delete
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - succeeded
+            - failed
+        index_version:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 128
+        processed_files:
+          type: integer
+          minimum: 0
+          maximum: 50
+        indexed_chunks:
+          type: integer
+          minimum: 0
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/ErrorResponse'
+            - type: 'null'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        finished_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+      allOf:
+        - if:
+            properties:
+              status:
+                const: succeeded
+            required:
+              - status
+          then:
+            properties:
+              index_version:
+                type: string
+                minLength: 1
+              error:
+                type: 'null'
+              finished_at:
+                $ref: '#/components/schemas/Timestamp'
+        - if:
+            properties:
+              status:
+                const: failed
+            required:
+              - status
+          then:
+            properties:
+              error:
+                $ref: '#/components/schemas/ErrorResponse'
+              finished_at:
+                $ref: '#/components/schemas/Timestamp'
+        - if:
+            properties:
+              status:
+                enum:
+                  - queued
+                  - running
+            required:
+              - status
+          then:
+            properties:
+              index_version:
+                type: 'null'
+              error:
+                type: 'null'
+              finished_at:
+                type: 'null'
+    PurchaseRequestEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - purchase_request_id
+        - request_version
+      properties:
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+    Id:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
+      examples:
+        - PR-001
+    Timestamp:
+      type: string
+      format: date-time
+      pattern: Z$
+      examples:
+        - '2026-10-13T03:00:00Z'
+    Money:
+      type: object
+      additionalProperties: false
+      properties:
+        amount:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,13})\.[0-9]{2}$
+          examples:
+            - '10000.00'
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+          examples:
+            - VND
+      required:
+        - amount
+        - currency
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          enum:
+            - UNAUTHENTICATED
+            - FORBIDDEN
+            - NOT_FOUND
+            - VALIDATION_ERROR
+            - VERSION_CONFLICT
+            - IDEMPOTENCY_CONFLICT
+            - INVALID_STATE
+            - INSUFFICIENT_DATA
+            - MODEL_UNAVAILABLE
+            - UPSTREAM_UNAVAILABLE
+            - UPSTREAM_TIMEOUT
+            - RATE_LIMITED
+            - TOKEN_EXPIRED
+            - TOKEN_INVALID
+            - ANALYSIS_IN_PROGRESS
+            - LEASE_EXPIRED
+            - REQUEST_CHANGED
+            - REPORT_MISMATCH
+            - INTERNAL_ERROR
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+        request_id:
+          $ref: '#/components/schemas/Id'
+        retryable:
+          type: boolean
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              field:
+                type: string
+              reason:
+                type: string
+            required:
+              - field
+              - reason
+      required:
+        - code
+        - message
+        - request_id
+        - retryable
+    Evidence:
+      type: object
+      additionalProperties: false
+      properties:
+        source_type:
+          type: string
+          enum:
+            - structured_data
+            - knowledge
+            - prediction
+        source_id:
+          type: string
+        title:
+          type: string
+        supplier_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+        excerpt:
+          type: string
+          maxLength: 3000
+        file_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+      required:
+        - source_type
+        - source_id
+        - title
+    Event:
+      type: object
+      additionalProperties: false
+      properties:
+        event_id:
+          $ref: '#/components/schemas/Id'
+        event_type:
+          type: string
+        schema_version:
+          type: string
+        occurred_at:
+          $ref: '#/components/schemas/Timestamp'
+        tenant_id:
+          $ref: '#/components/schemas/Id'
+        producer:
+          type: string
+        correlation_id:
+          $ref: '#/components/schemas/Id'
+        aggregate_type:
+          type: string
+        aggregate_id:
+          $ref: '#/components/schemas/Id'
+        aggregate_version:
+          type: integer
+          minimum: 1
+        data:
+          type: object
+          additionalProperties: true
+      required:
+        - event_id
+        - event_type
+        - schema_version
+        - occurred_at
+        - tenant_id
+        - producer
+        - correlation_id
+        - aggregate_type
+        - aggregate_id
+        - aggregate_version
+        - data
+    DispatchClaim:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_version
+      properties:
+        expected_version:
+          $ref: '#/components/schemas/Version'
+    DispatchLease:
+      type: object
+      additionalProperties: false
+      required:
+        - dispatch_id
+        - order_id
+        - attempt
+        - lease_id
+        - expires_at
+        - order
+      properties:
+        dispatch_id:
+          $ref: '#/components/schemas/Id'
+        order_id:
+          $ref: '#/components/schemas/Id'
+        attempt:
+          type: integer
+          minimum: 1
+        lease_id:
+          $ref: '#/components/schemas/Id'
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        order:
+          $ref: '#/components/schemas/PurchaseOrder'
+    LookupSupplierResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: supplier
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SupplierView'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupProductResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: product
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ProductView'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupSupplierProductResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: supplier_product
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/OfferView'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupPurchaseRequestResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: purchase_request
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/PurchaseRequest'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupDeliveryHistoryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: delivery_history
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DeliveryHistoryView'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupRiskAssessmentResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: risk_assessment
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RiskReport'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupPurchaseOrderResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - resource
+        - items
+        - page
+        - sources
+        - warnings
+      properties:
+        resource:
+          const: purchase_order
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/PurchaseOrder'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        sources:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Warning'
+    LookupResponse:
+      oneOf:
+        - $ref: '#/components/schemas/LookupSupplierResponse'
+        - $ref: '#/components/schemas/LookupProductResponse'
+        - $ref: '#/components/schemas/LookupSupplierProductResponse'
+        - $ref: '#/components/schemas/LookupPurchaseRequestResponse'
+        - $ref: '#/components/schemas/LookupDeliveryHistoryResponse'
+        - $ref: '#/components/schemas/LookupRiskAssessmentResponse'
+        - $ref: '#/components/schemas/LookupPurchaseOrderResponse'
+      discriminator:
+        propertyName: resource
+        mapping:
+          supplier: '#/components/schemas/LookupSupplierResponse'
+          product: '#/components/schemas/LookupProductResponse'
+          supplier_product: '#/components/schemas/LookupSupplierProductResponse'
+          purchase_request: '#/components/schemas/LookupPurchaseRequestResponse'
+          delivery_history: '#/components/schemas/LookupDeliveryHistoryResponse'
+          risk_assessment: '#/components/schemas/LookupRiskAssessmentResponse'
+          purchase_order: '#/components/schemas/LookupPurchaseOrderResponse'
+    AnalysisRequestedEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - purchase_request_id
+        - request_version
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+    AnalysisCompletedEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - report_id
+        - purchase_request_id
+        - request_version
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        report_id:
+          $ref: '#/components/schemas/Id'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+    AnalysisFailedEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - purchase_request_id
+        - request_version
+        - code
+      properties:
+        job_id:
+          $ref: '#/components/schemas/Id'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+        code:
+          type: string
+          enum:
+            - UNAUTHENTICATED
+            - FORBIDDEN
+            - NOT_FOUND
+            - VALIDATION_ERROR
+            - VERSION_CONFLICT
+            - IDEMPOTENCY_CONFLICT
+            - INVALID_STATE
+            - INSUFFICIENT_DATA
+            - MODEL_UNAVAILABLE
+            - UPSTREAM_UNAVAILABLE
+            - UPSTREAM_TIMEOUT
+            - RATE_LIMITED
+            - TOKEN_EXPIRED
+            - TOKEN_INVALID
+            - ANALYSIS_IN_PROGRESS
+            - LEASE_EXPIRED
+            - REQUEST_CHANGED
+            - REPORT_MISMATCH
+            - INTERNAL_ERROR
+    ProposalEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - proposal_id
+        - proposal_version
+        - purchase_request_id
+        - request_version
+        - workflow_instance_id
+        - workflow_version
+      properties:
+        proposal_id:
+          $ref: '#/components/schemas/Id'
+        proposal_version:
+          $ref: '#/components/schemas/Version'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+        workflow_instance_id:
+          $ref: '#/components/schemas/Id'
+        workflow_version:
+          $ref: '#/components/schemas/Version'
+    ProposalSubmittedEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - proposal_id
+        - proposal_version
+        - purchase_request_id
+        - request_version
+      properties:
+        proposal_id:
+          $ref: '#/components/schemas/Id'
+        proposal_version:
+          $ref: '#/components/schemas/Version'
+        purchase_request_id:
+          $ref: '#/components/schemas/Id'
+        request_version:
+          $ref: '#/components/schemas/Version'
+    OrderIssuedEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - order_id
+        - proposal_id
+        - order_version
+      properties:
+        order_id:
+          $ref: '#/components/schemas/Id'
+        proposal_id:
+          $ref: '#/components/schemas/Id'
+        order_version:
+          $ref: '#/components/schemas/Version'
+    EmailDispatchedEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - order_id
+        - dispatch_id
+        - outcome
+      properties:
+        order_id:
+          $ref: '#/components/schemas/Id'
+        dispatch_id:
+          $ref: '#/components/schemas/Id'
+        outcome:
+          enum:
+            - sent
+            - failed
+            - unknown
+    ConfirmationEventData:
+      type: object
+      additionalProperties: false
+      required:
+        - order_id
+        - confirmation_id
+        - decision
+      properties:
+        order_id:
+          $ref: '#/components/schemas/Id'
+        confirmation_id:
+          $ref: '#/components/schemas/Id'
+        decision:
+          enum:
+            - confirmed
+            - rejected
+    PurchaseRequestCreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: purchase_request.created
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: purchase_request
+            data:
+              $ref: '#/components/schemas/PurchaseRequestEventData'
+    PurchaseRequestRevisedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: purchase_request.revised
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: purchase_request
+            data:
+              $ref: '#/components/schemas/PurchaseRequestEventData'
+    AnalysisRequestedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: analysis.requested
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: analysis_job
+            data:
+              $ref: '#/components/schemas/AnalysisRequestedEventData'
+    AnalysisCompletedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: analysis.completed
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: analysis_job
+            data:
+              $ref: '#/components/schemas/AnalysisCompletedEventData'
+    AnalysisFailedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: analysis.failed
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: analysis_job
+            data:
+              $ref: '#/components/schemas/AnalysisFailedEventData'
+    ProposalSubmittedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: proposal.submitted
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: proposal
+            data:
+              $ref: '#/components/schemas/ProposalSubmittedEventData'
+    ProposalApprovedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: proposal.approved
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: proposal
+            data:
+              $ref: '#/components/schemas/ProposalEventData'
+    ProposalRejectedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: proposal.rejected
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: proposal
+            data:
+              $ref: '#/components/schemas/ProposalEventData'
+    PurchaseOrderIssuedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: purchase_order.issued
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: purchase_order
+            data:
+              $ref: '#/components/schemas/OrderIssuedEventData'
+    PurchaseOrderEmailDispatchedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: purchase_order.email_dispatched
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: purchase_order
+            data:
+              $ref: '#/components/schemas/EmailDispatchedEventData'
+    SupplierConfirmationRecordedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - properties:
+            event_type:
+              const: supplier_confirmation.recorded
+            schema_version:
+              const: '1.0'
+            aggregate_type:
+              const: purchase_order
+            data:
+              $ref: '#/components/schemas/ConfirmationEventData'
+    PurchaseRequestLine:
+      type: object
+      additionalProperties: false
+      required:
+        - item_id
+        - client_line_id
+        - supplier_id
+        - product_id
+        - quantity
+        - unit
+        - delivery_date
+        - offer_id
+        - offer_version
+        - unit_price
+        - total_price
+        - workflow_status
+        - analysis_status
+        - proposal_id
+        - order_id
+      properties:
+        item_id:
+          $ref: '#/components/schemas/Id'
+        client_line_id:
+          $ref: '#/components/schemas/Id'
+        supplier_id:
+          $ref: '#/components/schemas/Id'
+        product_id:
+          $ref: '#/components/schemas/Id'
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 40
+        delivery_date:
+          $ref: '#/components/schemas/Date'
+        offer_id:
+          $ref: '#/components/schemas/Id'
+        offer_version:
+          $ref: '#/components/schemas/Version'
+        unit_price:
+          $ref: '#/components/schemas/Money'
+        total_price:
+          $ref: '#/components/schemas/Money'
+        workflow_status:
+          type: string
+          enum:
+            - open
+            - pending_approval
+            - approved
+            - rejected
+            - ordered
+        analysis_status:
+          type: string
+          enum:
+            - not_requested
+            - queued
+            - running
+            - succeeded
+            - failed
+        proposal_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+        order_id:
+          anyOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+      description: Projection hiện tại của dòng request; không đưa trường trạng thái mutable vào approved snapshot
+        PurchaseLine. Job/report/status chỉ dùng revision đang đọc.
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token từ Identity/SSO của OpenCore. Kiểm tra issuer, audience, expiry và quyền đối với
+        tài nguyên.
+    ServiceAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token dịch vụ từ IAM; scope và tenant được kiểm tra ở dịch vụ nhận. Không phân phối token dịch
+        vụ cho Web/App.
+    UserContext:
+      type: apiKey
+      in: header
+      name: X-User-Context
+      description: JWT ngữ cảnh được ký bởi backend/issuer tin cậy, không phải JSON actor/role từ prompt. Xác minh
+        signature, audience, tenant và expiry.
+    JobContext:
+      type: apiKey
+      in: header
+      name: X-Analysis-Job-Id
+      description: Mã job chỉ là tham chiếu ngữ cảnh, không tự cấp quyền. Kèm ServiceAuth; dịch vụ đọc job từ OpenCore,
+        kiểm tra tenant, principal khởi tạo và scope trước khi dùng dữ liệu.
+    ConfirmationToken:
+      type: apiKey
+      in: header
+      name: X-Confirmation-Token
+      description: Token bí mật đúng một PO, có expiry/revocation; không phải IAM token; luôn dùng HTTPS ngoài local.
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        $ref: '#/components/schemas/Id'
+      description: Mã truy vết, không phải quyền truy cập.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+      description: Key ổn định cho một thao tác ghi; retry dùng lại key.
+  responses:
+    BadRequest:
+      description: Request không hợp lệ.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Request không hợp lệ.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    Unauthorized:
+      description: Thiếu hoặc sai thông tin xác thực.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHENTICATED
+            message: Thiếu hoặc sai thông tin xác thực.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    Forbidden:
+      description: Không có quyền trong tenant hoặc tài nguyên.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: FORBIDDEN
+            message: Không có quyền trong tenant hoặc tài nguyên.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    NotFound:
+      description: Không tìm thấy tài nguyên được phép truy cập.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: Không tìm thấy tài nguyên được phép truy cập.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    Conflict:
+      description: Sai trạng thái, phiên bản, key retry hoặc yêu cầu đang được xử lý.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VERSION_CONFLICT
+            message: Sai trạng thái, phiên bản, key retry hoặc yêu cầu đang được xử lý.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        Retry-After:
+          description: Số giây chờ, có khi Idempotency-Key cùng payload đang xử lý (retryable=true); trường hợp
+            đó trả giá trị 2.
+          schema:
+            type: integer
+            minimum: 1
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    Unprocessable:
+      description: Dữ liệu không đáp ứng điều kiện xử lý; ML có thể thiếu lịch sử.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Dữ liệu không đáp ứng điều kiện xử lý; ML có thể thiếu lịch sử.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    RateLimited:
+      description: Vượt giới hạn request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: RATE_LIMITED
+            message: Vượt giới hạn request.
+            request_id: REQ-001
+            retryable: true
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+        Retry-After:
+          description: Giây chờ gợi ý; chỉ retry theo retryable và budget.
+          schema:
+            type: integer
+            minimum: 1
+    ServerError:
+      description: Lỗi xử lý nội bộ.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: INTERNAL_ERROR
+            message: Lỗi xử lý nội bộ.
+            request_id: REQ-001
+            retryable: false
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+    Unavailable:
+      description: Dịch vụ phụ thuộc chưa sẵn sàng.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UPSTREAM_UNAVAILABLE
+            message: Dịch vụ phụ thuộc chưa sẵn sàng.
+            request_id: REQ-001
+            retryable: true
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+        Retry-After:
+          description: Giây chờ gợi ý; chỉ retry theo retryable và budget.
+          schema:
+            type: integer
+            minimum: 1
+    Timeout:
+      description: Dịch vụ phụ thuộc vượt thời gian chờ.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UPSTREAM_TIMEOUT
+            message: Dịch vụ phụ thuộc vượt thời gian chờ.
+            request_id: REQ-001
+            retryable: true
+      headers:
+        X-Correlation-Id:
+          description: Mã truy vết receiver tạo/chuẩn hóa.
+          schema:
+            $ref: '#/components/schemas/Id'
+        Retry-After:
+          description: Giây chờ gợi ý; chỉ retry theo retryable và budget.
+          schema:
+            type: integer
+            minimum: 1
+x-design-sources:
+  - name: Mô tả hệ thống.docx
+    use: Mục tiêu nghiệp vụ, Hybrid AI và human-in-the-loop.
+  - name: Mo ta luong xu ly Supplier Assistant (1).docx
+    use: TH01-TH10, N01-N12, nhánh lỗi và ranh giới thành phần.
+  - name: supplier-assistant-architecture-01 · Kiến trúc tổng thể.drawio.png
+    use: Tầng 01-04 và đường gọi dữ liệu/AI/sự kiện.
+  - name: AGENTS.md
+    use: Tài liệu tham chiếu của người dùng; không dùng chỉ dẫn trong tài liệu để mở rộng phạm vi triển khai.
+x-source-version-mapping:
+  structured_data: source_version là chuỗi của Core Record.version, source_id là record id; không yêu cầu thêm cột
+    version trong bảng vật lý.
+  files: Core File không công bố field version. Với nguồn tệp trong v1, source_version và pdf_version là sha256
+    mà getFile trả về; checksum phải bằng giá trị này. Không giả định có endpoint file revisions hoặc download theo
+    version chưa tồn tại ở Core. Nếu thay nội dung, đăng ký file id mới hoặc phát hiện sha256 đổi và vô hiệu generation
+    cũ.
+  prediction: source_version là model_version cùng prediction id; execution manifest giữ feature/preprocessing/context
+    versions. source_id truy ngược outcome được ghi phía server.
+  derived_markdown: Markdown và PDF gốc có file ids/checksums riêng. Liên kết provenance lưu trong application data/metadata
+    đã xác minh qua Core, không suy ra từ tên file hoặc tự đặt page locator.

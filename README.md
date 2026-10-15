@@ -177,7 +177,7 @@ uv sync --locked --group build
 
 ### 2. Chuẩn bị cấu hình
 
-Có thể chạy ngay với mặc định development. Nếu cần tùy chỉnh, sao chép [.env.example](.env.example) thành `.env`, giữ `FLOWBRIDGE_DATABASE_URL` trống và không đưa thông tin bí mật vào Git.
+Có thể chạy ngay với mặc định development. Nếu cần tùy chỉnh, sao chép [.env.example](.env.example) thành `.env`. Để chạy không DB, giữ `FLOWBRIDGE_DATABASE_URL` và `FLOWBRIDGE_DATABASE_PASSWORD` trống; không đưa thông tin bí mật vào Git. Để kết nối Supabase và quản lý schema, xem [hướng dẫn SQLAlchemy + Alembic](alembic/README.md).
 
 ```sh
 # Bash
@@ -202,13 +202,14 @@ $env:FLOWBRIDGE_ENVIRONMENT = "development"
 $env:FLOWBRIDGE_SAMPLE_MODE = "true"
 $env:FLOWBRIDGE_DOCS_ENABLED = "true"
 $env:FLOWBRIDGE_DATABASE_URL = ""
+$env:FLOWBRIDGE_DATABASE_PASSWORD = ""
 uv run --locked python -m flowbridge.main
 ```
 
 Trên Bash:
 
 ```sh
-FLOWBRIDGE_ENVIRONMENT=development FLOWBRIDGE_SAMPLE_MODE=true FLOWBRIDGE_DOCS_ENABLED=true FLOWBRIDGE_DATABASE_URL= uv run --locked python -m flowbridge.main
+FLOWBRIDGE_ENVIRONMENT=development FLOWBRIDGE_SAMPLE_MODE=true FLOWBRIDGE_DOCS_ENABLED=true FLOWBRIDGE_DATABASE_URL= FLOWBRIDGE_DATABASE_PASSWORD= uv run --locked python -m flowbridge.main
 ```
 
 Mở [Swagger](http://127.0.0.1:8000/docs) hoặc gọi `GET /api/v1/core/identity/me`, `GET /api/v1/core/data/sample_items`, `GET /api/v1/core/workflow/tasks`. Xem [API mẫu](examples/sample-api/README.md) để upload/download và gọi đủ operation. Không cần token trong sample; schema ghi rõ auth/tác động dữ liệu mô phỏng. Sample tắt mặc định và bị từ chối ở production hoặc khi DSN không trống. Khi sample tắt, các route nghiệp vụ chưa được bật; docs bật riêng sẽ có `paths` rỗng. Các endpoint vận hành được tách khỏi schema nghiệp vụ.
@@ -267,6 +268,10 @@ Với bộ công cụ local, thay `uv` trong các lệnh bằng `& ./.tools/uv/b
 | `FLOWBRIDGE_SAMPLE_MODE` | `false` | Bật 28 operation trả dữ liệu mẫu trong development/test; từ chối production hoặc DSN không trống. |
 | `FLOWBRIDGE_SAMPLE_UPLOAD_MAX_BYTES` | `1048576` | Giới hạn bytes upload mẫu, 1–10485760; vượt giới hạn trả 422. |
 | `FLOWBRIDGE_DATABASE_URL` | Trống | Development/test hiện chạy không DB; khi tích hợp dùng DSN `postgresql+asyncpg://…`. |
+| `FLOWBRIDGE_DATABASE_HOST`, `FLOWBRIDGE_DATABASE_USER`, `FLOWBRIDGE_DATABASE_PASSWORD` | Trống | Thay thế DSN bằng host/user/password riêng; password thô được encode tự động. DSN tường minh được ưu tiên. |
+| `FLOWBRIDGE_DATABASE_PORT`, `FLOWBRIDGE_DATABASE_NAME` | `5432`, `postgres` | Cổng và database khi ghép URL từ các trường riêng. |
+| `FLOWBRIDGE_DATABASE_SSL` | `require` | SSL của asyncpg: `require`, `verify-full`, hoặc `disable` cho DB local. |
+| `FLOWBRIDGE_DATABASE_POOL_MODE` | `queue` | `queue`: pool giới hạn tại backend; `null`: không giữ pool tại backend. Alembic luôn dùng `NullPool`. |
 | `FLOWBRIDGE_HTTP_TIMEOUT_SECONDS` | `10` | Timeout HTTP client dùng chung của app. |
 | `FLOWBRIDGE_HTTP_MAX_CONNECTIONS` | `100` | Giới hạn pool kết nối HTTP. |
 | `FLOWBRIDGE_HEALTH_TIMEOUT_SECONDS` | `2` | Deadline toàn bộ probe DB của readiness, cấu hình lớn hơn 0 và tối đa 30 giây. |
@@ -276,7 +281,7 @@ Các tùy chọn pool/timeout database có trong `.env.example`. Nhóm biến OI
 <details>
 <summary>Chi tiết Settings và vòng đời tài nguyên backend</summary>
 
-Factory có thể nhận `Settings(_env_file="/path/to/config.env")` hoặc `_env_file=None`. Khi DSN trống ở development/test, app không mở DB session. Khi có DSN, lifespan tạo engine và kiểm tra `SELECT 1`; không kết nối được thì startup thất bại. Hiện chưa kiểm chứng kết nối này trên PostgreSQL thật.
+Factory có thể nhận `Settings(_env_file="/path/to/config.env")` hoặc `_env_file=None`. Khi URL và password trống ở development/test, app không mở DB session. Khi có cấu hình DB, lifespan tạo engine và kiểm tra `SELECT 1`; không kết nối được thì startup thất bại. Dùng `python scripts/check_db.py` trong môi trường đã cài dependency để kiểm chứng kết nối PostgreSQL thật trước khi chạy backend.
 
 Mỗi app quản lý một HTTPX client có timeout/pool giới hạn và đóng tài nguyên khi shutdown hoặc lỗi. `get_session()` cấp session riêng theo request, không tự commit; service quản lý transaction. Task nền phải mở session riêng từ factory. DSN được che trong repr/JSON của Settings.
 
