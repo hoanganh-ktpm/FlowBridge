@@ -2,8 +2,9 @@
 # FlowBridge; redistribution/modification under GNU GPL v3 or later.
 # Provided without warranty. See LICENSE.
 
-"""Registered Supplier Assistant ORM mappings, available to application code and Alembic."""
+# Registered Supplier Assistant ORM mappings, available to application code and Alembic.
 
+from flowbridge.models.api_idempotency import ApiIdempotency
 from flowbridge.models.base import Base
 from flowbridge.models.supplier_assistant import (
     AnalysisSupplierCandidate,
@@ -36,6 +37,7 @@ from flowbridge.models.supplier_assistant import (
 )
 
 __all__ = [
+    "ApiIdempotency",
     "Base",
     "AnalysisSupplierCandidate",
     "AnalysisTask",

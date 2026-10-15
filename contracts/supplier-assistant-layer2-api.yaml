@@ -11,7 +11,7 @@ info:
     Langflow/custom nodes và tầng 04 Web/App. Tầng 2 gồm API nghiệp vụ, cầu nối
     Langflow, công cụ đọc dữ liệu/ML/RAG/so sánh và giao diện worker bền vững.
     Đây là bản thiết kế độc lập để review trước triển khai, không thay snapshot
-    app-api.yaml/ai-tools-api.yaml đang được runtime sample sử dụng.
+    app-api.yaml/ai-tools-api.yaml đang được runtime PostgreSQL sử dụng.
 
     OpenCore 0.2.0 là tầng nền: Identity, Structured Data, Files, Workflow,
     Events, Notifications và Audit. Tầng 2 dùng các API này, không truy vấn SQL

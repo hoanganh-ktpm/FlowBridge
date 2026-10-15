@@ -122,13 +122,3 @@ def test_explicit_url_takes_precedence_over_component_password():
 def test_blank_component_password_leaves_development_disconnected():
     settings = Settings(database_host="localhost", database_user="user", database_password="")
     assert settings.database_url is None
-
-
-def test_component_connection_cannot_enable_sample_mode():
-    with pytest.raises(ValidationError, match="sample_mode requires an empty database_url"):
-        Settings(
-            sample_mode=True,
-            database_host="localhost",
-            database_user="user",
-            database_password="secret-password",
-        )

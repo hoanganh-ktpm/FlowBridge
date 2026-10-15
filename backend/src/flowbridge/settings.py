@@ -9,6 +9,7 @@
 # Validated runtime configuration; dotenv paths resolve from the working directory.
 
 from typing import Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,8 +34,6 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     docs_enabled: bool = False
-    sample_mode: bool = False
-    sample_upload_max_bytes: int = Field(default=1048576, ge=1, le=10485760)
     database_url: SecretStr | None = None
     database_host: str | None = Field(default=None, min_length=1)
     database_port: int = Field(default=5432, ge=1, le=65535)
@@ -51,6 +50,34 @@ class Settings(BaseSettings):
     http_timeout_seconds: float = Field(default=10, gt=0, le=300)
     http_max_connections: int = Field(default=100, ge=1, le=1000)
     health_timeout_seconds: float = Field(default=2, gt=0, le=30)
+    oidc_issuer: str | None = None
+    oidc_audience: str | None = None
+    oidc_introspection_url: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: SecretStr | None = None
+
+    @field_validator(
+        "oidc_issuer", "oidc_audience", "oidc_introspection_url", "oidc_client_id", mode="before"
+    )
+    @classmethod
+    def empty_identity_setting(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("oidc_issuer", "oidc_introspection_url")
+    @classmethod
+    def validate_identity_url(cls, value: str | None) -> str | None:
+        if value is not None:
+            parts = urlsplit(value)
+            if (
+                parts.scheme != "https"
+                or not parts.netloc
+                or parts.username
+                or parts.password
+                or parts.query
+                or parts.fragment
+            ):
+                raise ValueError("Identity URLs must be HTTPS without credentials/query/fragment")
+        return value
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -100,11 +127,6 @@ class Settings(BaseSettings):
                 self, "database_url", SecretStr(url.render_as_string(hide_password=False))
             )
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
-        if self.sample_mode:
-            if self.environment == "production":
-                raise ValueError("sample_mode is unavailable in production")
-            if self.database_url is not None:
-                raise ValueError("sample_mode requires an empty database_url")
         if self.environment == "production" and self.database_url is None:
             raise ValueError("database_url is required in production")
         return self

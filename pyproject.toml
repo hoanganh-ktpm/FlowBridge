@@ -24,7 +24,6 @@ dependencies = [
     "jsonschema==4.26.0",
     "pydantic==2.14.1",
     "pydantic-settings==2.16.0",
-    "python-multipart==0.0.32",
     "pyyaml==6.0.3",
     "referencing==0.37.0",
     "sqlalchemy[asyncio]==2.1.4",
@@ -52,7 +51,6 @@ include = [
     "/tests",
     "/contracts",
     "/infra/gateway/README.md",
-    "/examples/sample-api",
     "/scripts",
     "/alembic",
     "/alembic.ini",
@@ -65,6 +63,7 @@ include = [
     "/.gitignore",
     "/.gitattributes",
     "/README.md",
+    "/docs/SUPABASE-API.md",
     "/CHANGELOG.md",
     "/LICENSE",
 ]
@@ -82,7 +81,7 @@ select = ["E", "F", "I", "UP", "B"]
 testpaths = ["tests"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "--strict-markers"
+addopts = "--strict-markers -m 'not integration'"
 markers = [
     "integration: requires the real upstream services named by the test profile",
     "e2e: exercises the application across OpenCore service boundaries",

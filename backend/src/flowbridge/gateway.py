@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 from urllib.parse import urlsplit
 
-from flowbridge.shared.contract import operations
+from flowbridge.supplier_assistant.contract import application_operations
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +19,7 @@ class GatewayRoute:
     method: str
     path: str
     operation_id: str
-    visibility: Literal["public", "internal"]
+    visibility: Literal["public", "internal", "admin"]
     upstream: str
 
 
@@ -32,24 +32,29 @@ def route_map(upstream: str = "http://127.0.0.1:8000") -> tuple[GatewayRoute, ..
         raise ValueError("upstream must have no credentials, path, query or fragment")
     return tuple(
         GatewayRoute(
-            method=operation.method,
-            path=operation.path,
-            operation_id=operation.operation_id,
-            visibility="internal" if operation.path.startswith("/internal/") else "public",
+            method=method,
+            path=path,
+            operation_id=spec["operationId"],
+            visibility="admin"
+            if path.startswith("/admin/")
+            else "internal"
+            if path.startswith("/internal/")
+            else "public",
             upstream=upstream.rstrip("/"),
         )
-        for operation in operations()
+        for method, path, spec in application_operations()
     )
 
 
 def main() -> None:
     # CLI xuất mapping JSON để cấu hình gateway, không chạy proxy.
     parser = argparse.ArgumentParser(
-        description="Export sample API gateway mapping; no proxy starts"
+        description="Export PostgreSQL API gateway mapping; no proxy starts"
     )
     parser.add_argument("--upstream", default="http://127.0.0.1:8000")
     args = parser.parse_args()
-    print(json.dumps([asdict(route) for route in route_map(args.upstream)], indent=2))
+    routes = route_map(args.upstream)
+    print(json.dumps([asdict(route) for route in routes], indent=2))
 
 
 if __name__ == "__main__":

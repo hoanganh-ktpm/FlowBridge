@@ -36,7 +36,9 @@ Xem trước bằng `python scripts/seed.py --dry-run --out .cache/seed-preview`
 truy cập DB. Có thể truyền `--orders` (50–20000), `--seed`, `--as-of`, `--out`.
 
 RLS/quyền được giữ nguyên theo script: anon/authenticated không có quyền bảng.
-API sample hiện có chưa được nối persistence trong thay đổi này.
+Backend chỉ giữ API PostgreSQL với router/service/repository; xem
+[hướng dẫn API database](../docs/SUPABASE-API.md). Revision tiếp theo
+`0002_api_idempotency` thêm bảng retry response operational; không sửa baseline 0001.
 
 Chạy các lệnh dưới đây tại thư mục gốc repo. Backend dùng SQLAlchemy async và
 `asyncpg`, dùng chung Settings với Alembic và script kiểm tra kết nối.
@@ -64,7 +66,6 @@ Trong các lệnh tiếp theo có thể thay `uv` bằng `& ./.tools/uv/bin/uv.e
 > Session pooler (5432). Cấu hình ví dụ:
 
 ```dotenv
-FLOWBRIDGE_SAMPLE_MODE=false
 FLOWBRIDGE_DATABASE_URL=
 FLOWBRIDGE_DATABASE_HOST=aws-0-ap-southeast-1.pooler.supabase.com
 FLOWBRIDGE_DATABASE_PORT=5432
@@ -99,7 +100,7 @@ uv run --locked python scripts/check_db.py
 Script chỉ chạy `SELECT 1`, không tạo bảng hay thêm dữ liệu. Password trống và URL
 trống khiến script báo chưa cấu hình; backend development vẫn có thể chạy không DB.
 Biến môi trường trong terminal được ưu tiên hơn `.env`; xóa biến cũ nếu nó đang
-ghi đè cấu hình. Sample mode cần URL và password trống.
+ghi đè cấu hình. Development thiếu URL và password chỉ chạy bootstrap vận hành.
 
 ## 3. Định nghĩa Model và quản lý migration
 
@@ -156,8 +157,8 @@ uv run --locked alembic check
 
 Index, khóa ngoại và constraint thông thường có thể được sinh từ model. Function,
 trigger, RLS policy, extension và chuyển dữ liệu thường cần migration viết thêm.
-Kết nối thành công chưa có nghĩa API dữ liệu thật đã được triển khai; adapter hiện
-tại vẫn đang là sample, tách khỏi phần persistence này.
+API dữ liệu thật dùng repository async và session theo request; xem hướng dẫn
+[Supabase API](../docs/SUPABASE-API.md) về quyền, idempotency và các engine còn thiếu.
 
 Không cần `init.sql` riêng. Nếu cần xuất SQL cho database mới hoàn toàn, sau khi đã
 có revision:
