@@ -16,27 +16,13 @@ import httpx
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from flowbridge.data.adapter import SampleDataAdapter
-from flowbridge.data.router import router as data_router
-from flowbridge.data.service import DataService
 from flowbridge.db import create_engine, create_session_factory, probe_connection
-from flowbridge.events.adapter import SampleEventsAdapter
-from flowbridge.events.router import router as events_router
-from flowbridge.events.service import EventsService
-from flowbridge.files.adapter import SampleFilesAdapter
-from flowbridge.files.router import router as files_router
-from flowbridge.files.service import FilesService
-from flowbridge.identity.router import router as identity_router
-from flowbridge.identity.service import IdentityService, SampleIdentityAdapter
 from flowbridge.operations.router import router as operations_router
-from flowbridge.sample import SampleContext
 from flowbridge.settings import Settings
-from flowbridge.shared.contract import install_sample_openapi
 from flowbridge.shared.correlation import CorrelationMiddleware
 from flowbridge.shared.errors import register_exception_handlers
-from flowbridge.workflow.adapter import SampleWorkflowAdapter
-from flowbridge.workflow.router import router as workflow_router
-from flowbridge.workflow.service import WorkflowService
+from flowbridge.supplier_assistant.contract import install_database_openapi
+from flowbridge.supplier_assistant.router import create_database_router
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,16 +88,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Starlette bọc middleware thêm sau ra ngoài: correlation phải bao cả nhánh lỗi.
     app.add_middleware(CorrelationMiddleware)
     app.include_router(operations_router)
-    if configuration.sample_mode:
-        app.state.sample_context = SampleContext()
-        app.state.identity_service = IdentityService(SampleIdentityAdapter())
-        app.state.data_service = DataService(SampleDataAdapter())
-        app.state.files_service = FilesService(SampleFilesAdapter())
-        app.state.workflow_service = WorkflowService(SampleWorkflowAdapter())
-        app.state.events_service = EventsService(SampleEventsAdapter())
-        for router in (identity_router, data_router, files_router, workflow_router, events_router):
-            app.include_router(router)
-        install_sample_openapi(app)
+    if configuration.database_url is not None:
+        app.include_router(create_database_router())
+        install_database_openapi(app)
     return app
 
 

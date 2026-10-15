@@ -7,6 +7,8 @@
 *.yaml text eol=lf
 *.yml text eol=lf
 *.json text eol=lf
+*.sha256 text eol=lf
+*.license text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
 *.sql text eol=lf

@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FlowBridge; redistribution/modification under GNU GPL v3 or later.
+# Provided without warranty. See LICENSE.
+
+# Delegate token validation to the configured authorization server (RFC 7662).
+from dataclasses import dataclass
+from math import isfinite
+from time import time
+from typing import Annotated
+
+import httpx
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from flowbridge.shared.errors import CoreError, ErrorCode
+
+bearer = HTTPBearer(auto_error=False)
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedIdentity:
+    issuer: str
+    subject: str
+
+
+async def authenticated_identity(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+) -> VerifiedIdentity:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise CoreError(ErrorCode.UNAUTHENTICATED)
+    settings = request.app.state.settings
+    if not all(
+        (
+            settings.oidc_issuer,
+            settings.oidc_audience,
+            settings.oidc_introspection_url,
+            settings.oidc_client_id,
+            settings.oidc_client_secret,
+        )
+    ):
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+    resources = request.app.state.resources
+    if resources is None:
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+    try:
+        response = await resources.http.post(
+            settings.oidc_introspection_url,
+            data={"token": credentials.credentials, "token_type_hint": "access_token"},
+            auth=httpx.BasicAuth(
+                settings.oidc_client_id, settings.oidc_client_secret.get_secret_value()
+            ),
+        )
+        response.raise_for_status()
+        claims = response.json()
+    except httpx.TimeoutException:
+        raise CoreError(ErrorCode.UPSTREAM_TIMEOUT) from None
+    except (httpx.HTTPError, ValueError):
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE) from None
+    if not isinstance(claims, dict):
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+    audiences = claims.get("aud", [])
+    audiences = [audiences] if isinstance(audiences, str) else audiences
+    expiry = claims.get("exp")
+    if (
+        claims.get("active") is not True
+        or claims.get("iss") != settings.oidc_issuer
+        or not isinstance(claims.get("sub"), str)
+        or not claims["sub"].strip()
+        or not isinstance(audiences, list)
+        or settings.oidc_audience not in audiences
+        or not isinstance(expiry, (float, int))
+        or isinstance(expiry, bool)
+        or not isfinite(expiry)
+        or expiry <= time()
+    ):
+        raise CoreError(ErrorCode.UNAUTHENTICATED)
+    return VerifiedIdentity(issuer=claims["iss"], subject=claims["sub"])

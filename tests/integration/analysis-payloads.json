@@ -1,0 +1,139 @@
+{
+  "Prediction": {
+    "prediction_id": "3198f516-7ba6-5b71-9ddd-45280e0642f3",
+    "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+    "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+    "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+    "input_revision": 1,
+    "source_type": "pr_initial",
+    "prediction_stage": "PR_CREATED",
+    "po_item_id": null,
+    "idempotency_key": "SAMPLE-idempotency_key",
+    "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+    "product_id": "73a116c7-170a-5838-af2b-a1af6709edaa",
+    "quantity": "10.5000",
+    "requested_delivery_date": "2026-10-20",
+    "feature_asof": "2026-10-15T03:00:00Z",
+    "requested_lead_days": 5,
+    "feature_schema_version": "tabicl_supplier_fixed_v1",
+    "preprocessing_version": "synthetic-fixed-v1",
+    "model_name": "TabICLv2",
+    "model_version": "tabicl-classifier-v2-20260212.ckpt",
+    "context_dataset_version": "SYNTHETIC-NOT-A-FITTED-CONTEXT",
+    "context_metadata": {
+      "synthetic": true,
+      "model_executed": false
+    },
+    "risk_score": 0.2,
+    "risk_threshold": 0.5,
+    "risk_level": "low",
+    "feature_snapshot": {
+      "x": {
+        "prediction_stage": "PR_CREATED",
+        "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+        "product_category": "office",
+        "order_size_ratio": 1.05,
+        "days_to_deadline": 5,
+        "non_working_days_to_deadline": null,
+        "hist_lead_p50_days": null,
+        "hist_lead_p90_days": null,
+        "hist_late_rate_smoothed": null,
+        "hist_sample_count": 0,
+        "other_open_order_count": null,
+        "expected_issue_wait_days": null,
+        "remaining_size_ratio": null,
+        "elapsed_days_since_issue": null,
+        "confirmation_state": null,
+        "confirmation_wait_days": null,
+        "received_fraction": null,
+        "days_since_last_receipt": null,
+        "promise_margin_days": null
+      },
+      "metadata": {
+        "synthetic": true,
+        "q_ref": "10.0000",
+        "unit": "piece",
+        "history": "not_executed"
+      }
+    },
+    "status": "success",
+    "error_code": null,
+    "error_message": null,
+    "predicted_at": "2026-10-15T03:00:00Z"
+  },
+  "RiskAnalysisReport": {
+    "report_id": "fa95fe26-ec60-537b-ab14-bd6878eae596",
+    "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+    "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+    "primary_prediction_id": "3198f516-7ba6-5b71-9ddd-45280e0642f3",
+    "risk_level": "low",
+    "summary": "Synthetic report; no model executed.",
+    "report_data": {
+      "decision_status": "ready",
+      "selection_policy_version": "synthetic-selection-v1",
+      "document_refs": [
+        {
+          "document_id": "SYNTHETIC-DOC",
+          "document_version": "1",
+          "chunk_id": "SYNTHETIC-CHUNK",
+          "source_uri": "sample://markdown-existing-store",
+          "checksum": "262805c9e3b8b3b83a07227c6be1d6144f172d8a99f18428aba2200d0de10642",
+          "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c"
+        }
+      ],
+      "synthetic": true
+    },
+    "created_at": "2026-10-15T03:00:00Z"
+  },
+  "AnalysisSupplierCandidate": {
+    "candidate_id": "492bd985-b9e5-5f88-aca0-c1b2f2c06112",
+    "report_id": "fa95fe26-ec60-537b-ab14-bd6878eae596",
+    "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+    "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+    "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+    "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+    "prediction_id": "3198f516-7ba6-5b71-9ddd-45280e0642f3",
+    "unit_price_snapshot": "10000.0000",
+    "currency": "VND",
+    "rank": 1,
+    "is_eligible": true,
+    "reason": "Synthetic eligible example",
+    "evidence_refs": {
+      "documents": [
+        {
+          "document_id": "SYNTHETIC-DOC",
+          "document_version": "1",
+          "chunk_id": "SYNTHETIC-CHUNK",
+          "source_uri": "sample://markdown-existing-store",
+          "checksum": "262805c9e3b8b3b83a07227c6be1d6144f172d8a99f18428aba2200d0de10642",
+          "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c"
+        }
+      ]
+    }
+  },
+  "EmailLog": {
+    "email_log_id": "1dde0be7-25dc-53ee-805f-630d982e1448",
+    "purchase_order_id": null,
+    "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+    "recipient_email": "supplier@example.invalid",
+    "email_type": "po_issued",
+    "template_code": null,
+    "subject": null,
+    "idempotency_key": "SAMPLE-idempotency_key",
+    "provider_idempotency_key": null,
+    "payload_snapshot": {
+      "synthetic": true,
+      "file_refs": [
+        "FILE-SAMPLE"
+      ]
+    },
+    "status": "delivery_unknown",
+    "attempt_count": 1,
+    "last_attempt_at": null,
+    "next_retry_at": null,
+    "provider_message_id": null,
+    "sent_at": null,
+    "error_message": null,
+    "created_at": "2026-10-15T03:00:00Z"
+  }
+}

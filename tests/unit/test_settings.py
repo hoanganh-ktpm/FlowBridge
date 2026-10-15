@@ -12,6 +12,7 @@ import os
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.engine import make_url
 
 from flowbridge.settings import Settings
 
@@ -50,6 +51,10 @@ def test_template_loads_without_credentials():
         {"health_timeout_seconds": 31},
         {"database_pool_size": 0},
         {"database_max_overflow": -1},
+        {"database_port": 65536},
+        {"database_ssl": "invalid"},
+        {"database_pool_mode": "invalid"},
+        {"database_password": "secret-password"},
         {"environment": "staging"},
         {"log_level": "secret-invalid-level"},
         {"environment": "production"},
@@ -87,3 +92,33 @@ def test_valid_secret_is_redacted_and_settings_are_immutable():
     assert "secret-password" not in settings.model_dump_json()
     with pytest.raises(ValidationError):
         settings.port = 8123
+
+
+def test_component_password_is_encoded_once_and_stays_secret(tmp_path):
+    password = "space @:/#%?&=secret"
+    (tmp_path / ".env").write_text(
+        "FLOWBRIDGE_DATABASE_HOST=aws-0-ap-southeast-1.pooler.supabase.com\n"
+        "FLOWBRIDGE_DATABASE_USER=postgres.test-project\n"
+        f"FLOWBRIDGE_DATABASE_PASSWORD='{password}'\n",
+        encoding="utf-8",
+    )
+    settings = Settings()
+    url = make_url(settings.database_url.get_secret_value())
+    assert url.password == password
+    assert url.username == "postgres.test-project"
+    assert url.host == "aws-0-ap-southeast-1.pooler.supabase.com"
+    assert url.port == 5432
+    assert url.database == "postgres"
+    assert password not in repr(settings)
+    assert password not in settings.model_dump_json()
+
+
+def test_explicit_url_takes_precedence_over_component_password():
+    dsn = "postgresql+asyncpg://user:dsn-password@localhost/explicit"
+    settings = Settings(database_url=dsn, database_password="unused-password")
+    assert settings.database_url.get_secret_value() == dsn
+
+
+def test_blank_component_password_leaves_development_disconnected():
+    settings = Settings(database_host="localhost", database_user="user", database_password="")
+    assert settings.database_url is None

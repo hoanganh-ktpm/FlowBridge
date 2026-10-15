@@ -1,18 +1,17 @@
-# Mapping Gateway cho API mẫu
+# Mapping Gateway cho API PostgreSQL/Supabase
 
-Xuất JSON mapping từ cùng registry 28 operation của backend:
+Xuất JSON mapping từ cùng registry 46 operation app/AI của backend:
 
 ```sh
 uv run --locked python -m flowbridge.gateway --upstream http://127.0.0.1:8000
 ```
 
-Mỗi dòng có method/path/operation_id, upstream và visibility. `/api/v1/core/*` thuộc
-mapping public; `/internal/v1/core/*` dành cho đường nội bộ ở giai đoạn tích hợp.
-`/_ops/*` và Admin API không có trong mapping public.
+Mỗi dòng có method/path/operation_id, upstream và visibility. `/api/*` là public,
+`/internal/*` là internal, `/admin/*` là admin. `/_ops/*` không nằm trong mapping.
+Khi triển khai, tách route/admin credentials và network policy theo từng visibility;
+không đưa toàn bộ mapping vào listener public. Cờ cũ `--include-application` đã bỏ.
 
-Giai đoạn mẫu gọi trực tiếp `http://127.0.0.1:8000`. APISIX chưa chạy, nên cả public và
-internal API đều gọi được trên listener development loopback này; nhãn visibility chưa
-tạo network boundary. Chưa có TLS, OIDC hay rate limit từ Gateway. Dùng cấu hình upstream
-APISIX và kiểm thử network thật ở giai đoạn tích hợp; chương trình trên chỉ xuất mapping.
-
-Mapping được sinh khi cần, không lưu thêm một bản cấu hình route dễ lệch contract.
+Đây chỉ là dữ liệu đầu vào cho cấu hình gateway; chương trình không chạy proxy hoặc
+thực thi policy. APISIX chưa được tích hợp. Backend vẫn xác minh bearer/supplier token
+và kiểm quyền tài nguyên trong database. OIDC tại gateway không thay policy backend.
+Mapping được sinh khi cần; không lưu thêm bản cấu hình dễ lệch contract.

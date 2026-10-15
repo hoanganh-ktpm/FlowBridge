@@ -10,6 +10,7 @@ from importlib.resources import files
 from typing import Any
 
 import yaml
+from fastapi import FastAPI
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
@@ -17,12 +18,6 @@ from referencing.jsonschema import DRAFT202012
 from flowbridge.shared.errors import CoreError, ErrorCode
 
 CONTRACT_URI = "urn:flowbridge:supplier-assistant:0.4.1"
-SAMPLE_NOTICE = (
-    "SAMPLE v0.4.1: synthetic fixtures without persistence. No database, IdP, workflow, "
-    "email, document store or TabICLv2 model is connected. Authentication and role actors "
-    "are simulated server-side per operation; client headers never select a role. "
-    "Writes return examples and do not change subsequent GET responses."
-)
 
 
 @lru_cache(maxsize=1)
@@ -39,7 +34,7 @@ def _documents() -> tuple[dict[str, Any], ...]:
 
 
 def application_documents() -> tuple[dict[str, Any], ...]:
-    # Trả bản sao để Swagger sample không sửa contract production trong cache.
+    # Trả bản sao để Swagger không sửa contract chuẩn trong cache.
     return deepcopy(_documents())
 
 
@@ -52,6 +47,25 @@ def application_operations() -> tuple[tuple[str, str, dict[str, Any]], ...]:
         for method, spec in entry.items()
         if method in {"get", "post", "put", "patch", "delete"}
     )
+
+
+def install_database_openapi(app: FastAPI) -> None:
+    def database_openapi() -> dict[str, Any]:
+        if app.openapi_schema is None:
+            application, tools = application_documents()
+            application["paths"].update(tools["paths"])
+            application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
+            application["info"]["description"] = (
+                "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
+                "introspection; database roles enforce resource access. Workflow approval, "
+                "identity provisioning, chat and AI/document engines return 503 until connected. "
+                "Outbox events remain pending until a durable worker processes them."
+            )
+            application["x-database-migration"] = "0002_api_idempotency"
+            app.openapi_schema = application
+        return app.openapi_schema
+
+    app.openapi = database_openapi
 
 
 @lru_cache(maxsize=256)
@@ -71,40 +85,3 @@ def validate_dto(value: object, name: str) -> None:
     # Lỗi công khai không chứa input, token hoặc exception validator.
     if not dto_validator(name).is_valid(value):
         raise CoreError(ErrorCode.VALIDATION_ERROR)
-
-
-def merge_sample_openapi(schema: dict[str, Any]) -> None:
-    # Namespace DTO ứng dụng để không ghi đè Id/Principal/Notification của core.
-    def namespace(value: Any) -> Any:
-        if isinstance(value, dict):
-            return {
-                key: "#/components/schemas/SA" + item.rsplit("/", 1)[1]
-                if key == "$ref" and item.startswith("#/components/schemas/")
-                else namespace(item)
-                for key, item in value.items()
-            }
-        if isinstance(value, list):
-            return [namespace(item) for item in value]
-        return value
-
-    for document in _documents():
-        for name, dto in document["components"]["schemas"].items():
-            schema["components"]["schemas"]["SA" + name] = namespace(dto)
-        for name, scheme in document["components"]["securitySchemes"].items():
-            schema["components"]["securitySchemes"]["SA" + name] = deepcopy(scheme)
-        for path, entry in document["paths"].items():
-            if path in schema["paths"]:
-                raise RuntimeError("Application path collides with Open-Core")
-            rewritten = namespace(entry)
-            for spec in rewritten.values():
-                spec["x-production-security"] = [
-                    {"SA" + key: scopes for key, scopes in requirement.items()}
-                    for requirement in spec.get("security", document["security"])
-                ]
-                spec["security"] = []
-                spec["description"] = SAMPLE_NOTICE + "\n\n" + spec["description"]
-                spec["x-sample-role"] = spec["x-required-role"]
-            schema["paths"][path] = rewritten
-    schema["info"]["title"] = "FlowBridge — OpenCore and Supplier Assistant Sample API"
-    schema["info"]["description"] += "\n\n" + SAMPLE_NOTICE
-    schema["x-application-schema-version"] = "0.4.1"
