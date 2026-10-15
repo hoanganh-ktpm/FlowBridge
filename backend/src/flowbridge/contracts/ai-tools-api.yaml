@@ -7,8 +7,7 @@ info:
   title: Supplier Assistant Internal AI Tools API
   version: 0.4.1
   description: Contract theo Supplier Assistant Database Schema v0.4.1 TabICLv2 (27 bảng). Xác thực ngoài, users/roles/grants
-    nội bộ. API sample không ghi DB hoặc gọi engine/model thật.
-jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+    nội bộ. API dùng PostgreSQL; các engine chưa tích hợp trả 503.
 servers:
 - url: http://127.0.0.1:8000
 security:
@@ -17,7 +16,7 @@ security:
 - ServiceAuth: []
   JobContext: []
 x-database-schema-version: 0.4.1
-x-contract-status: Contract và runtime sample; engine/persistence/authorization thật chưa nghiệm thu.
+x-contract-status: Runtime PostgreSQL; IdP/workflow/chat/model/document adapters cần tích hợp riêng.
 x-conventions:
   ids: UUID nội bộ; mã PR/SUP/PO là trường hiển thị riêng; actor từ server, không nhận role/owner tùy ý.
   decimal: Quantity và tiền NUMERIC(18,4) truyền dạng chuỗi bốn chữ số thập phân.
@@ -26,15 +25,13 @@ x-conventions:
   authorization: EMPLOYEE owner; APPROVER/WAREHOUSE department grant; ADMIN không tự approve; AI_SERVICE/PO_SERVICE
     là service.
   documents: Adapter tới kho Markdown PostgreSQL hiện có; giữ reference/version/chunk/ACL; không tạo supplier_documents.
-  idempotency: Receiver claim/replay bền vững và đối soát outcome; header trong sample chỉ kiểm hình dạng, không
-    bảo đảm tác động đúng một lần.
+  idempotency: Receiver claim/replay bền vững và đối soát outcome; scope actor và fingerprint được lưu cùng transaction nghiệp vụ trong bảng api_idempotency.
 paths:
   /internal/v1/tools/data-lookup:
     post:
       operationId: lookupSupplierData
       summary: Tra cứu có scope và cutoff; không nhận SQL
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -45,7 +42,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -123,8 +120,7 @@ paths:
       operationId: predictDeliveryRisk
       summary: Snapshot cố định 19 X cho A/B
       description: PR_CREATED hoặc PO_MONITORING, cùng context fixed-v1; NULL giữ nguyên, không flags/target. Lịch
-        sử supplier-product p50/p90/smoothed rate, receipt/promise theo knowledge cutoff. Không dùng model thật
-        trong sample.
+        sử supplier-product p50/p90/smoothed rate, receipt/promise theo knowledge cutoff. Chưa có adapter model; runtime trả 503.
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -135,7 +131,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -229,7 +225,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -305,8 +301,7 @@ paths:
     post:
       operationId: compareSupplierOptions
       summary: So sánh theo từng PR item và cutoff
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -317,7 +312,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -396,8 +391,7 @@ paths:
     post:
       operationId: indexPreparedMarkdown
       summary: Lập chỉ mục refs từ document store hiện có
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -408,7 +402,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -488,8 +482,7 @@ paths:
     post:
       operationId: runAutomatedRiskAnalysis
       summary: Phân tích task theo snapshot/revision
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -500,7 +493,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -1186,6 +1179,8 @@ components:
           x-sql-type: INTEGER
         feature_schema_version:
           const: tabicl_supplier_fixed_v1
+          x-sql-type: VARCHAR(80)
+          description: 'tabicl_supplier_fixed_v1: đúng 19 key X ở E, cùng schema cho A/B, không missing indicators.'
         preprocessing_version:
           type: string
           maxLength: 80
@@ -1206,11 +1201,14 @@ components:
           description: tabicl-classifier-v2-20260212.ckpt; bắt buộc khi success.
           x-sql-type: VARCHAR(120)
         context_dataset_version:
-          type: string
-          maxLength: 120
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 120
+          - type: 'null'
+          x-sql-type: VARCHAR(120)
           description: Phiên bản context chung có các snapshot A/B và nhãn đã biết trước cutoff; khác checkpoint.
             Cùng PO item không nằm cả context và test.
-          x-sql-type: VARCHAR(120)
         context_metadata:
           anyOf:
           - type: object
@@ -1246,6 +1244,9 @@ components:
           x-sql-type: VARCHAR(25)
         feature_snapshot:
           $ref: '#/components/schemas/FeatureSnapshot'
+          x-sql-type: JSONB
+          description: JSONB gồm x đủ 19 key, metadata q_ref/unit/deadline/asof/history/calendar/source freshness
+            và provenance. NULL trong x được giữ; không đưa y hoặc actual completion vào x.
         status:
           type: string
           enum:
@@ -1306,6 +1307,26 @@ components:
       x-database-table: risk_predictions
       description: C07 | risk_predictions [P0] - Snapshot 19 thuộc tính cố định A B và kết quả TabICLv2
       allOf:
+      - if:
+          properties:
+            request_id:
+              type: string
+        then:
+          properties:
+            request_item_id:
+              $ref: '#/components/schemas/Uuid'
+            input_revision:
+              $ref: '#/components/schemas/Version'
+        else:
+          properties:
+            request_item_id:
+              type: 'null'
+            input_revision:
+              type: 'null'
+            task_id:
+              type: 'null'
+            po_item_id:
+              type: 'null'
       - if:
           properties:
             prediction_stage:

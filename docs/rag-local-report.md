@@ -161,9 +161,11 @@ Một `Retriever` và embedder được giữ theo lifespan app; model nạp lư
 
 Scope của chế độ development là catalog fixture do người vận hành cấu hình ở server, không phải quyền người dùng production. OpenAPI khai báo security rỗng cho pilot và giữ yêu cầu ServiceAuth + UserContext/JobContext của contract như metadata production để tích hợp sau. Chưa triển khai JWT/role/ACL thật hoặc replay idempotency bền vững. Không mount endpoint index-knowledge.
 
-Nếu cùng bật sample mode, Swagger của Core vẫn dùng contract cũ; schema và operation RAG được ghép riêng với tiền tố RagDev cho component, giữ nguyên các path/schema Core. Khi tắt cờ RAG, các route/lifecycle mẫu cũ giữ hành vi trước đó; backend thường không nạp Torch/Chroma hoặc model.
+Sau khi gộp với main đã bỏ API sample, RAG development chạy riêng khi database không được cấu hình. Swagger lấy route RAG trực tiếp từ FastAPI; không còn nhánh ghép Core sample. Khi tắt RAG và cấu hình database, 46 API app/AI cùng OpenAPI có xác thực được giữ nguyên. Backend thông thường không nạp Torch/Chroma hoặc model.
 
 ### Kiểm chứng
+
+Các kết quả dưới đây ghi nhận bản trước khi gộp main, khi Core sample còn tồn tại; kết quả kiểm tra bản gộp được ghi trong docs/CHECKPOINT.md.
 
 - **30 test HTTP mới qua**, kiểm tra flag tắt, cấu hình bị cấm, scope server, UUID/null và trường thừa, Idempotency-Key, JSON lỗi, peer từ xa, supplier không tồn tại, lỗi 503/500 có che chi tiết, correlation ID, model/retriever tái sử dụng, cleanup, 429 và event loop còn phục vụ liveness.
 - Toàn bộ repo: **144 passed, 1 failed**. Failure duy nhất vẫn là checksum contract baseline được mô tả ở mục 7; không sửa contract/assertion ngoài phạm vi.
@@ -174,6 +176,6 @@ Nếu cùng bật sample mode, Swagger của Core vẫn dùng contract cũ; sche
 
 ### Cách dùng và giới hạn còn lại
 
-Xem [hướng dẫn API/Postman/PowerShell](../examples/rag/README.md#7-api-http-development--gọi-từ-postman-hoặc-powershell). Khởi chạy từ root repo với flag RAG và docs bật, DSN trống; mặc định model/index lấy từ cache đã chuẩn bị bằng CLI. Có thể bật cùng Core sample bằng FLOWBRIDGE_SAMPLE_MODE=true. Các path fixture/cache có setting riêng trong .env.example.
+Xem [hướng dẫn API/Postman/PowerShell](../examples/rag/README.md#7-api-http-development--gọi-từ-postman-hoặc-powershell). Khởi chạy từ root repo với flag RAG và docs bật, DSN trống; mặc định model/index lấy từ cache đã chuẩn bị bằng CLI. Để trống cả FLOWBRIDGE_DATABASE_URL và FLOWBRIDGE_DATABASE_PASSWORD; không còn cờ Core sample. Các path fixture/cache có setting riêng trong .env.example.
 
 Phần còn lại trước tích hợp thật: adapter kho Markdown PostgreSQL, danh tính/caller/ACL và mốc A/B đáng tin cậy, endpoint index theo source references và idempotency bền vững, sau đó cấu hình tool Langflow. Code hiện tại là endpoint development có kết quả RAG thật trên dữ liệu fixture; không phải backend phân quyền production hoàn chỉnh. Phiên bản endpoint development được bàn giao trên nhánh `minnhungdev_features`.

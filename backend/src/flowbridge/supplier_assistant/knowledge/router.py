@@ -1,16 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of FlowBridge. See LICENSE.
-"""Opt-in loopback-only HTTP pilot using the existing retrieval DTO."""
+# Opt-in loopback-only HTTP pilot using the existing retrieval DTO.
 
 from ipaddress import ip_address
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, Request, Response
-from fastapi.openapi.utils import get_openapi
+from fastapi import APIRouter, Depends, FastAPI, Header, Request, Response
 from starlette.concurrency import run_in_threadpool
 
 from flowbridge.shared.errors import CoreError, ErrorCode, ErrorResponse
-from flowbridge.shared.http import WriteKey
 
 from .development import DEV_NOTICE, DevelopmentKnowledgeService
 from .models import RetrievalRequest, RetrievalResponse
@@ -34,6 +32,7 @@ def get_service(request: Request) -> DevelopmentKnowledgeService:
 
 
 Service = Annotated[DevelopmentKnowledgeService, Depends(get_service)]
+WriteKey = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=128)]
 
 
 @router.post(
@@ -65,36 +64,13 @@ async def retrieve_knowledge(
     return result
 
 
-def install_development_router(app: FastAPI, *, sample_mode: bool) -> None:
+def install_development_router(app: FastAPI) -> None:
     app.include_router(router)
     original_openapi = app.openapi
 
     def development_openapi() -> dict:
-        if app.openapi_schema is not None:
-            return app.openapi_schema
         schema = original_openapi()
-        if sample_mode:
-            # Core sample OpenAPI comes from a fixed contract, not app.routes.
-            # Merge only this real route, with namespaced DTOs to preserve Core schemas.
-            extra = get_openapi(title="RAG development", version="0.1.0", routes=router.routes)
-            names = set(extra.get("components", {}).get("schemas", {}))
-
-            def namespace(value):
-                if isinstance(value, dict):
-                    return {key: namespace(item) for key, item in value.items()}
-                if isinstance(value, list):
-                    return [namespace(item) for item in value]
-                if isinstance(value, str) and value.startswith("#/components/schemas/"):
-                    name = value.rsplit("/", 1)[-1]
-                    return f"#/components/schemas/RagDev{name}" if name in names else value
-                return value
-
-            schema["paths"][PATH] = namespace(extra["paths"][PATH])
-            target = schema.setdefault("components", {}).setdefault("schemas", {})
-            for name, definition in extra.get("components", {}).get("schemas", {}).items():
-                target[f"RagDev{name}"] = namespace(definition)
         schema["x-rag-development-mode"] = True
-        app.openapi_schema = schema
         return schema
 
     app.openapi = development_openapi

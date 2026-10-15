@@ -18,23 +18,32 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from flowbridge.settings import Settings
 
 
-def create_engine(settings: Settings) -> AsyncEngine:
+def create_engine(settings: Settings, *, use_null_pool: bool = False) -> AsyncEngine:
     # Tạo pool theo Settings; việc tạo engine chưa mở kết nối tới PostgreSQL.
     if settings.database_url is None:
         raise RuntimeError("Database is not configured")
+    pool_options = (
+        {"poolclass": NullPool}
+        if use_null_pool or settings.database_pool_mode == "null"
+        else {
+            "pool_size": settings.database_pool_size,
+            "max_overflow": settings.database_max_overflow,
+            "pool_timeout": settings.database_pool_timeout_seconds,
+        }
+    )
     return create_async_engine(
         settings.database_url.get_secret_value(),
         pool_pre_ping=True,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-        pool_timeout=settings.database_pool_timeout_seconds,
+        **pool_options,
         hide_parameters=True,
         echo=False,
         connect_args={
+            "ssl": False if settings.database_ssl == "disable" else settings.database_ssl,
             "timeout": settings.database_connect_timeout_seconds,
             "command_timeout": settings.database_command_timeout_seconds,
         },

@@ -7,14 +7,13 @@ info:
   title: Supplier Assistant Application API
   version: 0.4.1
   description: Contract theo Supplier Assistant Database Schema v0.4.1 TabICLv2 (27 bảng). Xác thực ngoài, users/roles/grants
-    nội bộ. API sample không ghi DB hoặc gọi engine/model thật.
-jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+    nội bộ. API dùng PostgreSQL; các engine chưa tích hợp trả 503.
 servers:
 - url: http://127.0.0.1:8000
 security:
 - BearerAuth: []
 x-database-schema-version: 0.4.1
-x-contract-status: Contract và runtime sample; engine/persistence/authorization thật chưa nghiệm thu.
+x-contract-status: Runtime PostgreSQL; IdP/workflow/chat/model/document adapters cần tích hợp riêng.
 x-conventions:
   ids: UUID nội bộ; mã PR/SUP/PO là trường hiển thị riêng; actor từ server, không nhận role/owner tùy ý.
   decimal: Quantity và tiền NUMERIC(18,4) truyền dạng chuỗi bốn chữ số thập phân.
@@ -23,15 +22,13 @@ x-conventions:
   authorization: EMPLOYEE owner; APPROVER/WAREHOUSE department grant; ADMIN không tự approve; AI_SERVICE/PO_SERVICE
     là service.
   documents: Adapter tới kho Markdown PostgreSQL hiện có; giữ reference/version/chunk/ACL; không tạo supplier_documents.
-  idempotency: Receiver claim/replay bền vững và đối soát outcome; header trong sample chỉ kiểm hình dạng, không
-    bảo đảm tác động đúng một lần.
+  idempotency: Receiver claim/replay bền vững và đối soát outcome; scope actor và fingerprint được lưu cùng transaction nghiệp vụ trong bảng api_idempotency.
 paths:
   /api/v1/me:
     get:
       operationId: getApplicationProfile
       summary: Hồ sơ UUID và grants hiệu lực
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters: []
@@ -97,8 +94,7 @@ paths:
     get:
       operationId: listSuppliers
       summary: Danh sách suppliers
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -177,8 +173,7 @@ paths:
     get:
       operationId: listProducts
       summary: Danh sách products
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -257,8 +252,7 @@ paths:
     get:
       operationId: listSupplierProducts
       summary: Danh sách supplier-products
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -337,8 +331,7 @@ paths:
     get:
       operationId: listDepartments
       summary: Danh sách departments
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -417,8 +410,7 @@ paths:
     get:
       operationId: listPurchaseRequests
       summary: PR cá nhân của caller
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -508,7 +500,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -586,8 +578,7 @@ paths:
     get:
       operationId: getPurchaseRequest
       summary: Chi tiết PR và các dòng
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -658,8 +649,7 @@ paths:
     patch:
       operationId: updatePurchaseRequest
       summary: Sửa input PR và tăng input_revision
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -668,7 +658,7 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/Uuid'
-        example: 9f71c3b5-33b9-5d0f-8c75-13956de3c713
+        example: dfe4ef40-52d2-51b4-974b-9ecd45b28d5d
       - name: Idempotency-Key
         in: header
         required: true
@@ -676,7 +666,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -755,8 +745,7 @@ paths:
     post:
       operationId: submitPurchaseRequest
       summary: Gửi PR cá nhân hiện hành
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -765,7 +754,7 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/Uuid'
-        example: 9f71c3b5-33b9-5d0f-8c75-13956de3c713
+        example: dfe4ef40-52d2-51b4-974b-9ecd45b28d5d
       - name: Idempotency-Key
         in: header
         required: true
@@ -773,7 +762,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -844,8 +833,7 @@ paths:
     post:
       operationId: cancelPurchaseRequest
       summary: Hủy PR khi trạng thái cho phép
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -854,7 +842,7 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/Uuid'
-        example: 9f71c3b5-33b9-5d0f-8c75-13956de3c713
+        example: dfe4ef40-52d2-51b4-974b-9ecd45b28d5d
       - name: Idempotency-Key
         in: header
         required: true
@@ -862,7 +850,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -944,7 +932,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '202':
           description: Kết quả theo schema v0.4.1.
@@ -1018,8 +1006,7 @@ paths:
     get:
       operationId: getAnalysisJob
       summary: Đọc analysis_tasks theo task_id
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -1091,8 +1078,7 @@ paths:
     get:
       operationId: listPurchaseProposals
       summary: Đọc proposal liên quan đến PR có quyền
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -1171,8 +1157,7 @@ paths:
     get:
       operationId: getPurchaseProposal
       summary: Proposal do AI tạo, kèm nhiều dòng
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -1262,7 +1247,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -1337,8 +1322,7 @@ paths:
     get:
       operationId: listPurchaseOrders
       summary: PO trong quyền owner hoặc department grant
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -1417,8 +1401,7 @@ paths:
     get:
       operationId: getPurchaseOrder
       summary: PO, items và lịch giao
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -1490,8 +1473,7 @@ paths:
     get:
       operationId: listGoodsReceipts
       summary: Lịch sử nhận hàng append-only
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / WAREHOUSE
       parameters:
@@ -1593,7 +1575,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -1683,7 +1665,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '202':
           description: Kết quả theo schema v0.4.1.
@@ -1754,8 +1736,7 @@ paths:
     get:
       operationId: previewSupplierConfirmation
       summary: Xem PO bằng token nghiệp vụ
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / SUPPLIER_TOKEN
       parameters:
@@ -1854,7 +1835,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       - name: X-Confirmation-Token
         in: header
         required: true
@@ -1939,8 +1920,7 @@ paths:
     post:
       operationId: appendConfirmationDetail
       summary: Thêm phiên bản cam kết, không dùng lại token consumed
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / PO_SERVICE
       parameters:
@@ -1957,7 +1937,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -2032,8 +2012,7 @@ paths:
     post:
       operationId: sendChatMessage
       summary: Chat trong scope của caller
-      description: Lịch sử chat là projection của adapter ứng dụng, không tạo thêm bảng trong schema 27 bảng. Sample
-        không gọi LLM.
+      description: Lịch sử chat là projection của adapter ứng dụng, không tạo thêm bảng trong schema 27 bảng. Chưa có adapter chat/LLM; runtime trả 503.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -2044,7 +2023,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -2116,8 +2095,7 @@ paths:
     get:
       operationId: getChatHistory
       summary: Lịch sử chat mẫu
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters:
@@ -2202,8 +2180,7 @@ paths:
     post:
       operationId: registerAutomaticAnalysis
       summary: Đăng ký task từ event snapshot bất biến
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI_SERVICE
       parameters:
@@ -2214,7 +2191,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '202':
           description: Kết quả theo schema v0.4.1.
@@ -2304,8 +2281,7 @@ paths:
     post:
       operationId: claimAnalysisJob
       summary: Nhận task queued cho worker
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI_SERVICE
       parameters:
@@ -2322,7 +2298,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -2393,8 +2369,7 @@ paths:
     put:
       operationId: completeAnalysisJob
       summary: Ghi report, prediction và candidate đúng task/revision
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI_SERVICE
       parameters:
@@ -2411,7 +2386,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -2579,8 +2554,7 @@ paths:
     put:
       operationId: failAnalysisJob
       summary: Ghi lỗi phân tích, không score giả
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / AI_SERVICE
       parameters:
@@ -2597,7 +2571,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -2683,7 +2657,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -2770,7 +2744,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -2843,8 +2817,7 @@ paths:
     put:
       operationId: recordOrderDispatch
       summary: Ghi outcome email kể cả delivery_unknown
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / PO_SERVICE
       parameters:
@@ -2861,7 +2834,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -2934,8 +2907,7 @@ paths:
     get:
       operationId: listApplicationUsers
       summary: Quản trị danh sách users
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3013,8 +2985,7 @@ paths:
     post:
       operationId: provisionApplicationUser
       summary: Provision profile từ identity reference tin cậy
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3025,7 +2996,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -3099,8 +3070,7 @@ paths:
     get:
       operationId: listApplicationRoles
       summary: Quản trị danh sách roles
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3179,8 +3149,7 @@ paths:
     patch:
       operationId: updateApplicationUser
       summary: Đổi hồ sơ hoặc disable, giữ actor lịch sử
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3197,7 +3166,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -3268,8 +3237,7 @@ paths:
     get:
       operationId: listApplicationUserRoles
       summary: Lịch sử grants, kể cả đã thu hồi
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3353,8 +3321,7 @@ paths:
     post:
       operationId: grantApplicationRole
       summary: Cấp grant theo account_type/scope
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3371,7 +3338,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '201':
           description: Kết quả theo schema v0.4.1.
@@ -3444,8 +3411,7 @@ paths:
     post:
       operationId: revokeApplicationRole
       summary: Thu hồi grant, không xóa lịch sử
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Sample dùng fixture
-        server, không chứng minh phân quyền thật.
+      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
       tags:
       - Supplier Assistant / ADMIN
       parameters:
@@ -3462,7 +3428,7 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        example: sample-schema-041
+        example: example-schema-041
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -4143,6 +4109,8 @@ components:
           x-sql-type: INTEGER
         feature_schema_version:
           const: tabicl_supplier_fixed_v1
+          x-sql-type: VARCHAR(80)
+          description: 'tabicl_supplier_fixed_v1: đúng 19 key X ở E, cùng schema cho A/B, không missing indicators.'
         preprocessing_version:
           type: string
           maxLength: 80
@@ -4163,11 +4131,14 @@ components:
           description: tabicl-classifier-v2-20260212.ckpt; bắt buộc khi success.
           x-sql-type: VARCHAR(120)
         context_dataset_version:
-          type: string
-          maxLength: 120
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 120
+          - type: 'null'
+          x-sql-type: VARCHAR(120)
           description: Phiên bản context chung có các snapshot A/B và nhãn đã biết trước cutoff; khác checkpoint.
             Cùng PO item không nằm cả context và test.
-          x-sql-type: VARCHAR(120)
         context_metadata:
           anyOf:
           - type: object
@@ -4203,6 +4174,9 @@ components:
           x-sql-type: VARCHAR(25)
         feature_snapshot:
           $ref: '#/components/schemas/FeatureSnapshot'
+          x-sql-type: JSONB
+          description: JSONB gồm x đủ 19 key, metadata q_ref/unit/deadline/asof/history/calendar/source freshness
+            và provenance. NULL trong x được giữ; không đưa y hoặc actual completion vào x.
         status:
           type: string
           enum:
@@ -4263,6 +4237,26 @@ components:
       x-database-table: risk_predictions
       description: C07 | risk_predictions [P0] - Snapshot 19 thuộc tính cố định A B và kết quả TabICLv2
       allOf:
+      - if:
+          properties:
+            request_id:
+              type: string
+        then:
+          properties:
+            request_item_id:
+              $ref: '#/components/schemas/Uuid'
+            input_revision:
+              $ref: '#/components/schemas/Version'
+        else:
+          properties:
+            request_item_id:
+              type: 'null'
+            input_revision:
+              type: 'null'
+            task_id:
+              type: 'null'
+            po_item_id:
+              type: 'null'
       - if:
           properties:
             prediction_stage:

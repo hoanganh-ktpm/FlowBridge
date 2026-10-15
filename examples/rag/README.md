@@ -1,6 +1,6 @@
 # Chạy thử RAG nhà cung cấp tại máy
 
-RAG có CLI và endpoint HTTP development bật riêng, có thể chạy cùng API Core sample. Mỗi file trong `supplier_reviews/` là một nhà cung cấp. Nội dung và người nhận xét được giữ nguyên từ bộ dữ liệu mẫu đã xuất; `source_provenance.json` ghi nguồn, seed và cách phân công người nhận xét. Đây là dữ liệu giả lập để thử hệ thống.
+RAG có CLI và endpoint HTTP development bật riêng, chạy riêng với API PostgreSQL vì chế độ development yêu cầu database không được cấu hình. Mỗi file trong `supplier_reviews/` là một nhà cung cấp. Nội dung và người nhận xét được giữ nguyên từ bộ dữ liệu mẫu đã xuất; `source_provenance.json` ghi nguồn, seed và cách phân công người nhận xét. Đây là dữ liệu giả lập để thử hệ thống.
 
 ## 1. Cài đặt
 
@@ -99,12 +99,12 @@ Endpoint này chạy RAG thật trên catalog local. Mặc định tắt; chỉ 
 Sau khi đã cài extra `rag` và index ở bước 1–2, mở PowerShell tại thư mục gốc repo và chạy:
 
 ```powershell
-cd C:\Hung\FlowBridge
+# Chạy trong thư mục gốc repo FlowBridge.
 $env:FLOWBRIDGE_ENVIRONMENT = "development"
 $env:FLOWBRIDGE_HOST = "127.0.0.1"
 $env:FLOWBRIDGE_PORT = "8000"
 $env:FLOWBRIDGE_DATABASE_URL = ""
-$env:FLOWBRIDGE_SAMPLE_MODE = "false"
+$env:FLOWBRIDGE_DATABASE_PASSWORD = ""
 $env:FLOWBRIDGE_RAG_DEV_ENABLED = "true"
 $env:FLOWBRIDGE_DOCS_ENABLED = "true"
 $env:OMP_NUM_THREADS = "4"
@@ -112,7 +112,7 @@ $env:HF_HUB_OFFLINE = "1"
 .\.venv\Scripts\python.exe -m flowbridge.main
 ```
 
-Giữ terminal này chạy. Mở Swagger tại **http://127.0.0.1:8000/docs**. Muốn có cả API Core fixture trong cùng server, đổi `FLOWBRIDGE_SAMPLE_MODE` thành `true` trước khi khởi động.
+Giữ terminal này chạy. Mở Swagger tại **http://127.0.0.1:8000/docs**. Cả URL và password database phải trống, kể cả khi `.env` có cấu hình theo từng trường; Settings sẽ ghép DSN từ password trước khi kiểm tra RAG. API Core sample đã bị loại bỏ trên `main`. API PostgreSQL có xác thực chạy riêng khi tắt RAG development và cấu hình database.
 
 **Postman:** chọn `POST http://127.0.0.1:8000/internal/v1/tools/retrieve-knowledge`, thêm header `Idempotency-Key: rag-demo-001`, chọn Body → raw → JSON:
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of FlowBridge. See LICENSE.
-"""HTTP/lifecycle evidence with controlled retrieval; real Qwen is tested separately."""
+# HTTP/lifecycle evidence with controlled retrieval; real Qwen is tested separately.
 
 import asyncio
 import os
@@ -124,6 +124,7 @@ async def test_default_flag_off_has_no_route_or_retriever(controlled):
         {"host": "0.0.0.0"},
         {"host": "192.168.1.10"},
         {"database_url": "postgresql+asyncpg://user:secret@localhost/database"},
+        {"database_host": "localhost", "database_user": "user", "database_password": "secret"},
     ],
 )
 def test_dev_configuration_rejects_production_network_bind_and_dsn(overrides):
@@ -271,18 +272,14 @@ async def test_busy_worker_returns_429_without_blocking_event_loop(controlled):
             assert (await first).status_code == 200
 
 
-@pytest.mark.parametrize("sample_mode", [False, True])
-def test_swagger_documents_real_route_and_preserves_core_contract(controlled, sample_mode):
-    app = create_app(configuration(sample_mode=sample_mode, docs_enabled=True))
+def test_swagger_documents_real_route_without_restoring_retired_sample_api(controlled):
+    app = create_app(configuration(docs_enabled=True))
     schema = app.openapi()
     operation = schema["paths"][PATH]["post"]
     assert operation["x-development-only"] and operation["security"] == []
     assert any(p["name"] == "Idempotency-Key" and p["required"] for p in operation["parameters"])
-    if sample_mode:
-        baseline = create_app(Settings(_env_file=None, sample_mode=True)).openapi()
-        for path, definition in baseline["paths"].items():
-            assert schema["paths"][path] == definition
-        for name, definition in baseline["components"]["schemas"].items():
-            assert schema["components"]["schemas"][name] == definition
-        assert "RagDevRetrievalResponse" in schema["components"]["schemas"]
+    assert set(schema["paths"]) == {PATH}
+    assert "x-sample-mode" not in schema
     assert schema["x-rag-development-mode"] and not controlled
+    assert app.openapi() is schema
+    assert not hasattr(app.state, "sample_context")
