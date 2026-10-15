@@ -10,6 +10,7 @@
 - Thêm hướng dẫn Postman/PowerShell và kiểm thử HTTP/lifecycle; chế độ này chưa dùng caller/ACL production, không tự tải model hoặc lập chỉ mục.
 - Thêm RAG local bằng CLI: 6 hồ sơ Markdown, Qwen3-Embedding-0.6B pin revision, Chroma cosine + BM25/RRF, chỉ mục theo thế hệ, nguồn/version/checksum/heading/reviewer và lọc document/supplier/known_from. Reranker mặc định tắt.
 - Thêm extra `rag`, lockfile, kiểm thử và tài liệu sử dụng/báo cáo; HTTP development được bổ sung ở bước tiếp theo; chưa nối Langflow, document store hoặc ACL production.
+- Tích hợp Keycloak SSO thật qua SDK code+PKCE và backend introspection; thêm registry client/human/service, CA trust, CORS allowlist, directory verified-link và bootstrap transaction mặc định rollback. Thêm realm config/native local launcher, hai client browser và E2E Keycloak+HTTP+Supabase không override identity. Không khôi phục sample identity hoặc lưu mật khẩu ở DB; không có migration mới.
 
 - Chỉ giữ API PostgreSQL/Supabase: bỏ nhánh sample, fixture runtime, API core mô phỏng, công cụ/ví dụ/test sample và dependency python-multipart. Chuyển 4 payload cần cho integration vào tests; giữ contract/auth/HTTP checks cho API database. Gateway mapping chỉ xuất API app/AI và tách nhãn admin/internal/public. Bỏ biến cấu hình FLOWBRIDGE_SAMPLE_*; cập nhật cách chạy và các dependency còn thiếu.
 
@@ -38,4 +39,4 @@
 - Bổ sung template môi trường, ignore rules và cấu hình LF.
 - Áp dụng quy tắc code/review/license/test/release theo thể lệ hiện tại.
 
-Chưa có release công khai; API hiện trả dữ liệu mẫu. Đã có nền SQLAlchemy/Alembic; chưa triển khai model/migration nghiệp vụ hoặc dữ liệu thật.
+Chưa có release công khai. Runtime hiện dùng Supabase và Keycloak SSO với cấu hình riêng; sample API đã bỏ. Đã có adapter ML/RAG local tùy cấu hình; workflow/email, ACL tài liệu production và nghiệm thu production vẫn còn các task tích hợp riêng.

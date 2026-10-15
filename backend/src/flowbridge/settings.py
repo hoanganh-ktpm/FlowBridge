@@ -80,15 +80,44 @@ class Settings(BaseSettings):
     oidc_introspection_url: str | None = None
     oidc_client_id: str | None = None
     oidc_client_secret: SecretStr | None = None
+    oidc_ca_bundle: Path | None = None
+    oidc_allowed_clients: list[str] = Field(default_factory=list)
+    oidc_service_clients: list[str] = Field(default_factory=list)
+    oidc_admin_url: str | None = None
+    oidc_admin_client_id: str | None = None
+    oidc_admin_client_secret: SecretStr | None = None
+    cors_origins: list[str] = Field(default_factory=list)
 
     @field_validator(
-        "oidc_issuer", "oidc_audience", "oidc_introspection_url", "oidc_client_id", mode="before"
+        "oidc_ca_bundle", "oidc_client_secret", "oidc_admin_client_secret", mode="before"
+    )
+    @classmethod
+    def empty_secret_or_path(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("oidc_allowed_clients", "oidc_service_clients")
+    @classmethod
+    def validate_client_registry(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() or value != value.strip() for value in values):
+            raise ValueError("Client IDs must be nonblank without surrounding whitespace")
+        if len(values) != len(set(values)):
+            raise ValueError("Client IDs must be unique")
+        return values
+
+    @field_validator(
+        "oidc_issuer",
+        "oidc_audience",
+        "oidc_introspection_url",
+        "oidc_client_id",
+        "oidc_admin_url",
+        "oidc_admin_client_id",
+        mode="before",
     )
     @classmethod
     def empty_identity_setting(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
 
-    @field_validator("oidc_issuer", "oidc_introspection_url")
+    @field_validator("oidc_issuer", "oidc_introspection_url", "oidc_admin_url")
     @classmethod
     def validate_identity_url(cls, value: str | None) -> str | None:
         if value is not None:
@@ -103,6 +132,24 @@ class Settings(BaseSettings):
             ):
                 raise ValueError("Identity URLs must be HTTPS without credentials/query/fragment")
         return value
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_origins(cls, values: list[str]) -> list[str]:
+        for value in values:
+            parts = urlsplit(value)
+            if (
+                parts.scheme not in {"http", "https"}
+                or not parts.netloc
+                or parts.username
+                or parts.password
+                or parts.path
+                or parts.query
+                or parts.fragment
+                or "*" in value
+            ):
+                raise ValueError("CORS origins must be explicit HTTP(S) origins without paths")
+        return values
 
     @field_validator("database_url", mode="before")
     @classmethod
