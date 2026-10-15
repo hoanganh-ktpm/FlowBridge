@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import httpx
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.concurrency import run_in_threadpool
 
 from flowbridge.db import create_engine, create_session_factory, probe_connection
 from flowbridge.operations.router import router as operations_router
@@ -69,10 +70,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     raise RuntimeError("PostgreSQL startup check failed") from None
             app.state.resources = Resources(http=http, engine=engine, sessions=sessions)
             try:
+                if configuration.rag_dev_enabled:
+                    from flowbridge.supplier_assistant.knowledge.development import (
+                        DevelopmentKnowledgeService,
+                    )
+
+                    service = DevelopmentKnowledgeService(configuration)
+                    stack.push_async_callback(run_in_threadpool, service.close)
+                    app.state.rag_dev_service = service
                 yield
             finally:
                 # Gỡ tài nguyên khỏi state trước khi ExitStack thực sự đóng client/pool.
                 app.state.resources = None
+                app.state.rag_dev_service = None
 
     app = FastAPI(
         title="FlowBridge OpenCore",
@@ -84,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = configuration
     app.state.resources = None
+    app.state.rag_dev_service = None
     register_exception_handlers(app)
     # Starlette bọc middleware thêm sau ra ngoài: correlation phải bao cả nhánh lỗi.
     app.add_middleware(CorrelationMiddleware)
@@ -91,6 +102,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if configuration.database_url is not None:
         app.include_router(create_database_router())
         install_database_openapi(app)
+    if configuration.rag_dev_enabled:
+        from flowbridge.supplier_assistant.knowledge.router import install_development_router
+
+        install_development_router(app)
     return app
 
 

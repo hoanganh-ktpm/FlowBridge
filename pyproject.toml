@@ -31,6 +31,13 @@ dependencies = [
     "uvicorn==0.54.0",
 ]
 
+[project.optional-dependencies]
+rag = [
+    "chromadb==1.5.9",
+    "sentence-transformers==6.1.0",
+    "rank-bm25==0.2.2",
+]
+
 [dependency-groups]
 build = ["hatchling==1.32.4"]
 dev = [
@@ -51,6 +58,8 @@ include = [
     "/tests",
     "/contracts",
     "/infra/gateway/README.md",
+    "/examples/rag",
+    "/docs/rag-local-report.md",
     "/scripts",
     "/alembic",
     "/alembic.ini",

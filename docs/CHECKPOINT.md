@@ -1,5 +1,18 @@
 # Checkpoint FlowBridge
 
+## 2026-10-16 — Giải quyết conflict PR #4 (RAG development)
+
+- Yêu cầu: sửa conflict của PR #4 hiện có, cập nhật nhánh minnhungdev_features; không merge PR vào main.
+- Head đầu vào: d3ce7e7; main được gộp: f24a2c9. Làm trong worktree riêng; giữ nguyên checkout hoanganhdev_features của người dùng.
+- Đã xử lý 6 file conflict: .env.example, CHANGELOG.md, README.md, main.py, settings.py, pyproject.toml; bỏ cả marker cũ đã tồn tại trong CHANGELOG của main.
+- Giữ API PostgreSQL, bearer introspection và OpenAPI từ main. RAG development giữ lifecycle, loopback guard và DSN trống; kiểm tra guard sau khi Settings ghép DSN từ host/user/password.
+- Không khôi phục API/sample modules đã bị main loại bỏ. Router RAG dùng Header của FastAPI thay import shared.http đã bị xóa; bỏ nhánh Swagger Core sample.
+- Cập nhật tests/unit/test_knowledge_http.py, examples/rag/README.md và docs/rag-local-report.md theo cách chạy riêng; giữ nguyên bằng chứng thử Qwen trước merge và ghi rõ thời điểm.
+- Kiểm tra: 158 unit test pass, không skip; Ruff check/format pass; uv lock --check --offline pass. Hatchling build wheel và source tar.gz pass; kiểm nội dung archive và import wheel ngoài source, bootstrap/database/RAG OpenAPI pass.
+- Sandbox Windows làm asyncio treo khi tạo socket nội bộ; đã dừng các lượt đó và chạy lại unit suite ngoài sandbox thành công. rank-bm25 dùng từ thư mục test tạm, không sửa môi trường đang dùng.
+- Chưa chạy Supabase integration, migration/seed, Chroma thật hoặc tải/chạy Qwen; không thay dependency pin hoặc schema. Lockfile được Git tự gộp và kiểm tra đạt.
+- Không có PLAN-OPENCORE.md/TASK-API-TEST.md trong snapshot để gắn ID CODE; phạm vi theo PR #4. Bước cập nhật Git: tạo merge commit từ bản đã kiểm tra, push thường vào minnhungdev_features rồi xác minh PR/remote SHA; không force-push.
+
 ## 2026-10-16 — Chẩn đoán 404 khi mở Swagger
 
 - Người dùng xác nhận mở `http://127.0.0.1:8000/docs` bằng trình duyệt và nhận NOT_FOUND. Repo/branch/HEAD vẫn là FlowBridge / `hoanganhdev_features` / `928ebfa91a2f7ca2b94d4bd366f95acc3411f008`; giữ nguyên staged changes và conflict CHANGELOG.

@@ -1,0 +1,25 @@
+{
+  "transport": "real HTTP via temporary uvicorn localhost process",
+  "sample_core_and_rag_coexist": true,
+  "swagger_has_rag_route": true,
+  "missing_idempotency_header_status": 422,
+  "requests": [
+    {
+      "request": 1,
+      "status": 200,
+      "elapsed_seconds": 27.377,
+      "top1_correct_po_and_26_days_late": true,
+      "supplier_isolation": true,
+      "contract_valid": true
+    },
+    {
+      "request": 2,
+      "status": 200,
+      "elapsed_seconds": 0.661,
+      "top1_correct_po_and_26_days_late": true,
+      "supplier_isolation": true,
+      "contract_valid": true
+    }
+  ],
+  "test_server_stopped_after_check": true
+}

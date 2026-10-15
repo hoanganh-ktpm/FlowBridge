@@ -8,6 +8,8 @@ Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằn
 
 > **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO cần cấu hình upstream; workflow approval, email worker, chat/model và kho tài liệu chưa được nối. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
 
+RAG đã có ingestion 6 hồ sơ Markdown, Qwen3 + Chroma/BM25/RRF, CLI và endpoint retrieval development bật riêng trên loopback. Xem [cách chạy CLI/Postman/PowerShell](examples/rag/README.md) và [báo cáo triển khai](docs/rag-local-report.md); document store, ACL thật và Langflow chưa được nối.
+
 [Chức năng](#chức-năng-chính) · [Kiến trúc](#kiến-trúc-tổng-thể) · [Cài đặt](#cài-đặt-và-chạy-backend) · [Changelog](CHANGELOG.md) · [GPL-3.0-or-later](LICENSE)
 
 ## Mục lục
@@ -157,7 +159,7 @@ Backend giữ ranh giới `supplier_assistant/router.py` → `database_service.p
 | Truy cập dữ liệu và HTTP | SQLAlchemy, asyncpg, Alembic, HTTPX | Có migration và API PostgreSQL/Supabase thật, session theo request và transaction/outbox. |
 | Công cụ phát triển | uv 0.13.1, Hatchling, Ruff, pytest | Đã cấu hình; dependency khóa trong [uv.lock](uv.lock). |
 | Nền tảng Open-Core | Keycloak, Apache APISIX, PostgreSQL, storage tương thích S3, engine BPMN | Hướng tích hợp; chưa triển khai engine. |
-| AI | Langflow, LLM, ML cho dữ liệu bảng, RAG và kho vector | Thiết kế; chưa chốt toàn bộ model, phiên bản và dịch vụ. |
+| AI | Qwen3, Chroma, BM25/RRF; Langflow và ML theo thiết kế | RAG có CLI và HTTP development trên fixture; các công cụ AI khác chưa được tích hợp. |
 | Giao diện | Web và mobile dùng chung REST/JSON | Chưa triển khai, chưa chốt framework. |
 
 Phiên bản thư viện Python cụ thể được khai báo trong [pyproject.toml](pyproject.toml) và khóa trong `uv.lock`. Engine workflow, model và dữ liệu cần được kiểm chứng trước khi tích hợp.
@@ -185,7 +187,7 @@ uv run --locked python -m flowbridge.main
 Server mặc định nghe tại `127.0.0.1:8000`; `/` trả 404. Đặt
 `FLOWBRIDGE_DOCS_ENABLED=true` để mở [Swagger](http://127.0.0.1:8000/docs).
 Khi có DSN, Swagger hiển thị 46 operation app/AI cùng yêu cầu xác thực.
-Development không có DSN chỉ chạy bootstrap vận hành; không có dữ liệu mẫu.
+Development không có DSN mặc định chỉ chạy bootstrap vận hành. Có thể bật riêng RAG development theo [hướng dẫn](examples/rag/README.md); các API sample cũ đã bị loại bỏ.
 
 | Endpoint vận hành | Kết quả |
 |---|---|
@@ -221,7 +223,10 @@ vào source phát hành.
 | `FLOWBRIDGE_PORT` | `8000` | Cổng khi chạy module Python. |
 | `FLOWBRIDGE_LOG_LEVEL` | `INFO` | Mức log khi chạy module Python. |
 | `FLOWBRIDGE_DOCS_ENABLED` | `false` | Bật `/docs` và `/openapi.json` trong môi trường phát triển. |
-| `FLOWBRIDGE_DATABASE_URL` | Trống | Có DSN để mở API nghiệp vụ; development thiếu DSN chỉ có probes. DSN `postgresql+asyncpg://…`. |
+| `FLOWBRIDGE_RAG_DEV_ENABLED` | `false` | Bật HTTP retrieval trên fixture local; chỉ loopback development/test và không cấu hình database. Xem examples/rag. |
+| `FLOWBRIDGE_RAG_DEV_CATALOG_PATH` | `examples/rag/catalog.json` | Catalog nguồn Markdown cho RAG development. |
+| `FLOWBRIDGE_RAG_DEV_INDEX_PATH`, `FLOWBRIDGE_RAG_DEV_MODEL_CACHE_PATH` | `.cache/rag`, `.cache/models` | Thư mục chỉ mục và model local; HTTP không tự tải model hoặc lập chỉ mục. |
+| `FLOWBRIDGE_DATABASE_URL` | Trống | Có DSN để mở API nghiệp vụ; development thiếu DSN mặc định chỉ có probes. DSN `postgresql+asyncpg://…`. |
 | `FLOWBRIDGE_DATABASE_HOST`, `FLOWBRIDGE_DATABASE_USER`, `FLOWBRIDGE_DATABASE_PASSWORD` | Trống | Thay thế DSN bằng host/user/password riêng; password thô được encode tự động. DSN tường minh được ưu tiên. |
 | `FLOWBRIDGE_DATABASE_PORT`, `FLOWBRIDGE_DATABASE_NAME` | `5432`, `postgres` | Cổng và database khi ghép URL từ các trường riêng. |
 | `FLOWBRIDGE_DATABASE_SSL` | `require` | SSL của asyncpg: `require`, `verify-full`, hoặc `disable` cho DB local. |
@@ -269,6 +274,8 @@ Unit mặc định kiểm tra cấu hình, lifecycle, lỗi, correlation và h�
 
 Unit kiểm tra đủ 46 route theo contract, checksum/snapshot, security trong Swagger, validation trước command và việc cờ sample cũ không thể bật principal giả. Đây là test offline; bằng chứng persistence/quyền thực tế nằm ở suite Supabase.
 
+Để chạy đầy đủ unit RAG, cài extra bằng `uv sync --locked --extra rag --group dev --group build`. Test HTTP dùng retrieval có kiểm soát; chất lượng Qwen và Chroma thật có kiểm tra riêng.
+
 Nhóm dependency `build` khóa Hatchling cùng dependency bắc cầu. Sau khi sync nhóm này, `--no-build-isolation` dùng môi trường đã cài theo lockfile để build. Wheel và source tar.gz sinh trong `dist/`, bị Git ignore. Khi chuẩn bị phát hành, cần kiểm chứng cài wheel vào môi trường sạch, chạy ngoài source tree và build lại từ source archive.
 
 ## Trạng thái và hướng phát triển
@@ -278,7 +285,7 @@ Nhóm dependency `build` khóa Hatchling cùng dependency bắc cầu. Sau khi s
 | Nền backend | Có package, app factory, Settings, lifecycle, lỗi chuẩn, correlation, probes vận hành và unit test mock. |
 | Open-Core | Giữ thiết kế; endpoint core mẫu đã bỏ, engine Identity/Gateway/storage/workflow chờ tích hợp. |
 | Ứng dụng mua hàng | Chỉ có API PostgreSQL thật; một số chức năng chờ workflow/IdP/chat, chưa có giao diện. |
-| AI và tự động hóa | Giữ 6 operation tools theo contract, phần cần engine trả 503; chưa Langflow/model/RAG/worker thật. |
+| AI và tự động hóa | API database giữ 6 tools theo contract; RAG local có CLI và HTTP development riêng. Chưa tích hợp document store/ACL production, Langflow, model dự đoán và worker. |
 | Demo và phát hành | Chưa có demo đầu cuối; version package 0.1.0 chưa phải release công khai. |
 
 Các giai đoạn tiếp theo:

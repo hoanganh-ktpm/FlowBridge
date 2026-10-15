@@ -8,6 +8,7 @@
 
 # Validated runtime configuration; dotenv paths resolve from the working directory.
 
+from pathlib import Path
 from typing import Literal, Self
 from urllib.parse import urlsplit
 
@@ -34,6 +35,10 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     docs_enabled: bool = False
+    rag_dev_enabled: bool = False
+    rag_dev_catalog_path: Path = Path("examples/rag/catalog.json")
+    rag_dev_index_path: Path = Path(".cache/rag")
+    rag_dev_model_cache_path: Path = Path(".cache/models")
     database_url: SecretStr | None = None
     database_host: str | None = Field(default=None, min_length=1)
     database_port: int = Field(default=5432, ge=1, le=65535)
@@ -127,6 +132,13 @@ class Settings(BaseSettings):
                 self, "database_url", SecretStr(url.render_as_string(hide_password=False))
             )
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
+        if self.rag_dev_enabled:
+            if self.environment == "production":
+                raise ValueError("rag_dev_enabled is unavailable in production")
+            if self.host.lower() not in {"127.0.0.1", "localhost", "::1"}:
+                raise ValueError("rag_dev_enabled requires a loopback host")
+            if self.database_url is not None:
+                raise ValueError("rag_dev_enabled uses fixture sources and requires an empty DSN")
         if self.environment == "production" and self.database_url is None:
             raise ValueError("database_url is required in production")
         return self
