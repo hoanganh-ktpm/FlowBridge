@@ -1,0 +1,777 @@
+[
+  {
+    "operationId": "getApplicationProfile",
+    "method": "GET",
+    "path": "/api/v1/me",
+    "status": 200,
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listSuppliers",
+    "method": "GET",
+    "path": "/api/v1/suppliers",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listProducts",
+    "method": "GET",
+    "path": "/api/v1/products",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listSupplierProducts",
+    "method": "GET",
+    "path": "/api/v1/supplier-products",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listDepartments",
+    "method": "GET",
+    "path": "/api/v1/departments",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listPurchaseRequests",
+    "method": "GET",
+    "path": "/api/v1/purchase-requests",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "createPurchaseRequest",
+    "method": "POST",
+    "path": "/api/v1/purchase-requests",
+    "status": 201,
+    "json": {
+      "source": "web",
+      "notes": "Synthetic PR",
+      "items": [
+        {
+          "product_id": "73a116c7-170a-5838-af2b-a1af6709edaa",
+          "preferred_supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+          "quantity": "10.5000",
+          "requested_delivery_date": "2026-10-20",
+          "currency": "VND"
+        }
+      ]
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "getPurchaseRequest",
+    "method": "GET",
+    "path": "/api/v1/purchase-requests/9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+    "status": 200,
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "updatePurchaseRequest",
+    "method": "PATCH",
+    "path": "/api/v1/purchase-requests/9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+    "status": 200,
+    "json": {
+      "source": "web",
+      "notes": "Synthetic PR",
+      "items": [
+        {
+          "product_id": "73a116c7-170a-5838-af2b-a1af6709edaa",
+          "preferred_supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+          "quantity": "10.5000",
+          "requested_delivery_date": "2026-10-20",
+          "currency": "VND"
+        }
+      ],
+      "expected_input_revision": 1
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "submitPurchaseRequest",
+    "method": "POST",
+    "path": "/api/v1/purchase-requests/9f71c3b5-33b9-5d0f-8c75-13956de3c713/submit",
+    "status": 200,
+    "json": {
+      "expected_input_revision": 1
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "cancelPurchaseRequest",
+    "method": "POST",
+    "path": "/api/v1/purchase-requests/9f71c3b5-33b9-5d0f-8c75-13956de3c713/cancel",
+    "status": 200,
+    "json": {
+      "expected_input_revision": 1
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "createAnalysisJob",
+    "method": "POST",
+    "path": "/api/v1/analysis-jobs",
+    "status": 202,
+    "json": {
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "input_revision": 1,
+      "task_type": "reanalysis",
+      "po_item_id": null
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "getAnalysisJob",
+    "method": "GET",
+    "path": "/api/v1/analysis-jobs/759377c6-581b-5649-8819-fefe508f91d1",
+    "status": 200,
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listPurchaseProposals",
+    "method": "GET",
+    "path": "/api/v1/proposals",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "getPurchaseProposal",
+    "method": "GET",
+    "path": "/api/v1/proposals/b577194d-90bd-586a-b8cd-948f7ca9b5b8",
+    "status": 200,
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "decidePurchaseProposal",
+    "method": "POST",
+    "path": "/api/v1/proposals/b577194d-90bd-586a-b8cd-948f7ca9b5b8/decisions",
+    "status": 200,
+    "json": {
+      "decision": "approved",
+      "expected_version_no": 1,
+      "input_revision": 1,
+      "workflow_instance_id": "WF-SAMPLE",
+      "workflow_task_id": "TASK-SAMPLE"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listPurchaseOrders",
+    "method": "GET",
+    "path": "/api/v1/purchase-orders",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "getPurchaseOrder",
+    "method": "GET",
+    "path": "/api/v1/purchase-orders/17b280ec-ac68-5021-acbd-b0fdb02a99ee",
+    "status": 200,
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listGoodsReceipts",
+    "method": "GET",
+    "path": "/api/v1/purchase-orders/17b280ec-ac68-5021-acbd-b0fdb02a99ee/receipts",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "recordGoodsReceipt",
+    "method": "POST",
+    "path": "/api/v1/purchase-orders/17b280ec-ac68-5021-acbd-b0fdb02a99ee/receipts",
+    "status": 201,
+    "json": {
+      "schedule_id": "67e9ee1a-6809-5d34-8ab9-ca3ec3ccb75b",
+      "received_quantity": "2.5000",
+      "actual_delivery_date": "2026-10-15"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "requestEmailRetry",
+    "method": "POST",
+    "path": "/api/v1/purchase-orders/17b280ec-ac68-5021-acbd-b0fdb02a99ee/email-retries",
+    "status": 409,
+    "json": {
+      "reason": "Inspect reconciled outcome before retry"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "previewSupplierConfirmation",
+    "method": "GET",
+    "path": "/api/v1/supplier-confirmations/17b280ec-ac68-5021-acbd-b0fdb02a99ee",
+    "status": 200,
+    "headers": {
+      "Idempotency-Key": "sample-schema-041",
+      "X-Confirmation-Token": "sample-confirmation-token"
+    }
+  },
+  {
+    "operationId": "recordSupplierConfirmation",
+    "method": "POST",
+    "path": "/api/v1/supplier-confirmations/17b280ec-ac68-5021-acbd-b0fdb02a99ee",
+    "status": 201,
+    "json": {
+      "decision": "confirmed",
+      "items": [
+        {
+          "schedule_id": "67e9ee1a-6809-5d34-8ab9-ca3ec3ccb75b",
+          "confirmed_quantity": null,
+          "promised_delivery_date": "2026-10-19"
+        }
+      ]
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041",
+      "X-Confirmation-Token": "sample-confirmation-token"
+    }
+  },
+  {
+    "operationId": "appendConfirmationDetail",
+    "method": "POST",
+    "path": "/internal/v1/supplier-confirmations/24810270-dc41-5ecf-a42e-ab0e806a732a/items",
+    "status": 201,
+    "json": {
+      "expected_revision_no": 1,
+      "item": {
+        "schedule_id": "67e9ee1a-6809-5d34-8ab9-ca3ec3ccb75b",
+        "confirmed_quantity": null,
+        "promised_delivery_date": "2026-10-21"
+      }
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "sendChatMessage",
+    "method": "POST",
+    "path": "/api/v1/chat/messages",
+    "status": 200,
+    "json": {
+      "message": "Xem PR của tôi",
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "getChatHistory",
+    "method": "GET",
+    "path": "/api/v1/chat/sessions/2222c3a9-b029-53c2-8bfe-15f4bfe05001/messages",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "registerAutomaticAnalysis",
+    "method": "POST",
+    "path": "/internal/v1/analysis-jobs",
+    "status": 202,
+    "json": {
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "input_revision": 1,
+      "task_type": "initial_analysis",
+      "po_item_id": null,
+      "source_event_id": "e40d4aad-4992-5fa0-9b3a-bc02ad6803db",
+      "feature_asof": "2026-10-15T03:00:00Z",
+      "input_snapshot": {
+        "input_revision": 1,
+        "items": [
+          {
+            "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+            "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+            "line_number": 1,
+            "product_id": "73a116c7-170a-5838-af2b-a1af6709edaa",
+            "preferred_supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+            "quantity": "10.5000",
+            "requested_delivery_date": "2026-10-20",
+            "unit_price_snapshot": "10000.0000",
+            "currency": "VND",
+            "line_total": "105000.0000",
+            "notes": null
+          }
+        ]
+      }
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "claimAnalysisJob",
+    "method": "POST",
+    "path": "/internal/v1/analysis-jobs/759377c6-581b-5649-8819-fefe508f91d1/claim",
+    "status": 200,
+    "json": {
+      "expected_status": "queued"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "completeAnalysisJob",
+    "method": "PUT",
+    "path": "/internal/v1/analysis-jobs/759377c6-581b-5649-8819-fefe508f91d1/result",
+    "status": 200,
+    "json": {
+      "input_revision": 1,
+      "report": {
+        "report_id": "fa95fe26-ec60-537b-ab14-bd6878eae596",
+        "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+        "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+        "primary_prediction_id": "3198f516-7ba6-5b71-9ddd-45280e0642f3",
+        "risk_level": "low",
+        "summary": "Synthetic report; no model executed.",
+        "report_data": {
+          "decision_status": "ready",
+          "selection_policy_version": "synthetic-selection-v1",
+          "document_refs": [
+            {
+              "document_id": "SYNTHETIC-DOC",
+              "document_version": "1",
+              "chunk_id": "SYNTHETIC-CHUNK",
+              "source_uri": "sample://markdown-existing-store",
+              "checksum": "262805c9e3b8b3b83a07227c6be1d6144f172d8a99f18428aba2200d0de10642",
+              "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c"
+            }
+          ],
+          "synthetic": true
+        },
+        "created_at": "2026-10-15T03:00:00Z"
+      },
+      "predictions": [
+        {
+          "prediction_id": "3198f516-7ba6-5b71-9ddd-45280e0642f3",
+          "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+          "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+          "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+          "input_revision": 1,
+          "source_type": "pr_initial",
+          "prediction_stage": "PR_CREATED",
+          "po_item_id": null,
+          "idempotency_key": "SAMPLE-idempotency_key",
+          "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+          "product_id": "73a116c7-170a-5838-af2b-a1af6709edaa",
+          "quantity": "10.5000",
+          "requested_delivery_date": "2026-10-20",
+          "feature_asof": "2026-10-15T03:00:00Z",
+          "requested_lead_days": 5,
+          "feature_schema_version": "tabicl_supplier_fixed_v1",
+          "preprocessing_version": "synthetic-fixed-v1",
+          "model_name": "TabICLv2",
+          "model_version": "tabicl-classifier-v2-20260212.ckpt",
+          "context_dataset_version": "SYNTHETIC-NOT-A-FITTED-CONTEXT",
+          "context_metadata": {
+            "synthetic": true,
+            "model_executed": false
+          },
+          "risk_score": 0.2,
+          "risk_threshold": 0.5,
+          "risk_level": "low",
+          "feature_snapshot": {
+            "x": {
+              "prediction_stage": "PR_CREATED",
+              "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+              "product_category": "office",
+              "order_size_ratio": 1.05,
+              "days_to_deadline": 5,
+              "non_working_days_to_deadline": null,
+              "hist_lead_p50_days": null,
+              "hist_lead_p90_days": null,
+              "hist_late_rate_smoothed": null,
+              "hist_sample_count": 0,
+              "other_open_order_count": null,
+              "expected_issue_wait_days": null,
+              "remaining_size_ratio": null,
+              "elapsed_days_since_issue": null,
+              "confirmation_state": null,
+              "confirmation_wait_days": null,
+              "received_fraction": null,
+              "days_since_last_receipt": null,
+              "promise_margin_days": null
+            },
+            "metadata": {
+              "synthetic": true,
+              "q_ref": "10.0000",
+              "unit": "piece",
+              "history": "not_executed"
+            }
+          },
+          "status": "success",
+          "error_code": null,
+          "error_message": null,
+          "predicted_at": "2026-10-15T03:00:00Z"
+        }
+      ],
+      "candidates": [
+        {
+          "candidate_id": "492bd985-b9e5-5f88-aca0-c1b2f2c06112",
+          "report_id": "fa95fe26-ec60-537b-ab14-bd6878eae596",
+          "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+          "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+          "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+          "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+          "prediction_id": "3198f516-7ba6-5b71-9ddd-45280e0642f3",
+          "unit_price_snapshot": "10000.0000",
+          "currency": "VND",
+          "rank": 1,
+          "is_eligible": true,
+          "reason": "Synthetic eligible example",
+          "evidence_refs": {
+            "documents": [
+              {
+                "document_id": "SYNTHETIC-DOC",
+                "document_version": "1",
+                "chunk_id": "SYNTHETIC-CHUNK",
+                "source_uri": "sample://markdown-existing-store",
+                "checksum": "262805c9e3b8b3b83a07227c6be1d6144f172d8a99f18428aba2200d0de10642",
+                "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "failAnalysisJob",
+    "method": "PUT",
+    "path": "/internal/v1/analysis-jobs/759377c6-581b-5649-8819-fefe508f91d1/failure",
+    "status": 200,
+    "json": {
+      "input_revision": 1,
+      "error_code": "MODEL_UNAVAILABLE",
+      "error_message": "Synthetic failure example."
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "createPurchaseProposal",
+    "method": "POST",
+    "path": "/internal/v1/proposals",
+    "status": 201,
+    "json": {
+      "generation_task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "input_revision": 1,
+      "analysis_report_id": "fa95fe26-ec60-537b-ab14-bd6878eae596",
+      "selection_policy_version": "synthetic-selection-v1"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "issueApprovedPurchaseOrder",
+    "method": "POST",
+    "path": "/internal/v1/purchase-orders",
+    "status": 201,
+    "json": {
+      "approved_proposal_id": "b577194d-90bd-586a-b8cd-948f7ca9b5b8",
+      "expected_version_no": 1,
+      "input_revision": 1
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "recordOrderDispatch",
+    "method": "PUT",
+    "path": "/internal/v1/purchase-orders/17b280ec-ac68-5021-acbd-b0fdb02a99ee/dispatch-result",
+    "status": 200,
+    "json": {
+      "email_log_id": "1dde0be7-25dc-53ee-805f-630d982e1448",
+      "status": "delivery_unknown",
+      "error_message": "Synthetic timeout after provider acceptance"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listApplicationUsers",
+    "method": "GET",
+    "path": "/admin/v1/users",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listApplicationRoles",
+    "method": "GET",
+    "path": "/admin/v1/roles",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "provisionApplicationUser",
+    "method": "POST",
+    "path": "/admin/v1/users",
+    "status": 201,
+    "json": {
+      "identity_reference": "sample-verified-employee",
+      "display_name": "Sample Employee",
+      "account_type": "human",
+      "department_id": "3636b950-791e-5c36-89ca-0d1ed5c5929d"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "updateApplicationUser",
+    "method": "PATCH",
+    "path": "/admin/v1/users/d510bb24-12a0-5a01-8b2e-df257de47ae3",
+    "status": 200,
+    "json": {
+      "status": "disabled"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "listApplicationUserRoles",
+    "method": "GET",
+    "path": "/admin/v1/users/d510bb24-12a0-5a01-8b2e-df257de47ae3/roles",
+    "status": 200,
+    "params": {
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "grantApplicationRole",
+    "method": "POST",
+    "path": "/admin/v1/users/d510bb24-12a0-5a01-8b2e-df257de47ae3/roles",
+    "status": 201,
+    "json": {
+      "role_id": "93e3f102-64ca-5e83-b728-7853f5f5b5c3",
+      "scope_type": "department",
+      "department_id": "3636b950-791e-5c36-89ca-0d1ed5c5929d"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "revokeApplicationRole",
+    "method": "POST",
+    "path": "/admin/v1/user-roles/7bd0759a-b3ca-59a9-990e-7d56967ed928/revoke",
+    "status": 200,
+    "json": {
+      "reason": "Synthetic revoke"
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "lookupSupplierData",
+    "method": "POST",
+    "path": "/internal/v1/tools/data-lookup",
+    "status": 200,
+    "json": {
+      "resource": "purchase_requests",
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "page": 1,
+      "page_size": 20
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "predictDeliveryRisk",
+    "method": "POST",
+    "path": "/internal/v1/tools/predict-risk",
+    "status": 200,
+    "json": {
+      "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+      "product_id": "73a116c7-170a-5838-af2b-a1af6709edaa",
+      "quantity": "10.5000",
+      "requested_delivery_date": "2026-10-20",
+      "feature_asof": "2026-10-15T03:00:00Z",
+      "prediction_stage": "PR_CREATED",
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+      "input_revision": 1
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "retrieveSupplierKnowledge",
+    "method": "POST",
+    "path": "/internal/v1/tools/retrieve-knowledge",
+    "status": 200,
+    "json": {
+      "query": "Đánh giá nhà cung cấp mẫu",
+      "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c",
+      "top_k": 5
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "compareSupplierOptions",
+    "method": "POST",
+    "path": "/internal/v1/tools/compare-suppliers",
+    "status": 200,
+    "json": {
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "request_item_id": "6bc34908-75f7-5b36-a582-e25d9977ca84",
+      "input_revision": 1,
+      "feature_asof": "2026-10-15T03:00:00Z",
+      "supplier_ids": [
+        "4b89b1c6-796f-55fb-b753-c9b0f39bb30c"
+      ]
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "indexPreparedMarkdown",
+    "method": "POST",
+    "path": "/internal/v1/tools/index-knowledge",
+    "status": 200,
+    "json": {
+      "documents": [
+        {
+          "document_id": "SYNTHETIC-DOC",
+          "document_version": "1",
+          "chunk_id": "SYNTHETIC-CHUNK",
+          "source_uri": "sample://markdown-existing-store",
+          "checksum": "262805c9e3b8b3b83a07227c6be1d6144f172d8a99f18428aba2200d0de10642",
+          "supplier_id": "4b89b1c6-796f-55fb-b753-c9b0f39bb30c"
+        }
+      ]
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  },
+  {
+    "operationId": "runAutomatedRiskAnalysis",
+    "method": "POST",
+    "path": "/internal/v1/flows/risk-analysis",
+    "status": 200,
+    "json": {
+      "task_id": "759377c6-581b-5649-8819-fefe508f91d1",
+      "request_id": "9f71c3b5-33b9-5d0f-8c75-13956de3c713",
+      "input_revision": 1
+    },
+    "headers": {
+      "Idempotency-Key": "sample-schema-041"
+    }
+  }
+]
