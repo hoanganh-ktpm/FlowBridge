@@ -70,6 +70,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     raise RuntimeError("PostgreSQL startup check failed") from None
             app.state.resources = Resources(http=http, engine=engine, sessions=sessions)
             try:
+                if configuration.ml_enabled:
+                    from flowbridge.supplier_assistant.prediction.model import TabICLRuntime
+
+                    runtime = TabICLRuntime(configuration)
+                    await run_in_threadpool(runtime.load)
+                    app.state.ml_runtime = runtime
                 if configuration.rag_dev_enabled:
                     from flowbridge.supplier_assistant.knowledge.development import (
                         DevelopmentKnowledgeService,
@@ -83,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 # Gỡ tài nguyên khỏi state trước khi ExitStack thực sự đóng client/pool.
                 app.state.resources = None
                 app.state.rag_dev_service = None
+                app.state.ml_runtime = None
 
     app = FastAPI(
         title="FlowBridge OpenCore",
@@ -95,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = configuration
     app.state.resources = None
     app.state.rag_dev_service = None
+    app.state.ml_runtime = None
     register_exception_handlers(app)
     # Starlette bọc middleware thêm sau ra ngoài: correlation phải bao cả nhánh lỗi.
     app.add_middleware(CorrelationMiddleware)
@@ -102,6 +110,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if configuration.database_url is not None:
         app.include_router(create_database_router())
         install_database_openapi(app)
+    if configuration.ml_enabled:
+        from flowbridge.supplier_assistant.prediction.router import install_prediction_router
+
+        install_prediction_router(app)
     if configuration.rag_dev_enabled:
         from flowbridge.supplier_assistant.knowledge.router import install_development_router
 

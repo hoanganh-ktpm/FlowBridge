@@ -32,6 +32,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ml = [
+    "tabicl==2.2.0",
+    "pandas==2.3.3",
+]
 rag = [
     "chromadb==1.5.9",
     "sentence-transformers==6.1.0",
@@ -59,6 +63,9 @@ include = [
     "/contracts",
     "/infra/gateway/README.md",
     "/examples/rag",
+    "/examples/ml",
+    "/langflow/components/supplier_ml",
+    "/docs/ML-SERVICE.md",
     "/docs/rag-local-report.md",
     "/scripts",
     "/alembic",
