@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of FlowBridge, licensed under GNU GPL version 3 or later.
+# You may redistribute and modify it under that license. It is provided without
+# any warranty, including MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE for the full terms.
+
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flowbridge"
+version = "0.1.0"
+description = "Headless OpenCore service adapters for FlowBridge"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dependencies = [
+    "alembic==1.20.0",
+    "asyncpg==0.32.0",
+    "fastapi==0.143.1",
+    "httpx==0.28.1",
+    "jsonschema==4.26.0",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.0",
+    "python-multipart==0.0.32",
+    "pyyaml==6.0.3",
+    "referencing==0.37.0",
+    "sqlalchemy[asyncio]==2.1.4",
+    "starlette==1.8.0",
+    "uvicorn==0.54.0",
+]
+
+[dependency-groups]
+build = ["hatchling==1.32.4"]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.17.0",
+]
+
+[tool.uv]
+required-version = "==0.13.1"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/src/flowbridge"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/backend/src/flowbridge",
+    "/tests",
+    "/contracts",
+    "/infra/gateway/README.md",
+    "/examples/sample-api",
+    "/scripts",
+    "/pyproject.toml",
+    "/uv.lock",
+    "/uv.lock.license",
+    "/.python-version",
+    "/.python-version.license",
+    "/.env.example",
+    "/.gitignore",
+    "/.gitattributes",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["backend/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--strict-markers"
+markers = [
+    "integration: requires the real upstream services named by the test profile",
+    "e2e: exercises the application across OpenCore service boundaries",
+]

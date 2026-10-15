@@ -1,0 +1,23 @@
+# FlowBridge project configuration: GPL-3.0-or-later; see LICENSE.
+.venv/
+.tools/
+.cache/
+.tmp/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.log
+.env
+.env.*
+!.env.example
+node_modules/
+.DS_Store
+Thumbs.db
