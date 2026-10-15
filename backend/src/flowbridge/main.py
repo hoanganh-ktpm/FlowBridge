@@ -8,12 +8,14 @@
 
 # Application factory and bounded, app-owned runtime resources.
 
+import ssl
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.concurrency import run_in_threadpool
 
@@ -60,6 +62,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     ),
                     follow_redirects=False,
                     trust_env=False,
+                    verify=ssl.create_default_context(cafile=configuration.oidc_ca_bundle)
+                    if configuration.oidc_ca_bundle
+                    else True,
                 )
             )
             if engine is not None:
@@ -104,6 +109,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.rag_dev_service = None
     app.state.ml_runtime = None
     register_exception_handlers(app)
+    if configuration.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=configuration.cors_origins,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "Idempotency-Key",
+                "X-Confirmation-Token",
+            ],
+            expose_headers=["X-Correlation-Id"],
+        )
     # Starlette bọc middleware thêm sau ra ngoài: correlation phải bao cả nhánh lỗi.
     app.add_middleware(CorrelationMiddleware)
     app.include_router(operations_router)

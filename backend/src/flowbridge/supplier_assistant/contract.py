@@ -57,8 +57,9 @@ def install_database_openapi(app: FastAPI) -> None:
             application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
             application["info"]["description"] = (
                 "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
-                "introspection; database roles enforce resource access. Workflow approval, "
-                "identity provisioning, chat and AI/document engines return 503 until connected. "
+                "introspection; database roles enforce resource access. Identity provisioning "
+                "links an existing verified Keycloak user through the configured directory. "
+                "Workflow approval, chat and AI/document engines return 503 until connected. "
                 "Outbox events remain pending until a durable worker processes them."
             )
             application["x-database-migration"] = "0002_api_idempotency"

@@ -1,0 +1,157 @@
+{
+  "realm": "flowbridge",
+  "enabled": true,
+  "sslRequired": "all",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 180,
+  "ssoSessionIdleTimeout": 900,
+  "ssoSessionMaxLifespan": 3600,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "clientScopes": [
+    {
+      "name": "flowbridge-api-audience",
+      "protocol": "openid-connect",
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "name": "flowbridge-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "flowbridge-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "subject",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "flowbridge-web-a",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "${SSO_ORIGIN_A}/"
+      ],
+      "webOrigins": [
+        "${SSO_ORIGIN_A}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/"
+      },
+      "defaultClientScopes": [
+        "flowbridge-api-audience"
+      ]
+    },
+    {
+      "clientId": "flowbridge-web-b",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "${SSO_ORIGIN_B}/"
+      ],
+      "webOrigins": [
+        "${SSO_ORIGIN_B}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${SSO_ORIGIN_B}/"
+      },
+      "defaultClientScopes": [
+        "flowbridge-api-audience"
+      ]
+    },
+    {
+      "clientId": "flowbridge-api",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "${SSO_API_SECRET}",
+      "defaultClientScopes": [
+        "flowbridge-api-audience"
+      ]
+    },
+    {
+      "clientId": "flowbridge-directory",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "${SSO_DIRECTORY_SECRET}",
+      "defaultClientScopes": []
+    },
+    {
+      "clientId": "flowbridge-ai",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "${SSO_AI_SECRET}",
+      "defaultClientScopes": [
+        "flowbridge-api-audience"
+      ]
+    },
+    {
+      "clientId": "flowbridge-po",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "${SSO_PO_SECRET}",
+      "defaultClientScopes": [
+        "flowbridge-api-audience"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-flowbridge-directory",
+      "enabled": true,
+      "serviceAccountClientId": "flowbridge-directory",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "view-clients"
+        ]
+      }
+    }
+  ]
+}

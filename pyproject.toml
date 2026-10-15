@@ -67,6 +67,8 @@ include = [
     "/langflow/components/supplier_ml",
     "/docs/ML-SERVICE.md",
     "/docs/rag-local-report.md",
+    "/infra/identity",
+    "/clients/sso",
     "/scripts",
     "/alembic",
     "/alembic.ini",
@@ -80,6 +82,9 @@ include = [
     "/.gitattributes",
     "/README.md",
     "/docs/SUPABASE-API.md",
+    "/docs/SSO.md",
+    "/docs/SSO-ADR.md",
+    "/docs/SSO-TEST-RESULTS.md",
     "/CHANGELOG.md",
     "/LICENSE",
 ]

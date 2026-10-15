@@ -1,0 +1,15 @@
+{
+  "name": "flowbridge-sso-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "start:a": "node server.mjs --client a --port 8761",
+    "start:b": "node server.mjs --client b --port 8762",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {"keycloak-js": "26.2.4"},
+  "devDependencies": {"@playwright/test": "1.64.1"},
+  "engines": {"node": ">=20"}
+}
