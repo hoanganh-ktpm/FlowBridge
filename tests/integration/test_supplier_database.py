@@ -110,7 +110,9 @@ async def case() -> AsyncIterator[DatabaseCase]:
                     .scalars()
                     .all()
                 )
-                assert versions == ["0002_api_idempotency"], "Apply migration 0002 first"
+                assert versions in (["0002_api_idempotency"], ["0003_core_knowledge"]), (
+                    "Apply migrations through 0002 or later first"
+                )
                 uid = uuid4().hex
                 timestamp = datetime.now(UTC)
                 dept = await repo.insert(

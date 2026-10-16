@@ -89,12 +89,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     service = DevelopmentKnowledgeService(configuration)
                     stack.push_async_callback(run_in_threadpool, service.close)
                     app.state.rag_dev_service = service
+                if configuration.rag_postgres_enabled:
+                    from flowbridge.supplier_assistant.knowledge.embeddings import QwenEmbedder
+                    from flowbridge.supplier_assistant.knowledge.postgres_service import (
+                        PgKnowledgeService,
+                    )
+                    from flowbridge.supplier_assistant.knowledge.postgres_store import (
+                        PgKnowledgeStore,
+                    )
+
+                    pg_store = PgKnowledgeStore(sessions)
+                    try:
+                        await pg_store.verify_schema()
+                    except Exception:
+                        raise RuntimeError("PostgreSQL knowledge schema check failed") from None
+                    pg_service = PgKnowledgeService(
+                        pg_store,
+                        QwenEmbedder(configuration.rag_postgres_model_cache_path),
+                    )
+                    stack.push_async_callback(run_in_threadpool, pg_service.close)
+                    app.state.rag_postgres_service = pg_service
                 yield
             finally:
                 # Gỡ tài nguyên khỏi state trước khi ExitStack thực sự đóng client/pool.
                 app.state.resources = None
                 app.state.rag_dev_service = None
                 app.state.ml_runtime = None
+                app.state.rag_postgres_service = None
 
     app = FastAPI(
         title="FlowBridge OpenCore",
@@ -108,6 +129,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.resources = None
     app.state.rag_dev_service = None
     app.state.ml_runtime = None
+    app.state.rag_postgres_service = None
     register_exception_handlers(app)
     if configuration.cors_origins:
         app.add_middleware(

@@ -69,6 +69,8 @@ include = [
     "/docs/rag-local-report.md",
     "/infra/identity",
     "/clients/sso",
+    "/docs/rag-postgres-pgvector-design.md",
+    "/docs/rag-postgres-setup.md",
     "/scripts",
     "/alembic",
     "/alembic.ini",

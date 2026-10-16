@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     docs_enabled: bool = False
+    rag_postgres_enabled: bool = False
+    rag_postgres_model_cache_path: Path = Path(".cache/models")
     rag_dev_enabled: bool = False
     rag_dev_catalog_path: Path = Path("examples/rag/catalog.json")
     rag_dev_index_path: Path = Path(".cache/rag")
@@ -199,6 +201,11 @@ class Settings(BaseSettings):
                 self, "database_url", SecretStr(url.render_as_string(hide_password=False))
             )
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
+        if self.rag_postgres_enabled:
+            if self.database_url is None:
+                raise ValueError("rag_postgres_enabled requires a configured PostgreSQL database")
+            if self.rag_dev_enabled:
+                raise ValueError("Choose PostgreSQL RAG or the local fixture RAG mode")
         if self.rag_dev_enabled:
             if self.environment == "production":
                 raise ValueError("rag_dev_enabled is unavailable in production")

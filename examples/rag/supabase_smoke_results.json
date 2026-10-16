@@ -1,0 +1,117 @@
+{
+  "transport": "real Supabase PostgreSQL via SQLAlchemy/asyncpg; local pinned Qwen",
+  "scope": "synthetic supplier smoke checks; not a quality benchmark or IdP E2E",
+  "cutoff": "2026-10-16T11:07:49.830430+00:00",
+  "index_repeat": {
+    "index_version": "pgvector:e85bdc501fda6735ec5f5d9b3c16f3825fb6d1f5656f098aa5358972bd626d0e",
+    "indexed_documents": 6,
+    "indexed_chunks": 96,
+    "warnings": [
+      "POSTGRES_PGVECTOR: exact cosine + BM25; no Chroma dependency at runtime"
+    ]
+  },
+  "index_repeat_seconds": 1.507,
+  "queries": [
+    {
+      "query": "DEMO-PO-00212 được giao trễ như thế nào?",
+      "supplier_code": "DEMO-S01",
+      "expected_heading_contains": "DEMO-PO-00212",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 42.532
+    },
+    {
+      "query": "DEMO-PO-00281 được giao trễ như thế nào?",
+      "supplier_code": "DEMO-S02",
+      "expected_heading_contains": "DEMO-PO-00281",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 8.387
+    },
+    {
+      "query": "DEMO-PO-00203 được giao trễ như thế nào?",
+      "supplier_code": "DEMO-S03",
+      "expected_heading_contains": "DEMO-PO-00203",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 16.027
+    },
+    {
+      "query": "DEMO-PO-00487 được giao trễ như thế nào?",
+      "supplier_code": "DEMO-S04",
+      "expected_heading_contains": "DEMO-PO-00487",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 17.537
+    },
+    {
+      "query": "DEMO-PO-00569 được giao trễ như thế nào?",
+      "supplier_code": "DEMO-S05",
+      "expected_heading_contains": "DEMO-PO-00569",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 6.841
+    },
+    {
+      "query": "DEMO-PO-00446 được giao trễ như thế nào?",
+      "supplier_code": "DEMO-S06",
+      "expected_heading_contains": "DEMO-PO-00446",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 12.985
+    },
+    {
+      "query": "Hồ sơ có đủ dữ liệu tính tỷ lệ lỗi sản phẩm không?",
+      "supplier_code": "DEMO-S01",
+      "expected_heading_contains": "1.1.",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 7.914
+    },
+    {
+      "query": "Có kết quả khắc phục khiếu nại chất lượng chưa?",
+      "supplier_code": "DEMO-S01",
+      "expected_heading_contains": "2.2.",
+      "rank": 1,
+      "contract_valid": true,
+      "quote_hash_and_reviewer_valid": true,
+      "supplier_isolation_valid": true,
+      "elapsed_seconds": 9.202
+    }
+  ],
+  "sample_top1": {
+    "reference": {
+      "document_id": "96054604-a0af-4668-923c-bc8b3b6ed54e",
+      "document_version": "fc3cb03c-de05-4d5e-82d3-71e81a3c0383",
+      "chunk_id": "339e575f-7860-51d9-a9e7-18eb8f987ff3",
+      "source_uri": "core-document://96054604-a0af-4668-923c-bc8b3b6ed54e/fc3cb03c-de05-4d5e-82d3-71e81a3c0383#bytes=3802:4524",
+      "checksum": "d0e48264682fdc523e4f30e47d930700c5d1bddb69f30b168bedcd3817723785",
+      "supplier_id": "3806e329-2ebe-5cfc-895d-1bd60894b348"
+    },
+    "text": "### 3.2. PO đã nhận đủ sau hạn gốc: DEMO-PO-00212 — DEMO-S01\n\nNhận xét của demo-warehouse-0 về DEMO-S01: PO **DEMO-PO-00212** đặt **270 unit Demo Product 3 (DEMO-P03)**, phát hành ngày **18/08/2025**, hạn giao gốc **12/09/2025**.\nHồ sơ đã ghi nhận đủ **270 unit**. Ngày giao của đợt hoàn tất là **08/10/2025**; thời điểm hệ thống ghi nhận đủ là **08/10/2025 16:00 (UTC+07:00)**. PO hoàn tất sau hạn gốc **26 ngày**.\nNgày hứa giao mới nhất đã được ghi nhận là **08/10/2025**, ghi nhận lúc **25/08/2025 12:57 (UTC+07:00)**. Đây là mốc cam kết; kết quả giao thực tế được đối chiếu theo phiếu nhận hàng.\n\n",
+    "relevance_score": 1.0
+  },
+  "before_publication_returns_empty": true,
+  "core_counts": {
+    "documents": 6,
+    "versions": 6,
+    "chunks": 96
+  },
+  "import_retry_no_duplicate_versions": true,
+  "business_table_row_counts_unchanged": true,
+  "migration_head": "0003_core_knowledge"
+}

@@ -314,3 +314,9 @@ Repository được cấu hình tại [FlowBridge trên GitHub](https://github.c
 Mã và cấu hình do nhóm phát triển áp dụng **GNU GPL version 3 hoặc phiên bản sau — GPL-3.0-or-later**. Giấy phép cho phép sử dụng, nghiên cứu, sửa đổi và phân phối lại theo điều kiện GPL; phần mềm không có bảo hành. Xem toàn văn trong [LICENSE](LICENSE).
 
 Dependency giữ giấy phép, copyright và NOTICE upstream, được lấy qua package manager. Dữ liệu nghiệp vụ, tệp tải lên, tài liệu nguồn, dataset và trọng số mô hình bên ngoài có điều kiện sử dụng riêng; cần xác định nguồn gốc, quyền phân phối và attribution trước khi đưa vào demo hoặc phát hành.
+
+## RAG PostgreSQL và pgvector
+
+Giữ ba bảng Core theo thiết kế nhóm, dùng Qwen + exact cosine pgvector + BM25/RRF. Xem [thiết kế đã hiệu chỉnh](docs/rag-postgres-pgvector-design.md) và [migration, import, index, HTTP](docs/rag-postgres-setup.md). Bật `FLOWBRIDGE_RAG_POSTGRES_ENABLED=true` sau migration 0003; HTTP yêu cầu AI_SERVICE và JobContext từ database.
+
+Đã kiểm chứng với Supabase: 6 hồ sơ, 6 phiên bản, 96 chunk; xem [kết quả thực tế và phần IdP còn lại](docs/rag-supabase-verification.md).

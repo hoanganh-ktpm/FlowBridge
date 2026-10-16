@@ -62,7 +62,17 @@ def install_database_openapi(app: FastAPI) -> None:
                 "Workflow approval, chat and AI/document engines return 503 until connected. "
                 "Outbox events remain pending until a durable worker processes them."
             )
-            application["x-database-migration"] = "0002_api_idempotency"
+            if app.state.settings.rag_postgres_enabled:
+                application["info"]["description"] += (
+                    " PostgreSQL knowledge retrieval/indexing is enabled: exact cosine, BM25/RRF, "
+                    "verified AI_SERVICE and database-backed X-Job-Context. UserContext-only "
+                    "knowledge calls are not supported by this implementation."
+                )
+            application["x-database-migration"] = (
+                "0003_core_knowledge"
+                if app.state.settings.rag_postgres_enabled
+                else "0002_api_idempotency"
+            )
             app.openapi_schema = application
         return app.openapi_schema
 

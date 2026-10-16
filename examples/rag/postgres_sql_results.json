@@ -1,0 +1,9 @@
+{
+  "engine": "PGlite 0.5.10 / PostgreSQL WASM + real pgvector",
+  "driver": "PGlite direct SQL; not asyncpg/Supabase E2E",
+  "embedding": "controlled normalized 1024-dimensional basis vectors; not a retrieval quality benchmark",
+  "passed": 16,
+  "tables": 3,
+  "columns": 37,
+  "chunks": 16
+}

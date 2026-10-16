@@ -1,0 +1,45 @@
+{
+  "scope": "real Supabase + local CPU Qwen retrieval only; not HTTP/IdP or generated LLM answer; four requests, no load benchmark",
+  "database_pool_mode": "null",
+  "omp_threads": 4,
+  "cold_seconds": 15.23,
+  "warm_median_seconds": 2.243,
+  "requests": [
+    {
+      "request": 1,
+      "model_state": "cold",
+      "retrieval_seconds": 15.23,
+      "database_seconds": 2.98,
+      "database_calls": 4,
+      "embedding_seconds": 12.223,
+      "top1_correct": true
+    },
+    {
+      "request": 2,
+      "model_state": "warm",
+      "retrieval_seconds": 2.243,
+      "database_seconds": 1.942,
+      "database_calls": 4,
+      "embedding_seconds": 0.298,
+      "top1_correct": true
+    },
+    {
+      "request": 3,
+      "model_state": "warm",
+      "retrieval_seconds": 3.316,
+      "database_seconds": 3.027,
+      "database_calls": 4,
+      "embedding_seconds": 0.285,
+      "top1_correct": true
+    },
+    {
+      "request": 4,
+      "model_state": "warm",
+      "retrieval_seconds": 2.13,
+      "database_seconds": 1.849,
+      "database_calls": 4,
+      "embedding_seconds": 0.276,
+      "top1_correct": true
+    }
+  ]
+}

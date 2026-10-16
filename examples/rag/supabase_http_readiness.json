@@ -1,0 +1,9 @@
+{
+  "transport": "in-process ASGI with real Supabase resources; no mocked database",
+  "ready_status": 200,
+  "swagger_status": 200,
+  "knowledge_route_present": true,
+  "unauthenticated_retrieval_status": 401,
+  "core_migration": "0003_core_knowledge",
+  "authorized_http_e2e": "not run: IdP credentials/token not configured"
+}
