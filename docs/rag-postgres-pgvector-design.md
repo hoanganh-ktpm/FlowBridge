@@ -80,14 +80,6 @@ Retrieval là truy vấn đọc: Idempotency-Key được yêu cầu theo contra
 
 Model cục bộ dùng chung trong app, có mutex giữ bên trong worker thread ngay cả khi HTTP task bị hủy. Không mở transaction trong lúc load model/embedding và không gọi asyncio.run trên engine app trong worker thread. Shutdown đợi model worker trước khi gỡ tài nguyên.
 
-## Xác minh và giới hạn thực tế
+## Kiểm thử
 
-Đã chạy các unit/API regression mới về UTF-8, A/B, readiness, source/role revocation, forged refs, retry, context và schema DTO. Đã chạy 16 kiểm tra SQL bằng PGlite 0.5.10 với extension pgvector thật: tạo/adopt schema, 37 cột, uniqueness, publication, immutability, hash, insert byte spans, query source/chunks/cosine, department filter, rollback, anon deny và withdrawal.
-
-PGlite dùng vector cơ sở 1024 chiều đã chuẩn hóa cho kiểm tra SQL, không phải benchmark chất lượng model. SQL được trích từ adapter hiện tại. Bằng chứng ở `examples/rag/postgres_sql_results.json`; script tái chạy ở `tests/sql/knowledge_pgvector.mjs` và `scripts/export_rag_sql_fixture.py`. PGlite là PostgreSQL WASM; kiểm tra direct SQL không chứng minh kết nối asyncpg/Supabase E2E: [PGlite extensions](https://pglite.dev/extensions/).
-
-Đã thêm bốn integration test asyncpg/pgvector có rollback cho database test thật. Chưa chạy các test đó trên Supabase vì repo hiện không có cấu hình database/IdP. Chưa chạy migration vào Supabase, chưa import sáu Markdown vào server và chưa push thay đổi Git. Hướng dẫn triển khai nằm trong `docs/rag-postgres-setup.md`.
-
-## Cập nhật sau khi kết nối Supabase
-
-Đã áp dụng migration 0003, import sáu Markdown và index 96 chunk trên Supabase. Bốn integration test asyncpg và tám smoke query Qwen đã qua. Xem [báo cáo kiểm chứng thực tế](rag-supabase-verification.md); IdP/HTTP có token vẫn cần nối tiếp. Các mô tả chưa kết nối ở phần bàn giao trước phản ánh trạng thái trước lần cấu hình này.
+Các bước chạy unit test, integration test asyncpg/pgvector có rollback và kiểm tra SQL bằng PGlite nằm trong [hướng dẫn setup](rag-postgres-setup.md). Kết quả chạy thử được lưu local trong `.cache/rag/`, không đưa vào Git.

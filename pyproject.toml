@@ -66,7 +66,6 @@ include = [
     "/examples/ml",
     "/langflow/components/supplier_ml",
     "/docs/ML-SERVICE.md",
-    "/docs/rag-local-report.md",
     "/infra/identity",
     "/clients/sso",
     "/docs/rag-postgres-pgvector-design.md",
