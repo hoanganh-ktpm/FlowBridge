@@ -63,7 +63,7 @@ def test_contract_snapshots_match_checksums_and_available_upstream() -> None:
         expected, name = line.split()
         snapshot = resources.joinpath(name).read_bytes()
         assert hashlib.sha256(snapshot).hexdigest() == expected
-        upstream = Path(__file__).resolve().parents[3] / "03-api/contracts" / name
+        upstream = Path(__file__).resolve().parents[3] / "ho-so-olp/03-api/contracts" / name
         if upstream.is_file():
             assert snapshot == upstream.read_bytes()
 

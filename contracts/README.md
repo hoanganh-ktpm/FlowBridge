@@ -5,12 +5,12 @@ trong `backend/src/flowbridge/contracts/`, version 0.4.1. Hai snapshot có chung
 router/validator/Swagger và gateway mapping đọc cùng nguồn trong package.
 [Mapping database](supplier-assistant-v0.4.1.md) giải thích UUID, tiền, role và lineage.
 
-Nguồn chuẩn trong workspace là `03-api/contracts/{app-api,ai-tools-api}.yaml`.
+Nguồn chuẩn trong workspace là `ho-so-olp/03-api/contracts/{app-api,ai-tools-api}.yaml`.
 Sửa nguồn trước, rồi kiểm tra hoặc đồng bộ từ root FlowBridge:
 
 ```sh
-uv run --locked python scripts/sync_application_contracts.py --source ../03-api/contracts
-uv run --locked python scripts/sync_application_contracts.py --source ../03-api/contracts --write
+uv run --locked python scripts/sync_application_contracts.py --source ../ho-so-olp/03-api/contracts
+uv run --locked python scripts/sync_application_contracts.py --source ../ho-so-olp/03-api/contracts --write
 ```
 
 Script nhận `--source` tường minh. Source archive độc lập đã có snapshot và manifest
@@ -33,13 +33,13 @@ notice từng file; dữ liệu và nguồn bên ngoài có điều kiện sử 
 
 ## Core canonical và provenance
 
-Nguồn chuẩn Core là `03-api/contracts/opencore-api.yaml` trong workspace;
+Nguồn chuẩn Core là `ho-so-olp/03-api/contracts/opencore-api.yaml` trong workspace;
 `contracts/opencore-api.yaml` là bản sao phân phối trong source archive. Core dùng
 dialect mặc định OpenAPI 3.1, cùng cách công bố của app/AI. Không đổi wire/version 0.2.0.
 
 ```sh
-uv run --locked python scripts/sync_core_contracts.py --source ../03-api/contracts
-uv run --locked python scripts/sync_core_contracts.py --source ../03-api/contracts --write
+uv run --locked python scripts/sync_core_contracts.py --source ../ho-so-olp/03-api/contracts
+uv run --locked python scripts/sync_core_contracts.py --source ../ho-so-olp/03-api/contracts --write
 # Archive độc lập: kiểm bản sao, manifest và draft mà không cần workspace cha.
 uv run --locked python scripts/sync_core_contracts.py --source contracts
 ```

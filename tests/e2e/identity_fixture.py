@@ -13,6 +13,8 @@ from uuid import UUID, uuid4
 
 import httpx
 import sqlalchemy as sa
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 from flowbridge.db import create_engine, create_session_factory
 from flowbridge.identity.account_repository import IdentityAccountRepository
@@ -129,7 +131,8 @@ async def run(state: Path, cleanup: bool) -> None:
                 .scalars()
                 .all()
             )
-            assert versions == ["0002_api_idempotency"]
+            heads = set(ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_heads())
+            assert heads and set(versions) == heads, "DB revision differs from source head"
             timestamp = datetime.now(UTC)
             await repo.insert(
                 "departments",

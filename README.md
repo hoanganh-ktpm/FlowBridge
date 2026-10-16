@@ -263,6 +263,28 @@ Mỗi app quản lý một HTTPX client có timeout/pool giới hạn và đóng
 | Startup báo lỗi PostgreSQL | Kiểm tra DSN/SSL/kết nối Supabase trong `.env`. |
 | `/_ops/live` trả 200 nhưng `/_ops/ready` trả 503 | Kiểm tra `details` trong lỗi readiness; DSN trống ở bản bootstrap được ghi là `database/not_configured`. |
 
+## Chạy nhanh bằng container
+
+Backend + Keycloak local, client A/B và test lifecycle có [hướng dẫn container](docs/DEV-CONTAINERS.md).
+Đã build và chạy IAM/API/clients trên Docker Linux, 280 unit và SQL Identity pass.
+Cần Docker Linux containers + Compose>=2.35.0
+và DB development riêng đã cấu hình; không tự migrate/seed hoặc ghi đè `.env`.
+
+```powershell
+# Xem cấu hình dự kiến, không cần Docker.
+python scripts/dev_stack.py up --dry-run --env-file .env
+# Sau khi đã cài/bật Docker:
+python scripts/dev_stack.py doctor --env-file .env
+python scripts/dev_stack.py up --env-file .env --clients
+python scripts/dev_stack.py unit
+python scripts/dev_stack.py down
+```
+
+`test-sso` tự quản lý IAM/API/fixture/browser/cleanup trong project test riêng;
+revision DB phải khớp trước khi ghi fixture. DB0003 chưa có migration trong checkout
+vẫn là blocker của SQL nghiệp vụ/SSO. Mặc định API ở18082, IAM HTTPS19444, clients8761/8762.
+Source Docker/Compose không thay nghiệm thu Gateway, Files, Workflow hoặc production.
+
 ## Kiểm thử và build
 
 Chạy các lệnh tại thư mục gốc repo sau khi sync dependency:
@@ -282,21 +304,21 @@ khi thiếu IAM/model/index hoặc fixture tương ứng:
 ```sh
 # SQL Identity: dùng .env hiện có, tự tạo fixture riêng và rollback; không cần bật API/IAM.
 uv run --locked pytest tests/integration/test_identity_accounts_database.py -m integration -q
-# SQL nghiệp vụ: chỉ chạy khi DB khớp baseline migration 0002_api_idempotency.
+# SQL nghiệp vụ: chỉ chạy khi DB khớp Alembic head của source.
 uv run --locked pytest tests/integration/test_supplier_database.py -m integration -q
 ```
 
 Suite nghiệp vụ tiêm danh tính để cô lập SQL/policy; có case commit qua API và đọc
-bằng kết nối độc lập, rồi dọn đúng fixture. Lần kiểm gần nhất DB báo revision
-`0003_core_knowledge`, checkout chỉ có 0001/0002 nên suite này dừng ở guard revision.
-Cần đối chiếu nguồn migration trước khi chạy lại; không nới guard hoặc downgrade DB
-để làm test pass. SQL Identity riêng đã đạt, không thay toàn suite nghiệp vụ.
+bằng kết nối độc lập, rồi dọn đúng fixture. Source đã bổ sung migration gốc
+`0003_core_knowledge`; revision DB phải khớp chính xác Alembic heads trước fixture.
+Ngày 17/10/2026: toàn suite đạt **19 passed**, không migrate/stamp/seed database.
+Nguồn và giới hạn kiểm tra tại [đối chiếu migration](docs/MIGRATION-0003-RECONCILIATION.md).
 SSO/browser cần profile và IAM/API theo [SSO.md](docs/SSO.md); ML và Chroma cần
 artifacts/engine riêng. Regression SQL không thay bằng chứng IAM/gateway/storage/workflow/model.
 
 Unit kiểm tra đủ 46 route theo contract, checksum/snapshot, security trong Swagger, validation trước command và việc cờ sample cũ không thể bật principal giả. Đây là test offline; bằng chứng persistence/quyền thực tế nằm ở suite Supabase.
 
-Để chạy đầy đủ unit RAG, cài extra bằng `uv sync --locked --extra rag --group dev --group build`. Test HTTP dùng retrieval có kiểm soát; chất lượng Qwen và Chroma thật có kiểm tra riêng.
+Để chạy đầy đủ unit, dùng `uv sync --locked --group dev --group build`; NumPy/BM25 tối thiểu đã thuộc nhóm dev. Không cần cài toàn ML/RAG extras cho unit. Test HTTP dùng retrieval có kiểm soát; chất lượng Qwen và Chroma thật có kiểm tra riêng và cần extra `rag`.
 
 Nhóm dependency `build` khóa Hatchling cùng dependency bắc cầu. Sau khi sync nhóm này, `--no-build-isolation` dùng môi trường đã cài theo lockfile để build. Wheel và source tar.gz sinh trong `dist/`, bị Git ignore. Khi chuẩn bị phát hành, cần kiểm chứng cài wheel vào môi trường sạch, chạy ngoài source tree và build lại từ source archive.
 

@@ -90,7 +90,7 @@ SQL integration (tiêm danh tính trong bộ regression này; không thay nghi�
 & ./.venv/Scripts/python.exe -m pytest tests/integration/test_supplier_database.py -m integration -q
 ```
 
-Suite SQL nghiệp vụ yêu cầu đúng baseline revision `0002_api_idempotency`. Lượt kiểm gần nhất DB báo `0003_core_knowledge` nhưng checkout chưa có migration này, nên guard dừng trước fixture. Đối chiếu nguồn migration trước khi chạy lại; không downgrade/nới guard. Có thể kiểm riêng SQL accounts/bootstrap bằng suite trong [Identity core](IDENTITY-CORE.md#boundary-accountsbootstrap).
+Suite SQL nghiệp vụ và fixture SSO yêu cầu revision DB khớp chính xác Alembic heads của source. Migration gốc `0003_core_knowledge` đã được bổ sung và đối chiếu DB ngày 17/10/2026; toàn SQL nghiệp vụ đạt 19 test. Không migrate/stamp/downgrade DB để vượt guard. Full SSO container vẫn cần nghiệm thu riêng. Xem [đối chiếu migration](MIGRATION-0003-RECONCILIATION.md); có thể kiểm riêng SQL accounts/bootstrap bằng suite trong [Identity core](IDENTITY-CORE.md#boundary-accountsbootstrap).
 
 E2E thật cần IAM/API đang chạy, profile đã sinh test users và npm ci đã hoàn tất. Nó xác minh user qua IdP, tạo riêng department/user/grant test UUID trong Supabase rồi cleanup; từ chối dùng lại user có sẵn để tránh xóa nhầm dữ liệu. Dùng profile test riêng thay vì tài khoản đã bootstrap thủ công. API URL/port trong `public.json` phải khớp listener.
 

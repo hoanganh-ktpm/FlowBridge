@@ -17,6 +17,8 @@ import httpx
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from flowbridge.db import create_engine, get_session
@@ -33,6 +35,7 @@ from flowbridge.supplier_assistant.database_service import BUSINESS_TIMEZONE
 from flowbridge.supplier_assistant.repository import SupplierRepository, table
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def analysis_payloads() -> dict[str, Any]:
@@ -112,7 +115,10 @@ async def case() -> AsyncIterator[DatabaseCase]:
                     .scalars()
                     .all()
                 )
-                assert versions == ["0002_api_idempotency"], "Apply migration 0002 first"
+                heads = set(
+                    ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_heads()
+                )
+                assert heads and set(versions) == heads, "DB revision differs from source head"
                 uid = uuid4().hex
                 timestamp = datetime.now(UTC)
                 dept = await repo.insert(

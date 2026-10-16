@@ -14,7 +14,7 @@ sync = runpy.run_path(str(ROOT / "scripts/sync_core_contracts.py"))["sync_contra
 
 
 def test_core_snapshot_manifest_and_draft_provenance() -> None:
-    source = ROOT.parent / "03-api/contracts"
+    source = ROOT.parent / "ho-so-olp/03-api/contracts"
     # Source archives remain verifiable without the author workspace.
     sync(source if source.is_dir() else ROOT / "contracts")
 

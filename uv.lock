@@ -471,8 +471,10 @@ build = [
     { name = "hatchling" },
 ]
 dev = [
+    { name = "numpy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "rank-bm25" },
     { name = "ruff" },
 ]
 
@@ -501,8 +503,10 @@ provides-extras = ["ml", "rag"]
 [package.metadata.requires-dev]
 build = [{ name = "hatchling", specifier = "==1.32.4" }]
 dev = [
+    { name = "numpy", specifier = "==2.5.4" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
+    { name = "rank-bm25", specifier = "==0.2.2" },
     { name = "ruff", specifier = "==0.17.0" },
 ]
 

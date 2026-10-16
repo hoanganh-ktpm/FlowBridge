@@ -1,5 +1,100 @@
 # Checkpoint FlowBridge
 
+## 17/10/2026 — Đã commit Docker dev/test và migration0003
+
+- User đã yêu cầu commit. Repo FlowBridge, branch `huuhuandev_features`, HEAD mới `5e82e34`; commit `feat(dev): add container stack and reconcile knowledge migration` gồm 31 file, 1826 insertions / 19 deletions.
+- Phạm vi: container dev/test và lifecycle, khôi phục migration0003 gốc, guard fixture theo Alembic heads và đường dẫn contract trong ho-so-olp. Không push, migrate, stamp, seed hoặc sửa env/stack dev.
+- Full unit trên code cuối: 282 passed in 19.04s, session81767 exit0. Giữ bằng chứng 19 SQL business pass và kiểm catalog/head/container từ task trước. Audit index không có actual env secrets, binary, dependency/cache; staged diff check đạt.
+- Index trống sau commit; chỉ `docs/CHECKPOINT.md` còn modified và được giữ local theo `.git/info/exclude`. Thư mục hồ sơ OLP/plan local nằm ngoài Git repo FlowBridge nên không nằm trong commit.
+- Không đóng CODE-00-04.02/CODE-00-05.02 hoặc CP-001/CP-002. Bước tiếp: nghiệm thu full SQL/SSO container và fixture recovery, image audit/clean archive Engine build; PR02 Gateway vẫn là phần code độc lập tiếp theo. Không còn session test/build đang chạy.
+
+## 17/10/2026 — Gỡ lệch migration0003 hoàn tất
+
+- User yêu cầu gỡ lệch migration; scope CODE-00-04.02/CODE-00-05.02, branchhuuhuandev_features/HEAD70ed9da. Giữ diff Docker/hồ sơ từ trước; không stage/commit/push.
+- Revision0003 và SQL khôi phục từ commit99c9b699a4598f886a8522e39ae85ee3482b5f55 (origin/minnhungdev_features), chỉ thêm noticeGPL và đổi docstring thành#; đối chiếu loại các comment chỉnh sửa bằng bản Git gốc đạt. Không kéo runtime/contract/RAG/dependency khác hoặc sửa0001/0002. Hai fixtureSQL/SSO kiểm chính xác Alembic heads thay hằng0002; guard còn nguyên.
+- DB/source0003(head); alembic current/check đạt, ORMpublic không có upgradeops. Core catalog read-only riêng đạt3tables/37columns/2functionbodies/index/enabledtriggers/vector1024/RLS/anon-authdenied; trước/sauSQL regression counts6/6/96không đổi. Không upgrade/stamp/downgrade/seed hoặc sửa.env.
+- Kết quả:8unit tooling/migration pass1.73s;19SQLbusiness host pass127.56s session84620exit0, khôngskip; toolingDocker buildsession75471exit0, containerrequire-headPASS. API/IAM/clientstack khôngrecreate. Ruff4files/format/diffcheckPASS. Sourcetar.gz182members chứa revision/SQL/test/evidence bằngbyte, khôngenv/cache/dependencydirs; chưacleanarchiveEnginebuild.
+- Filetask: alembic/versions/20261016_0003_core_knowledge.py, alembic/sql/core_0003.sql, tests/unit/test_knowledge_migration.py mới; sửa test_supplier_database/identity_fixture, README/CHANGELOG/alembicREADME/docsSSO/DEV-CONTAINERS/infra devREADME, pyprojectincludeevidence, localplan/task/SSO/bảnxuất. Evidence docs/MIGRATION-0003-RECONCILIATION.md. Không runtime/dependency mới; mới khôi phục source migration đã có trênDB.
+- Lượt lỗi đã xử lý: sandboxaudit treo session85519đãdừngexit1, auditnetwork đượcduyệtPASS; RuffROOT/dòngdài đãsửa. Catalogassertđầu so type qualified/unqualified khác search_path, chuẩn hóa phépkiểm rồiPASS; không sửaDB để vượtcheck. Không còn sessiontest/buildđangchạy.
+- DBrevision blocker đãgỡ. CODE00-04.02/00-05.02/CP001vẫn mở cho fullbusiness/SSOcontainer, fixturerecovery, imageaudit/cleanarchiveEnginebuild; chưakiểm upgrade0003từDBsạch. Identitycontexts/PR01CP002vẫn mở. Bước tiếp: nghiệmthu containerSSO/business/recovery hoặc PR02Gateway độc lập theo roadmap.
+
+## 17/10/2026 — Đối chiếu migration0003, đang nghiệm thu
+
+- Scope user: gỡ lệch migration, trong CODE-00-04.02/CODE-00-05.02; branch huuhuandev_features/HEAD70ed9da, giữ diff Docker/hồ sơ trước đó, không stage/commit/push.
+- Tìm được revision0003 và SQL gốc ở commit99c9b699a4598f886a8522e39ae85ee3482b5f55, origin/minnhungdev_features. Khôi phục đúng hai file alembic/versions/20261016_0003_core_knowledge.py và alembic/sql/core_0003.sql; chỉ chuẩn hóa notice GPL/comment Python, không đổi DDL. Không lấy các runtime RAG/API/dependency khác trong commit.
+- Hai fixture supplier_database/identity_fixture bỏ hằng0002, đối chiếu set revision DB chính xác với Alembic heads (không bỏ guard). Thêm unit offline migration và downgrade giữ evidence. Không migrate/stamp/downgrade/seed hoặc sửa.env.
+- Read-only Supabase audit đạt: DB0003, vector0.8.2/extensions,3core tables RLS, counts6/6/96; report ignored .cache/migration-reconcile/database-before.json. Alembic current0003(head), check không có upgrade operations mới (phạm vi ORM public; không chứng nhận toàn core bằng autogenerate). Audit sandbox ban đầu treo đã dừng session85519exit1; chạy mạng được duyệt đạt. Ruff lỗi đầu ROOT/line length đã sửa.
+- Chuẩn bị chạy unit tooling/migration và toàn SQL supplier regression bằng outer-transaction rollback; kết quả chưa biết. Không chạy browser fullSSO hoặc đóng taskcha/CP từ việc khớp head. Bước tiếp: đọc outcome, đối chiếu core catalog/function và dữ liệu sau test; cập nhật docs/plan/evidence.
+
+## 17/10/2026 — Gom hồ sơ OLP vào ho-so-olp
+
+- Yêu cầu: gom bảy thư mục 01–07 vào một folder; hoàn tất di chuyển sang `OLP/ho-so-olp/`, giữ cấu trúc con, demo/dependency và các snapshot lịch sử.
+- Git FlowBridge: branch `huuhuandev_features`, HEAD `70ed9da`; giữ các diff Docker có sẵn, không stage/commit/push. Đây là sắp xếp workspace, không đóng thêm CODE/CP hoặc thay ưu tiên roadmap.
+- README workspace mới dẫn tới README hồ sơ; cập nhật các link tương đối giữa hồ sơ, FlowBridge và plan local. Sửa source path trong hai unit test và lệnh sync ở contracts/README sang `../ho-so-olp/03-api/contracts`; YAML canonical không đổi nội dung.
+- Kiểm: đủ 7 folder ở vị trí mới và không còn ở root; 32 link điều hướng local và đường dẫn tài liệu read_docx đạt; Core/app/AI sync-check đạt; 7 test contract liên quan pass10.72s, git diff --check đạt. Lượt test đầu 2pass/5setup-errors do quyền temp sandbox; chạy lại với basetemp UUID trong .cache đạt. Không đổi runtime/dependency/migration/env/DB/stack; không chạy integration engine cho thay đổi đường dẫn.
+- Bước tiếp: sắp xếp hồ sơ đã hoàn tất; công việc runtime vẫn là đối chiếu migration0003 trước full SQL/SSO, audit image/archive và PR02 Gateway theo plan.
+
+## 17/10/2026 — Docker setup hoàn tất trong scope dev
+
+- Up cuối session29230exit0: IAM/API healthy, clients running. Down bản sửa đã xác minh không còn container project trước up, vẫn giữ volumes. Stack flowbridge-dev để chạy cho user: API18082/docs, IAM19444HTTPS, clients8761/8762. Không sessionbuild/test còn chạy.
+- Kết quả hiện hành:280unitcontainerpass22.25s,1SQLIdentitypass8.11s, doctor/config/read-only DBconnect/authguard/TLSdiscovery/clientHTTP/reuse đạt. FullSSO/business bị chặn DBrevision; imageaudit toànphần/cleanarchiveEnginebuild/fixture recovery chưa chạy. Không đóng CODE00-04.02/00-05.02/CP001.
+- Không commit/push/migrate/seed; index trống, env/nativeIAM/stash giữ nguyên. Còn diffsourcecontainer và docs/checkpoint chưastage. Bước tiếp độc lập: đối chiếu migration0003 hoặc DBtestcompatible trước E2E; audit image/release theo plan, không nới schema guard.
+
+## 17/10/2026 — Docker setup: runtime và regression đạt, đang chốt up cuối
+
+- Scope user setup Docker thực tế; branch huuhuandev_features, HEAD70ed9da, index trống. Không commit/push, migration/seed, sửa.env hoặc nativeIAM/stash. Docker29.8.2/Compose5.6.0 Linux; PATH chỉ phiên process, Desktop đang chạy.
+- Build runtime/tooling/unit/client đạt; up và read-only DBconnect đạt. Docs/ready/Identityconfig200, me401, IAMdiscovery đúngissuer/CAverified và clients8761/8762HTTP200. SQLIdentity container1pass8.11s rollback. Sau fix lifecycle, fullunit280pass22.25s session80320exit0; Ruff2files/format/diffcheck đạt.
+- .dockerignore bổ sung alembic/**, compose.yaml/.dockerignore. scripts/dev_stack.py down thêm --profile '*' để không bỏ sót optionalclients, mặc định giữvolumes; thêm regressiontest. Kiểm thực tế down sửa mới loại hết4containersproject, volumes giữ; đang up lại session29230 (build xong, chờIAMhealthy), chưa coi outcome cuối đã biết.
+- Down/up lượt trước session29817exit0, fingerprint runtime.json không đổi. Restart đồng thời IAM/API session20400 fail PostgreSQLstartupcheck; recreate API/client sauIAMhealthy session34045exit0 phục hồi. Docs ghi dùng down/up. Không sửa auth hoặc nới guard để vượt lỗi.
+- DBrequirehead thực tế fail trướcfixture; fullSSO/business không chạy. CODE00-04.02/00-05.02 vẫn mở cho DBcompatible/fullSSO/fixture recovery/imageaudit toànphần/cleanarchiveEnginebuild. Sourcearchive evidence phía dưới là snapshot trước, không claim latestarchiveEnginebuild.
+- README/CHANGELOG/DEV-CONTAINERS/infra dev+identity và localPLAN-OPENCORE/TASK-API-TEST/PLAN-SSO đã cập nhật runtime. Tiếp kiểm session29230outcome, hostHTTPfinal rồi ghi checkpoint cuối; đểstack chạy.
+
+## 17/10/2026 — Docker runtime đang nghiệm thu
+
+- Branch huuhuandev_features/HEAD70ed9da; không stage/commit/migration/seed. Docker29.8.2/Compose5.6.0 Linux chạy thật. Up session20952 exit0: IAM/API healthy, clients200; unitcontainer session44463 279pass22.56s; SQLIdentity session99293 1pass8.11s (rollback). Config/doctor/read-only DBconnect pass. TLS discovery CAverified, docs/ready/config200 và protectedme401 đạt.
+- Sửa .dockerignore thiếu alembic/**, compose.yaml và .dockerignore sau hai build failures. Guard DBhead thực tế fail trước fixture vì DB/source mismatch; không chạy full business/SSO. Không thay dependency/migration.
+- Kiểm restart đồng thời IAM/API session20400: IAMhealthy nhưng API exit3 PostgreSQL startupcheckfailed. Đang khôi phục bằng recreate API/clients giữ volumes, session34045 chưa biết outcome. Không coi restart pass. Phép fingerprint đầu gọi nhầm runtime.env fail trước restart; file đúng runtime.json.
+- Một lệnh Compose thiếu project tạo flowbridge volumes rỗng; auto-review chặn downvolumes ban đầu. Đã kiểm mountRO cả2 volumes hoàn toàn rỗng, retry được duyệt và dọn đúng project flowbridge. Không đụng state flowbridge-dev.
+- Đang cập nhật README/CHANGELOG/DEV-CONTAINERS với runtime thật. Tiếp: xác minh recovery/restart đúng trình tự, chốt docs/evidence/plan; imageaudit toàn phần và archiveEnginebuild chưa chạy. Không tick00-04.02/00-05.02 hoặcCP001.
+
+## 17/10/2026 — Bắt đầu nghiệm thu Docker thật theo yêu cầu mới
+
+- User đã cài Docker và yêu cầu setup tiếp, thay scope source-only trước đó. Branch huuhuandev_features, HEAD70ed9da + diff sourcecontainer có sẵn; không stage/commit/push, không migrate/seed hoặc ghi đè .env.
+- Docker cài per-user tại LOCALAPPDATA/Programs/DockerDesktop, CLI29.8.2/Compose5.6.0. Đã khởi động bằng docker desktop start; Engine linux/contextdesktop-linux chạy, không cần distro Ubuntu riêng. PATH phiên Codex cũ chưa códocker nên truyềnPATH cục bộ cho lệnh, không sửa hệ thống.
+- Docker Compose config interpolation thật đã PASS, doctor/preflight đang chốt. Scope CODE-00-04.02 / CODE-00-05.02: build/runtime unit, IAM/API/clients và recovery/audit phù hợp. DB0003 blocker vẫn giữ guard; testSSO/business chỉ ghi fixture nếu read-only head check đạt. Chuẩn bị chạy dev_stack.py up --env-file .env --clients; theo dõi session/outcome trước retry, không reset state.
+- Source/manifest/dependency từ lượt trước giữ nguyên; trước lệnh dài đầu vào không có sessionbuild cũ. Bước tiếp: build/pull, sửa lỗi integration thực nếu có, unitcontainer/health/DBread-only và ghi evidence/checkpoint. Không claim source/schema validation thay runtime.
+
+
+## 17/10/2026 — Container dev/test: hoàn tất chuẩn bị source, chưa nghiệm thu Engine
+
+- Yêu cầu user: triển khai setup/test nhanh; user xác nhận chưa cài Docker/Podman và chọn source trước. Repo FlowBridge, branch huuhuandev_features, HEAD70ed9da643c9f7beb0c67f6068d11d4e96d18566 không đổi; đầu task sạch. Chưa stage/commit/push/deploy, không cài Docker hoặc chạy migration/seed/DB write.
+- CODE-00-04.01 / CODE-00-05.01 hoàn tất scope source: Dockerfile (runtime/tooling/unit), compose.yaml (prepare/IAM/API/check-db/tools/unit/browser/clients), infra/dev/{Browser.Dockerfile,images.env,start-identity.sh,README.md}, .dockerignore, scripts/dev_stack.py/container_dev.py, tests/unit/test_dev_stack.py, docs/DEV-CONTAINERS.md. Sửa runner/client bind-host tùy chọn giữ loopback native, README/CHANGELOG/env example/gitattributes/pyproject packaging/uv.lock và infra Identity hướng dẫn. Plan/task/SSO/bản xuất đồng bộ task source và task Engine còn mở.
+- Quyết định: official Compose service:identity network namespace chỉ local để issuer HTTPS localhost giữ nguyên, không auth/TLS/hosts rewrite. State generated dùng realm.template+prepare_identity hiện có; DB env secret chỉ prepare đọc và chỉ DATABASE_* vào backend-config volume, không IAM/browser/image. Profile reuse không xoay key; pending fixture chặn đổi DB config. E2E project UUID mới phải không có resources; cleanup lỗi giữ volumes/manifest và exit fail. Up/down không migrate/seed, down thường giữ state.
+- Dependency: 4OCI manifests upstream HTTP200, pin tag@sha256 trong images.env; kiểm version sync với Python/uv/native IAM/npm. Chỉ metadata, không pull layer/audit actual image. NumPy2.5.4 và rank-bm250.2.2 thêm quan hệ dev bằng cùng version/hash cũ; graph142, uv.lock4 dòng metadata, license BSD3/Apache2 nguồn upstream. Runtime Python deps không đổi, không model weights/extras default.
+- Isolated minimal dev env tại visualizations/container-source-minimal-dev, 46packages, không torch/pandas/chromadb/tabicl/sentence_transformers. .venv cũ và .env/private identity state giữ nguyên. 279 unit pass37.05s session74056 exit0 (16cases mới kiểm source/lifecycle/crypto, không engine mock claim). Ruff lint/format91, lock142, official ComposeJSONSchema cấu trúc, Node syntax, source GPL/LF/comment và git diff check đạt.
+- Source/wheel build178/65, audit actual env secrets/cache/dependency binary đạt; source giải nén ở visualizations/dev-container-clean-ac40a4aa/flowbridge-0.1.0, clean rebuild source/wheel đạt. Python-I import rebuilt wheel +279 unit từ archive pass18.89s session44967; helper sau unit gọi script tương đối sai cwd nên exit1 (unit đã pass); đã sửa phép kiểm absolute path và dryrun ngoài checkout đạt, không rerun suite chỉ cho typo helper. Bản cuối sau evidence/docs đã rebuild và audit đạt178/65; code/config/build-input bytes bằng archive đã kiểm, package runtime bytes bằng clean wheel. Không lặp unit/engine cho docs-only.
+- Lượt lỗi: test đầu13pass/1fail assertion pathWindows, sửaas_posix rồi14pass; sau thêm2cases thành16. Ruff dòng dài đã sửa. uvlockoffline thiếumetadata fail, online resolve142 đạt; hardlinkcrossdrive fallback copy không ảnh hưởngisolatedenv. Doctor thật exit1 vì Docker thiếu đúngdự kiến. Không coi các lỗi này là pass Engine.
+- Còn chưa chạy CODE-00-04.02 / CODE-00-05.02: Docker build/config interpolation/Linux health/network/volume permissions/SSO/restart/recovery và image licenses/packages/secrets audit. DB0003_core_knowledge chưa có source trong cached Git histories; giữ guard, SSO/business preflight sohead read-only trước fixture, không downgrade/nới guard. Source-only task không đóng00-04/00-05/CP-001 hoặc PR01 contexts.
+- Không tiến trình test/engine agent còn chạy. Bước tiếp khi có Docker: doctor/config, build/runtime unit/SSO và audit image; đối chiếu migration0003 hoặc DB test tương thích trước fixture. Hướng dẫn public docs/DEV-CONTAINERS.md, evidence infra/dev/README.md. GatewayPR02 và Data/Files/Workflow vẫn theo roadmap.
+
+
+## 17/10/2026 — Container dev/test: source kiểm gần cuối
+
+- Tiếp task user đã chọn source trước, không cài Docker. Repo branchhuuhuandev_features/HEAD70ed9da không đổi, chưa stage/commit/push. CODE-00-04.01 và CODE-00-05.01 đang chốt source; các task engine .02 chưa chạy.
+- Mới có Dockerfile/Browser.Dockerfile, Compose và image manifest tag+digest, .dockerignore; scripts/dev_stack.py/container_dev.py; test_dev_stack.py; docs/DEV-CONTAINERS.md/infra/dev README; native runner/client thêm bind-host tùy chọn, giữ defaultloopback. Supabase config qua prepare secret -> backendvolume riêng, không copy.env vàoimage/IAM. Lệnh up/down/status/logs/unit/sql/SSO/recovery không automigrate/seed.
+- Dependency: thêm NumPy2.5.4 và rank-bm250.2.2 đã có vào nhómdev; license BSD3/Apache2 đã đối chiếu upstream, giữ version/hash/142nodes, uv.lock diff4dòng metadata. uvlockoffline đầu thiếucachemetadata fail; online metadata đạt, không cài lại .venv. Isolated dev env ởvisualizations/container-source-minimal-dev có46packages; không model extras, không tảiweights.
+- Kiểm:279 unit pass37.05s session74056,16test mới có crypto chuẩnOpenSSL và giả lập chỉ lifecycle; không claimengine. OfficialComposeJSONSchema cấu trúc đạt, 4registrymanifestHTTP200/digest pin, Ruffformat91/lock/Node/diff đạt. Doctor thật exit1 vì Docker thiếu đúng dự kiến; không Composeconfig/build/health/E2E/imageaudit thật. KhôngDBwrite/migration.
+- Tiếp: source/wheel build và cleanarchive ngoài checkout, unit từarchive, secret/bundling/header audit, cập nhậtplan/checkpoint với giới hạn .02. Chưa CP/taskcha hoàn tất, chưa bước deploy.
+
+
+## 16/10/2026 — Đang chuẩn bị source container dev/test
+
+- User yêu cầu triển khai setup nhanh; xác nhận máy chưa cài Docker/Podman và chọn chuẩn bị source trước. Không cài container runtime, không commit/push hoặc migrate/seed. Git hiện thực tế branch huuhuandev_features, HEAD70ed9da643c9f7beb0c67f6068d11d4e96d18566 (user đã commit Identity); đầu lượt working tree sạch, index trống. Checkpoint chuẩn bị commit phía dưới là lịch sử.
+- Scope CODE-00-04.01 / CODE-00-05.01: Dockerfile runtime/tooling/unit, Compose IAM/backend/tools/browser/clients, image manifest, .dockerignore, orchestration stdlib và fixture lifecycle. Giữ network namespace service:identity trong profile local để issuer HTTPS localhost giữ nguyên, không đổi token verifier/TLS/hosts máy. Supabase là DB ngoài, secrets đọc lúc prepare và chỉ DB settings vào volume backend riêng; IAM/browser không nhận DB credentials. Không thêm storage/workflow/broker hoặc runtime ML/RAG vào stack mặc định.
+- Đã tạo source, đang bổ sung tests/config schema/docs. Chưa chạy Docker build/Compose/runtime/image audit; không có Docker CLI/Engine. Git cached migration history chỉ có0001/0002, chưa thấy0003_core_knowledge; DB guard giữ nguyên, test-sso/sql-business sẽ kiểm revision read-only trước fixture.
+- Tiếp: kiểm cleanup failures/no false pass/profile mismatch/secret boundary, official Compose schema, unit regression, build source archive có đủ entrypoints; ghi rõ runtime còn chưa chạy. Không task cha/CP mới được tick.
+
+
 ## 16/10/2026 — Đã chuẩn bị commit Identity/contract
 
 - User yêu cầu check plan/code và chuẩn bị commit nếu đủ. Kết luận: đủ để commit lát Identity config/principal + contract/boundary/composer, không cần chờ thêm Gateway/Data/Workflow; không đóng PR01/CP-002 hoặc nhận full integration.
@@ -44,7 +139,7 @@
 - PLAN-OPENCORE/PLAN-SSO/TASK-API-TEST local cập nhật cùng trạng thái. Lưu checkpoint repo và local cho task code mới, giữ toàn bộ snapshot user đã công bố ở dưới. Không snapshot CP mới vì PR01/CP-002 chưa đủ scope contexts.
 - Bước tiếp: review diff, cấu hình binding thực khi tenant/application được xác định, PR02 Gateway có thể tiếp tục từ principal/binding này. Tích hợp UserContext/JobRegistry cùng receiver/registry Data/Workflow; chưa đóng task còn thiếu. Kiểm archive cuối đã hoàn tất; task code đã bàn giao trong scope ghi trên, các integration context còn mở rõ ràng.
 
-Nguồn liên quan: [roadmap](../../.ai-local/FlowBridge/PLAN-OPENCORE.md), [task/test](../../.ai-local/FlowBridge/TASK-API-TEST.md), [SSO](../../.ai-local/FlowBridge/PLAN-SSO.md), [bản xuất](../../05-bao-cao/Ke-hoach-Tang1-OpenCore-2026-10-16.md).
+Nguồn liên quan: [roadmap](../../.ai-local/FlowBridge/PLAN-OPENCORE.md), [task/test](../../.ai-local/FlowBridge/TASK-API-TEST.md), [SSO](../../.ai-local/FlowBridge/PLAN-SSO.md), [bản xuất](../../ho-so-olp/05-bao-cao/Ke-hoach-Tang1-OpenCore-2026-10-16.md).
 
 <!-- BEGIN CURRENT SYNC-2026-10-16-OPENCORE-03 -->
 ## Trạng thái hiện hành sau tích hợp origin và chuyển SSO

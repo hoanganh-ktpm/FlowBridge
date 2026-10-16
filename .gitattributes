@@ -19,3 +19,7 @@
 .gitattributes text eol=lf
 .python-version text eol=lf
 LICENSE text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+*.env text eol=lf
+.dockerignore text eol=lf
