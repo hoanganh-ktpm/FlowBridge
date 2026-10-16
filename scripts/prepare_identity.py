@@ -181,6 +181,80 @@ def prepare(out: Path, port: int, api_url: str, test_users: bool) -> None:
     print(f"Local identity configuration: {out}. Secrets stay in ignored files; issuer: {issuer}")
 
 
+def configure_core(out: Path, tenant: str, application: str, lifespan: int) -> None:
+    # Configure a fresh isolated realm only; never mutate an existing IAM via Admin API.
+    runtime_path, realm_path = out / "runtime.json", out / "realm.json"
+    runtime = json.loads(runtime_path.read_text("utf-8"))
+    runtime["core_identity"] = {
+        "tenant_id": tenant,
+        "application_id": application,
+        "web_client_id": "flowbridge-web-a",
+        "mobile_client_id": "flowbridge-web-b",
+        "role_permissions": {
+            role: ["identity:read"]
+            for role in (
+                "ADMIN",
+                "EMPLOYEE",
+                "APPROVER",
+                "WAREHOUSE",
+                "AI_SERVICE",
+                "PO_SERVICE",
+            )
+        },
+        "service_clients": {
+            "flowbridge-ai": {"role": "AI_SERVICE", "permissions": ["identity:read"]},
+            "flowbridge-po": {"role": "PO_SERVICE", "permissions": ["identity:read"]},
+        },
+    }
+    realm = json.loads(realm_path.read_text("utf-8"))
+    realm["accessTokenLifespan"] = lifespan
+    realm["clientScopes"].append(
+        {
+            "name": "identity:read",
+            "protocol": "openid-connect",
+            "attributes": {"include.in.token.scope": "true", "display.on.consent.screen": "false"},
+            "protocolMappers": [],
+        }
+    )
+    for client in realm["clients"]:
+        if client["clientId"] in runtime["oidc_allowed_clients"]:
+            client["defaultClientScopes"].append("identity:read")
+    realm["browserFlow"] = "core-browser"
+    realm["authenticationFlows"] = [
+        {
+            "alias": "core-browser",
+            "providerId": "basic-flow",
+            "topLevel": True,
+            "builtIn": False,
+            "authenticationExecutions": [
+                {"authenticator": "auth-cookie", "requirement": "ALTERNATIVE", "priority": 10},
+                {
+                    "flowAlias": "core-browser-forms",
+                    "authenticatorFlow": True,
+                    "requirement": "ALTERNATIVE",
+                    "priority": 20,
+                },
+            ],
+        },
+        {
+            "alias": "core-browser-forms",
+            "providerId": "basic-flow",
+            "topLevel": False,
+            "builtIn": False,
+            "authenticationExecutions": [
+                {
+                    "authenticator": "auth-username-password-form",
+                    "requirement": "REQUIRED",
+                    "priority": 10,
+                },
+                {"authenticator": "auth-otp-form", "requirement": "REQUIRED", "priority": 20},
+            ],
+        },
+    ]
+    for path, data in ((runtime_path, runtime), (realm_path, realm)):
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Prepare local Keycloak configuration; does not start it"
@@ -191,11 +265,33 @@ def main() -> int:
     parser.add_argument(
         "--test-users", action="store_true", help="Create isolated real IdP test users"
     )
+    parser.add_argument(
+        "--core-tenant", help="Explicit tenant binding for this isolated deployment"
+    )
+    parser.add_argument("--core-application", help="Explicit application binding")
+    parser.add_argument("--test-token-lifespan", type=int, default=180)
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535:
         parser.error("--port must be between 1024 and 65535")
+    if bool(args.core_tenant) != bool(args.core_application):
+        parser.error("--core-tenant and --core-application must be supplied together")
+    if not 5 <= args.test_token_lifespan <= 180:
+        parser.error("--test-token-lifespan must be between 5 and 180")
+    if args.test_token_lifespan != 180 and not (args.test_users and args.core_tenant):
+        parser.error("Short test lifespan requires --test-users and --core-tenant")
     try:
+        if args.core_tenant:
+            from pydantic import TypeAdapter
+
+            from flowbridge.identity.schemas import CoreId
+
+            TypeAdapter(CoreId).validate_python(args.core_tenant)
+            TypeAdapter(CoreId).validate_python(args.core_application)
         prepare(args.out, args.port, args.api_url, args.test_users)
+        if args.core_tenant:
+            configure_core(
+                args.out, args.core_tenant, args.core_application, args.test_token_lifespan
+            )
     except Exception as error:
         print(f"Identity preparation failed ({type(error).__name__}); check paths and OpenSSL")
         return 1

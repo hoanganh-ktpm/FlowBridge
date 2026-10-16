@@ -15,6 +15,7 @@ import httpx
 import sqlalchemy as sa
 
 from flowbridge.db import create_engine, create_session_factory
+from flowbridge.identity.account_repository import IdentityAccountRepository
 from flowbridge.identity.accounts import IdentityAccounts
 from flowbridge.identity.directory import KeycloakDirectory
 from flowbridge.settings import Settings
@@ -142,7 +143,7 @@ async def run(state: Path, cleanup: bool) -> None:
                 },
             )
             users = {}
-            accounts = IdentityAccounts(repo)
+            accounts = IdentityAccounts(IdentityAccountRepository(repo.session))
             for code, identity in identities.items():
                 existing = await repo.rows(
                     "users",

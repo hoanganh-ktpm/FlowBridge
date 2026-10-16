@@ -5,6 +5,7 @@ import {test, expect} from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import {login} from "./login.mjs";
 
 const state = process.env.FLOWBRIDGE_SSO_IDENTITY_DIR;
 const operator = JSON.parse(fs.readFileSync(path.join(state, "operator.json"), "utf8"));
@@ -13,28 +14,7 @@ const fixture = JSON.parse(fs.readFileSync(path.join(state, "fixture.json"), "ut
 const runtime = JSON.parse(fs.readFileSync(path.join(state, "runtime.json"), "utf8"));
 const api = publicConfig.apiUrl;
 
-async function login(page, account, origin) {
-  await page.goto(origin);
-  await expect(page.locator("#login")).toBeEnabled();
-  const tokenResponse = page.waitForResponse((response) =>
-    response.url() === publicConfig.issuer + "/protocol/openid-connect/token" &&
-    response.request().method() === "POST");
-  await page.locator("#login").click();
-  await page.locator("#username").fill(account.username);
-  await page.locator("#password").fill(account.password);
-  await page.locator("#kc-login").click();
-  await page.waitForURL((url) => url.origin === origin || url.pathname.includes("required-action"));
-  // Existing local profiles created before the complete fixture may require first-login completion.
-  if (await page.getByRole("heading", {name: "Update Account Information"}).isVisible()) {
-    await page.getByRole("textbox", {name: "Email", exact: true}).fill(account.username + "@example.invalid");
-    await page.getByRole("textbox", {name: "First name", exact: true}).fill("SSO");
-    await page.getByRole("textbox", {name: "Last name", exact: true}).fill("Test");
-    await page.getByRole("button", {name: "Submit", exact: true}).click();
-  }
-  const tokens = await (await tokenResponse).json();
-  await expect(page.locator("#status")).toHaveText("Đã đăng nhập");
-  return tokens;
-}
+// Shared login also exercises mandatory OTP when the core test profile enables it.
 
 test("real login, API persistence, ownership, PKCE SSO across clients, refresh and logout", async ({page, context, request}) => {
   const tokens = await login(page, operator.test_users.employee, "http://127.0.0.1:8761");

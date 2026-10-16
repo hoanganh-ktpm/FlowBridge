@@ -16,6 +16,14 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
 ID_MAX_LENGTH = 128
 HEADER_NAME = "X-Correlation-Id"
+# Documentation only: middleware normalizes malformed/duplicate input before routing.
+CORRELATION_PARAMETER = {
+    "name": HEADER_NAME,
+    "in": "header",
+    "required": False,
+    "schema": {"type": "string", "minLength": 1, "maxLength": ID_MAX_LENGTH, "pattern": ID_PATTERN},
+    "description": "Mã truy vết, không phải quyền truy cập.",
+}
 _correlation_id: ContextVar[str | None] = ContextVar("flowbridge_correlation_id", default=None)
 
 

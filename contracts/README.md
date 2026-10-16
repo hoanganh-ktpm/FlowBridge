@@ -24,7 +24,38 @@ năng cần engine chưa tích hợp trả 503 theo [phạm vi hiện tại](../
 Không có schema sample bỏ security. Các ví dụ request trong contract chỉ minh họa shape,
 không bảo đảm record/ID/token đó tồn tại trong database đang chạy.
 
-`contracts/opencore-api.yaml` và `supplier-assistant-layer2-api.yaml` là tài liệu thiết kế,
-không được mount thành API sample hoặc đóng gói làm registry runtime. Không suy ra engine
-Identity/Gateway/Storage/Workflow đã tích hợp từ các file này. License code/config theo
+`contracts/opencore-api.yaml` mô tả 28 operation thiết kế; hai operation Identity được
+triển khai khi bật binding theo [Identity core](../docs/IDENTITY-CORE.md). DTO Python và
+HTTP response được kiểm với schema core; không phục dựng sample hoặc mount 26 operation
+còn lại. `supplier-assistant-layer2-api.yaml` vẫn là thiết kế. Không suy ra engine
+Gateway/Storage/Workflow đã tích hợp từ các file này. License code/config theo
 notice từng file; dữ liệu và nguồn bên ngoài có điều kiện sử dụng riêng.
+
+## Core canonical và provenance
+
+Nguồn chuẩn Core là `03-api/contracts/opencore-api.yaml` trong workspace;
+`contracts/opencore-api.yaml` là bản sao phân phối trong source archive. Core dùng
+dialect mặc định OpenAPI 3.1, cùng cách công bố của app/AI. Không đổi wire/version 0.2.0.
+
+```sh
+uv run --locked python scripts/sync_core_contracts.py --source ../03-api/contracts
+uv run --locked python scripts/sync_core_contracts.py --source ../03-api/contracts --write
+# Archive độc lập: kiểm bản sao, manifest và draft mà không cần workspace cha.
+uv run --locked python scripts/sync_core_contracts.py --source contracts
+```
+
+`core-contracts.sha256` khóa đúng byte upstream; `x-upstream.sha256` trong draft Tầng 2
+phải trỏ cùng bản đó. Script kiểm version và sáu shared schema trước khi ghi. `--write`
+chỉ cho phép sửa khác biệt metadata dialect/byte/provenance đã review; nếu contract đổi
+ngữ nghĩa phải review và nâng bản sao/schema draft phù hợp trước khi sync. Không đổi
+hash để bỏ qua schema drift. Script mặc định chỉ kiểm và không sửa file.
+
+## Nguồn OpenAPI runtime
+
+`shared/openapi.py` sở hữu composition và cache. App/AI dùng snapshot 0.4.1; Identity
+và ML đóng góp schema sinh từ router/DTO với namespace `Core*` và `ML*`; RAG development
+có fragment riêng theo profile. Trùng path+method, operationId hoặc component khác nghĩa
+làm việc xuất OpenAPI thất bại. Component giống hệt nhau có thể dùng chung.
+
+Hai API Identity có kiểm parity URI, correlation, security, response/error schema
+và header 409 với Core YAML. Xem [kết quả sửa review](../docs/CONTRACT-IDENTITY-REVIEW.md).

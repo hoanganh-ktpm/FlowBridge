@@ -85,6 +85,10 @@ include = [
     "/docs/SSO.md",
     "/docs/SSO-ADR.md",
     "/docs/SSO-TEST-RESULTS.md",
+    "/docs/IDENTITY-CORE.md",
+    "/docs/IDENTITY-CORE-ADR.md",
+    "/docs/IDENTITY-CORE-TEST-RESULTS.md",
+    "/docs/CONTRACT-IDENTITY-REVIEW.md",
     "/CHANGELOG.md",
     "/LICENSE",
 ]

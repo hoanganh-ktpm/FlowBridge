@@ -17,6 +17,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
+from flowbridge.identity.binding import IdentityBinding
+
 
 class Settings(BaseSettings):
     # Cấu hình bất biến; ưu tiên constructor → biến môi trường → .env → mặc định.
@@ -87,6 +89,7 @@ class Settings(BaseSettings):
     oidc_admin_client_id: str | None = None
     oidc_admin_client_secret: SecretStr | None = None
     cors_origins: list[str] = Field(default_factory=list)
+    core_identity: IdentityBinding | None = None
 
     @field_validator(
         "oidc_ca_bundle", "oidc_client_secret", "oidc_admin_client_secret", mode="before"
@@ -199,6 +202,34 @@ class Settings(BaseSettings):
                 self, "database_url", SecretStr(url.render_as_string(hide_password=False))
             )
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
+        if self.core_identity is not None:
+            binding = self.core_identity
+            required_clients = {
+                binding.web_client_id,
+                binding.mobile_client_id,
+                *binding.service_clients,
+            }
+            if not all(
+                (
+                    self.database_url,
+                    self.oidc_issuer,
+                    self.oidc_audience,
+                    self.oidc_introspection_url,
+                    self.oidc_client_id,
+                    self.oidc_client_secret,
+                )
+            ):
+                raise ValueError("core_identity requires database and complete OIDC introspection")
+            if not required_clients <= set(self.oidc_allowed_clients):
+                raise ValueError("Core clients must be in oidc_allowed_clients")
+            if not set(binding.service_clients) <= set(self.oidc_service_clients):
+                raise ValueError("Core service clients must be in oidc_service_clients")
+            if {binding.web_client_id, binding.mobile_client_id} & set(self.oidc_service_clients):
+                raise ValueError("Public core clients cannot be service clients")
+            if self.oidc_introspection_url != (
+                self.oidc_issuer.rstrip("/") + "/protocol/openid-connect/token/introspect"
+            ):
+                raise ValueError("Core introspection must belong to the configured Keycloak issuer")
         if self.rag_dev_enabled:
             if self.environment == "production":
                 raise ValueError("rag_dev_enabled is unavailable in production")

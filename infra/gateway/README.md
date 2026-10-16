@@ -15,3 +15,7 @@ không đưa toàn bộ mapping vào listener public. Cờ cũ `--include-applic
 thực thi policy. APISIX chưa được tích hợp. Backend vẫn xác minh bearer/supplier token
 và kiểm quyền tài nguyên trong database. OIDC tại gateway không thay policy backend.
 Mapping được sinh khi cần; không lưu thêm bản cấu hình dễ lệch contract.
+
+Deployment bật `FLOWBRIDGE_CORE_IDENTITY` thêm `--include-identity` khi xuất mapping
+để có hai route Identity core (48 operation với DB, 53 nếu đồng thời `--include-ml`).
+Mặc định giữ 46 app/AI operation. Xem [Identity core](../../docs/IDENTITY-CORE.md).

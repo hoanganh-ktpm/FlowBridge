@@ -11,6 +11,8 @@
 *.license text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
 *.sql text eol=lf
 .env.example text eol=lf
 .gitignore text eol=lf

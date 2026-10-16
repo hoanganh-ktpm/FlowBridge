@@ -8,10 +8,14 @@ import {fileURLToPath} from "node:url";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const state = path.resolve(process.env.FLOWBRIDGE_SSO_IDENTITY_DIR ?? path.join(root, ".cache/identity"));
 const operator = JSON.parse(fs.readFileSync(path.join(state, "operator.json"), "utf8"));
+const runtime = JSON.parse(fs.readFileSync(path.join(state, "runtime.json"), "utf8"));
 process.env.FLOWBRIDGE_SSO_IDENTITY_DIR = state;
 process.env.FLOWBRIDGE_SSO_PUBLIC_CONFIG = path.join(state, "public.json");
+// Error page snapshots may contain OTP enrollment material or bearer responses.
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 export default defineConfig({
   testDir: "./tests", workers: 1, retries: 0, timeout: 120_000,
+  testMatch: runtime.core_identity ? ["**/*.spec.mjs"] : ["**/sso.spec.mjs"],
   outputDir: path.join(root, ".cache/identity-playwright"),
   reporter: "list",
   use: {

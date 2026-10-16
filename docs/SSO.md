@@ -2,6 +2,10 @@
 
 Backend chỉ dùng danh tính đã được IdP xác minh; không có sample identity, tài khoản mặc định qua HTTP hoặc header giả danh. Keycloak xử lý đăng nhập/phiên; user/grant và quyền tài nguyên nằm trong Supabase. Chi tiết thiết kế: [ADR 0005](SSO-ADR.md). Kết quả đã chạy và giới hạn: [báo cáo kiểm thử](SSO-TEST-RESULTS.md).
 
+Hai API Identity core, binding tenant/application, scope và profile OTP bắt buộc mới
+được hướng dẫn riêng tại [Identity core](IDENTITY-CORE.md). Profile SSO cũ không tự
+được cập nhật hoặc bật core; tạo profile mới khi kiểm chính sách IAM mới.
+
 ## 1. Chuẩn bị môi trường
 
 Chạy tại root FlowBridge, dùng môi trường Python trong README. Native local cần OpenJDK 25, OpenSSL, Node >=20 và npm. Metadata phiên bản/URL/checksum nằm ở [dependencies.json](../infra/identity/dependencies.json): Keycloak 26.8.1, Temurin 25.0.4.1+1 cho Windows, SDK 26.2.4 và Playwright 1.64.1. Tải qua nguồn upstream, kiểm SHA-256 rồi giải nén vào `.tools/sso/`; giữ nguyên LICENSE/NOTICE. Không cần cài Docker hoặc thay Java hệ thống cho cách chạy này.
@@ -85,6 +89,8 @@ SQL integration (tiêm danh tính trong bộ regression này; không thay nghi�
 ```powershell
 & ./.venv/Scripts/python.exe -m pytest tests/integration/test_supplier_database.py -m integration -q
 ```
+
+Suite SQL nghiệp vụ yêu cầu đúng baseline revision `0002_api_idempotency`. Lượt kiểm gần nhất DB báo `0003_core_knowledge` nhưng checkout chưa có migration này, nên guard dừng trước fixture. Đối chiếu nguồn migration trước khi chạy lại; không downgrade/nới guard. Có thể kiểm riêng SQL accounts/bootstrap bằng suite trong [Identity core](IDENTITY-CORE.md#boundary-accountsbootstrap).
 
 E2E thật cần IAM/API đang chạy, profile đã sinh test users và npm ci đã hoàn tất. Nó xác minh user qua IdP, tạo riêng department/user/grant test UUID trong Supabase rồi cleanup; từ chối dùng lại user có sẵn để tránh xóa nhầm dữ liệu. Dùng profile test riêng thay vì tài khoản đã bootstrap thủ công. API URL/port trong `public.json` phải khớp listener.
 

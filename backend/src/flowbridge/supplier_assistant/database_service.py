@@ -1191,13 +1191,14 @@ class SupplierDatabaseService:
 
     async def provision_user(self, body: dict[str, Any]) -> dict[str, Any]:
         # The contract links an existing IdP identity; passwords/users are managed by Keycloak.
+        from flowbridge.identity.account_repository import IdentityAccountRepository
         from flowbridge.identity.accounts import IdentityAccounts
 
         if self.directory is None:
             raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
         identity = await self.directory.resolve(body["identity_reference"])
         require(identity.account_type == body["account_type"], ErrorCode.FORBIDDEN)
-        user, created = await IdentityAccounts(self.repo).link(
+        user, created = await IdentityAccounts(IdentityAccountRepository(self.repo.session)).link(
             identity,
             display_name=body["display_name"],
             email=body.get("email", identity.email),
