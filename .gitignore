@@ -2,6 +2,7 @@
 .venv/
 .tools/
 langflow/data/
+.codegraph/
 .cache/
 .tmp/
 dist/

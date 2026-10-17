@@ -23,6 +23,7 @@ from flowbridge.db import create_engine, create_session_factory, probe_connectio
 from flowbridge.identity.router import install_identity_router
 from flowbridge.operations.router import router as operations_router
 from flowbridge.settings import Settings
+from flowbridge.shared.access_log import access_log_config
 from flowbridge.shared.correlation import CorrelationMiddleware
 from flowbridge.shared.errors import register_exception_handlers
 from flowbridge.shared.openapi import install_openapi
@@ -175,5 +176,8 @@ if __name__ == "__main__":
         host=runtime_settings.host,
         port=runtime_settings.port,
         log_level=runtime_settings.log_level.lower(),
-        access_log=False,
+        access_log=runtime_settings.http_access_log_enabled,
+        log_config=access_log_config(),
+        proxy_headers=True,
+        forwarded_allow_ips=runtime_settings.trusted_proxy_ips,
     )

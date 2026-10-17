@@ -1,5 +1,19 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-MERGE-02: Giải quyết conflict với main, hoãn test
+
+- Yêu cầu: gỡ conflict với main, chỉ sửa logic đơn giản và chưa chạy test.
+- Repo FlowBridge, branch hoanganhdev_features, HEAD e936daa; đầu vào sạch.
+  Fetch origin/main mới nhất d73e793 và merge --no-commit --no-ff vào nhánh hiện tại.
+- Gỡ conflict .gitignore, CHANGELOG.md và checkpoint bằng cách giữ nội dung cả
+  hai nhánh, gồm cấu hình Langflow và lịch sử Gateway/UI/layout của main.
+- Nhận layout backend/flowbridge từ main; cập nhật đường dẫn import/launcher và
+  tham chiếu hợp đồng Langflow theo layout này. Không đổi logic nghiệp vụ,
+  dependency, migration, .env hoặc dữ liệu. Không chạy test, workflow hay OpenAI.
+- Đã rà toàn repo: không còn marker conflict; git diff --check đạt. Stage các file
+  đã xử lý để kết thúc trạng thái unmerged; giữ merge chưa commit/push để user review.
+  Không có docs/PLAN-OPENCORE.md hoặc PROJECT-RULES.md trong checkout.
+
 ## 2026-10-18 — CODE-LANGFLOW-04: Hoàn tất cấu hình điều phối và hợp đồng input/output
 
 - User yêu cầu node/label tiếng Việt, prompt/description kỹ, mặc định chỉnh được,
@@ -119,6 +133,153 @@
   xác nhận output khớp input tiếng Việt. API key kiểm tra tạm đã xóa.
 - Hoàn tất phạm vi cơ bản; không commit/push hoặc nối các dịch vụ khác.
 
+## 18/10/2026 — CODE-00-17.01 baseline và bảng quyết định (hoàn tất)
+
+- Yêu cầu: đọc docs/PLAN-SIMPLIFY.md và thực hiện mục 1 (`CODE-00-17.01`). Chỉ khảo sát/lập evidence, chưa sửa code runtime. Repo FlowBridge, branch huuhuandev_features, HEAD dc8f2497b8d7e7b15f5de8cce42777deaaa9d64e; giữ nguyên diff layout/UI có sẵn; không commit/push.
+- Interpreter `.venv/Scripts/python.exe` Python3.12.15, `import flowbridge` trỏ `backend/flowbridge/__init__.py`. Baseline: 334 collected, 333 passed/1 failed (drift contract `test_contract_snapshots...` với nguồn `../ho-so-olp`, đã biết), 0 skip 23.82s; Ruff đạt; `git diff --check` exit0.
+- Inventory AST (script tạm `.cache/simplify-inventory/inventory.py`): backend 26 file có try / 49 try / 58 except / 13 broad; scripts 10/24/23/12. Khớp khảo sát cũ 58/13 ở backend. Không có handler rethrow-only; wrapper tồn tại đều thuộc Protocol/DI/transaction.
+- Tạo `docs/evidence/CODE-00-17.md`: bảng quyết định 58 handler backend + 12 catch rộng script (file:symbol:line → lỗi → tác động → test → giữ/bỏ/thu hẹp/gom → đích). Kết luận: 13 catch rộng đều có lý do giữ hoặc `cần thêm bằng chứng`; `.02` chưa có ứng viên dư thừa rủi ro thấp; `.03` ứng viên `gom` cặp timeout/DB ở 5 vị trí (giữ transaction ownership + mapping IntegrityError).
+- Tick `CODE-00-17.01` trong docs/PLAN-SIMPLIFY.md. Chưa chạy integration engine (task khảo sát, không đổi runtime). Lỗi drift contract giữ theo dõi riêng, không bỏ/skip test.
+- Bước tiếp khi được yêu cầu: `.02` xác minh/chốt danh sách xóa dư thừa (dự kiến no-op có bằng chứng) rồi `.03` boundary DB/HTTP với test SQL thật; đọc evidence và checkpoint trước sửa.
+
+## 18/10/2026 — Chi tiết hóa CODE-00-17 (SIMPLIFY-PLAN-20261018)
+
+- User yêu cầu viết kế hoạch chi tiết để thực hiện tối giản code. Phạm vi lượt này chỉ tài liệu; chưa bắt đầu refactor hoặc kiểm thử runtime.
+- Repo FlowBridge, branch huuhuandev_features, HEAD dc8f2497b8d7e7b15f5de8cce42777deaaa9d64e. Giữ diff UI/dev/layout hiện hữu; không commit/push/deploy, không dependency/migration/DB/env changes.
+- Cập nhật docs/PLAN-SIMPLIFY.md: 6đợt CODE-00-17.01–.06 có thao tác, file, đầu ra/điều kiện hoàn tất; inventory13catchrộng là dữ liệu khảo sát17/10 cần xác minh lại, không phải13đoạn phải xóa. Có ma trận unit/integration, lệnh baseline/build, fixture guard và điểm dừng5lượt gợi ý.
+- Đọc source/tests/profile hiện hành qua CodeGraph và file thực tế để xác minh tên suite và script npm. 333pass/1driftfail vẫn là baseline lịch sử từ task layout, không nhận kiểm mới. Không chạy engine/unit cho doc-only; kiểm git diff --check ghi ở bàn giao lượt.
+- Plan tổng giữ CODE-00-17 và mọi task con chưa tick; không thay ưu tiên PR03/CP tích hợp hiện có. Đồng bộ mục này vào docs/CHECKPOINT.md và .ai-local/FlowBridge/CHECKPOINT.md; giữ nguyên lịch sử hai file.
+- Bước tiếp khi được yêu cầu triển khai: CODE-00-17.01 đọc checkpoint/Git, chạy baseline và tạo docs/evidence/CODE-00-17.md với bảng vị trí/caller/lỗi/quyết định/test; chỉ sang .02 sau khi có ứng viên dư thừa có bằng chứng. Không còn session đang chạy từ lượt này.
+
+## 17/10/2026 — PLAN-SIMPLIFY / CODE-00-17 (đã lập kế hoạch, chưa refactor)
+
+- Yêu cầu: lập kế hoạch tối giản codebase và exception dư thừa. Chỉ khảo sát/lập tài liệu; không sửa runtime, dependency, migration, DB hoặc môi trường.
+- Branch huuhuandev_features/HEAD dc8f2497b8d7e7b15f5de8cce42777deaaa9d64e; giữ toàn bộ diff UI/dev/layout có sẵn. Đọc checkpoint, PR00 mục14/plan và PROJECT-RULES; CodeGraph khảo sát boundary/service/policy trước đọc nguồn.
+- AST backend hiện tại:63file/11.343dòng/58except/13catchrộng/223raise; đây không phải số nhánh dư thừa. Mẫu lặp DB/timeout ở Identity/app/ML; catch rộng RAG/model/startup cần phân loại theo trách nhiệm trước xóa.
+- Tạo docs/PLAN-SIMPLIFY.md gồm6task CODE-00-17.01–.06 và tiêu chí kiểm chứng; đăng ký cha CODE-00-17 chưa tick tại plan tổng .ai-local/FlowBridge. Giữ auth/resource/contract/transaction, cleanup/redaction; không tạo framework mới hoặc ép giảm số dòng/exception.
+- Chưa chạy test vì chỉ lập kế hoạch; baseline333pass/1driftfail là bằng chứng lượt layout trước, không nhận là refactor đã pass. Không commit/push/deploy, không có session đang chạy.
+- Bước tiếp khi triển khai: CODE-00-17.01 chạy baseline và lập bảng từng catch/guard/wrapper với quyết định/test, rồi .02 loại code dư thừa đã chứng minh; cập nhật checkpoint từng bước. Chưa tự bắt đầu refactor từ yêu cầu lập kế hoạch.
+
+## 17/10/2026 — REFACTOR-BACKEND-LAYOUT-01 (hoàn tất chuyển thư mục)
+
+- Yêu cầu: bỏ lớp thư mục thừa của backend. Chuyển `backend/src/flowbridge/` sang `backend/flowbridge/`, giữ tên package/import `flowbridge`. User hỏi tiếp có nên bỏ lớp package; khuyến nghị giữ, chưa có yêu cầu bỏ tiếp.
+- Repo FlowBridge, branch `huuhuandev_features`, HEAD `dc8f2497b8d7e7b15f5de8cce42777deaaa9d64e`. Giữ mọi diff UI/dev/checkpoint trước task; không commit/push hoặc triển khai.
+- Sửa pyproject (wheel/sdist/Ruff), alembic.ini, script sync_application_contracts/export_rag_sql_fixture và README liên quan. Đồng bộ đường dẫn hiện hành trong AGENTS.md cấp OLP và PROJECT-RULES/PLAN-OPENCORE/TASK-API-TEST tại .ai-local/FlowBridge; không đổi checkbox CODE/CP hoặc lịch sử snapshot. CHANGELOG ghi layout mới. Không đổi dependency/lock/schema/migration hoặc dữ liệu; nội dung mọi file được di chuyển byte-identical HEAD.
+- Build `python -m hatchling build` đạt source tar.gz/wheel; giải nén sạch tại .cache/backend-layout-verification, build lại và Python -I import app/resources từ wheel ngoài source đạt; archive không có venv/node_modules/cache/secret .env. Ruff và git diff --check đạt (Git cảnh báo LF/CRLF ở alembic.ini và file UI có sẵn).
+- Hai lượt pytest trong sandbox không có output đã dừng exit1 (60323/64583). Lượt ngoài sandbox 48812 kết thúc exit1: 333 passed, 1 failed trong22.97s; lỗi có sẵn test_contract_snapshots_match_checksums_and_available_upstream do nguồn ho-so-olp ngoài repo khác snapshot. File backend di chuyển giữ nguyên byte HEAD, không sửa snapshot hoặc nguồn ngoài để nhận pass. Không chạy engine integration/database vì chỉ đổi layout.
+- Thử refresh editable bằng uv gặp uv host0.11.29 khác required0.13.1; lượt --no-config offline/no-build-isolation thiếu editables. Không cài dependency/toolchain hoặc cài lại môi trường; đã cập nhật đúng đường dẫn duy nhất trong .venv/Lib/site-packages/_editable_impl_flowbridge.pth và xác nhận import từ backend/flowbridge. Không còn session build/test đang chạy.
+- User yêu cầu tiếp tục: đã rà cuối và giữ backend/flowbridge. Script sync_application_contracts kiểm hai snapshot/checksum tại vị trí mới đạt; `alembic heads` đọc local đạt `0003_core_knowledge (head)`, không kết nối DB/chạy migration. `codegraph sync .` exit0 báo Already up to date; git diff --check đạt. Không chạy lại suite đã có kết quả khi không đổi runtime.
+- Bàn giao: hoàn tất chuyển thư mục; lỗi drift nguồn contract ngoài repo vẫn cần xử lý trong scope riêng. Các mốc CP/PR tích hợp giữ nguyên; không commit/push/deploy.
+
+## 17/10/2026 — FIX-LOGIN-01 tiếp: đối chiếu màn hình OTP
+
+- User thử private vẫn lỗi. Giữ branch/HEAD và mọi UI diff; không sửa auth/runtime hoặc reset MFA. Lọc log chỉ mã lỗi/fieldnames: LOGIN_ERROR invalid_user_credentials có selected_credential_id; không thấy CODE_TO_TOKEN_ERROR trong khoảng đọc, chưa đủ bằng chứng lỗi callback.
+- Theo quyền thử employee đã cấp, kiểm lại password một lần bằng credential local qua stdin: accepted, inputotp=true, enrollment=false, usernameform=false, không lỗi, chưa gọi token endpoint. Chụp riêng màn hình challenge khi #otp visible/#totp absent và input trống, không password/QR/seed. Ảnh visualizations/flowbridge-otp-screen.png đã xem: dòng Username or email readonly và ô One-time code. Đây có thể là màn hình user gọi username/password; cần user đối chiếu, chưa khẳng định nguyên nhân mã sai.
+- Không đọc admin state/credential secret, không nhập OTP, không ghi nghiệp vụ; lệnh exit0, không session đang chạy. Hướng dẫn phân biệt One-time code với Password; nếu user không có Authenticator đúng tài khoản thì cần bước khôi phục MFA có quyền riêng, không tự reset hoặc bỏ MFA. Chưa xác nhận login-to-callback thành công.
+
+## 17/10/2026 — Chẩn đoán đăng nhập employee (FIX-LOGIN-01, đã kiểm mật khẩu; OTP do user hoàn tất)
+
+- User báo trang quay lại giống reload, sau đó Invalid authenticator code trên form Keycloak. Branchhuuhuandev_features/HEADdc8f249 không đổi; giữ toàn bộ UI diff. Không sửa runtime/dependency/migration/.env, không reset/enroll MFA hoặc thay credential.
+- Read-only thống kê log30phút chỉ xuất loại lỗi/count, không log thô:5LOGIN_ERROR invalid_user_credentials,1user_not_found; chưa phân biệt nguyên nhân từ các event này. Host/container UTC khớp giây. Public config đúng realmflowbridge/clientflowbridge-web-a.
+- Auto-review từ chối script định dùng bootstrap admin token để đọc MFA/account state; script diagnose-login.mjs chưa chạy. Không dùng workaround hoặc privileged API. User sau đó cho phép rõ ràng chỉ thử tài khoản test employee, khôngadmin/OTP; đã thực hiện phương án hẹp hơn.
+- Credential lấy từ login.md local và truyền stdin, không arguments/output. Chromium trong client dev chỉ trust SPKI của public cert, context mới: mật khẩu employee được chấp nhận, chuyển màn hình inputotp=true, enrollment=false, usernameform=false, invalidAuthenticator=false, invalidPassword=false; không gọi tokenendpoint vì dừng trước OTP. Không screenshot/ghi secret/nhậpOTP hay ghi nghiệp vụ. Lệnh exit0; không session đang chạy.
+- Kết luận: chưa tái hiện lỗi ở phiên mới; không kết luận lỗi mật khẩu hoặc lệch đồng hồ, chưa chứng minh callback sau MFA vì user giữ OTP. Hướng dẫn user bắt đầu phiên mới từ8761 và nhập mã6số mới của đúng tài khoản Authenticator, không mật khẩu ở bướcOTP. Nếu vẫn lỗi cần trạng thái/bước tái hiện mới; không tự bỏ MFA. Helper chẩn đoán ở.cache/dev-accounts bị Gitignore.
+
+## 17/10/2026 — Giao diện nghiệp vụ React (CODE-10-02.01 / UI-BUSINESS-01, hoàn tất scope UI)
+
+- Yêu cầu: UI đơn giản cho nhân viên/người duyệt/nhà cung cấp; user bổ sung dùng React JS. Branch huuhuandev_features, HEAD dc8f2497b8d7e7b15f5de8cce42777deaaa9d64e; tree sạch trước task. Lát UI thuộc CODE-10-02, không đóng task cha hoặc CP vì workflow/files/events chưa đủ.
+- Thêm React workspace nghiệp vụ vào clients/sso hiện có, giữ root redirect và Keycloak PKCE. Nhân viên: catalog/PR nhiều dòng/create/edit/submit/cancel/PO reads; approver: scoped proposals và nút quyết định disabled chờ workflow; supplier: token preview/confirm/reject và schedule inputs. API kiểm quyền; không giả role/approval, không service credential trong frontend.
+- Dependency npm mới: react/react-dom19.3.1 và esbuild0.28.2 (MIT, kiểm registry/peer/Node và LICENSE upstream), exact manifest/lockfile. Không đổi Python dependency, schema/migration, .env hoặc DB. Bản JS DOM thuần giữa task đã thay bằng JSX React; CSS tối thiểu. npm registry sandbox ENOTFOUND; metadata/install ngoài sandbox thành công, ignore-scripts.
+- Kiểm cuối: npm run test:ui với Chrome host đạt10/10 trong8.8s, session15020exit0 (HTTP/SDK mock, không SQL/IAM acceptance); thêm gửi lại/hủy kèm revision.17unit test_dev_stack đạt0.81s. Build Linux image client và npm ci offline/build từ source archive giải nén độc lập ngoài repo đạt; bundle SHA256 checkout/clean bằng nhau B3D524CB12D9B671D7B7896FB468EB421A8EC918EE7258789E8376407A1939DD. Archive211members có JSX/build/lock, khôngnode_modules/dist/cache/.env. Runtime legal notice gồm full MIT upstream; Docker context loại dist.
+- Lượt browser sandbox22154 không tiến triển, đã dừng exit1 trước chạy lại ngoài sandbox; không còn test/build session chưa biết outcome. Docker read/build/recreate ngoài sandbox đạt: chỉ client-a/client-b của flowbridge-dev, IAM/API container giữ nguyên/healthy; không ghi DB/reset MFA hoặc đổi credential. Client bundle build tại image build, runtime non-root dùng prebuilt.
+- Chromium trong container đọc trang thật A/B, kiểm React/assets200 và anonymous supplier UI; mở trang login Keycloak thật xác nhận PKCES256/rootredirect, không nhập credential hoặc gửi nghiệp vụ. Screenshot không credential ở workspace visualizations/flowbridge-react.png. Chưa chạy lại full SQL/SSO suite hoặc duyệt workflow/email vì không đổi backend và engine đó chưa nối.
+- Bàn giao: http://127.0.0.1:8761 hoặc8762, Ctrl+F5 rồi đăng nhập; nhà cung cấp dùng tab riêng với token hợp lệ. clients/sso/README.md có lệnh/cấu hình/giới hạn/evidence. Plan/TASK ngoài repo ghi CODE-10-02.01; giữ chaCODE-10-02/CP và PR03 tiếp theo mở. Không commit/push/publish remote. Bước tiếp khi được yêu cầu: nối workflow thật trước bật quyết định duyệt, worker/email và nghiệm thu mua hàng xuyên lõi.
+
+## 17/10/2026 — Giải quyết conflict GitHub PR #10 (FIX-PR10-CONFLICT, hoàn tất local)
+
+- Yêu cầu: giải quyết conflict PR #10, head `huuhuandev_features` tại `f9768a5a6a191262b4d8f881a23c9b05f16c92c3`, base `main` tại `e4874fcd1041161b66b2501a750ba8dd903cb9fe`; API GitHub xác nhận dirty trước sửa. Working tree ban đầu sạch.
+- Merge origin/main; xử lý đúng 3 conflict: settings giữ cả Gateway logging/proxy trust và PostgreSQL RAG; test OpenAPI giữ regression Swagger cùng các tổ hợp Identity/ML/RAG; checkpoint giữ toàn bộ lịch sử hai nhánh. Các thay đổi auto-merge giữ nguyên; không thêm dependency/migration hoặc sửa DB, credential, nguồn contract ngoài repo.
+- Ruff check backend/tests/scripts và format 2 file Python conflict đạt; sync application snapshots/checksums và Core snapshot/provenance đạt; git diff --check và kiểm không còn unmerged/marker đạt.
+- Unit tại workspace: 333 passed, 1 failed trong 22.33s. Lỗi test_contract_snapshots_match_checksums_and_available_upstream do snapshot AI tools của origin/main khác nguồn ../ho-so-olp; đã xác minh snapshot byte-identical origin/main. Không đổi test hoặc ghi đè nguồn ngoài repo để nhận pass. Các lượt sandbox bị treo khi chạy async đã dừng; lượt settings với basetemp riêng đạt 26/26.
+- Xuất Git tree đã merge `41d7175c1e19ffa55f63b6a5ee00213a0dda0218` thành tar và giải nén độc lập tại .cache/pr10-merge-verification/flowbridge, chạy đúng source qua PYTHONPATH: toàn bộ 334 unit passed trong 24.04s, session48527 exit0. Không chạy integration/engine, migration/seed hoặc triển khai. Artifact chỉ local, Git ignore.
+- Bước tiếp: tạo merge commit và push riêng huuhuandev_features theo yêu cầu xử lý PR; kiểm lại API GitHub mergeable và working tree. Không merge PR vào main hoặc đóng các mốc CODE/CP tích hợp còn mở. Kết quả push/commit cụ thể xem Git và bàn giao cuối chat.
+
+## 17/10/2026 — Sửa URL Swagger dev (FIX-SWAGGER-01, hoàn tất)
+
+- User gửi ảnh Swagger Failed to fetch. Đối chiếu live: /openapi.json tại18082 trả server http://127.0.0.1:8000; cổng8000 không có API. Đây là lỗi URL runtime, chưa phải bằng chứng sai mật khẩu/token.
+- Repo huuhuandev_features/HEADfc93e97038cb9bb382940d538dc0d32cd364fd5e; giữ mọi diff trước đó. Sửa supplier_assistant/contract.py database_document dùng server tương đối dấu chấm, bảo toàn snapshot/canonical. Thêm regression origin/cổng/proxy prefix, cache snapshot và security; cập nhật DEV-CONTAINERS/CHANGELOG. Không dependency/migration/DB/credential change.
+- Ruff/diff đạt; 10 unit OpenAPI pass3.57s. Build session41366 exit0; recreate riêng API session57599 exit0/healthy. Chromium thật mở /docs, bấm Try it out/Execute trên GET departments: request tới18082, HTTP401 khi không có bearer, không còn Failed to fetch (runtime check exit0). Giữ IAM/client/state/DB/tài khoản; không tự enroll/reset MFA. CodeGraph sync đã cập nhật. Không chạy lại Gateway/IAM integration suite vì thay đổi chỉ URL tài liệu runtime.
+- Bàn giao: mở http://127.0.0.1:18082/docs và Ctrl+F5; Authorize bằng access token user realm flowbridge từ Client A/B. Token hết hạn lấy lại ở client. PR02/CP-003 và bước code PR03 không đổi; không commit/push.
+
+## 17/10/2026 — Tài khoản test local dev (DEV-ACCOUNTS-01, hoàn tất)
+
+- User yêu cầu tạo tài khoản mặc định để test. Repo/branch/HEAD giữ nguyên huuhuandev_features/fc93e97038cb9bb382940d538dc0d32cd364fd5e; dùng stack flowbridge-dev đang healthy ở API18082/IAM19444, không thay Gateway acceptance.
+- IAM đã có flowbridge-admin/employee/other nhưng chưa linked app. Giữ nguyên mật khẩu, dùng KeycloakDirectory xác minh subject rồi bootstrap_identity transaction/audit với actor demo-admin có ADMIN hiện hữu. Đã commit 3 user và 3 grant (ADMIN, EMPLOYEE, EMPLOYEE), 2 department dev riêng; other ở department khác. Không thay schema/dependency/env, không reset mật khẩu/MFA, không commit/push Git.
+- Kiểm read-only DB và principal repository bằng connection mới đạt. Browser Chromium thật xác nhận cả 3 password được chấp nhận và màn hình QR MFA sẵn sàng; không enroll OTP thay người dùng, chưa gọi API bằng token human sau MFA. Session77665 exit0: retry cả 3 created=false/grants_added=0, không tạo trùng. git diff --check đạt. Helper/report/credentials chỉ ở .cache/dev-accounts bị Git ignore; không lưu mật khẩu/token trong checkpoint.
+- Bàn giao: mở .cache/dev-accounts/login.md để xem mật khẩu; Client A/B cổng8761/8762, lần đầu tự quét QR bằng Authenticator rồi Xem hồ sơ. Stack dev vẫn chạy, dữ liệu giữ qua down/up. Không thay trạng thái PR02/CP-003; bước code tiếp vẫn PR03 như mốc trước.
+
+## 17/10/2026 — PR02 Gateway Identity hoàn tất nghiệm thu theo scope (SYNC-2026-10-17-GATEWAY-02)
+
+- User yêu cầu thực hiện bước PR02 sau review plan. Repo FlowBridge, branch huuhuandev_features, HEADfc93e97038cb9bb382940d538dc0d32cd364fd5e không đổi. Giữ diff CodeGraph trước đó, không commit/push/deploy; không migration/stamp/seed hoặc sửa.env. Docker29.8.2/Compose5.6.0 Linux.
+- Đạt CODE-02-01.01/.03/.04, CODE-02-02.01/.02 và CODE-02-03.01 trong scope Identity: APISIX3.19.0-debian tag+digest, standalone khôngAdmin/Control API, publicconfig/me, CA/TLS/introspection/CORS, rate/body/timeout/health YAML, exact proxy IP, strip/reset headers, correlation và safe access logging bỏquery. Không thêm Python dependency, graph142 giữ nguyên; manifest image mới infra/gateway/images.env. Core canonical03-api thêm413 trên2Identity GET; snapshot/draft hash sync.
+- File: infra/gateway/{compose,config,routes}.yaml/images.env/README; scripts/prepare_gateway.py/gateway_stack.py, prepare_identity/container_dev/run_sso_api; Settings/main/identityrouter/sharedaccess_log; Dockerfile/pyproject/envexample/README/CHANGELOG; HTTP/unit/browser tests và fixture guard/cleanup. Evidence docs/GATEWAY.md/GATEWAY-TEST-RESULTS.md. Không còn phần code dở trong lát public Identity này.
+- Kiểm cuối:296unit host19.19s session51370exit0; runner repo26658exit0 (21HTTP10.12s,1browser4.3s). Sourcearchive196/wheel66 exactinputs, khôngcache/env/dependencydirs/credentialvalues; clean rebuild và isolated Python-I wheel48routes/413/log đạt. Runner từ archive sạch session89538exit0/project28f1943224d1:21HTTP10.14s,1browser4.3s, gateway/receiver correlation, denied-route absence và token/password redaction đạt. Unit Linux từ cùng archive296pass20.49s session35943exit0. Artifact cuối chỉ đổi2file tài liệu so với archive chạyEngine, payloadwheel/runtime/config giữ byte.
+- Fixture UUID DB cleanup được kiểm qua NullPool connection mới trước unlink manifest;7project task không còn container/volume/network, đã audit. Dev state khác giữ nguyên. Ruff/format/JS/Core sync/GPLnotice/LF24files/diffcheck đạt; CodeGraph sync9files đạt. Không còn session test/build chưa biết outcome.
+- Plan tổng/SSO/TASK/bảnxuất đồng bộSYNC02; chỉ tick chaCODE-02-02. CODE-02-01.02 còn private listener/routes khi Data/Files/Workflow córeceiver; CODE-02-03.02 còn resource tenant404 và lặp receiver thật. GiữPR02/CP003, CODE00-04.02/05.02, Identitycontexts vàCP001/002 mở; chưaimageaudittoànphần/production/release. Không snapshotCP chưa đạt.
+- Bước code tiếp: PR03 CODE-03-01 registry/policy/Data core, rồi mở private routes và các test còn thiếu theoAPI thật. Các lỗi IPallocation/localfixtureguard/certSNI/logflush đã xử lý, lịch sử bên dưới; không nới auth/schema guards để nhận pass. Artifacts local .cache/gateway-final-build; archive verification ngoài repo .ai-local/FlowBridge/verification/gateway-final-20261017.
+
+## 17/10/2026 — PR02 runtime pass, bắt đầu archive Engine acceptance
+
+-296unit pass19.19s, session51370exit0. Session26658/project9f36744e4c10 exit0:21externalHTTP pass10.12s,1browserIAM/API pass4.3s, gateway/receiver correlation/denied-route absence/secret redaction đạt; fixture cleanup qua connection mới và downvolumes đạt.
+- Runtime logging mặc định tắt, profile test bật filter bỏ query và correlation. Policy rate/OIDC/timeout/health đã chuyển về routes.yaml native, cùng giá trị; cần xác nhận source cuối qua archive. Không thêm dependency/migration hoặc sửa.env/commit/push.
+- Chuẩn bị chạy runner từ archive mới ở `.ai-local/FlowBridge/verification/gateway-final-20261017/flowbridge-0.1.0`, dùng .env repo hiện có qua secret; project UUID mới, không reuse state cũ. Chưa biết outcome. PR02/CP003 vẫn mở cho private APIs và resource-tenant tests tương lai; không đóng CODE00/CP001/CP002.
+- Tiếp: đọc archive runner, unit/build từ archive, cập nhật evidence/task/plan/export/checkpoints cuối. Không còn session26658/51370 đang chạy.
+
+## 17/10/2026 — PR02: HTTP/IAM đạt, chốt log evidence
+
+- Session20955/project9272b59381e9:20external pass,1timeout fail do thiếu hostname gateway-timeout trong cert/SNI; browser chưa chạy. Cleanup fixture/downvolumes đạt. Đã sửa SAN/SNI riêng cho gateway phụ test.
+- Session11256/project44f67d966d01:21HTTP pass10.08s,1browser IAM/API thật pass5.4s, cleanup xác minh qua NullPool connection mới đạt. Lượt cuối fail ở assertion log trước khi marker flush; upstream Nginx access log buffer flush=3s, đã thêm chờ4s. Không nhận runner end-to-end pass từ lượt này.
+- Bổ sung opt-in safe Uvicorn access log: bỏ query, correlation đã chuẩn hóa, mặc định tắt; Gateway test bật để assert route public bị chặn không xuất hiện ở receiver và không token/password trong cả2log. Thêm2unit invariant logging. Fullunit mới session51370 đang chạy/chưa biết outcome.
+- Retry cuối session26658/project9f36744e4c10 đang build sau đổi runtime logging; chưa biết kết quả. Không đổi DBschema/dependency/.env; không commit/push. Source archive194 trước đó là snapshot cũ, sẽ rebuild cuối. Bước tiếp đọc51370/26658 rồi chốt docs/plan/archive.
+
+## 17/10/2026 — PR02: network đã chạy, đang nghiệm thu HTTP/IAM
+
+- Session13508/project3d5c936b56f1 đã build, DBhead read-only và IAM/API/APISIX running đạt; xung đột IP được gỡ. Fixture bị guard local-only chặn (issuer Docker identity thay localhost), chưa có manifest/SQL commit; runner cleanup/downvolumes test thành công.
+- Mở rộng fixture guard chỉ khi FLOWBRIDGE_GATEWAY_TEST=true, DEV_TEST_MODE=true, gateway marker và dev metadata issuer_host=identity/lifespan20/exact issuer khớp. Không nhận issuer arbitrary hoặc bỏ guard head/UUID. Browser OTP guard cũng chỉ cho profile riêng có marker.
+- Thêm test-only slow-upstream/second APISIX cho504; thêm direct-IP network assertion, actor-spoof và log redaction. Retry session20955/project9272b59381e9 đang chạy; chưa biết kết quả external/browser. 55unit sau network/lifecycle changes pass3.05s, JS/Ruff/sync/diff đạt. Source archive194members là snapshot trước slow-upstream/guard cuối, cần rebuild khi chốt.
+- Bước tiếp: đọc20955, giải quyết lỗi thật và xác minh cleanup trước retry. Không đóng PR02/CP hoặc nhận public/private core tương lai đạt.
+
+## 17/10/2026 — PR02: unit/archive đạt, sửa xung đột IP Docker
+
+- Full unit294pass21.34s (session99771exit0), Compose/Ruff/Core sync đạt. Source tar.gz194members/wheel65members, không cache/.env/dependency dirs; exact Gateway inputs và clean archive rebuild ngoài repo đạt. Chưa có archive Engine build.
+- Lượt Gateway session82105/project97ec82efa84d fail ở start APISIX vì Address already in use; IAM/API healthy và DB head read-only đã đạt, chưa tạo fixture. Runner đã down và xóa đúng volumes test. Không tác động dev state.
+- Sửa backend ip_range tách dải dynamic172.29.240.128/25 khỏi proxy IP172.29.240.2; validate membership trước prepare. Retry project3d5c936b56f1, session13508 đang build dependency; outcome chưa biết. APISIX TLS/OIDC/HTTP acceptance vẫn chưa nhận pass.
+- Giữ nguyên PR02/CP-003 mở. Bước tiếp kiểm13508, sửa lỗi engine/test thật, xác minh cleanup trước retry.
+
+## 17/10/2026 — PR02 Gateway đang triển khai (SYNC-2026-10-17-GATEWAY-01)
+
+- User yêu cầu thực hiện PR02 sau review plan; đang làm CODE-02-01.01..04 / CODE-02-02.01..02 / CODE-02-03.01..02 theo scope Identity đã có. Không tick cha hoặc CP-003 trước integration. Repo branch huuhuandev_features, HEAD fc93e97038cb9bb382940d538dc0d32cd364fd5e cùng working-tree; không commit/push/migrate/seed.
+- Thêm APISIX3.19.0-debian tag+digest, standalone YAML không Admin/Control API, allowlist config/me, TLS/CA và introspection, limits, trusted proxy, correlation, test external/browser và runner cleanup/recovery. Không thêm Python dependency hoặc schema DB. Contract Core thêm413 trên hai Identity GET, canonical/snapshot/draft provenance đã sync.
+- 294 unit pass21.34s trên code đã đổi,55 test hẹp pass3.57s; Compose config/Ruff/sync đạt. Image APISIX đã pull; test Docker project flowbridge-gateway-test-97ec82efa84d đang build (session82105), chưa biết outcome runtime. Không nhận engine/network/OIDC gateway là pass từ unit.
+- Public route các core chưa triển khai giữ đóng; private Data/Files/Workflow và scope/resource tenant tests sẽ nghiệm thu cùng receiver thật, không thay bằng mock. CODE-00-04.02/05.02, Identity contexts và CP-001/002 vẫn mở.
+- Bước tiếp: kiểm outcome82105; sửa lỗi config/integration thực, chạy lại đúng phần cần, ghi evidence/cleanup. Tài liệu runtime: FlowBridge/docs/GATEWAY.md và GATEWAY-TEST-RESULTS.md.
+
+## 17/10/2026 — PR02 Gateway đang triển khai (SYNC-2026-10-17-GATEWAY-01)
+
+- User yêu cầu thực hiện bước tiếp sau review plan: PR02, bắt đầu CODE-02-01.01; chưa đóng task cha/CP. Branch huuhuandev_features, HEAD fc93e97038cb9bb382940d538dc0d32cd364fd5e. Giữ diff .gitignore/checkpoint từ CodeGraph, không commit/push/migrate/seed.
+- Plan thật ở `.ai-local/FlowBridge/PLAN-OPENCORE.md` (ngoài repo); nhận định thiếu plan trong checkpoint CodeGraph là thiếu tra cứu, đã xác minh lại. Checkpoint cũ 5e82e34 là lịch sử, không phải HEAD hiện tại.
+- APISIX3.19.0-debian OCI index sha256:9a7e45dc943fbf10ec916d1232bae4cda9302ae28a4696cfb83c2da01d261141 đã inspect upstream; Apache-2.0 service độc lập, không sao chép source upstream. Image audit toàn phần còn mở. Pull đang chạy session53488, chưa biết outcome.
+- Đã chuẩn bị infra/gateway config/routes/Compose/images.env, prepare_gateway.py/gateway_stack.py, proxy trust Settings/launchers, tham số issuer_host cho generator IAM và COPY/package inputs. Compose config --quiet đạt sau sửa đường dẫn extends theo project-directory. Không có runtime test Gateway đạt tại thời điểm này.
+- Docker Linux read-only cho thấy không có container chạy; giữ volume/state cũ. Test sẽ dùng project flowbridge-gateway-test-UUID riêng; fixture DB UUID qua lifecycle/cleanup có sẵn, không schema changes. Chưa chạy migration/fixture/test engine mới.
+- Tiếp: kiểm image/config schema thật, thêm assertion external/private/OIDC/TLS/limits/correlation và receiver thật; chạy suite isolated rồi ghi kết quả/cleanup. Data/Files/Workflow chưa có receiver core, không giả nghiệm thu các endpoint tương lai.
+
+## 17/10/2026 — Khởi tạo CodeGraph cho FlowBridge
+
+- Yêu cầu: sử dụng CodeGraph trong project. Repo `FlowBridge`, branch `huuhuandev_features`, HEAD `fc93e97038cb9bb382940d538dc0d32cd364fd5e`; Git sạch trước thao tác. HEAD thực tế mới hơn mục bàn giao trước; không suy diễn lại kết quả test runtime.
+- Hoàn tất `codegraph.cmd init --yes .`: 110 files, 1.765 nodes, 4.512 edges. `codegraph.cmd status .` báo index up to date; truy vấn MCP `codegraph_explore` với projectPath tuyệt đối và query `create_app lifespan` thành công, trả source/callers/tests.
+- Thêm `.codegraph/` vào `.gitignore` để database/cache cục bộ không vào source. Docker context và sdist đã dùng allowlist, không cần sửa. Không đổi runtime/dependency/migration; không commit/push, không chạy test ứng dụng cho thay đổi tooling này.
+- Không có `docs/PLAN-OPENCORE.md` ở checkout hiện tại; không tự tạo hoặc đánh dấu CODE/CP. Checkpoint này giữ nguyên lịch sử. Không còn lệnh index đang chờ kết quả.
+- Tiếp theo: ưu tiên CodeGraph trước tìm/đọc code theo AGENTS; truyền `projectPath` là repo FlowBridge khi gọi MCP. Có thể chạy `codegraph.cmd sync .` trong repo để cập nhật index sau thay đổi source.
 ## 2026-10-17 — CODE-MERGE-01: Giải quyết conflict với main
 
 - Yêu cầu: xử lý conflict với main mới nhất. Checkout thực tế ở nhánh

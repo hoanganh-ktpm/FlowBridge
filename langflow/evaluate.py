@@ -11,7 +11,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
-sys.path[:0] = [str(ROOT / "runtime"), str(ROOT.parent / "backend/src")]
+sys.path[:0] = [str(ROOT / "runtime"), str(ROOT.parent / "backend")]
 
 
 async def run_one(case: dict) -> dict:

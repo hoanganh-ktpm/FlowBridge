@@ -76,6 +76,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/Unprocessable'
         '429':
@@ -114,6 +116,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/Unprocessable'
         '429':
@@ -1687,6 +1691,12 @@ components:
             message: Dữ liệu không đáp ứng điều kiện xử lý; ML có thể thiếu lịch sử.
             request_id: REQ-001
             retryable: false
+    PayloadTooLarge:
+      description: Request body exceeds the configured Gateway limit.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     RateLimited:
       description: Vượt giới hạn request.
       content:

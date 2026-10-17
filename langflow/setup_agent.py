@@ -12,7 +12,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent
-sys.path[:0] = [str(ROOT / "runtime"), str(ROOT.parent / "backend/src")]
+sys.path[:0] = [str(ROOT / "runtime"), str(ROOT.parent / "backend")]
 
 from flowbridge_agent.io_contracts import EXAMPLES  # noqa: E402
 from flowbridge_agent.prompt import SYSTEM_PROMPT  # noqa: E402

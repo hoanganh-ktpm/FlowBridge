@@ -1,5 +1,13 @@
 # FlowBridge
 
+Giao diện nghiệp vụ React đơn giản cho nhân viên/người duyệt/nhà cung cấp nằm tại
+[clients/sso](clients/sso/README.md), dùng SSO và API hiện có. Người duyệt hiện xem
+đề xuất; quyết định phê duyệt còn chờ workflow. Hướng dẫn chạy và test ở README client.
+
+Gateway Identity core dùng APISIX standalone, với TLS/OIDC và bộ kiểm thử Docker
+riêng: [thiết lập và nghiệm thu](docs/GATEWAY.md). Trạng thái hiện hành và phần
+còn mở được ghi trong [bằng chứng Gateway](docs/GATEWAY-TEST-RESULTS.md).
+
 **Trợ lý AI quản lý nhà cung cấp, hỗ trợ đánh giá rủi ro giao hàng và quy trình mua hàng có người phê duyệt.**
 
 FlowBridge kết hợp **LLM, Machine Learning và RAG** để hỗ trợ doanh nghiệp từ tra cứu thông tin nhà cung cấp đến lựa chọn phương án mua hàng, phê duyệt và xác nhận đơn. Dự án được phát triển theo kiến trúc DX-OS cho cuộc thi phần mềm nguồn mở OLP 2026.
@@ -138,7 +146,7 @@ Request/response/status theo contract. API đọc/ghi dữ liệu PostgreSQL th�
 
 ```text
 FlowBridge/
-├── backend/src/flowbridge/   Package backend Python hiện có
+├── backend/flowbridge/       Package backend Python hiện có
 ├── tests/unit/              Unit test Settings, lifecycle, lỗi/correlation và probes dùng mock
 ├── tests/integration/       HTTP/SQL với Supabase thật; chỉ tiêm danh tính trong test
 ├── clients/                 Client SSO A/B và browser tests; UI nghiệp vụ còn thiếu

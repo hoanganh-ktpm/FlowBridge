@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // FlowBridge; GNU GPL v3 or later, without warranty. See LICENSE.
 import Keycloak from "/keycloak.js";
+import {createBusiness} from "/business.js";
 
 const config = await (await fetch("/config.json")).json();
 const realmMarker = config.issuer.lastIndexOf("/realms/");
@@ -44,3 +45,5 @@ element("copy").onclick = () => action(async () => {
   await navigator.clipboard.writeText(keycloak.token);
   element("result").textContent = "Đã sao chép access token.";
 });
+
+createBusiness({apiUrl: config.apiUrl, keycloak});

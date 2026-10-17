@@ -349,11 +349,11 @@ class ActionNodeBase(Component):
         tool = self.make_tool()
         group = TOOL_SPECS[self.action][1]
         contract = (
-            "backend/src/flowbridge/contracts/app-api.yaml"
+            "backend/flowbridge/contracts/app-api.yaml"
             if group in {"catalog", "purchase"}
-            else "backend/src/flowbridge/contracts/ai-tools-api.yaml"
+            else "backend/flowbridge/contracts/ai-tools-api.yaml"
             if group == "knowledge"
-            else "backend/src/flowbridge/supplier_assistant/prediction/schemas.py"
+            else "backend/flowbridge/supplier_assistant/prediction/schemas.py"
         )
         return Data(
             data={

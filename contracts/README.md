@@ -1,7 +1,7 @@
 # Hợp đồng API FlowBridge
 
 Runtime dùng `app-api.yaml` (40 operation) và `ai-tools-api.yaml` (6 operation)
-trong `backend/src/flowbridge/contracts/`, version 0.4.1. Hai snapshot có chung DTO;
+trong `backend/flowbridge/contracts/`, version 0.4.1. Hai snapshot có chung DTO;
 router/validator/Swagger và gateway mapping đọc cùng nguồn trong package.
 [Mapping database](supplier-assistant-v0.4.1.md) giải thích UUID, tiền, role và lineage.
 

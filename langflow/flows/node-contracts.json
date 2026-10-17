@@ -44,7 +44,7 @@
     },
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "response_contract": "backend/flowbridge/contracts/app-api.yaml",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -260,7 +260,7 @@
     },
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "response_contract": "backend/flowbridge/contracts/app-api.yaml",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -488,7 +488,7 @@
     },
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "response_contract": "backend/flowbridge/contracts/app-api.yaml",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -752,7 +752,7 @@
     "configured_inputs": {},
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "response_contract": "backend/flowbridge/contracts/app-api.yaml",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -1104,7 +1104,7 @@
     "configured_inputs": {},
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "response_contract": "backend/flowbridge/contracts/app-api.yaml",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -1591,7 +1591,7 @@
     },
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "response_contract": "backend/flowbridge/supplier_assistant/prediction/schemas.py",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -2017,7 +2017,7 @@
     "configured_inputs": {},
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "response_contract": "backend/flowbridge/supplier_assistant/prediction/schemas.py",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -2360,7 +2360,7 @@
     "configured_inputs": {},
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "response_contract": "backend/flowbridge/supplier_assistant/prediction/schemas.py",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -2777,7 +2777,7 @@
     "configured_inputs": {},
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "response_contract": "backend/flowbridge/supplier_assistant/prediction/schemas.py",
     "output_schema": {
       "$defs": {
         "ToolFailure": {
@@ -3321,7 +3321,7 @@
     },
     "locked_inputs": {},
     "output_fields": [],
-    "response_contract": "backend/src/flowbridge/contracts/ai-tools-api.yaml",
+    "response_contract": "backend/flowbridge/contracts/ai-tools-api.yaml",
     "output_schema": {
       "$defs": {
         "ToolFailure": {

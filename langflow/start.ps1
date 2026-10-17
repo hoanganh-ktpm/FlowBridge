@@ -3,7 +3,7 @@
 # Provided without warranty. See LICENSE.
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$env:PYTHONPATH = "$PSScriptRoot/runtime;$projectRoot/backend/src;$env:PYTHONPATH"
+$env:PYTHONPATH = "$PSScriptRoot/runtime;$projectRoot/backend;$env:PYTHONPATH"
 $env:LANGFLOW_COMPONENTS_PATH = Join-Path $PSScriptRoot 'components'
 $env:FLOWBRIDGE_AGENT_ENV_FILE = Join-Path $PSScriptRoot 'data/agent.env'
 try {

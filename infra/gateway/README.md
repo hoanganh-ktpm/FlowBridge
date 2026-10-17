@@ -1,5 +1,9 @@
 # Mapping Gateway cho API PostgreSQL/Supabase
 
+Profile APISIX standalone và suite nghiệm thu PR02:
+[GATEWAY.md](../../docs/GATEWAY.md). `routes.yaml` chỉ mở hai API Identity core;
+mapping ứng dụng bên dưới vẫn là công cụ xuất danh sách, không tự public mọi route.
+
 Xuất JSON mapping từ cùng registry 46 operation app/AI của backend:
 
 ```sh
@@ -12,7 +16,7 @@ Khi triển khai, tách route/admin credentials và network policy theo từng v
 không đưa toàn bộ mapping vào listener public. Cờ cũ `--include-application` đã bỏ.
 
 Đây chỉ là dữ liệu đầu vào cho cấu hình gateway; chương trình không chạy proxy hoặc
-thực thi policy. APISIX chưa được tích hợp. Backend vẫn xác minh bearer/supplier token
+thực thi policy. Profile APISIX riêng dùng allowlist Identity; backend vẫn xác minh bearer/supplier token
 và kiểm quyền tài nguyên trong database. OIDC tại gateway không thay policy backend.
 Mapping được sinh khi cần; không lưu thêm bản cấu hình dễ lệch contract.
 

@@ -56,14 +56,16 @@ dev = [
 required-version = "==0.13.1"
 
 [tool.hatch.build.targets.wheel]
-packages = ["backend/src/flowbridge"]
+packages = ["backend/flowbridge"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/backend/src/flowbridge",
+    "/backend/flowbridge",
     "/tests",
     "/contracts",
-    "/infra/gateway/README.md",
+    "/infra/gateway",
+    "/docs/GATEWAY.md",
+    "/docs/GATEWAY-TEST-RESULTS.md",
     "/examples/rag",
     "/examples/ml",
     "/langflow/components/supplier_ml",
@@ -120,7 +122,7 @@ include = [
 extend-exclude = ["scripts/supplier_demo_source.py"]
 target-version = "py312"
 line-length = 100
-src = ["backend/src"]
+src = ["backend"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

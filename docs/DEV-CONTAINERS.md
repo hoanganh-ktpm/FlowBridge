@@ -51,8 +51,16 @@ python scripts/dev_stack.py down
 Địa chỉ mặc định: API/Swagger [localhost:18082/docs](http://127.0.0.1:18082/docs),
 IAM [localhost:19444](https://localhost:19444), client A/B ở
 [8761](http://127.0.0.1:8761)/[8762](http://127.0.0.1:8762).
+Client A/B có giao diện nghiệp vụ React cho nhân viên/người duyệt/nhà cung cấp;
+xem [cách dùng và giới hạn](../clients/sso/README.md). Image client build bằng
+esbuild khi build Docker, runtime không tải dependency hoặc ghi bundle.
 Trình duyệt thủ công có thể chưa tin CA local; test browser dùng SPKI riêng như
 suite SSO hiện có, không đổi trust store hoặc tắt TLS verification đại trà.
+Swagger tại `/docs` dùng cùng địa chỉ/cổng đang mở để gọi API. Nếu tab cũ vẫn gọi
+`127.0.0.1:8000` trong khi dev chạy ở `18082`, cập nhật image API và tải lại trang.
+Lấy access token từ client A/B bằng nút sao chép token, rồi nhập token vào **Authorize**
+trong Swagger; tài khoản quản trị Keycloak không thay token của user ứng dụng.
+
 `up` không tạo user/grant trong application DB; login IAM thành công chưa tự cấp quyền gọi API.
 Test SSO tạo grant riêng trong fixture và dọn sau test.
 Operator/test credentials ở volume IAM, không in trong log. Khi cần dùng UI local,

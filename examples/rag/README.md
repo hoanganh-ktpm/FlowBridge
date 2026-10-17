@@ -86,7 +86,7 @@ CLI hỗ trợ `--catalog PATH --index PATH --model-cache PATH` **trước** tê
 ## 6. Kiểm thử
 
 ```powershell
-uv run --no-sync ruff check backend/src tests
+uv run --no-sync ruff check backend tests
 uv run --no-sync pytest -q
 ```
 

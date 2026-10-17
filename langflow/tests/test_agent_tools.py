@@ -12,7 +12,7 @@ import pytest
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "runtime"), str(ROOT.parent / "backend/src")]
+sys.path[:0] = [str(ROOT / "runtime"), str(ROOT.parent / "backend")]
 
 from flowbridge_agent.config import BackendConfig  # noqa: E402
 from flowbridge_agent.nodes import LunaModelBase, ProcurementAgentBase  # noqa: E402
