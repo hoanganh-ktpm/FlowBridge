@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Add/adopt the generic PostgreSQL Markdown and pgvector store."""
+# FlowBridge; redistribution/modification under GNU GPL v3 or later.
+# Provided without warranty. See LICENSE.
+# Add/adopt the generic PostgreSQL Markdown and pgvector store.
 
 from pathlib import Path
 

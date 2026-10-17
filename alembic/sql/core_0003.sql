@@ -1,4 +1,6 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
+-- FlowBridge; redistribution/modification under GNU GPL v3 or later.
+-- Provided without warranty. See LICENSE.
 -- Additive Core store. Existing compatible Core tables are adopted, never dropped.
 SET LOCAL lock_timeout = '5s';
 CREATE SCHEMA IF NOT EXISTS extensions;

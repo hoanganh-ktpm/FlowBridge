@@ -20,10 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from flowbridge.db import create_engine, create_session_factory, probe_connection
+from flowbridge.identity.router import install_identity_router
 from flowbridge.operations.router import router as operations_router
 from flowbridge.settings import Settings
 from flowbridge.shared.correlation import CorrelationMiddleware
 from flowbridge.shared.errors import register_exception_handlers
+from flowbridge.shared.openapi import install_openapi
 from flowbridge.supplier_assistant.contract import install_database_openapi
 from flowbridge.supplier_assistant.router import create_database_router
 
@@ -150,6 +152,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if configuration.database_url is not None:
         app.include_router(create_database_router())
         install_database_openapi(app)
+    if configuration.core_identity is not None:
+        install_identity_router(app)
     if configuration.ml_enabled:
         from flowbridge.supplier_assistant.prediction.router import install_prediction_router
 
@@ -158,6 +162,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from flowbridge.supplier_assistant.knowledge.router import install_development_router
 
         install_development_router(app)
+    install_openapi(app)
     return app
 
 

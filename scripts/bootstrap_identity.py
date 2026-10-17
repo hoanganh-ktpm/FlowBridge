@@ -13,11 +13,11 @@ from uuid import UUID
 import httpx
 
 from flowbridge.db import create_engine, create_session_factory
+from flowbridge.identity.account_repository import IdentityAccountRepository
 from flowbridge.identity.bootstrap import bootstrap_identity
 from flowbridge.identity.directory import KeycloakDirectory
 from flowbridge.settings import Settings
 from flowbridge.shared.errors import CoreError
-from flowbridge.supplier_assistant.repository import SupplierRepository
 
 
 async def run(args: argparse.Namespace) -> dict:
@@ -42,7 +42,7 @@ async def run(args: argparse.Namespace) -> dict:
             async with create_session_factory(engine)() as session:
                 async with session.begin() as transaction:
                     result = await bootstrap_identity(
-                        SupplierRepository(session),
+                        IdentityAccountRepository(session),
                         identity,
                         roles=["ADMIN"] if args.bootstrap_admin else args.grant,
                         department_id=args.department,

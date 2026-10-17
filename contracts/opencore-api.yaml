@@ -17,7 +17,6 @@ info:
 
     Phiên bản 0.2.0 chuẩn hóa quyền dịch vụ, phiên bản schema, lịch sử bản ghi và tìm kiếm toàn văn. Đây là
     hợp đồng yêu cầu triển khai, không phải bằng chứng các dịch vụ đã vận hành.
-jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 externalDocs:
   description: Đề PMNM OLP 2026 trên VFOSSA
   url: https://www.vfossa.vn/tin-tuc/de-thi-phan-mem-nguon-mo-olp-2026-798.html

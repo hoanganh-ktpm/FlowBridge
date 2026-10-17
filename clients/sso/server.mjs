@@ -10,9 +10,11 @@ import {parseArgs} from "node:util";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const {values} = parseArgs({options: {
   client: {type: "string"}, port: {type: "string"},
+  host: {type: "string", default: "127.0.0.1"},
   config: {type: "string", default: process.env.FLOWBRIDGE_SSO_PUBLIC_CONFIG ?? "../../.cache/identity/public.json"},
 }});
 if (!["a", "b"].includes(values.client)) throw new Error("Choose --client a or b");
+if (!["127.0.0.1", "0.0.0.0"].includes(values.host)) throw new Error("Invalid --host");
 const port = Number(values.port);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Invalid --port");
 const config = JSON.parse(await fs.readFile(path.resolve(values.config), "utf8"));
@@ -39,4 +41,4 @@ http.createServer(async (request, response) => {
     response.setHeader("Content-Type", asset[1]);
     response.end(content);
   } catch {response.writeHead(503).end("Client dependency unavailable; run npm ci.");}
-}).listen(port, "127.0.0.1", () => console.log(`SSO client ${values.client} ready on port ${port}`));
+}).listen(port, values.host, () => console.log(`SSO client ${values.client} ready on port ${port}`));

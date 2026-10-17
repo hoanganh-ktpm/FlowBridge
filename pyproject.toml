@@ -45,6 +45,8 @@ rag = [
 [dependency-groups]
 build = ["hatchling==1.32.4"]
 dev = [
+    "numpy==2.5.4",
+    "rank-bm25==0.2.2",
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "ruff==0.17.0",
@@ -67,6 +69,11 @@ include = [
     "/langflow/components/supplier_ml",
     "/docs/ML-SERVICE.md",
     "/infra/identity",
+    "/infra/dev",
+    "/Dockerfile",
+    "/compose.yaml",
+    "/.dockerignore",
+    "/docs/DEV-CONTAINERS.md",
     "/clients/sso",
     "/docs/rag-postgres-pgvector-design.md",
     "/docs/rag-postgres-setup.md",
@@ -86,6 +93,11 @@ include = [
     "/docs/SSO.md",
     "/docs/SSO-ADR.md",
     "/docs/SSO-TEST-RESULTS.md",
+    "/docs/IDENTITY-CORE.md",
+    "/docs/IDENTITY-CORE-ADR.md",
+    "/docs/IDENTITY-CORE-TEST-RESULTS.md",
+    "/docs/CONTRACT-IDENTITY-REVIEW.md",
+    "/docs/MIGRATION-0003-RECONCILIATION.md",
     "/CHANGELOG.md",
     "/LICENSE",
 ]

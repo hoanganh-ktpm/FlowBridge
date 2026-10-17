@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from flowbridge.db import get_session
 from flowbridge.identity.authentication import VerifiedIdentity, authenticated_identity
 from flowbridge.shared.errors import CoreError, ErrorCode, ErrorResponse
+from flowbridge.shared.openapi import namespace_schemas, register_fragment
 from flowbridge.supplier_assistant.repository import SupplierRepository
 
 from .repository import PredictionRepository
@@ -134,36 +135,11 @@ async def model_readiness(request: Request) -> dict:
 def install_prediction_router(app: FastAPI) -> None:
     app.include_router(router)
     app.add_api_route("/_ops/ml/ready", model_readiness, include_in_schema=False)
-    original_openapi = app.openapi
+    register_fragment(app, "prediction", lambda: prediction_document(app))
 
-    def prediction_openapi() -> dict:
-        schema = original_openapi()
-        if schema.get("x-ml-api-version") == "1.0.0":
-            return schema
-        generated = get_openapi(title=app.title, version=app.version, routes=app.routes)
 
-        def namespace(value: object) -> object:
-            if isinstance(value, dict):
-                return {
-                    k: "#/components/schemas/ML" + v.rsplit("/", 1)[1]
-                    if k == "$ref" and isinstance(v, str) and v.startswith("#/components/schemas/")
-                    else namespace(v)
-                    for k, v in value.items()
-                }
-            if isinstance(value, list):
-                return [namespace(v) for v in value]
-            return value
-
-        components = schema.setdefault("components", {})
-        for key, value in generated.get("components", {}).get("schemas", {}).items():
-            components.setdefault("schemas", {})["ML" + key] = namespace(value)
-        components.setdefault("securitySchemes", {}).update(
-            generated.get("components", {}).get("securitySchemes", {})
-        )
-        for path, entry in generated["paths"].items():
-            if path.startswith(("/api/v1/ml/", "/internal/v1/ml/")):
-                schema["paths"][path] = namespace(entry)
-        schema["x-ml-api-version"] = "1.0.0"
-        return schema
-
-    app.openapi = prediction_openapi
+def prediction_document(app: FastAPI) -> dict:
+    generated = get_openapi(title=app.title, version=app.version, routes=router.routes)
+    schema = namespace_schemas(generated, "ML")
+    schema["x-ml-api-version"] = "1.0.0"
+    return schema

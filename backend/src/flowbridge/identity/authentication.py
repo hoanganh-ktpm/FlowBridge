@@ -23,6 +23,7 @@ class VerifiedIdentity:
     subject: str
     client_id: str | None = None
     account_type: Literal["human", "service"] = "human"
+    scopes: frozenset[str] = frozenset()
 
 
 async def authenticated_identity(
@@ -35,6 +36,11 @@ async def authenticated_identity(
         or len(request.headers.getlist("authorization")) != 1
     ):
         raise CoreError(ErrorCode.UNAUTHENTICATED)
+    return await verify_access_token(request, credentials.credentials)
+
+
+async def verify_access_token(request: Request, token: str) -> VerifiedIdentity:
+    # Also used for an IAM-issued delegated user token, with the same upstream checks.
     settings = request.app.state.settings
     if not all(
         (
@@ -52,7 +58,7 @@ async def authenticated_identity(
     try:
         response = await resources.http.post(
             settings.oidc_introspection_url,
-            data={"token": credentials.credentials, "token_type_hint": "access_token"},
+            data={"token": token, "token_type_hint": "access_token"},
             auth=httpx.BasicAuth(
                 settings.oidc_client_id, settings.oidc_client_secret.get_secret_value()
             ),
@@ -70,6 +76,7 @@ async def authenticated_identity(
     expiry = claims.get("exp")
     client_id = claims.get("client_id")
     not_before = claims.get("nbf", 0)
+    scope = claims.get("scope", "")
     if (
         claims.get("active") is not True
         or claims.get("iss") != settings.oidc_issuer
@@ -91,6 +98,7 @@ async def authenticated_identity(
         or isinstance(not_before, bool)
         or not isfinite(not_before)
         or not_before > time()
+        or not isinstance(scope, str)
     ):
         raise CoreError(ErrorCode.UNAUTHENTICATED)
     return VerifiedIdentity(
@@ -98,4 +106,5 @@ async def authenticated_identity(
         subject=claims["sub"],
         client_id=client_id,
         account_type="service" if client_id in settings.oidc_service_clients else "human",
+        scopes=frozenset(scope.split()),
     )

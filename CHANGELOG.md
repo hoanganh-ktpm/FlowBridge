@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Khôi phục migration `0003_core_knowledge` và SQL gốc từ nhánh nhóm, gỡ lệch source/DB mà không migrate/stamp/seed. Fixture SQL/SSO kiểm chính xác Alembic heads thay hằng 0002; 19 SQL nghiệp vụ và 8 unit tooling/migration đạt, có đối chiếu catalog Core read-only.
+- Thêm container development/test: multi-stage backend runtime/tooling/unit, Compose Keycloak/backend/clients và runner lifecycle/fixture/cleanup; image tag+digest pin, loopback ports, secrets DB tách khỏi IAM/browser. Đã build/chạy trên Docker Linux, 280 unit và SQL Identity pass; full SSO/business container còn cần nghiệm thu riêng sau khi gỡ lệch migration. Không tự migrate/seed hoặc tải model.
+- Sửa build context thiếu migration/config và lệnh down bỏ sót client ở profile tùy chọn; down/up giữ state, hướng dẫn recovery khi restart các container chung namespace mạng.
+- Thêm NumPy/rank-bm25 cùng version đã khóa vào nhóm dev để unit không cần full model extras; graph142 không đổi. Thêm kiểm profile/secret boundary/recovery/revision guard và tài liệu cài/chạy/kiểm container; giữ native SSO launcher/client loopback mặc định.
+
+- Sửa provenance Core/draft bằng sync/checksum có kiểm semantic/shared schema; giữ canonical 03-api và wire Core 0.2.0. Identity OpenAPI bổ sung URI/correlation/Retry-After 409; URI public config được validate.
+- Tách accounts/bootstrap sang SQL adapter và transactional audit/outbox do Identity sở hữu; giữ schema/lock/guard/retry. Gom OpenAPI composition/cache app/Identity/ML/RAG, từ chối collision; thêm parity/regression và SQL rollback acceptance.
+
+- Thêm hai API Identity core khi cấu hình binding tenant/application tường minh: config public và human principal từ introspection + live DB grants; namespace OpenAPI riêng, token scope và service-account/client binding được kiểm lại. Không tự nâng ADMIN/quyền phòng ban thành quyền toàn hệ thống.
+- Thêm UserContext qua IAM-issued access token và giao quyền service/user; JobContext boundary fail closed khi chưa có registry production. Profile core mới bắt buộc OTP, scope identity:read và PKCE; thêm unit/SQL/browser tests, mapping gateway tùy chọn `--include-identity` và hướng dẫn/ADR. Không migration hoặc dependency mới.
+
 - Thêm Prediction Service bật bằng `FLOWBRIDGE_ML_ENABLED`: 19 features, context có provenance/cutoff, TabICLv2 2.2.0 và batch inference ngoài event loop; model readiness riêng, không tải checkpoint trong HTTP/startup.
 - Thêm 5 endpoint `/api/v1/ml/*` và `/internal/v1/ml/*` cho scenario, ranking, chấm/lưu PO và đọc prediction/rủi ro hiện hành. Tái sử dụng IdP/role/ownership, PostgreSQL và idempotency; rủi ro PO là MAX các item còn mở, trả đúng item/deadline và trạng thái thiếu dữ liệu.
 - Thêm optional dependency `ml`, CLI chuẩn bị/kiểm tra artifacts, typed HTTP client, custom component Langflow và hướng dẫn cấu hình. Giữ API AI 0.4.1 cũ/RAG; không migration hoặc scheduler/cảnh báo. Điểm ML chưa hiệu chuẩn; context synthetic không dùng production.

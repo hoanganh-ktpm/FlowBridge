@@ -18,10 +18,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run API with local SSO profile; no fake identity")
     parser.add_argument("--identity-dir", type=Path, default=root / ".cache/identity")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--host", choices=["127.0.0.1", "0.0.0.0"], default="127.0.0.1")
     args = parser.parse_args()
     runtime = json.loads((args.identity_dir / "runtime.json").read_text("utf-8"))
     settings = Settings(_env_file=root / ".env", **runtime)
-    uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port, access_log=False)
+    uvicorn.run(create_app(settings), host=args.host, port=args.port, access_log=False)
 
 
 if __name__ == "__main__":
