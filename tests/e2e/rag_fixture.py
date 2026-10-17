@@ -36,9 +36,10 @@ async def run(state: Path, cleanup: bool) -> None:
                 fixture = json.loads(path.read_text("utf-8"))
                 async with sessions() as session, session.begin():
                     tasks = table("analysis_tasks")
+                    # The isolated PR may have fresh tasks after document publication;
+                    # remove only its explicitly marked RAG fixtures before deleting it.
                     await session.execute(
                         sa.delete(tasks).where(
-                            tasks.c.task_id == UUID(fixture["task_id"]),
                             tasks.c.request_id == UUID(fixture["request_id"]),
                             tasks.c.input_snapshot["fixture_kind"].astext
                             == "flowbridge-rag-langflow",

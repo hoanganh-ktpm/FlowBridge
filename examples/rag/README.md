@@ -1,6 +1,29 @@
 # Chạy thử RAG nhà cung cấp tại máy
 
-RAG có CLI và endpoint HTTP development bật riêng, chạy riêng với API PostgreSQL vì chế độ development yêu cầu database không được cấu hình. Mỗi file trong `supplier_reviews/` là một nhà cung cấp. Nội dung và người nhận xét được giữ nguyên từ bộ dữ liệu mẫu đã xuất; `source_provenance.json` ghi nguồn, seed và cách phân công người nhận xét. Đây là dữ liệu giả lập để thử hệ thống.
+Mỗi file trong `supplier_reviews/` là một nhà cung cấp. Nội dung được xuất từ các PO,
+phiếu nhận và xác nhận thực sự đang lưu trong bộ dữ liệu giả lập trên PostgreSQL.
+`source_provenance.json` ghi mốc dữ liệu, thống kê và cách phân công người nhận xét;
+`realistic_catalog.json` ghi 24 sản phẩm, nguồn quy cách và giả định giá VND trước VAT.
+Sáu sản phẩm có lịch sử; 18 mặt hàng bổ sung chưa được gán lịch sử mua hay nhãn giao trễ.
+Tên nhà cung cấp và người nhận xét là nhân vật giả lập; sản phẩm có thương hiệu được
+đối chiếu nguồn công khai, các vật tư không có nguồn hãng là quy cách mua mô phỏng.
+
+Phân cấp tài liệu dùng `* Tiêu đề`, `** Mục`, `*** Mục con`; bullet dùng `-`.
+Chunker hỗ trợ cả dạng này và `#`/`##`/`###`, giữ nguyên byte nguồn để trích dẫn.
+Không ghi sự cố chất lượng, hóa đơn hoặc kết quả khắc phục khi database chưa có bằng chứng.
+
+Để cập nhật đúng bộ seed ban đầu (sao lưu tự động vào `.cache/rag/data-refresh/`):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/refresh_supplier_demo.py --apply
+.\.venv\Scripts\python.exe scripts/export_supplier_reviews.py
+```
+
+Script refresh chỉ nhận diện bộ seed 20261015 đã biết, giữ UUID, lịch sử giao nhận,
+phân quyền và snapshot A/B; không reset database hoặc chạy mô hình. Lệnh export chỉ đọc
+database và ghi file local. Muốn đưa MD lên Supabase và tạo vector, dùng
+[hướng dẫn PostgreSQL](../../docs/rag-postgres-setup.md); import tạo phiên bản mới,
+không ghi đè bản đã công bố. Hướng dẫn phía dưới dành cho fixture local/development.
 
 ## 1. Cài đặt
 
@@ -26,7 +49,7 @@ Lần đầu tải Qwen3-Embedding-0.6B công khai vào `.cache/models/`; tải 
 uv run --no-sync python -m flowbridge.supplier_assistant.knowledge index
 ```
 
-Chỉ mục được lưu ở `.cache/rag/`, đã được `.gitignore` loại khỏi Git. Chạy lại cùng dữ liệu/cấu hình giữ nguyên `index_version`, không thêm chunk trùng và không tính embedding lại. Lỗi embedding/ghi vector không kích hoạt thế hệ chỉ mục đang xây dở. Bộ sáu hồ sơ tạo 96 chunk; máy thử CPU FP32 mất khoảng 2 phút 22 giây cho lần index đầu sau khi tải xong model. Máy khác có thể khác thời gian.
+Chỉ mục được lưu ở `.cache/rag/`, đã được `.gitignore` loại khỏi Git. Chạy lại cùng dữ liệu/cấu hình giữ nguyên `index_version`, không thêm chunk trùng và không tính embedding lại. Lỗi embedding/ghi vector không kích hoạt thế hệ chỉ mục đang xây dở. Số chunk phụ thuộc phiên bản tài liệu và chunker; không cố định ở bộ 96 chunk trước đây.
 
 ## 3. Tìm đoạn trích
 
