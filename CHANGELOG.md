@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Thêm custom component và flow Langflow chỉ truy hồi RAG qua bearer Keycloak + JobContext; cấu hình service credential ở server, xuất đoạn trích/citation, môi trường Langflow riêng và helper kiểm thử. Không gọi ML hoặc LLM trong flow này.
+
 - Khôi phục migration `0003_core_knowledge` và SQL gốc từ nhánh nhóm, gỡ lệch source/DB mà không migrate/stamp/seed. Fixture SQL/SSO kiểm chính xác Alembic heads thay hằng 0002; 19 SQL nghiệp vụ và 8 unit tooling/migration đạt, có đối chiếu catalog Core read-only.
 - Thêm container development/test: multi-stage backend runtime/tooling/unit, Compose Keycloak/backend/clients và runner lifecycle/fixture/cleanup; image tag+digest pin, loopback ports, secrets DB tách khỏi IAM/browser. Đã build/chạy trên Docker Linux, 280 unit và SQL Identity pass; full SSO/business container còn cần nghiệm thu riêng sau khi gỡ lệch migration. Không tự migrate/seed hoặc tải model.
 - Sửa build context thiếu migration/config và lệnh down bỏ sót client ở profile tùy chọn; down/up giữ state, hướng dẫn recovery khi restart các container chung namespace mạng.

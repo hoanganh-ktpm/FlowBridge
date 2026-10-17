@@ -67,6 +67,8 @@ include = [
     "/examples/rag",
     "/examples/ml",
     "/langflow/components/supplier_ml",
+    "/langflow/components/supplier_rag",
+    "/langflow/rag",
     "/docs/ML-SERVICE.md",
     "/infra/identity",
     "/infra/dev",

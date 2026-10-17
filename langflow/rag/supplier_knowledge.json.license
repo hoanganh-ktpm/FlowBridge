@@ -1,0 +1,7 @@
+SPDX-FileCopyrightText: FlowBridge contributors
+SPDX-License-Identifier: GPL-3.0-or-later
+
+FlowBridge flow wiring and custom retrieval component are licensed under
+GNU GPL version 3 or later; see ../../LICENSE.
+Embedded built-in ChatInput/ChatOutput component code is from Langflow/LFX
+1.12.5 under MIT; see NOTICE for its upstream copyright and license.
