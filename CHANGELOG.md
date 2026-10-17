@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Đồng bộ đường dẫn Langflow với package `backend/flowbridge/` khi gộp main; giữ cấu hình và hợp đồng node hiện có.
+- Việt hóa node Langflow, chuẩn hóa prompt/description, hợp nhất tham số câu hỏi với mặc định/khóa, output JSON chung và hợp đồng chuyển dữ liệu giữa 10 tool. Thêm schema/ví dụ theo contract và 20 tình huống chưa chạy; chưa nghiệm thu lựa chọn tool của model.
+
+- Thêm flow Langflow với OpenAI model tùy chọn, 10 node tác vụ chỉnh tham số/Input JSON/description và 3 tầng Database/ML/RAG; hỗ trợ khóa input, JSON output, giới hạn lượt gọi, cache, credential local và câu hỏi mẫu. Chưa nghiệm thu model/backend theo yêu cầu hoãn test.
+- Gom setup Langflow local vào `langflow/`, giữ dữ liệu/flow mẫu và thêm `start.cmd` để mở bằng nhấp đúp trên Windows.
 - Bỏ lớp thư mục `src` của backend: package Python chuyển sang `backend/flowbridge/`; cập nhật build, Alembic, script đồng bộ contract và tài liệu. Tên import `flowbridge` giữ nguyên.
 
 - Thêm giao diện nghiệp vụ React tại client SSO: catalog, yêu cầu mua hàng nhiều dòng, xem PO/đề xuất và phản hồi nhà cung cấp bằng token. Quyết định duyệt chờ workflow; không giả tác động email/phân tích. Thêm build esbuild, lock React/React DOM và suite kiểm thử browser UI riêng.
