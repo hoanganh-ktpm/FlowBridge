@@ -121,7 +121,7 @@ ghi đè cấu hình. Development thiếu URL và password chỉ chạy bootstra
 Đã có 27 Model nghiệp vụ đăng ký trong `models/__init__.py`, khớp script của nhóm và
 revision `0001_supplier_schema`. Không có `create_all()` ở startup.
 
-1. Thêm các ORM model vào `backend/src/flowbridge/models/`, kế thừa `Base` từ
+1. Thêm các ORM model vào `backend/flowbridge/models/`, kế thừa `Base` từ
    `flowbridge.models.base`. Model mặc định thuộc schema `public`.
 2. Import tất cả model trong `models/__init__.py` và thêm tên vào `__all__` để
    Alembic nạp đủ metadata. Pydantic `schemas.py` là hợp đồng dữ liệu API, không phải ORM.

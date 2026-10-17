@@ -13,7 +13,7 @@ import yaml
 
 def sync_contracts(source: Path, *, write: bool = False) -> None:
     # Nguồn là directory chứa app-api.yaml và ai-tools-api.yaml, không hardcode workspace.
-    destination = Path(__file__).resolve().parents[1] / "backend/src/flowbridge/contracts"
+    destination = Path(__file__).resolve().parents[1] / "backend/flowbridge/contracts"
     checksums: list[str] = []
     schemas = None
     for name in ("app-api.yaml", "ai-tools-api.yaml"):

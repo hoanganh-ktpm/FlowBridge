@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Bỏ lớp thư mục `src` của backend: package Python chuyển sang `backend/flowbridge/`; cập nhật build, Alembic, script đồng bộ contract và tài liệu. Tên import `flowbridge` giữ nguyên.
+
+- Thêm giao diện nghiệp vụ React tại client SSO: catalog, yêu cầu mua hàng nhiều dòng, xem PO/đề xuất và phản hồi nhà cung cấp bằng token. Quyết định duyệt chờ workflow; không giả tác động email/phân tích. Thêm build esbuild, lock React/React DOM và suite kiểm thử browser UI riêng.
+
 - Sửa Swagger của API PostgreSQL dùng server URL tương đối theo địa chỉ phục vụ OpenAPI, thay host ví dụ cổng8000. Try it out dùng đúng cổng dev/proxy prefix; giữ snapshot contract và cơ chế bearer authentication.
 
 - Thêm profile APISIX standalone cho hai API Identity core: TLS/CA, OIDC bearer introspection, public allowlist, network isolation, proxy trust tường minh, correlation và limits. Thêm runner nghiệm thu Docker riêng với cleanup/recovery và HTTP/browser assertions; các receiver core khác chưa được public. Nghiệm thu từ archive sạch:296unit container,21HTTP,1browser IAM/API và log/cleanup đạt.

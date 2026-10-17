@@ -2,10 +2,17 @@
 <!-- FlowBridge; GNU GPL v3 or later, without warranty. See LICENSE. -->
 <!doctype html>
 <html lang="vi">
-  <head><meta charset="UTF-8"><title>FlowBridge — Đăng nhập</title></head>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>FlowBridge — Mua hàng</title>
+    <link rel="stylesheet" href="/business.css">
+  </head>
   <body>
     <main>
       <h1>FlowBridge</h1>
+      <p>Quản lý yêu cầu mua hàng, đề xuất và xác nhận đơn.</p>
       <p id="client"></p>
       <p id="status" role="status">Đang khởi tạo…</p>
       <button id="login" disabled>Đăng nhập</button>
@@ -13,7 +20,9 @@
       <button id="refresh" disabled>Làm mới phiên</button>
       <button id="copy" disabled>Sao chép access token cho Swagger</button>
       <button id="logout" disabled>Đăng xuất</button>
-      <pre id="result"></pre>
+      <details><summary>Thông tin phiên và hồ sơ</summary><pre id="result"></pre></details>
+      <hr>
+      <div id="business-root"></div>
     </main>
     <script type="module" src="/app.js"></script>
   </body>

@@ -11,5 +11,7 @@ WORKDIR /workspace/clients/sso
 COPY clients/sso/package.json clients/sso/package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY clients/sso ./
+RUN npm run build
+ENV FLOWBRIDGE_CLIENT_PREBUILT=true
 USER 1000:0
 CMD ["npm", "run", "test:e2e"]
