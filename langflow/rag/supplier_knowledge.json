@@ -266,13 +266,15 @@
             "tool_mode": false
           },
           "type": "ChatInput",
-          "id": "ChatInput-9LeUU"
+          "id": "ChatInput-9LeUU",
+          "showNode": true
         },
         "id": "ChatInput-9LeUU",
         "position": {
           "x": 0,
           "y": 100
-        }
+        },
+        "type": "genericNode"
       },
       {
         "data": {
@@ -537,13 +539,15 @@
             "tool_mode": false
           },
           "type": "ChatOutput",
-          "id": "ChatOutput-jKiQB"
+          "id": "ChatOutput-jKiQB",
+          "showNode": true
         },
         "id": "ChatOutput-jKiQB",
         "position": {
           "x": 780,
           "y": 100
-        }
+        },
+        "type": "genericNode"
       },
       {
         "data": {
@@ -741,19 +745,22 @@
             "tool_mode": false
           },
           "type": "FlowBridgeRetrieveKnowledge",
-          "id": "RetrieveSupplierKnowledge-dCnKY"
+          "id": "RetrieveSupplierKnowledge-dCnKY",
+          "showNode": true,
+          "selected_output": "passages"
         },
         "id": "RetrieveSupplierKnowledge-dCnKY",
         "position": {
           "x": 380,
           "y": 100
-        }
+        },
+        "type": "genericNode"
       }
     ],
     "edges": [
       {
-        "source": "RetrieveSupplierKnowledge-dCnKY",
-        "target": "ChatOutput-jKiQB",
+        "animated": false,
+        "className": "",
         "data": {
           "sourceHandle": {
             "dataType": "FlowBridgeRetrieveKnowledge",
@@ -775,11 +782,17 @@
             ],
             "type": "other"
           }
-        }
+        },
+        "id": "reactflow__edge-RetrieveSupplierKnowledge-dCnKY{œdataTypeœ:œFlowBridgeRetrieveKnowledgeœ,œidœ:œRetrieveSupplierKnowledge-dCnKYœ,œnameœ:œpassagesœ,œoutput_typesœ:[œMessageœ]}-ChatOutput-jKiQB{œfieldNameœ:œinput_valueœ,œidœ:œChatOutput-jKiQBœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "selected": false,
+        "source": "RetrieveSupplierKnowledge-dCnKY",
+        "sourceHandle": "{œdataTypeœ:œFlowBridgeRetrieveKnowledgeœ,œidœ:œRetrieveSupplierKnowledge-dCnKYœ,œnameœ:œpassagesœ,œoutput_typesœ:[œMessageœ]}",
+        "target": "ChatOutput-jKiQB",
+        "targetHandle": "{œfieldNameœ:œinput_valueœ,œidœ:œChatOutput-jKiQBœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}"
       },
       {
-        "source": "ChatInput-9LeUU",
-        "target": "RetrieveSupplierKnowledge-dCnKY",
+        "animated": false,
+        "className": "",
         "data": {
           "sourceHandle": {
             "dataType": "ChatInput",
@@ -797,7 +810,13 @@
             ],
             "type": "str"
           }
-        }
+        },
+        "id": "reactflow__edge-ChatInput-9LeUU{œdataTypeœ:œChatInputœ,œidœ:œChatInput-9LeUUœ,œnameœ:œmessageœ,œoutput_typesœ:[œMessageœ]}-RetrieveSupplierKnowledge-dCnKY{œfieldNameœ:œqueryœ,œidœ:œRetrieveSupplierKnowledge-dCnKYœ,œinputTypesœ:[œMessageœ],œtypeœ:œstrœ}",
+        "selected": false,
+        "source": "ChatInput-9LeUU",
+        "sourceHandle": "{œdataTypeœ:œChatInputœ,œidœ:œChatInput-9LeUUœ,œnameœ:œmessageœ,œoutput_typesœ:[œMessageœ]}",
+        "target": "RetrieveSupplierKnowledge-dCnKY",
+        "targetHandle": "{œfieldNameœ:œqueryœ,œidœ:œRetrieveSupplierKnowledge-dCnKYœ,œinputTypesœ:[œMessageœ],œtypeœ:œstrœ}"
       }
     ]
   },

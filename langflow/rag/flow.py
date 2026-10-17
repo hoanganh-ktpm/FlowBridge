@@ -12,6 +12,28 @@ from pathlib import Path
 
 from lfx.components.input_output import ChatInput, ChatOutput
 from lfx.graph import Graph
+from lfx.graph.flow_builder.connect import add_connection
+
+
+def prepare_canvas(definition: dict) -> dict:
+    """Complete Graph.dump's runtime graph with Langflow's ReactFlow metadata."""
+    for node in definition["data"]["nodes"]:
+        node["type"] = "genericNode"
+        node["data"]["showNode"] = True
+    # The runtime reads data.*Handle, whereas the canvas also needs serialized
+    # handles and stable edge IDs. The upstream builder supplies both and pins
+    # the selected output on components with an output dropdown.
+    connections = definition["data"]["edges"]
+    definition["data"]["edges"] = []
+    for edge in connections:
+        add_connection(
+            definition,
+            edge["source"],
+            edge["data"]["sourceHandle"]["name"],
+            edge["target"],
+            edge["data"]["targetHandle"]["fieldName"],
+        )
+    return definition
 
 
 def build_graph(*, task_id: str = "", supplier_id: str = "", log_config=None) -> Graph:
@@ -50,7 +72,7 @@ def get_graph(log_config=None) -> Graph:
 
 
 if __name__ == "__main__":
-    definition = build_graph().dump(endpoint_name="flowbridge-supplier-rag")
+    definition = prepare_canvas(build_graph().dump(endpoint_name="flowbridge-supplier-rag"))
     positions = {
         "ChatInput": {"x": 0, "y": 100},
         "FlowBridgeRetrieveKnowledge": {"x": 380, "y": 100},
