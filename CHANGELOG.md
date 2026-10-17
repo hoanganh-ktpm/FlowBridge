@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Việt hóa node Langflow, chuẩn hóa prompt/description, hợp nhất tham số câu hỏi với mặc định/khóa, output JSON chung và hợp đồng chuyển dữ liệu giữa 10 tool. Thêm schema/ví dụ theo contract và 20 tình huống chưa chạy; chưa nghiệm thu lựa chọn tool của model.
+
+- Thêm flow Langflow với OpenAI model tùy chọn, 10 node tác vụ chỉnh tham số/Input JSON/description và 3 tầng Database/ML/RAG; hỗ trợ khóa input, JSON output, giới hạn lượt gọi, cache, credential local và câu hỏi mẫu. Chưa nghiệm thu model/backend theo yêu cầu hoãn test.
 - Gom setup Langflow local vào `langflow/`, giữ dữ liệu/flow mẫu và thêm `start.cmd` để mở bằng nhấp đúp trên Windows.
 - Khôi phục migration `0003_core_knowledge` và SQL gốc từ nhánh nhóm, gỡ lệch source/DB mà không migrate/stamp/seed. Fixture SQL/SSO kiểm chính xác Alembic heads thay hằng 0002; 19 SQL nghiệp vụ và 8 unit tooling/migration đạt, có đối chiếu catalog Core read-only.
 - Thêm container development/test: multi-stage backend runtime/tooling/unit, Compose Keycloak/backend/clients và runner lifecycle/fixture/cleanup; image tag+digest pin, loopback ports, secrets DB tách khỏi IAM/browser. Đã build/chạy trên Docker Linux, 280 unit và SQL Identity pass; full SSO/business container còn cần nghiệm thu riêng sau khi gỡ lệch migration. Không tự migrate/seed hoặc tải model.

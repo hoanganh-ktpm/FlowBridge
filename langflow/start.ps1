@@ -2,6 +2,10 @@
 # FlowBridge; redistribution/modification under GNU GPL v3 or later.
 # Provided without warranty. See LICENSE.
 $ErrorActionPreference = 'Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$env:PYTHONPATH = "$PSScriptRoot/runtime;$projectRoot/backend/src;$env:PYTHONPATH"
+$env:LANGFLOW_COMPONENTS_PATH = Join-Path $PSScriptRoot 'components'
+$env:FLOWBRIDGE_AGENT_ENV_FILE = Join-Path $PSScriptRoot 'data/agent.env'
 try {
     $running = Invoke-RestMethod -Uri 'http://127.0.0.1:7860/api/v1/version' -TimeoutSec 2
     if ($running.version) {

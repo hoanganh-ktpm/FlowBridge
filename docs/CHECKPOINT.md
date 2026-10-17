@@ -1,5 +1,105 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-04: Hoàn tất cấu hình điều phối và hợp đồng input/output
+
+- User yêu cầu node/label tiếng Việt, prompt/description kỹ, mặc định chỉnh được,
+  tham số thích ứng câu hỏi và các luồng JSON liên kết đúng. Giữ hoãn test/OpenAI.
+- Repo hoanganhdev_features, HEAD 1e36b66; tiếp tục thay đổi CODE-LANGFLOW-03.
+- Đã viết specs.py (mô tả/field/handoff), io_contracts.py (JSON mẫu/schema canonical),
+  prompt điều phối, resolver mặc định/null/khóa/clear_defaults; output chung
+  tool/status/input/data/error. Không thêm dependency/migration/API ghi.
+- setup_agent.py sinh node-contracts.json cùng sidecar; kiểm JSON Schema và ví dụ
+  cấu hình qua DTO canonical mà không execute tool. Data schema catalog/PR/PO/RAG
+  lấy contract snapshot, ML dùng DTO canonical; persisted prediction giữ projection
+  đúng service, không expose feature snapshot. Scenarios20 case có expected_arguments,
+  harness dùng cùng resolver/tool schema thật, chưa chạy lựa chọn tool.
+- Resolver: input khóa > tham số rõ ràng > mặc định; null dùng mặc định, trường bắt
+  buộc thiếu bị từ chối trước HTTP. Filter mặc định nullable chưa khóa có control
+  clear_defaults khi người dùng yêu cầu bỏ. Giá trần/quantity là chuỗi decimal,
+  giá cần tiền tệ; không coi tổng ngân sách là đơn giá hoặc tự đặt ngưỡng giá.
+- JSON ToolResult chung tool/status/input/data/error; input phản ánh giá trị cuối.
+  Trạng thái nghiệp vụ PR/PO nằm trong data.status. Lỗi chỉ lộ mã/status HTTP và
+  tên field hợp lệ, không phản chiếu token/upstream text. Schema giúp kiểm kiểu/
+  ràng buộc, chưa chứng minh LLM luôn chọn đúng intent/đối tượng.
+- Đã về Home trước cập nhật để tránh draft cũ ghi đè. Langflow mới session16792
+  startup complete. Import13983 exit0, cùng ID efd5563c-dd3b-4501-b6e4-a957f3b24a55,
+  tên FlowBridge - Trợ lý mua hàng; match endpoint để tránh tạo flow trùng khi đổi tên.
+  Backup bản trước ở data/procurement-before-vietnamese-routing.json (Git ignore).
+- Đã xem UI:17 node,16 edge đầy đủ, Playground bật, tên/label tiếng Việt, prompt mới,
+ 10 node có mô tả/typed params/JSON mặc định và popup Input/output & luồng dữ liệu.
+  Popup ranking hiện top_k3, risk_first, currency/max_unit_price=null và placeholder
+  UUID/quantity/date chưa biết; ví dụ chỉ tham khảo. Ảnh data/node-json-contract-vn.png.
+- Kiểm tĩnh: AST24, graph17/16,10 hợp đồng I/O, cổng đúng kiểu, strict schemas không
+  có credential/URL/context trong argument, không key trong export; Ruff và diff check
+  đạt. README/CHANGELOG/checkpoint cập nhật; không dependency/migration/backend env mới.
+- Hoàn tất phần code/cấu hình/UI. Không gọi workflow, API nghiệp vụ, pytest hoặc
+  OpenAI; không chạy20 câu hỏi, chưa nghiệm thu tích hợp/chất lượng chọn tool. Khi
+  user muốn test tiếp vẫn xin phép từng OpenAI request trong chat; không commit/push.
+
+## 2026-10-17 — CODE-LANGFLOW-03: Hoàn tất cấu hình node chỉnh tham số và phân tầng
+
+- User yêu cầu mỗi node hiện parameter cơ bản trên canvas, model tùy chọn; tách
+  node tác vụ dưới Database/ML/RAG. Giữ chỉ dẫn hoãn test; không gọi OpenAI.
+- Repo hoanganhdev_features, HEAD 1e36b66. Không có plan local. Giữ thay đổi
+  CODE-LANGFLOW-02, không migration/dependency/backend env/DB mới.
+- Đã viết 10 node tác vụ có description/Input JSON/typed inputs/lock/output fields,
+  model selector/API key/tokens/reasoning và giới hạn agent chỉnh được. Service chỉ
+  gom child tools theo nhóm, không thêm LLM; schema canonical vẫn validate trước HTTP.
+- setup_agent.py dựng 17 node/16 edge và validate từng tool schema mà không execute.
+  Đã import lại flow ID efd5563c-dd3b-4501-b6e4-a957f3b24a55. Bản trước lưu riêng
+  trong data/procurement-before-ui-redesign.json (Git ignore). Launcher runtime hiện
+  session42595, startup complete; backend session26710 từ task trước không đổi.
+- Giao diện ban đầu còn draft cũ; về Home rồi import/mở lại đã nhận graph mới.
+  Đã sửa target handle lấy type/input_types thật của field (thay đoán từ output),
+  cổng model agent dùng HandleInput để nhận model ngoài. Giữ identity ChatInput/
+  ChatOutput upstream để Playground nhận diện; wrapper import tránh vendor source.
+- Đã xem UI: đủ 16 edge, Playground bật, model dropdown/key/tokens/reasoning và 10
+  node tác vụ đều có input chỉnh được. Không còn lỗi edge invalid. Nhắc cập nhật hai
+  component chat upstream đã dismiss, không đổi source dependency. Ảnh model ở
+  langflow/data/model-node-config.png, không nằm trong source package.
+- Các lỗi cấu hình đã sửa: inspect cls() thiếu _code; regex dò key bắt nhầm suffix
+  risk-procurement; hai target handle sai type. Một lượt import gặp connection refused
+  trong lúc Langflow đang startup, đã import thành công sau startup complete.
+- Kiểm tĩnh cuối: AST22 Python, Ruff check/format23 file, JSON graph17/16, 10 task
+  node chỉnh input, type mọi cổng khớp, không key trong export, git diff --check đạt.
+  README/CHANGELOG/harness prompt cập nhật; RAG supplier_id tùy chọn, top_k 1–20 và
+  bỏ null trước gửi đúng contract. ML vẫn dùng DTO canonical, không thêm endpoint ghi.
+- Hoàn tất phần code/config/UI được yêu cầu; không chạy node JSON, API nghiệp vụ,
+  workflow, pytest hoặc câu hỏi mẫu; không OpenAI request nào. Chưa nghiệm thu hành vi
+  chọn tool hoặc kết nối API thật. Nếu user cho test tiếp: cần bearer/JobContext thật,
+  xin phép từng request OpenAI khi Codex test. Không commit/push/deploy.
+
+## 2026-10-17 — CODE-LANGFLOW-02: Hoàn thiện logic agent, hoãn kiểm thử
+
+- User yêu cầu agent GPT-5.6 Luna, custom API tools, câu hỏi mẫu và kiểm thử.
+  Model ID đã đối chiếu OpenAI Docs: gpt-5.6-luna; không gọi OpenAI API.
+- Repo hoanganhdev_features, HEAD 1e36b66, đầu vào sạch. Không có plan local.
+- User chốt agent trong Langflow tự động; riêng agent Codex phải hỏi trước mỗi
+  request OpenAI khi test trong chat. Không thêm approval trong Playground.
+- Đã thêm runtime adapter/custom nodes trong langflow/runtime/flowbridge_agent và
+  langflow/components/flowbridge. Flow 8 node/7 edge, 4 nhóm Catalog/Purchase/
+  Prediction/Knowledge; RAG không xuất tool khi thiếu AI token/JobContext.
+- Strict schemas, dùng DTO ML canonical để validate; max 4 model/3 tool calls,
+  SDK/tool retry 0, tuần tự, 600 output tokens mặc định. Cache theo graph build,
+  dùng lại điểm ranking cho cùng scenario, dữ liệu thiếu không giả score.
+  Ngày tương đối lấy Asia/Ho_Chi_Minh. Credential chỉ trong data Git ignore.
+- Flow JSON tại langflow/flows/procurement-agent.json; đã import vào Langflow,
+  ID efd5563c-dd3b-4501-b6e4-a957f3b24a55. Langflow hiện session87644. Model tự động,
+  không thêm approval trong Playground. setup_agent.py chỉ build/import, không inference.
+- User sau đó yêu cầu bật backend/ML: đã bật Docker Desktop và chạy backend với
+  ML enabled/n_estimators=1/checksum weights local qua env trong session26710;
+  log báo startup complete và bind127.0.0.1:8000. Context hiện synthetic-smoke-v1.
+  Chưa kiểm readiness/endpoint/auth; không tạo IAM profile/fixture, migrate hoặc seed,
+  không sửa .env backend. OIDC/token/backend integration vẫn chưa được nghiệm thu.
+- User chốt mới nhất: khoan test, chỉ viết logic node/workflow trước. Đã dừng pytest
+  đang chậm trong sandbox; không có kết quả pass/fail hoàn tất và không chạy tiếp.
+  Không gọi OpenAI request nào. Không khẳng định Luna chọn đúng tool hoặc API live đạt.
+- Chỉ kiểm tĩnh: Ruff check/format, AST14Python, TOML/JSON, graph8/7, không có key
+  trong export, git diff --check đạt. 14 câu hỏi mẫu và test source đã soạn nhưng
+  chưa nghiệm thu. README/CHANGELOG và source manifest bổ sung đúng file, loại data/.venv.
+- Bước tiếp khi user yêu cầu: nối SSO/bearer thật và kiểm thử local; xin phép rõ
+  từng request OpenAI trước paid test. Không commit/push/deploy.
+
 ## 2026-10-17 — CODE-LANGFLOW-01: Setup local cơ bản
 
 - User chỉ yêu cầu setup và hướng dẫn trong chat. Repo hoanganhdev_features,

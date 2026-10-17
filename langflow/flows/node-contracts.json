@@ -1,0 +1,3520 @@
+{
+  "catalog_find_products": {
+    "endpoint": "GET /api/v1/products (bounded name/code scan)",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "catalog_find_products",
+        "description": "Dùng để xác định sản phẩm khi mới biết tên/mã; đã có UUID tin cậy thì bỏ qua. Input query=tên/mã/UUID, limit mặc định 5. Output data.items chứa product_id, product_code, product_name, unit, product_category. Chỉ dùng ID khi status=success và chỉ một kết quả, truncated=false. ambiguous/truncated: hỏi chọn, không lấy dòng đầu. product_id và unit chuyển cho node báo giá hoặc dự đoán; không dự đoán trong node này. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "query": {
+              "description": "Cụm từ người dùng cần tìm; giữ tên/mã, không SQL, không token hay URL.",
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Số kết quả tra cứu, 1–10; không phải số nhà cung cấp để dự đoán.; null dùng mặc định node: 5"
+            }
+          },
+          "required": [
+            "query",
+            "limit"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {
+      "limit": 5
+    },
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "success",
+            "ambiguous",
+            "truncated",
+            "not_found"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "product_id": {
+                "$ref": "#/$defs/Uuid",
+                "description": "ID sản phẩm"
+              },
+              "product_code": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "Part number nội bộ"
+              },
+              "product_name": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Tên sản phẩm"
+              },
+              "product_category": {
+                "type": "string",
+                "maxLength": 120,
+                "description": "Feature categorical"
+              },
+              "unit": {
+                "type": "string",
+                "maxLength": 30,
+                "description": "Đơn vị tính"
+              }
+            },
+            "required": [
+              "product_id",
+              "product_code",
+              "product_name",
+              "product_category",
+              "unit"
+            ],
+            "description": "C02 | products [P0] - Danh mục sản phẩm và feature loại sản phẩm"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "items",
+        "truncated",
+        "warnings"
+      ],
+      "$defs": {
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "handoffs": [
+      "data.items[0].product_id -> product_id; chỉ khi success và duy nhất"
+    ],
+    "clearable_defaults": []
+  },
+  "catalog_find_suppliers": {
+    "endpoint": "GET /api/v1/suppliers (bounded name/code scan)",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "catalog_find_suppliers",
+        "description": "Dùng để xác định NCC khi mới biết tên/mã; không dùng để xếp hạng NCC. Input query, limit mặc định 5. Output data.items chứa supplier_id, supplier_code, supplier_name, city, country_of_origin. Chỉ chuyển supplier_id khi kết quả duy nhất, đầy đủ; ambiguous/truncated phải hỏi chọn. ID dùng cho báo giá, dự đoán hoặc tài liệu. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "query": {
+              "description": "Cụm từ người dùng cần tìm; giữ tên/mã, không SQL, không token hay URL.",
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Số kết quả tra cứu, 1–10; không phải số nhà cung cấp để dự đoán.; null dùng mặc định node: 5"
+            }
+          },
+          "required": [
+            "query",
+            "limit"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {
+      "limit": 5
+    },
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "success",
+            "ambiguous",
+            "truncated",
+            "not_found"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "supplier_id": {
+                "$ref": "#/$defs/Uuid",
+                "description": "Khóa nội bộ"
+              },
+              "supplier_code": {
+                "type": "string",
+                "maxLength": 50,
+                "description": "Mã hiển thị/API"
+              },
+              "supplier_name": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Tên nhà cung cấp"
+              },
+              "city": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Vị trí supplier"
+              },
+              "country_of_origin": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Mã quốc gia ISO alpha-2"
+              }
+            },
+            "required": [
+              "supplier_id",
+              "supplier_code",
+              "supplier_name",
+              "city",
+              "country_of_origin"
+            ],
+            "description": "C01 | suppliers [P0] - Thông tin nhà cung cấp và định danh tham chiếu"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "items",
+        "truncated",
+        "warnings"
+      ],
+      "$defs": {
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "handoffs": [
+      "data.items[0].supplier_id -> supplier_id; chỉ khi success và duy nhất"
+    ],
+    "clearable_defaults": []
+  },
+  "catalog_get_supplier_offers": {
+    "endpoint": "GET /api/v1/supplier-products (product/supplier filter)",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "catalog_get_supplier_offers",
+        "description": "Dùng khi hỏi giá hiện hành, MOQ, thời gian giao báo giá hoặc so giá. Cần product_id; supplier_id tùy chọn để lọc một NCC; null tìm NCC trong phạm vi dữ liệu. Output data.items: supplier_id, product_id, current_unit_price, currency, min_order_qty, quoted_lead_days, is_available. Không cần quantity/deadline chỉ để đọc giá. Không trả điểm ML; không xác nhận tồn kho thực tế. truncated=true không được khẳng định đã tìm giá rẻ nhất toàn hệ thống. Không gọi ML cho câu hỏi giá đơn thuần. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "product_id": {
+              "description": "UUID sản phẩm từ câu hỏi hoặc data.items[].product_id; không truyền tên.",
+              "format": "uuid",
+              "type": "string"
+            },
+            "supplier_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "UUID nhà cung cấp từ câu hỏi/kết quả tra cứu; không truyền tên/mã hiển thị.; null dùng mặc định node: null"
+            }
+          },
+          "required": [
+            "product_id",
+            "supplier_id"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {
+      "supplier_id": null
+    },
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "success",
+            "ambiguous",
+            "truncated",
+            "not_found"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "supplier_product_id": {
+                "$ref": "#/$defs/Uuid",
+                "description": "ID báo giá hiện hành"
+              },
+              "supplier_id": {
+                "$ref": "#/$defs/Uuid",
+                "description": "-> suppliers"
+              },
+              "product_id": {
+                "$ref": "#/$defs/Uuid",
+                "description": "-> products"
+              },
+              "supplier_part_number": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "SKU phía supplier"
+              },
+              "current_unit_price": {
+                "$ref": "#/$defs/Decimal4",
+                "description": "Đơn giá hiện hành, không thay giá PO"
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$",
+                "description": "ISO 4217"
+              },
+              "min_order_qty": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PositiveDecimal4"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Ngưỡng tối thiểu nếu có"
+              },
+              "quoted_lead_days": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Lead time được báo giá; không phải feature lịch sử"
+              },
+              "is_available": {
+                "type": "boolean",
+                "description": "Khả năng cung ứng"
+              },
+              "updated_at": {
+                "$ref": "#/$defs/Timestamp",
+                "description": "Ngày cập nhật; UNIQUE(supplier_id,product_id) trong MVP"
+              }
+            },
+            "required": [
+              "supplier_product_id",
+              "supplier_id",
+              "product_id",
+              "supplier_part_number",
+              "current_unit_price",
+              "currency",
+              "min_order_qty",
+              "quoted_lead_days",
+              "is_available",
+              "updated_at"
+            ],
+            "description": "C03 | supplier_products [P0] - Quan hệ N-N supplier-product và báo giá hiện hành"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "items",
+        "truncated",
+        "warnings"
+      ],
+      "$defs": {
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "Decimal4": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10000.0000"
+          ],
+          "description": "NUMERIC(18,4); chuỗi thập phân để tránh mất độ chính xác."
+        },
+        "PositiveDecimal4": {
+          "type": "string",
+          "pattern": "^(?!0\\.0000$)(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10.5000"
+          ]
+        },
+        "Timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "handoffs": [
+      "data.items[].supplier_id -> NCC trong bảng so giá"
+    ],
+    "clearable_defaults": []
+  },
+  "purchase_get_request": {
+    "endpoint": "GET /api/v1/purchase-requests/{request_id}",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "purchase_get_request",
+        "description": "Đọc yêu cầu mua PR và các dòng hàng khi người dùng hỏi chi tiết/trạng thái PR. Input identifier=UUID hoặc mã PR. Output data.request_id, request_code, status, items. Có thể lấy product_id, quantity, requested_delivery_date từ đúng dòng PR để xếp hạng; nhiều dòng chưa rõ phải hỏi dòng nào. Không dùng mã PO hoặc tự dự đoán tất cả dòng. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "identifier": {
+              "description": "UUID hoặc mã hiển thị của đúng loại PR/PO đang được hỏi, không suy đoán UUID.",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[\\w\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "identifier"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {},
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "ID PR"
+        },
+        "request_code": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "PR-001"
+        },
+        "department_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "-> departments. Snapshot phòng ban của nhân viên tại lúc lập PR; không gom PR qua trưởng phòng và không đổi theo việc user chuyển phòng."
+        },
+        "requested_by": {
+          "$ref": "#/$defs/Uuid",
+          "description": "-> users.user_id của cá nhân nhân viên tạo/gửi PR. Server lấy từ danh tính đã xác thực; cần active human và grant EMPLOYEE."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "web",
+            "chat",
+            "api"
+          ],
+          "description": "web / chat / api"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "analysing",
+            "needs_review",
+            "analysis_failed",
+            "pending_approval",
+            "approved",
+            "rejected",
+            "ordered",
+            "cancelled"
+          ],
+          "description": "draft / analysing / needs_review / analysis_failed / pending_approval / approved / rejected / ordered / cancelled."
+        },
+        "input_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Tăng khi chủ PR sửa product/quantity/deadline/supplier preference trong trạng thái cho phép; sinh snapshot mới. Không sửa input của PR có PO chưa hủy hợp lệ."
+        },
+        "submitted_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Nhân viên hoàn tất/gửi PR cá nhân. Tạo đầy đủ có thể lập+gửi cùng hành động; draft thiếu dữ liệu không tự sinh proposal."
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ghi chú chung"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Thời điểm lập PR/draft; feature_asof dùng event tạo/gửi PR đầy đủ theo quy tắc ở E."
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Thời điểm cập nhật"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PurchaseRequestItem"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "request_id",
+        "request_code",
+        "department_id",
+        "requested_by",
+        "source",
+        "status",
+        "input_revision",
+        "submitted_at",
+        "notes",
+        "created_at",
+        "updated_at",
+        "items"
+      ],
+      "description": "C04 | purchase_requests [P0] - PR cá nhân do nhân viên tạo",
+      "$defs": {
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "Timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "PurchaseRequestItem": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "request_item_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "ID dòng PR"
+            },
+            "request_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "-> purchase_requests"
+            },
+            "line_number": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "UNIQUE(request_id,line_number)"
+            },
+            "product_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "-> products"
+            },
+            "preferred_supplier_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Supplier mong muốn; NULL nếu chưa chọn. Không phải supplier thực giao của nhãn training."
+            },
+            "quantity": {
+              "$ref": "#/$defs/PositiveDecimal4",
+              "description": "Lượng cá nhân yêu cầu mua trên dòng sản phẩm/đơn vị/deadline của PR. Cùng sản phẩm nhưng deadline khác có thể là các dòng riêng."
+            },
+            "requested_delivery_date": {
+              "$ref": "#/$defs/Date",
+              "description": "Hạn giao mong muốn"
+            },
+            "unit_price_snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Decimal4"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Giá snapshot; null nếu chưa báo giá"
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$",
+              "description": "ISO 4217"
+            },
+            "line_total": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Decimal4"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Server tính; có thể null nếu giá chưa có"
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ghi chú dòng PR"
+            }
+          },
+          "required": [
+            "request_item_id",
+            "request_id",
+            "line_number",
+            "product_id",
+            "preferred_supplier_id",
+            "quantity",
+            "requested_delivery_date",
+            "unit_price_snapshot",
+            "currency",
+            "line_total",
+            "notes"
+          ],
+          "description": "C05 | purchase_request_items [P0] - Các dòng sản phẩm của PR cá nhân"
+        },
+        "PositiveDecimal4": {
+          "type": "string",
+          "pattern": "^(?!0\\.0000$)(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10.5000"
+          ]
+        },
+        "Date": {
+          "type": "string",
+          "format": "date"
+        },
+        "Decimal4": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10000.0000"
+          ],
+          "description": "NUMERIC(18,4); chuỗi thập phân để tránh mất độ chính xác."
+        }
+      }
+    },
+    "handoffs": [
+      "data.items[dòng đã chọn] -> product_id, quantity, requested_delivery_date"
+    ],
+    "clearable_defaults": []
+  },
+  "purchase_get_order": {
+    "endpoint": "GET /api/v1/purchase-orders/{order_id}",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "purchase_get_order",
+        "description": "Đọc đơn PO, các dòng hàng và lịch giao; input identifier=UUID hoặc mã PO. Output data.purchase_order_id, po_number, supplier_id, items và lịch giao. Khi hỏi rủi ro bằng mã PO: lấy purchase_order_id rồi gọi prediction_get_order_risk. Nếu đã có UUID PO và chỉ hỏi rủi ro, bỏ qua node này. Không tự tạo/duyệt/cập nhật PO. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "identifier": {
+              "description": "UUID hoặc mã hiển thị của đúng loại PR/PO đang được hỏi, không suy đoán UUID.",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[\\w\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "identifier"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {},
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/contracts/app-api.yaml",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "purchase_order_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "ID PO"
+        },
+        "po_number": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Mã PO"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "-> purchase_requests"
+        },
+        "proposal_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "-> proposals cùng request_id; chỉ current+approved+revision hợp lệ mới issue. UNIQUE(proposal_id,supplier_id,currency)."
+        },
+        "supplier_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "-> suppliers"
+        },
+        "order_date": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Mốc phát hành PO (khác submitted_at PR)"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "issued",
+            "waiting_confirmation",
+            "confirmed",
+            "rejected",
+            "partially_received",
+            "delivered",
+            "cancelled"
+          ],
+          "description": "issued / waiting_confirmation / confirmed / rejected / partially_received / delivered / cancelled. cancelled chỉ sau hủy hợp lệ và không có receipts trong MVP."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "Một ISO 4217 trên PO. Tách PO theo supplier_id + currency; MVP không tự quy đổi FX."
+        },
+        "total_amount": {
+          "$ref": "#/$defs/Decimal4",
+          "description": "Tổng snapshot của PO items"
+        },
+        "pdf_file_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 255
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tham chiếu PDF đã tạo"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Uuid",
+          "description": "-> users.user_id tài khoản active service có PO_SERVICE; chỉ phát từ proposal đã được duyệt hợp lệ."
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Ngày tạo"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Ngày cập nhật"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PurchaseOrderItem"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "schedules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PurchaseOrderSchedule"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "purchase_order_id",
+        "po_number",
+        "request_id",
+        "proposal_id",
+        "supplier_id",
+        "order_date",
+        "status",
+        "currency",
+        "total_amount",
+        "pdf_file_id",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "items",
+        "schedules"
+      ],
+      "description": "C13 | purchase_orders [P0] - PO theo supplier và currency của proposal",
+      "$defs": {
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "Timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Decimal4": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10000.0000"
+          ],
+          "description": "NUMERIC(18,4); chuỗi thập phân để tránh mất độ chính xác."
+        },
+        "PurchaseOrderItem": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "po_item_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "ID dòng PO"
+            },
+            "purchase_order_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "-> purchase_orders"
+            },
+            "proposal_item_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "-> proposal_items; lấy prediction_id qua dòng này. Một PO item là một mẫu outcome training."
+            },
+            "proposal_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "Cùng proposal với PO header và proposal_item_id."
+            },
+            "request_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "Cùng PR với PO header và proposal item. Dùng scope ổn định cho kiểm tra lượng."
+            },
+            "request_item_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "PR item nguồn; khớp cả proposal_item và request_id. Phục vụ FK monitoring và budget."
+            },
+            "line_number": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "UNIQUE(purchase_order_id,line_number)"
+            },
+            "product_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "-> products; phải trùng sản phẩm của proposal_item"
+            },
+            "product_category_snapshot": {
+              "type": "string",
+              "maxLength": 120,
+              "description": "Category tại phát hành từ snapshot được duyệt; không lấy category hiện tại để sửa lịch sử."
+            },
+            "ordered_quantity": {
+              "$ref": "#/$defs/PositiveDecimal4",
+              "description": "Số lượng đã issue; cộng trên mọi proposal/PO chưa cancelled của PR item không vượt lượng PR."
+            },
+            "unit": {
+              "type": "string",
+              "maxLength": 30,
+              "description": "Đơn vị Q đóng băng khi issue; q_ref của lịch sử phải cùng sản phẩm và đơn vị."
+            },
+            "unit_price": {
+              "$ref": "#/$defs/Decimal4",
+              "description": "Giá snapshot từ phiếu đã duyệt"
+            },
+            "line_total": {
+              "$ref": "#/$defs/Decimal4",
+              "description": "Server tính quantity × price"
+            },
+            "item_status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "confirmed",
+                "partially_received",
+                "completed",
+                "cancelled"
+              ],
+              "description": "open / confirmed / partially_received / completed / cancelled"
+            }
+          },
+          "required": [
+            "po_item_id",
+            "purchase_order_id",
+            "proposal_item_id",
+            "proposal_id",
+            "request_id",
+            "request_item_id",
+            "line_number",
+            "product_id",
+            "product_category_snapshot",
+            "ordered_quantity",
+            "unit",
+            "unit_price",
+            "line_total",
+            "item_status"
+          ],
+          "description": "C14 | purchase_order_items [P0] - PO line; truy ngược PR qua proposal_item_id"
+        },
+        "PositiveDecimal4": {
+          "type": "string",
+          "pattern": "^(?!0\\.0000$)(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10.5000"
+          ]
+        },
+        "PurchaseOrderSchedule": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schedule_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "Transaction ID ở mức schedule của hệ thống"
+            },
+            "po_item_id": {
+              "$ref": "#/$defs/Uuid",
+              "description": "-> purchase_order_items"
+            },
+            "schedule_number": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "UNIQUE(po_item_id,schedule_number)"
+            },
+            "scheduled_quantity": {
+              "$ref": "#/$defs/PositiveDecimal4",
+              "description": "Lượng theo đợt; tổng bằng ordered_quantity. Muốn nhiều deadline phải tách proposal/PO item."
+            },
+            "requested_delivery_date": {
+              "$ref": "#/$defs/Date",
+              "description": "Deadline snapshot = proposed_delivery_date của proposal item; tất cả schedule cùng PO item dùng cùng deadline."
+            },
+            "promised_delivery_date": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cache ngày hứa hiện hành để hiển thị. Dựng snapshot lịch sử phải đọc phiên bản supplier_confirmation_items đã biết tại cutoff, không đọc cache hiện tại."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "confirmed",
+                "partially_received",
+                "completed",
+                "cancelled"
+              ],
+              "description": "open / confirmed / partially_received / completed / cancelled"
+            },
+            "created_at": {
+              "$ref": "#/$defs/Timestamp",
+              "description": "Thời điểm tạo schedule"
+            }
+          },
+          "required": [
+            "schedule_id",
+            "po_item_id",
+            "schedule_number",
+            "scheduled_quantity",
+            "requested_delivery_date",
+            "promised_delivery_date",
+            "status",
+            "created_at"
+          ],
+          "description": "C15 | purchase_order_schedules [P0] - Lịch giao từng item; granular dataset Dataiku-compatible"
+        },
+        "Date": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "handoffs": [
+      "data.purchase_order_id -> prediction_get_order_risk.order_id"
+    ],
+    "clearable_defaults": []
+  },
+  "prediction_rank_suppliers": {
+    "endpoint": "POST /api/v1/ml/suppliers/rank",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "prediction_rank_suppliers",
+        "description": "Chọn top-k NCC ít rủi ro cho MỘT kịch bản chưa chọn NCC. Cần product_id, quantity, requested_delivery_date. top_k mặc định 3 (1–10); ranking_policy chỉ risk_first. Nếu câu hỏi có trần ĐƠN GIÁ, điền max_unit_price dạng chuỗi decimal và currency; không nêu trần thì dùng mặc định node, thường null, không suy ra từ chữ 'giá tốt/rẻ'. Output data.candidates kèm supplier_id, supplier_name, unit_price, currency, rank, result.risk_score và data.trace; data.unscored/excluded/warnings phải được đọc. Không chấm lại từng NCC đã có điểm. Không dùng thay đọc giá hoặc chấm NCC đã chọn. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "product_id": {
+              "description": "UUID sản phẩm từ câu hỏi hoặc data.items[].product_id; không truyền tên.",
+              "format": "uuid",
+              "type": "string"
+            },
+            "quantity": {
+              "description": "Số lượng > 0, theo đơn vị sản phẩm; chuỗi decimal như \"100\", \"2.5\".",
+              "type": "string"
+            },
+            "requested_delivery_date": {
+              "description": "Ngày cần nhận YYYY-MM-DD, không phải ngày đặt; hỏi nếu thiếu/nhập nhằng.",
+              "format": "date",
+              "type": "string"
+            },
+            "top_k": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Số NCC/đoạn tài liệu yêu cầu; null dùng mặc định node. Không vượt giới hạn schema.; null dùng mặc định node: 3"
+            },
+            "ranking_policy": {
+              "anyOf": [
+                {
+                  "const": "risk_first",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Chỉ risk_first: lọc điều kiện rồi ưu tiên rủi ro thấp; không xếp giá rẻ nhất.; null dùng mặc định node: \"risk_first\""
+            },
+            "currency": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Z]{3}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "ISO ba chữ hoa VND/USD; null dùng mặc định, thường không lọc tiền tệ.; null dùng mặc định node: null"
+            },
+            "max_unit_price": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Trần giá MỘT đơn vị, chuỗi decimal >= 0; cần currency. Không phải tổng ngân sách. Chỉ lấy trần rõ ràng trong câu hỏi/mặc định node; không tự bịa giá.; null dùng mặc định node: null"
+            }
+          },
+          "required": [
+            "product_id",
+            "quantity",
+            "requested_delivery_date",
+            "top_k",
+            "ranking_policy",
+            "currency",
+            "max_unit_price"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {
+      "top_k": 3,
+      "ranking_policy": "risk_first",
+      "currency": null,
+      "max_unit_price": null
+    },
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "$defs": {
+        "Candidate": {
+          "additionalProperties": false,
+          "properties": {
+            "supplier_id": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            },
+            "supplier_name": {
+              "title": "Supplier Name",
+              "type": "string"
+            },
+            "unit_price": {
+              "title": "Unit Price",
+              "type": "string"
+            },
+            "currency": {
+              "title": "Currency",
+              "type": "string"
+            },
+            "quoted_lead_days": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Quoted Lead Days"
+            },
+            "rank": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Rank"
+            },
+            "result": {
+              "$ref": "#/$defs/RiskResult"
+            },
+            "reason_codes": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Reason Codes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "supplier_id",
+            "supplier_name",
+            "unit_price",
+            "currency",
+            "quoted_lead_days",
+            "result"
+          ],
+          "title": "Candidate",
+          "type": "object"
+        },
+        "RiskResult": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "insufficient_data"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "risk_score": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Risk Score"
+            },
+            "risk_level": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "low",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Risk Level"
+            },
+            "risk_threshold": {
+              "title": "Risk Threshold",
+              "type": "number"
+            },
+            "score_is_calibrated": {
+              "const": false,
+              "default": false,
+              "title": "Score Is Calibrated",
+              "type": "boolean"
+            },
+            "calibrated_late_probability": {
+              "default": null,
+              "title": "Calibrated Late Probability",
+              "type": "null"
+            },
+            "hist_sample_count": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Hist Sample Count"
+            },
+            "error_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Error Code"
+            },
+            "missing_fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Missing Fields",
+              "type": "array"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "risk_threshold"
+          ],
+          "title": "RiskResult",
+          "type": "object"
+        },
+        "Trace": {
+          "additionalProperties": false,
+          "properties": {
+            "feature_asof": {
+              "format": "date-time",
+              "title": "Feature Asof",
+              "type": "string"
+            },
+            "feature_schema_version": {
+              "default": "tabicl_supplier_fixed_v1",
+              "title": "Feature Schema Version",
+              "type": "string"
+            },
+            "preprocessing_version": {
+              "default": "supplier-features-v1",
+              "title": "Preprocessing Version",
+              "type": "string"
+            },
+            "model_version": {
+              "title": "Model Version",
+              "type": "string"
+            },
+            "context_dataset_version": {
+              "title": "Context Dataset Version",
+              "type": "string"
+            },
+            "prediction_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Prediction Id"
+            },
+            "persisted": {
+              "default": false,
+              "title": "Persisted",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "feature_asof",
+            "model_version",
+            "context_dataset_version"
+          ],
+          "title": "Trace",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "success",
+            "partial",
+            "insufficient_data",
+            "no_eligible_suppliers"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "trace": {
+          "$ref": "#/$defs/Trace"
+        },
+        "ranking_policy_version": {
+          "default": "risk-first-v1",
+          "title": "Ranking Policy Version",
+          "type": "string"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "unscored": {
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Unscored",
+          "type": "array"
+        },
+        "excluded": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Excluded",
+          "type": "array"
+        },
+        "considered_count": {
+          "title": "Considered Count",
+          "type": "integer"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "trace",
+        "candidates",
+        "considered_count"
+      ],
+      "title": "RankResponse",
+      "type": "object"
+    },
+    "handoffs": [
+      "data.candidates[].supplier_id -> knowledge_search_supplier.supplier_id",
+      "data.candidates[].result -> tổng hợp điểm, không chấm lại"
+    ],
+    "clearable_defaults": []
+  },
+  "prediction_score_supplier": {
+    "endpoint": "POST /api/v1/ml/scenarios/predict",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "prediction_score_supplier",
+        "description": "Chấm rủi ro MỘT NCC đã chọn cho kịch bản mua cụ thể. Cần product_id, supplier_id, quantity, requested_delivery_date. Output data.scenario, data.result và data.trace. Không có tham số giá/top_k và không tìm NCC khác. Điểm trong kết quả ranking cùng kịch bản có thể dùng lại; không gọi chỉ để lấy lại điểm đó. null/insufficient_data là chưa đủ dữ liệu, không phải rủi ro bằng 0. Không lưu prediction mới. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "product_id": {
+              "description": "UUID sản phẩm từ câu hỏi hoặc data.items[].product_id; không truyền tên.",
+              "format": "uuid",
+              "type": "string"
+            },
+            "supplier_id": {
+              "description": "UUID nhà cung cấp từ câu hỏi/kết quả tra cứu; không truyền tên/mã hiển thị.",
+              "format": "uuid",
+              "type": "string"
+            },
+            "quantity": {
+              "description": "Số lượng > 0, theo đơn vị sản phẩm; chuỗi decimal như \"100\", \"2.5\".",
+              "type": "string"
+            },
+            "requested_delivery_date": {
+              "description": "Ngày cần nhận YYYY-MM-DD, không phải ngày đặt; hỏi nếu thiếu/nhập nhằng.",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          "required": [
+            "product_id",
+            "supplier_id",
+            "quantity",
+            "requested_delivery_date"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {},
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "$defs": {
+        "RiskResult": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "insufficient_data"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "risk_score": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Risk Score"
+            },
+            "risk_level": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "low",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Risk Level"
+            },
+            "risk_threshold": {
+              "title": "Risk Threshold",
+              "type": "number"
+            },
+            "score_is_calibrated": {
+              "const": false,
+              "default": false,
+              "title": "Score Is Calibrated",
+              "type": "boolean"
+            },
+            "calibrated_late_probability": {
+              "default": null,
+              "title": "Calibrated Late Probability",
+              "type": "null"
+            },
+            "hist_sample_count": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Hist Sample Count"
+            },
+            "error_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Error Code"
+            },
+            "missing_fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Missing Fields",
+              "type": "array"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "risk_threshold"
+          ],
+          "title": "RiskResult",
+          "type": "object"
+        },
+        "ScenarioRequest": {
+          "additionalProperties": false,
+          "properties": {
+            "product_id": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            },
+            "supplier_id": {
+              "format": "uuid",
+              "title": "Supplier Id",
+              "type": "string"
+            },
+            "quantity": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                  "type": "string"
+                }
+              ],
+              "decimal_places": 4,
+              "gt": 0,
+              "max_digits": 18,
+              "title": "Quantity"
+            },
+            "requested_delivery_date": {
+              "format": "date",
+              "title": "Requested Delivery Date",
+              "type": "string"
+            }
+          },
+          "required": [
+            "product_id",
+            "supplier_id",
+            "quantity",
+            "requested_delivery_date"
+          ],
+          "title": "ScenarioRequest",
+          "type": "object"
+        },
+        "Trace": {
+          "additionalProperties": false,
+          "properties": {
+            "feature_asof": {
+              "format": "date-time",
+              "title": "Feature Asof",
+              "type": "string"
+            },
+            "feature_schema_version": {
+              "default": "tabicl_supplier_fixed_v1",
+              "title": "Feature Schema Version",
+              "type": "string"
+            },
+            "preprocessing_version": {
+              "default": "supplier-features-v1",
+              "title": "Preprocessing Version",
+              "type": "string"
+            },
+            "model_version": {
+              "title": "Model Version",
+              "type": "string"
+            },
+            "context_dataset_version": {
+              "title": "Context Dataset Version",
+              "type": "string"
+            },
+            "prediction_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Prediction Id"
+            },
+            "persisted": {
+              "default": false,
+              "title": "Persisted",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "feature_asof",
+            "model_version",
+            "context_dataset_version"
+          ],
+          "title": "Trace",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "scenario": {
+          "$ref": "#/$defs/ScenarioRequest"
+        },
+        "result": {
+          "$ref": "#/$defs/RiskResult"
+        },
+        "trace": {
+          "$ref": "#/$defs/Trace"
+        }
+      },
+      "required": [
+        "scenario",
+        "result",
+        "trace"
+      ],
+      "title": "ScenarioResponse",
+      "type": "object"
+    },
+    "handoffs": [
+      "data.scenario + data.result + data.trace -> câu trả lời có ngữ cảnh"
+    ],
+    "clearable_defaults": []
+  },
+  "prediction_get_order_risk": {
+    "endpoint": "GET /api/v1/ml/purchase-orders/{order_id}/risk",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "prediction_get_order_risk",
+        "description": "Đọc rủi ro hiện có cho PO và từng dòng, không tính/lưu lại. Input order_id=UUID PO. Output data.purchase_order_id, representative_risk_score, highest_risk_item_id, highest_risk_item_deadline, is_complete, items. Điểm đại diện là MAX dòng còn mở, không phải xác suất ít nhất một món trễ. Partial/insufficient_data/no_open_items phải nói rõ. Không dùng product_id, mã PO hay prediction_id thay order_id. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "order_id": {
+              "description": "UUID PO; chỉ có mã PO thì lấy data.purchase_order_id qua node xem đơn hàng.",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "order_id"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {},
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "$defs": {
+        "ItemRisk": {
+          "additionalProperties": false,
+          "properties": {
+            "po_item_id": {
+              "format": "uuid",
+              "title": "Po Item Id",
+              "type": "string"
+            },
+            "product_id": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            },
+            "requested_delivery_date": {
+              "format": "date",
+              "title": "Requested Delivery Date",
+              "type": "string"
+            },
+            "result": {
+              "$ref": "#/$defs/RiskResult"
+            },
+            "trace": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Trace"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "po_item_id",
+            "product_id",
+            "requested_delivery_date",
+            "result"
+          ],
+          "title": "ItemRisk",
+          "type": "object"
+        },
+        "RiskResult": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "insufficient_data"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "risk_score": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Risk Score"
+            },
+            "risk_level": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "low",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Risk Level"
+            },
+            "risk_threshold": {
+              "title": "Risk Threshold",
+              "type": "number"
+            },
+            "score_is_calibrated": {
+              "const": false,
+              "default": false,
+              "title": "Score Is Calibrated",
+              "type": "boolean"
+            },
+            "calibrated_late_probability": {
+              "default": null,
+              "title": "Calibrated Late Probability",
+              "type": "null"
+            },
+            "hist_sample_count": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Hist Sample Count"
+            },
+            "error_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Error Code"
+            },
+            "missing_fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Missing Fields",
+              "type": "array"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "risk_threshold"
+          ],
+          "title": "RiskResult",
+          "type": "object"
+        },
+        "Trace": {
+          "additionalProperties": false,
+          "properties": {
+            "feature_asof": {
+              "format": "date-time",
+              "title": "Feature Asof",
+              "type": "string"
+            },
+            "feature_schema_version": {
+              "default": "tabicl_supplier_fixed_v1",
+              "title": "Feature Schema Version",
+              "type": "string"
+            },
+            "preprocessing_version": {
+              "default": "supplier-features-v1",
+              "title": "Preprocessing Version",
+              "type": "string"
+            },
+            "model_version": {
+              "title": "Model Version",
+              "type": "string"
+            },
+            "context_dataset_version": {
+              "title": "Context Dataset Version",
+              "type": "string"
+            },
+            "prediction_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Prediction Id"
+            },
+            "persisted": {
+              "default": false,
+              "title": "Persisted",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "feature_asof",
+            "model_version",
+            "context_dataset_version"
+          ],
+          "title": "Trace",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "purchase_order_id": {
+          "format": "uuid",
+          "title": "Purchase Order Id",
+          "type": "string"
+        },
+        "aggregation_policy": {
+          "const": "max_open_item_v1",
+          "default": "max_open_item_v1",
+          "title": "Aggregation Policy",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "partial",
+            "insufficient_data",
+            "no_open_items"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "representative_risk_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Representative Risk Score"
+        },
+        "highest_risk_item_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highest Risk Item Id"
+        },
+        "highest_risk_item_deadline": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highest Risk Item Deadline"
+        },
+        "score_is_calibrated": {
+          "const": false,
+          "default": false,
+          "title": "Score Is Calibrated",
+          "type": "boolean"
+        },
+        "is_complete": {
+          "title": "Is Complete",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ItemRisk"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "purchase_order_id",
+        "status",
+        "is_complete",
+        "items"
+      ],
+      "title": "OrderRisk",
+      "type": "object"
+    },
+    "handoffs": [
+      "data.items + điểm MAX + is_complete -> tổng hợp rủi ro PO"
+    ],
+    "clearable_defaults": []
+  },
+  "prediction_get_result": {
+    "endpoint": "GET /api/v1/ml/predictions/{prediction_id}",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "prediction_get_result",
+        "description": "Đọc lại dự đoán ĐÃ LƯU theo prediction_id có thật, kèm dữ liệu nguồn/version nếu có. Không tạo dự đoán và không dùng cho kịch bản tạm chưa lưu. Giữ nguyên provenance trong data; không lấy một prediction lịch sử để kết luận trạng thái PO hiện tại khi chưa kiểm mốc dữ liệu. data.status=failed/snapshot_only chưa có điểm thành công. Nếu chưa biết prediction_id thì hỏi, không đoán. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "prediction_id": {
+              "description": "UUID dự đoán đã lưu, không dùng UUID sản phẩm/PO; kịch bản tạm không có ID lưu.",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "prediction_id"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {},
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/supplier_assistant/prediction/schemas.py",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prediction_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "ID lần dự đoán"
+        },
+        "request_item_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "-> PR item. request_item_id và request_id cùng NULL hoặc cùng có; ghép FK để bảo đảm cùng PR."
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "PR của request_item_id và task_id. NULL chỉ khi kịch bản độc lập không gắn PR."
+        },
+        "po_item_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NULL ở PR_CREATED; bắt buộc ở PO_MONITORING, cùng request_id/request_item_id với PO item."
+        },
+        "supplier_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "Supplier được score"
+        },
+        "product_id": {
+          "$ref": "#/$defs/Uuid",
+          "description": "Product được score"
+        },
+        "quantity": {
+          "$ref": "#/$defs/PositiveDecimal4",
+          "description": "Q gốc của phương án ở A hoặc ordered_quantity của PO item ở B; không thay bằng lượng chưa nhận."
+        },
+        "requested_delivery_date": {
+          "$ref": "#/$defs/Date",
+          "description": "Hạn giao của kịch bản"
+        },
+        "feature_asof": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Mốc snapshot A hoặc B cố định theo event. Phân biệt với predicted_at là lúc worker ghi kết quả."
+        },
+        "feature_schema_version": {
+          "const": "tabicl_supplier_fixed_v1",
+          "description": "tabicl_supplier_fixed_v1: đúng 19 key X ở E, cùng schema cho A/B, không missing indicators."
+        },
+        "preprocessing_version": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Phiên bản adapter, dtype, NULL->NaN và tính lịch sử; giữ cùng train/serve."
+        },
+        "model_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "tabicl-classifier-v2-20260212.ckpt; bắt buộc khi success."
+        },
+        "context_dataset_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phiên bản context chung có các snapshot A/B và nhãn đã biết trước cutoff; khác checkpoint. Cùng PO item không nằm cả context và test."
+        },
+        "risk_score": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Score; không gọi là xác suất nếu chưa hiệu chuẩn"
+        },
+        "risk_threshold": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ngưỡng tại lần chạy; bắt buộc khi success"
+        },
+        "risk_level": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "low",
+                "high"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "low / high; chỉ khi score hợp lệ"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "insufficient_data",
+            "failed",
+            "snapshot_only"
+          ],
+          "description": "success / insufficient_data / failed / snapshot_only. snapshot_only chỉ cho historical_import có nguồn xác thực."
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mã lỗi khi không thành công"
+        },
+        "predicted_at": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "Mốc ghi kết quả/snapshot; có thể sau feature_asof. Không dùng làm mốc xây lại X."
+        },
+        "score_is_calibrated": {
+          "const": false
+        },
+        "calibrated_late_probability": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "prediction_id",
+        "request_item_id",
+        "request_id",
+        "po_item_id",
+        "supplier_id",
+        "product_id",
+        "quantity",
+        "requested_delivery_date",
+        "feature_asof",
+        "feature_schema_version",
+        "preprocessing_version",
+        "model_version",
+        "context_dataset_version",
+        "risk_score",
+        "risk_threshold",
+        "risk_level",
+        "status",
+        "error_code",
+        "predicted_at",
+        "score_is_calibrated",
+        "calibrated_late_probability"
+      ],
+      "description": "C07 | risk_predictions [P0] - Snapshot 19 thuộc tính cố định A B và kết quả TabICLv2",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "request_item_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "input_revision": {
+                "$ref": "#/$defs/Version"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "request_item_id": {
+                "type": "null"
+              },
+              "input_revision": {
+                "type": "null"
+              },
+              "task_id": {
+                "type": "null"
+              },
+              "po_item_id": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "prediction_stage": {
+                "const": "PR_CREATED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "po_item_id": {
+                "type": "null"
+              },
+              "feature_snapshot": {
+                "properties": {
+                  "x": {
+                    "properties": {
+                      "prediction_stage": {
+                        "const": "PR_CREATED"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "po_item_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "request_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "request_item_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "input_revision": {
+                "$ref": "#/$defs/Version"
+              },
+              "feature_snapshot": {
+                "properties": {
+                  "x": {
+                    "properties": {
+                      "prediction_stage": {
+                        "const": "PO_MONITORING"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "risk_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "risk_threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "high"
+                ]
+              },
+              "model_name": {
+                "const": "TabICLv2"
+              },
+              "model_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "context_dataset_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "context_metadata": {
+                "type": "object"
+              },
+              "error_code": {
+                "type": "null"
+              },
+              "error_message": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "risk_score": {
+                "type": "null"
+              },
+              "risk_threshold": {
+                "type": "null"
+              },
+              "risk_level": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "snapshot_only"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_type": {
+                "const": "historical_import"
+              }
+            }
+          }
+        }
+      ],
+      "$defs": {
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "PositiveDecimal4": {
+          "type": "string",
+          "pattern": "^(?!0\\.0000$)(0|[1-9][0-9]{0,13})\\.[0-9]{4}$",
+          "examples": [
+            "10.5000"
+          ]
+        },
+        "Date": {
+          "type": "string",
+          "format": "date"
+        },
+        "Timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "handoffs": [
+      "data -> kết quả lịch sử và mốc dữ liệu, không coi là điểm hiện tại"
+    ],
+    "clearable_defaults": []
+  },
+  "knowledge_search_supplier": {
+    "endpoint": "POST /internal/v1/tools/retrieve-knowledge",
+    "tool": {
+      "type": "function",
+      "function": {
+        "name": "knowledge_search_supplier",
+        "description": "Tìm đánh giá, ghi chú hoặc bằng chứng định tính cần nguồn trích dẫn. Input query là câu hỏi tìm kiếm; supplier_id tùy chọn để giới hạn NCC; top_k mặc định 3, 1–20. Output data.chunks[].text, reference(document_id, document_version, chunk_id, source_uri, checksum), relevance_score và index_version/warnings. Chỉ trích từ chunks trả về; rỗng nghĩa là chưa tìm thấy nguồn, không chứng minh NCC không có vấn đề. Không thay API giá/ML. Chỉ có tool khi hệ thống cấp AI token và JobContext hợp lệ. Output JSON: {tool,status,input,data,error}. Đọc status trước data; input là tham số thực tế sau hợp nhất. Giá trị null của input tool dùng mặc định.",
+        "parameters": {
+          "properties": {
+            "query": {
+              "description": "Cụm từ người dùng cần tìm; giữ tên/mã, không SQL, không token hay URL.",
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "supplier_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "UUID nhà cung cấp từ câu hỏi/kết quả tra cứu; không truyền tên/mã hiển thị.; null dùng mặc định node: null"
+            },
+            "top_k": {
+              "anyOf": [
+                {
+                  "maximum": 20,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Số NCC/đoạn tài liệu yêu cầu; null dùng mặc định node. Không vượt giới hạn schema.; null dùng mặc định node: 3"
+            }
+          },
+          "required": [
+            "query",
+            "supplier_id",
+            "top_k"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "configured_inputs": {
+      "supplier_id": null,
+      "top_k": 3
+    },
+    "locked_inputs": {},
+    "output_fields": [],
+    "response_contract": "backend/src/flowbridge/contracts/ai-tools-api.yaml",
+    "output_schema": {
+      "$defs": {
+        "ToolFailure": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Http Status"
+            },
+            "retryable": {
+              "default": false,
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Fields",
+              "type": "array"
+            }
+          },
+          "required": [
+            "code",
+            "http_status"
+          ],
+          "title": "ToolFailure",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "status",
+        "input",
+        "data",
+        "error"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    },
+    "success_data_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KnowledgeChunk"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "index_version": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "required": [
+        "query",
+        "chunks",
+        "index_version",
+        "warnings"
+      ],
+      "$defs": {
+        "KnowledgeChunk": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reference": {
+              "$ref": "#/$defs/DocumentReference"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 6000
+            },
+            "relevance_score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "reference",
+            "text",
+            "relevance_score"
+          ]
+        },
+        "DocumentReference": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "document_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "document_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "chunk_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_uri": {
+              "type": "string",
+              "minLength": 1
+            },
+            "checksum": {
+              "type": "string",
+              "minLength": 1
+            },
+            "supplier_id": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "document_id",
+            "document_version",
+            "chunk_id",
+            "source_uri",
+            "checksum",
+            "supplier_id"
+          ]
+        },
+        "Uuid": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "handoffs": [
+      "data.chunks[].reference + text -> dẫn nguồn trong câu trả lời"
+    ],
+    "clearable_defaults": []
+  }
+}
