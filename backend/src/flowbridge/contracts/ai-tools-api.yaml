@@ -215,6 +215,7 @@ paths:
       summary: Đọc kho Markdown PostgreSQL hiện có
       description: Giữ ACL/caller, document/version/chunk/source/checksum. Không tạo supplier_documents hoặc sao
         chép nội dung nguồn.
+      x-flowbridge-runtime: PostgreSQL pgvector + BM25; verified AI_SERVICE and database JobContext
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -226,6 +227,13 @@ paths:
           minLength: 1
           maxLength: 128
         example: example-schema-041
+      - name: X-Job-Context
+        in: header
+        required: true
+        description: UUID của analysis_tasks; receiver đọc cutoff và phòng ban từ database.
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -283,8 +291,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       x-required-role: AI_SERVICE
       security:
-      - ServiceAuth: []
-        UserContext: []
       - ServiceAuth: []
         JobContext: []
       requestBody:
@@ -392,6 +398,7 @@ paths:
       operationId: indexPreparedMarkdown
       summary: Lập chỉ mục refs từ document store hiện có
       description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
+      x-flowbridge-runtime: PostgreSQL pgvector + BM25; verified AI_SERVICE and database JobContext
       tags:
       - Supplier Assistant / AI tools
       parameters:
@@ -403,6 +410,13 @@ paths:
           minLength: 1
           maxLength: 128
         example: example-schema-041
+      - name: X-Job-Context
+        in: header
+        required: true
+        description: UUID của analysis_tasks; receiver đọc cutoff và phòng ban từ database.
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Kết quả theo schema v0.4.1.
@@ -460,8 +474,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       x-required-role: AI_SERVICE
       security:
-      - ServiceAuth: []
-        UserContext: []
       - ServiceAuth: []
         JobContext: []
       requestBody:

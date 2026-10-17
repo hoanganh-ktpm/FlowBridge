@@ -95,3 +95,59 @@ def test_swagger_uses_serving_origin_without_changing_contract(
     assert urljoin(base, "api/v1/departments") == expected
     assert application_documents() == original
     assert schema["components"]["securitySchemes"] == original[0]["components"]["securitySchemes"]
+
+
+@pytest.mark.parametrize("core", [False, True])
+@pytest.mark.parametrize("ml", [False, True])
+def test_postgres_rag_preserves_identity_and_ml_fragments(core: bool, ml: bool) -> None:
+    issuer = "https://iam.example.invalid/realms/merge"
+    app = create_app(
+        Settings(
+            _env_file=None,
+            database_url="postgresql+asyncpg://x:y@localhost/test",
+            rag_postgres_enabled=True,
+            ml_enabled=ml,
+            oidc_issuer=issuer,
+            oidc_audience="core",
+            oidc_client_id="api",
+            oidc_client_secret="test-only-secret",
+            oidc_introspection_url=issuer + "/protocol/openid-connect/token/introspect",
+            oidc_allowed_clients=["web", "mobile", "ai"],
+            oidc_service_clients=["ai"],
+            core_identity={
+                "tenant_id": "tenant-a",
+                "application_id": "supplier-app",
+                "web_client_id": "web",
+                "mobile_client_id": "mobile",
+                "service_clients": {"ai": {"role": "AI_SERVICE"}},
+            }
+            if core
+            else None,
+        )
+    )
+    exported = app.openapi()
+    operation = exported["paths"]["/internal/v1/tools/retrieve-knowledge"]["post"]
+    assert exported["x-database-migration"] == "0003_core_knowledge"
+    assert "PostgreSQL knowledge retrieval/indexing is enabled" in exported["info"]["description"]
+    assert operation["security"] == [{"ServiceAuth": [], "JobContext": []}]
+    assert any(p["name"] == "X-Job-Context" and p["required"] for p in operation["parameters"])
+    identity_path = "/api/v1/core/identity/me"
+    assert (identity_path in exported["paths"]) is core
+    if core:
+        assert exported["paths"][identity_path]["get"]["security"] == [{"BearerAuth": []}]
+
+    def operations(schema: dict) -> set[tuple[str, str, str]]:
+        return {
+            (path, method, spec["operationId"])
+            for path, entry in schema["paths"].items()
+            for method, spec in entry.items()
+            if method in {"get", "post", "patch", "put", "delete"}
+        }
+
+    app.openapi_schema = None
+    assert operations(FastAPI.openapi(app)) == operations(exported)
+    assert len(operations(exported)) == 46 + 5 * ml + 2 * core
+    other = create_app(
+        Settings(_env_file=None, database_url="postgresql+asyncpg://x:y@localhost/test")
+    )
+    assert other.openapi()["x-database-migration"] == "0002_api_idempotency"

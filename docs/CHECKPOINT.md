@@ -1,5 +1,14 @@
 # Checkpoint FlowBridge
 
+## 17/10/2026 — Giải quyết conflict GitHub PR #10 (FIX-PR10-CONFLICT, hoàn tất local)
+
+- Yêu cầu: giải quyết conflict PR #10, head `huuhuandev_features` tại `f9768a5a6a191262b4d8f881a23c9b05f16c92c3`, base `main` tại `e4874fcd1041161b66b2501a750ba8dd903cb9fe`; API GitHub xác nhận dirty trước sửa. Working tree ban đầu sạch.
+- Merge origin/main; xử lý đúng 3 conflict: settings giữ cả Gateway logging/proxy trust và PostgreSQL RAG; test OpenAPI giữ regression Swagger cùng các tổ hợp Identity/ML/RAG; checkpoint giữ toàn bộ lịch sử hai nhánh. Các thay đổi auto-merge giữ nguyên; không thêm dependency/migration hoặc sửa DB, credential, nguồn contract ngoài repo.
+- Ruff check backend/tests/scripts và format 2 file Python conflict đạt; sync application snapshots/checksums và Core snapshot/provenance đạt; git diff --check và kiểm không còn unmerged/marker đạt.
+- Unit tại workspace: 333 passed, 1 failed trong 22.33s. Lỗi test_contract_snapshots_match_checksums_and_available_upstream do snapshot AI tools của origin/main khác nguồn ../ho-so-olp; đã xác minh snapshot byte-identical origin/main. Không đổi test hoặc ghi đè nguồn ngoài repo để nhận pass. Các lượt sandbox bị treo khi chạy async đã dừng; lượt settings với basetemp riêng đạt 26/26.
+- Xuất Git tree đã merge `41d7175c1e19ffa55f63b6a5ee00213a0dda0218` thành tar và giải nén độc lập tại .cache/pr10-merge-verification/flowbridge, chạy đúng source qua PYTHONPATH: toàn bộ 334 unit passed trong 24.04s, session48527 exit0. Không chạy integration/engine, migration/seed hoặc triển khai. Artifact chỉ local, Git ignore.
+- Bước tiếp: tạo merge commit và push riêng huuhuandev_features theo yêu cầu xử lý PR; kiểm lại API GitHub mergeable và working tree. Không merge PR vào main hoặc đóng các mốc CODE/CP tích hợp còn mở. Kết quả push/commit cụ thể xem Git và bàn giao cuối chat.
+
 ## 17/10/2026 — Sửa URL Swagger dev (FIX-SWAGGER-01, hoàn tất)
 
 - User gửi ảnh Swagger Failed to fetch. Đối chiếu live: /openapi.json tại18082 trả server http://127.0.0.1:8000; cổng8000 không có API. Đây là lỗi URL runtime, chưa phải bằng chứng sai mật khẩu/token.
@@ -76,6 +85,34 @@
 - Thêm `.codegraph/` vào `.gitignore` để database/cache cục bộ không vào source. Docker context và sdist đã dùng allowlist, không cần sửa. Không đổi runtime/dependency/migration; không commit/push, không chạy test ứng dụng cho thay đổi tooling này.
 - Không có `docs/PLAN-OPENCORE.md` ở checkout hiện tại; không tự tạo hoặc đánh dấu CODE/CP. Checkpoint này giữ nguyên lịch sử. Không còn lệnh index đang chờ kết quả.
 - Tiếp theo: ưu tiên CodeGraph trước tìm/đọc code theo AGENTS; truyền `projectPath` là repo FlowBridge khi gọi MCP. Có thể chạy `codegraph.cmd sync .` trong repo để cập nhật index sau thay đổi source.
+## 2026-10-17 — CODE-MERGE-01: Giải quyết conflict với main
+
+- Yêu cầu: xử lý conflict với main mới nhất. Checkout thực tế ở nhánh
+  hoanganhdev_features, HEAD f2d82cd; đầu vào sạch, không có merge dở.
+- Fetch origin thành công; main mới nhất efac7ed. Đã merge --no-commit --no-ff
+  origin/main vào nhánh hiện tại; không chuyển hoặc ghi lên nhánh main.
+- Conflict duy nhất ở checkpoint: giữ cả CODE-ML-02 và lịch sử SSO/RAG/container
+  từ main, không lặp tiêu đề CODE-ML-01. Hợp đồng ML 0.2.0 tự gộp; chỉ nhận
+  checksum Core upstream mới từ main, giữ đủ năm endpoint ML.
+- Người dùng chốt chỉ sửa conflict cơ bản, không chạy unit test; lượt pytest
+  vừa khởi chạy bị hủy, không có kết quả kiểm thử mới. Đã bỏ hết conflict
+  marker; git diff --check và staged diff --check đạt.
+- Giữ các thay đổi main tự gộp, chỉ sửa thủ công checkpoint. Không chạy
+  migration/seed, sửa .env, tạo commit hoặc push. Merge chờ người dùng commit.
+
+## 2026-10-17 — CODE-ML-02: Cập nhật hợp đồng ML (hoàn tất)
+
+- Phạm vi người dùng chốt: chỉ cập nhật hợp đồng API; đã hoàn tác mọi chỉnh sửa
+  thử ở schemas.py/router.py. Không còn diff runtime, dependency hoặc migration.
+- Repo FlowBridge, branch hoanganhdev_features, HEAD aebfe85. Cập nhật
+  contracts/supplier-assistant-layer2-api.yaml lên 0.2.0: thêm 5 route ML và
+  15 schema, request/response examples, bearer/role, idempotency, MAX rủi ro món
+  còn mở, item/deadline đại diện và trạng thái thiếu dữ liệu/điểm chưa hiệu chuẩn.
+- Phụ lục ML v1 phân biệt endpoint đã triển khai với các route thiết kế cũ;
+  giữ nguyên path/schema cũ, không sửa snapshot app/AI 0.4.1 hoặc .env.
+- Đã kiểm YAML không trùng key, OpenAPI 3.1, JSON Schema, 883 local refs,
+  8 ví dụ JSON; 5 route mới khớp runtime. git diff --check đạt.
+- Không chạy lại model/DB/integration vì chỉ đổi tài liệu; không commit/push/deploy.
 
 ## 17/10/2026 — Đã commit Docker dev/test và migration0003
 
@@ -389,7 +426,7 @@ Các kết quả bên dưới do upstream ghi trên môi trường khác, chưa 
 - Đã xử lý 6 file conflict: .env.example, CHANGELOG.md, README.md, main.py, settings.py, pyproject.toml; bỏ cả marker cũ đã tồn tại trong CHANGELOG của main.
 - Giữ API PostgreSQL, bearer introspection và OpenAPI từ main. RAG development giữ lifecycle, loopback guard và DSN trống; kiểm tra guard sau khi Settings ghép DSN từ host/user/password.
 - Không khôi phục API/sample modules đã bị main loại bỏ. Router RAG dùng Header của FastAPI thay import shared.http đã bị xóa; bỏ nhánh Swagger Core sample.
-- Cập nhật tests/unit/test_knowledge_http.py, examples/rag/README.md và docs/rag-local-report.md theo cách chạy riêng; giữ nguyên bằng chứng thử Qwen trước merge và ghi rõ thời điểm.
+- Cập nhật tests/unit/test_knowledge_http.py và examples/rag/README.md theo cách chạy riêng; giữ nguyên bằng chứng thử Qwen trước merge và ghi rõ thời điểm.
 - Kiểm tra: 158 unit test pass, không skip; Ruff check/format pass; uv lock --check --offline pass. Hatchling build wheel và source tar.gz pass; kiểm nội dung archive và import wheel ngoài source, bootstrap/database/RAG OpenAPI pass.
 - Sandbox Windows làm asyncio treo khi tạo socket nội bộ; đã dừng các lượt đó và chạy lại unit suite ngoài sandbox thành công. rank-bm25 dùng từ thư mục test tạm, không sửa môi trường đang dùng.
 - Chưa chạy Supabase integration, migration/seed, Chroma thật hoặc tải/chạy Qwen; không thay dependency pin hoặc schema. Lockfile được Git tự gộp và kiểm tra đạt.
