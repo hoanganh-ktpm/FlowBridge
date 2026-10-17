@@ -6,7 +6,7 @@
 from dataclasses import dataclass
 from math import isfinite
 from time import time
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 from fastapi import Depends, Request
@@ -21,14 +21,26 @@ bearer = HTTPBearer(auto_error=False)
 class VerifiedIdentity:
     issuer: str
     subject: str
+    client_id: str | None = None
+    account_type: Literal["human", "service"] = "human"
+    scopes: frozenset[str] = frozenset()
 
 
 async def authenticated_identity(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> VerifiedIdentity:
-    if credentials is None or credentials.scheme.lower() != "bearer":
+    if (
+        credentials is None
+        or credentials.scheme.lower() != "bearer"
+        or len(request.headers.getlist("authorization")) != 1
+    ):
         raise CoreError(ErrorCode.UNAUTHENTICATED)
+    return await verify_access_token(request, credentials.credentials)
+
+
+async def verify_access_token(request: Request, token: str) -> VerifiedIdentity:
+    # Also used for an IAM-issued delegated user token, with the same upstream checks.
     settings = request.app.state.settings
     if not all(
         (
@@ -46,7 +58,7 @@ async def authenticated_identity(
     try:
         response = await resources.http.post(
             settings.oidc_introspection_url,
-            data={"token": credentials.credentials, "token_type_hint": "access_token"},
+            data={"token": token, "token_type_hint": "access_token"},
             auth=httpx.BasicAuth(
                 settings.oidc_client_id, settings.oidc_client_secret.get_secret_value()
             ),
@@ -62,6 +74,9 @@ async def authenticated_identity(
     audiences = claims.get("aud", [])
     audiences = [audiences] if isinstance(audiences, str) else audiences
     expiry = claims.get("exp")
+    client_id = claims.get("client_id")
+    not_before = claims.get("nbf", 0)
+    scope = claims.get("scope", "")
     if (
         claims.get("active") is not True
         or claims.get("iss") != settings.oidc_issuer
@@ -73,6 +88,23 @@ async def authenticated_identity(
         or isinstance(expiry, bool)
         or not isfinite(expiry)
         or expiry <= time()
+        or claims.get("token_type") != "Bearer"
+        or claims.get("typ", "Bearer") != "Bearer"
+        or not isinstance(client_id, str)
+        or not client_id.strip()
+        or (claims.get("azp") is not None and claims["azp"] != client_id)
+        or (settings.oidc_allowed_clients and client_id not in settings.oidc_allowed_clients)
+        or not isinstance(not_before, (float, int))
+        or isinstance(not_before, bool)
+        or not isfinite(not_before)
+        or not_before > time()
+        or not isinstance(scope, str)
     ):
         raise CoreError(ErrorCode.UNAUTHENTICATED)
-    return VerifiedIdentity(issuer=claims["iss"], subject=claims["sub"])
+    return VerifiedIdentity(
+        issuer=claims["iss"],
+        subject=claims["sub"],
+        client_id=client_id,
+        account_type="service" if client_id in settings.oidc_service_clients else "human",
+        scopes=frozenset(scope.split()),
+    )

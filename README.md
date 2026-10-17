@@ -6,9 +6,9 @@ FlowBridge kết hợp **LLM, Machine Learning và RAG** để hỗ trợ doanh 
 
 Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằng ngôn ngữ tự nhiên. Theo schema v0.4.1, AI_SERVICE phân tích và tự tạo/gửi proposal; người có APPROVER trong phạm vi phòng ban và đúng workflow quyết định phê duyệt. PO_SERVICE phát đơn sau duyệt; nhà cung cấp xác nhận hoặc từ chối qua liên kết email. Open-Core cung cấp các năng lực nền tảng dùng chung.
 
-> **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO cần cấu hình upstream; workflow approval, email worker, chat/model và kho tài liệu chưa được nối. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
+> **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO dùng Keycloak, xem [hướng dẫn SSO](docs/SSO.md); hai API Identity core bật bằng binding tenant/application theo [Identity core](docs/IDENTITY-CORE.md); workflow approval, email worker, chat/model và kho tài liệu chưa được nối. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
 
-RAG đã có ingestion 6 hồ sơ Markdown, Qwen3 + Chroma/BM25/RRF, CLI và endpoint retrieval development bật riêng trên loopback. Xem [cách chạy CLI/Postman/PowerShell](examples/rag/README.md) và [báo cáo triển khai](docs/rag-local-report.md); document store, ACL thật và Langflow chưa được nối.
+RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md); Langflow chưa được nối.
 
 ML đã có API riêng để chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO bằng TabICLv2.
 Rủi ro đại diện PO lấy điểm cao nhất của các món còn phải giao, kèm món/deadline quyết định.
@@ -121,15 +121,15 @@ Bốn năng lực của Open-Core phục vụ toàn bộ dự án:
 
 Backend và các công cụ AI truy cập năng lực lõi qua giao diện dịch vụ phù hợp. LLM không truy vấn SQL tùy ý hoặc tự quyết định quyền truy cập. Schema mua hàng và quy trình demo thuộc ứng dụng; Open-Core giữ khả năng tái sử dụng cho nghiệp vụ khác.
 
-Hướng tích hợp nền tảng gồm Keycloak, Apache APISIX, PostgreSQL, object storage tương thích S3 và engine BPMN. Engine workflow cụ thể còn cần kiểm chứng tích hợp; các engine này chưa được triển khai trong repo hiện tại. Phần AI dự kiến dùng Langflow, mô hình ML cho dữ liệu bảng và kho vector cho RAG; model, dữ liệu và phiên bản triển khai cần được lựa chọn, đánh giá riêng.
+Hướng tích hợp nền tảng gồm Keycloak, Apache APISIX, PostgreSQL, object storage tương thích S3 và engine BPMN. Engine workflow cụ thể còn cần kiểm chứng tích hợp; Keycloak/Supabase đã được tích hợp; Gateway/object storage/BPMN còn chưa nối. Phần AI dự kiến dùng Langflow, mô hình ML cho dữ liệu bảng và kho vector cho RAG; model, dữ liệu và phiên bản triển khai cần được lựa chọn, đánh giá riêng.
 
 ## Dữ liệu và hợp đồng API
 
 Dữ liệu có cấu trúc gồm nhà cung cấp, sản phẩm, giá, lịch sử giao hàng và trạng thái mua hàng. Kho đánh giá nội bộ phục vụ RAG; thiết kế demo dùng Markdown được chia đoạn, embedding và nạp trước vào kho vector. Tài liệu PDF là nguồn đầu vào cần bước trích xuất/chuyển đổi trước khi lập chỉ mục. Khi trả lời, hệ thống truy xuất nội dung đã lập chỉ mục và giữ tham chiếu nguồn.
 
-API chia ba nhóm: Open-Core, ứng dụng cho Web/mobile và worker, công cụ AI nội bộ. Runtime có 46 operation ứng dụng/AI theo v0.4.1; thiết kế Open-Core 0.2.0 được giữ làm tài liệu, chưa có endpoint core tích hợp thật. Các [contract](contracts/README.md) được đóng gói cùng backend. Gateway có mapping sinh từ contract; APISIX chưa chạy. Chỉ DTO nghiệp vụ dùng UUID nội bộ; core giữ định danh tổng quát.
+API chia ba nhóm: Open-Core, ứng dụng cho Web/mobile và worker, công cụ AI nội bộ. Runtime có 46 operation ứng dụng/AI theo v0.4.1; Open-Core 0.2.0 có hai endpoint Identity thật khi cấu hình binding (48 operation, 53 nếu bật ML); 26 operation core khác còn là thiết kế. Các [contract](contracts/README.md) được đóng gói cùng backend. Gateway có mapping sinh từ contract; APISIX chưa chạy. Chỉ DTO nghiệp vụ dùng UUID nội bộ; core giữ định danh tổng quát.
 
-Schema ứng dụng gồm 27 bảng: PR/items, task/prediction/report/candidate, proposal/items/approval, PO/items/schedules/receipts, confirmation/version, users/roles/grants và các nguồn hỗ trợ. Quantity và tiền dùng chuỗi `NUMERIC(18,4)`; actor/owner do server gán. Prediction giữ đúng 19 X chung cho PR_CREATED/PO_MONITORING. Endpoint predict chưa có model nên trả 503; dữ liệu tổng hợp trong seed/test không phải kết quả ML. Kho Markdown hiện có chỉ có citation mẫu, không tạo bảng document mới.
+Schema ứng dụng gồm 27 bảng: PR/items, task/prediction/report/candidate, proposal/items/approval, PO/items/schedules/receipts, confirmation/version, users/roles/grants và các nguồn hỗ trợ. Quantity và tiền dùng chuỗi `NUMERIC(18,4)`; actor/owner do server gán. Prediction giữ đúng 19 X chung cho PR_CREATED/PO_MONITORING. Endpoint predict theo contract AI cũ vẫn chờ adapter; ML optional có endpoint riêng theo docs/ML-SERVICE.md; dữ liệu tổng hợp trong seed/test không phải kết quả ML. Kho Markdown hiện có chỉ có citation mẫu, không tạo bảng document mới.
 
 Request/response/status theo contract. API đọc/ghi dữ liệu PostgreSQL thật, kiểm quyền từ user/grant trong database và xác minh bearer tại IdP. Xem [cấu hình và các phần còn thiếu](docs/SUPABASE-API.md); không có principal hoặc response sample qua HTTP.
 
@@ -140,12 +140,11 @@ FlowBridge/
 ├── backend/src/flowbridge/   Package backend Python hiện có
 ├── tests/unit/              Unit test Settings, lifecycle, lỗi/correlation và probes dùng mock
 ├── tests/integration/       HTTP/SQL với Supabase thật; chỉ tiêm danh tính trong test
-├── clients/                 Dành cho giao diện Web/mobile, hiện còn trống
-├── langflow/                Dành cho flow/component AI, hiện còn trống
+├── clients/                 Client SSO A/B và browser tests; UI nghiệp vụ còn thiếu
+├── langflow/                Component ML; flow AI hoàn chỉnh còn thiếu
 ├── contracts/               Provenance, mapping database và quy tắc đồng bộ snapshot
 ├── infra/gateway/           Hướng dẫn xuất mapping route từ contract
 ├── scripts/                 Kiểm tra DB, seed và đồng bộ contract
-├── platform/opencore/       Scaffold nền tảng, chưa có triển khai
 ├── pyproject.toml           Manifest và cấu hình build/lint/test
 ├── uv.lock                  Phiên bản dependency đã khóa
 ├── .env.example             Mẫu cấu hình backend
@@ -153,9 +152,9 @@ FlowBridge/
 └── LICENSE                  Toàn văn GNU GPL v3
 ```
 
-Git không lưu các thư mục trống; chúng có thể chưa xuất hiện khi clone repo. Các lệnh tiếp theo áp dụng cho backend Python hiện có.
+Data/Files/Events/Workflow core chưa có source triển khai ở checkout này. Các lệnh tiếp theo áp dụng cho backend Python hiện có.
 
-Backend giữ ranh giới `supplier_assistant/router.py` → `database_service.py`/`policy.py` → `repository.py`. `identity/authentication.py` gọi IdP; `models/` đăng ký metadata ORM cho API và Alembic. DTO lấy từ JSON Schema contract, tách ORM. `main.py` ghép router, quản lý HTTP client và database engine; mỗi request dùng session riêng.
+Backend giữ ranh giới `supplier_assistant/router.py` → `database_service.py`/`policy.py` → `repository.py`. `identity/authentication.py` gọi IdP; `models/` đăng ký metadata ORM cho API và Alembic. DTO lấy từ JSON Schema contract, tách ORM. `main.py` ghép router, quản lý HTTP client và database engine; mỗi request dùng session riêng. Identity sở hữu adapter accounts/grants và outbox, dùng chung schema/transaction nhưng không phụ thuộc service mua hàng. OpenAPI có composer và collision checks dùng chung; xem [contract/provenance](contracts/README.md) và [evidence sửa review](docs/CONTRACT-IDENTITY-REVIEW.md).
 
 ## Công nghệ sử dụng
 
@@ -164,7 +163,7 @@ Backend giữ ranh giới `supplier_assistant/router.py` → `database_service.p
 | Backend | Python 3.12, FastAPI, Starlette, Pydantic, Uvicorn | Đã có khung ứng dụng, lỗi chuẩn, correlation và probes vận hành. |
 | Truy cập dữ liệu và HTTP | SQLAlchemy, asyncpg, Alembic, HTTPX | Có migration và API PostgreSQL/Supabase thật, session theo request và transaction/outbox. |
 | Công cụ phát triển | uv 0.13.1, Hatchling, Ruff, pytest | Đã cấu hình; dependency khóa trong [uv.lock](uv.lock). |
-| Nền tảng Open-Core | Keycloak, Apache APISIX, PostgreSQL, storage tương thích S3, engine BPMN | Hướng tích hợp; chưa triển khai engine. |
+| Nền tảng Open-Core | Keycloak, Apache APISIX, PostgreSQL, storage tương thích S3, engine BPMN | Keycloak và Supabase đã tích hợp; các engine còn lại đang triển khai theo roadmap. |
 | AI | Qwen3, Chroma, BM25/RRF; Langflow và ML theo thiết kế | RAG có CLI và HTTP development trên fixture; các công cụ AI khác chưa được tích hợp. |
 | Giao diện | Web và mobile dùng chung REST/JSON | Chưa triển khai, chưa chốt framework. |
 
@@ -241,7 +240,7 @@ vào source phát hành.
 | `FLOWBRIDGE_HTTP_MAX_CONNECTIONS` | `100` | Giới hạn pool kết nối HTTP. |
 | `FLOWBRIDGE_HEALTH_TIMEOUT_SECONDS` | `2` | Deadline toàn bộ probe DB của readiness, cấu hình lớn hơn 0 và tối đa 30 giây. |
 
-Các tùy chọn pool/timeout database có trong `.env.example`. API database dùng `FLOWBRIDGE_OIDC_ISSUER`, `FLOWBRIDGE_OIDC_AUDIENCE`, `FLOWBRIDGE_OIDC_INTROSPECTION_URL`, `FLOWBRIDGE_OIDC_CLIENT_ID`, `FLOWBRIDGE_OIDC_CLIENT_SECRET` để xác minh bearer tại IdP. URL issuer/introspection bắt buộc HTTPS. Xem [cấu hình và kiểm thử Supabase](docs/SUPABASE-API.md).
+Các tùy chọn pool/timeout database có trong `.env.example`. Xem [setup/login/SSO và bootstrap user](docs/SSO.md). API database dùng `FLOWBRIDGE_OIDC_ISSUER`, `FLOWBRIDGE_OIDC_AUDIENCE`, `FLOWBRIDGE_OIDC_INTROSPECTION_URL`, `FLOWBRIDGE_OIDC_CLIENT_ID`, `FLOWBRIDGE_OIDC_CLIENT_SECRET` để xác minh bearer tại IdP. URL issuer/introspection bắt buộc HTTPS. Xem [cấu hình và kiểm thử Supabase](docs/SUPABASE-API.md).
 
 <details>
 <summary>Chi tiết Settings và vòng đời tài nguyên backend</summary>
@@ -264,6 +263,28 @@ Mỗi app quản lý một HTTPX client có timeout/pool giới hạn và đóng
 | Startup báo lỗi PostgreSQL | Kiểm tra DSN/SSL/kết nối Supabase trong `.env`. |
 | `/_ops/live` trả 200 nhưng `/_ops/ready` trả 503 | Kiểm tra `details` trong lỗi readiness; DSN trống ở bản bootstrap được ghi là `database/not_configured`. |
 
+## Chạy nhanh bằng container
+
+Backend + Keycloak local, client A/B và test lifecycle có [hướng dẫn container](docs/DEV-CONTAINERS.md).
+Đã build và chạy IAM/API/clients trên Docker Linux, 280 unit và SQL Identity pass.
+Cần Docker Linux containers + Compose>=2.35.0
+và DB development riêng đã cấu hình; không tự migrate/seed hoặc ghi đè `.env`.
+
+```powershell
+# Xem cấu hình dự kiến, không cần Docker.
+python scripts/dev_stack.py up --dry-run --env-file .env
+# Sau khi đã cài/bật Docker:
+python scripts/dev_stack.py doctor --env-file .env
+python scripts/dev_stack.py up --env-file .env --clients
+python scripts/dev_stack.py unit
+python scripts/dev_stack.py down
+```
+
+`test-sso` tự quản lý IAM/API/fixture/browser/cleanup trong project test riêng;
+revision DB phải khớp trước khi ghi fixture. DB0003 chưa có migration trong checkout
+vẫn là blocker của SQL nghiệp vụ/SSO. Mặc định API ở18082, IAM HTTPS19444, clients8761/8762.
+Source Docker/Compose không thay nghiệm thu Gateway, Files, Workflow hoặc production.
+
 ## Kiểm thử và build
 
 Chạy các lệnh tại thư mục gốc repo sau khi sync dependency:
@@ -276,11 +297,28 @@ uv run --locked pytest tests/unit -q
 uv build --no-build-isolation
 ```
 
-Unit mặc định kiểm tra cấu hình, lifecycle, lỗi, correlation và hợp đồng bằng mock/fixture. Integration Supabase chạy tường minh: `uv run --locked pytest tests/integration -m integration -q`; yêu cầu `.env` và migration `0002_api_idempotency`, không tự bỏ qua khi thiếu DB. Suite này dùng PostgreSQL thật, chỉ tiêm danh tính vì chưa có IdP; có test commit qua API và đọc bằng kết nối độc lập, sau đó xóa đúng fixture do test tạo. Không coi đây là bằng chứng SSO, gateway, storage, workflow hoặc model đã tích hợp.
+Unit mặc định kiểm tra cấu hình, lifecycle, lỗi, correlation và hợp đồng bằng mock/fixture.
+Chọn integration suite theo dịch vụ đã chuẩn bị; không chạy gộp `tests/integration`
+khi thiếu IAM/model/index hoặc fixture tương ứng:
+
+```sh
+# SQL Identity: dùng .env hiện có, tự tạo fixture riêng và rollback; không cần bật API/IAM.
+uv run --locked pytest tests/integration/test_identity_accounts_database.py -m integration -q
+# SQL nghiệp vụ: chỉ chạy khi DB khớp Alembic head của source.
+uv run --locked pytest tests/integration/test_supplier_database.py -m integration -q
+```
+
+Suite nghiệp vụ tiêm danh tính để cô lập SQL/policy; có case commit qua API và đọc
+bằng kết nối độc lập, rồi dọn đúng fixture. Source đã bổ sung migration gốc
+`0003_core_knowledge`; revision DB phải khớp chính xác Alembic heads trước fixture.
+Ngày 17/10/2026: toàn suite đạt **19 passed**, không migrate/stamp/seed database.
+Nguồn và giới hạn kiểm tra tại [đối chiếu migration](docs/MIGRATION-0003-RECONCILIATION.md).
+SSO/browser cần profile và IAM/API theo [SSO.md](docs/SSO.md); ML và Chroma cần
+artifacts/engine riêng. Regression SQL không thay bằng chứng IAM/gateway/storage/workflow/model.
 
 Unit kiểm tra đủ 46 route theo contract, checksum/snapshot, security trong Swagger, validation trước command và việc cờ sample cũ không thể bật principal giả. Đây là test offline; bằng chứng persistence/quyền thực tế nằm ở suite Supabase.
 
-Để chạy đầy đủ unit RAG, cài extra bằng `uv sync --locked --extra rag --group dev --group build`. Test HTTP dùng retrieval có kiểm soát; chất lượng Qwen và Chroma thật có kiểm tra riêng.
+Để chạy đầy đủ unit, dùng `uv sync --locked --group dev --group build`; NumPy/BM25 tối thiểu đã thuộc nhóm dev. Không cần cài toàn ML/RAG extras cho unit. Test HTTP dùng retrieval có kiểm soát; chất lượng Qwen và Chroma thật có kiểm tra riêng và cần extra `rag`.
 
 Nhóm dependency `build` khóa Hatchling cùng dependency bắc cầu. Sau khi sync nhóm này, `--no-build-isolation` dùng môi trường đã cài theo lockfile để build. Wheel và source tar.gz sinh trong `dist/`, bị Git ignore. Khi chuẩn bị phát hành, cần kiểm chứng cài wheel vào môi trường sạch, chạy ngoài source tree và build lại từ source archive.
 
@@ -289,7 +327,7 @@ Nhóm dependency `build` khóa Hatchling cùng dependency bắc cầu. Sau khi s
 | Hạng mục | Hiện trạng |
 |---|---|
 | Nền backend | Có package, app factory, Settings, lifecycle, lỗi chuẩn, correlation, probes vận hành và unit test mock. |
-| Open-Core | Giữ thiết kế; endpoint core mẫu đã bỏ, engine Identity/Gateway/storage/workflow chờ tích hợp. |
+| Open-Core | Giữ thiết kế; endpoint core mẫu đã bỏ, Identity có Keycloak/SSO local; gateway/storage/workflow chờ tích hợp. |
 | Ứng dụng mua hàng | Chỉ có API PostgreSQL thật; một số chức năng chờ workflow/IdP/chat, chưa có giao diện. |
 | AI và tự động hóa | API database giữ 6 tools theo contract; RAG local có CLI và HTTP development riêng. Chưa tích hợp document store/ACL production, Langflow, model dự đoán và worker. |
 | Demo và phát hành | Chưa có demo đầu cuối; version package 0.1.0 chưa phải release công khai. |
@@ -314,3 +352,7 @@ Repository được cấu hình tại [FlowBridge trên GitHub](https://github.c
 Mã và cấu hình do nhóm phát triển áp dụng **GNU GPL version 3 hoặc phiên bản sau — GPL-3.0-or-later**. Giấy phép cho phép sử dụng, nghiên cứu, sửa đổi và phân phối lại theo điều kiện GPL; phần mềm không có bảo hành. Xem toàn văn trong [LICENSE](LICENSE).
 
 Dependency giữ giấy phép, copyright và NOTICE upstream, được lấy qua package manager. Dữ liệu nghiệp vụ, tệp tải lên, tài liệu nguồn, dataset và trọng số mô hình bên ngoài có điều kiện sử dụng riêng; cần xác định nguồn gốc, quyền phân phối và attribution trước khi đưa vào demo hoặc phát hành.
+
+## RAG PostgreSQL và pgvector
+
+Giữ ba bảng Core theo thiết kế nhóm, dùng Qwen + exact cosine pgvector + BM25/RRF. Xem [thiết kế đã hiệu chỉnh](docs/rag-postgres-pgvector-design.md) và [migration, import, index, HTTP](docs/rag-postgres-setup.md). Bật `FLOWBRIDGE_RAG_POSTGRES_ENABLED=true` sau migration 0003; HTTP yêu cầu AI_SERVICE và JobContext từ database.

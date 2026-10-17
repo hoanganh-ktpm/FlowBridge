@@ -1,5 +1,19 @@
 # SQLAlchemy + Alembic cho FlowBridge
 
+## Đối chiếu revision 0003 — 17/10/2026
+
+Source có đủ chuỗi `0001_supplier_schema` → `0002_api_idempotency` →
+`0003_core_knowledge`. Revision 0003 và SQL đi kèm được lấy từ commit nhóm
+`99c9b699a4598f886a8522e39ae85ee3482b5f55`, không dựng migration rỗng để khớp nhãn DB.
+Nó tiếp nhận/tạo schema `core` cho hồ sơ Markdown và chunk pgvector; pgvector
+phải ở schema `extensions`. Không thêm dependency Python hoặc model runtime.
+
+DB hiện có đã ở 0003 nên không chạy lại migration, stamp hoặc seed. `alembic current`
+khớp head và `alembic check` không có upgrade operations mới ở ORM public.
+Schema `core` chưa được quản lý bằng ORM; catalog được đối chiếu read-only riêng.
+Downgrade 0003 chủ động từ chối xóa evidence; cần phương án rollback được review.
+Nguồn, kiểm tra và giới hạn: [đối chiếu migration](../docs/MIGRATION-0003-RECONCILIATION.md).
+
 ## Trạng thái sau khi tích hợp script của nhóm
 
 Đã chạy thành công trên Supabase: revision `0001_supplier_schema`, 27 bảng ứng dụng,

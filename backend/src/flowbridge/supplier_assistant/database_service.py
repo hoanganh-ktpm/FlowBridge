@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 import sqlalchemy as sa
 
 from flowbridge.identity.authentication import VerifiedIdentity
+from flowbridge.identity.directory import KeycloakDirectory
 from flowbridge.shared.errors import CoreError, ErrorCode
 from flowbridge.supplier_assistant.contract import dto_validator
 from flowbridge.supplier_assistant.policy import SupplierPolicy, require
@@ -39,7 +40,6 @@ DETAILS = {
 }
 UNAVAILABLE = {
     "decidePurchaseProposal",
-    "provisionApplicationUser",
     "sendChatMessage",
     "getChatHistory",
     "retrieveSupplierKnowledge",
@@ -66,9 +66,12 @@ def amount(value: Decimal) -> Decimal:
 
 
 class SupplierDatabaseService:
-    def __init__(self, repository: SupplierRepository) -> None:
+    def __init__(
+        self, repository: SupplierRepository, directory: KeycloakDirectory | None = None
+    ) -> None:
         self.repo = repository
         self.policy = SupplierPolicy(repository)
+        self.directory = directory
 
     async def execute(
         self,
@@ -200,6 +203,8 @@ class SupplierDatabaseService:
                 ErrorCode.MODEL_UNAVAILABLE if op in model_ops else ErrorCode.UPSTREAM_UNAVAILABLE
             )
         match op:
+            case "provisionApplicationUser":
+                return await self.provision_user(body)
             case "getApplicationProfile":
                 grants = [g for rows in self.policy.grants.values() for g in rows]
                 ids = {g["role_id"] for g in grants}
@@ -1183,6 +1188,33 @@ class SupplierDatabaseService:
             },
         )
         return dto(name, row)
+
+    async def provision_user(self, body: dict[str, Any]) -> dict[str, Any]:
+        # The contract links an existing IdP identity; passwords/users are managed by Keycloak.
+        from flowbridge.identity.account_repository import IdentityAccountRepository
+        from flowbridge.identity.accounts import IdentityAccounts
+
+        if self.directory is None:
+            raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+        identity = await self.directory.resolve(body["identity_reference"])
+        require(identity.account_type == body["account_type"], ErrorCode.FORBIDDEN)
+        user, created = await IdentityAccounts(IdentityAccountRepository(self.repo.session)).link(
+            identity,
+            display_name=body["display_name"],
+            email=body.get("email", identity.email),
+            department_id=UUID(body["department_id"]) if body.get("department_id") else None,
+        )
+        if created:
+            await self.event(
+                "user",
+                user["user_id"],
+                "identity.user_linked",
+                {
+                    "user_id": str(user["user_id"]),
+                    "actor_id": str(self.policy.user["user_id"]),
+                },
+            )
+        return dto("users", user)
 
     async def lookup(self, body: dict[str, Any]) -> dict[str, Any]:
         name = body["resource"]

@@ -90,7 +90,7 @@ uv run --no-sync ruff check backend/src tests
 uv run --no-sync pytest -q
 ```
 
-Test Chroma thật dùng vector nhỏ cố định để kiểm tra persistence/lọc/cập nhật; test đó không đo chất lượng Qwen. Kết quả chạy Qwen thật được ghi riêng trong [báo cáo](../../docs/rag-local-report.md).
+Test Chroma thật dùng vector nhỏ cố định để kiểm tra persistence/lọc/cập nhật; test đó không đo chất lượng Qwen.
 
 ## 7. API HTTP development — gọi từ Postman hoặc PowerShell
 

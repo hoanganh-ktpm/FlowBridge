@@ -39,6 +39,8 @@ kiểm kết nối; endpoint này không chứng nhận IdP/workflow/ML sẵn s�
 
 ## Danh tính và quyền
 
+Setup Keycloak, client browser, bootstrap và E2E: [SSO.md](SSO.md).
+
 Backend gửi bearer token tới authorization server qua introspection theo
 [RFC 7662](https://www.rfc-editor.org/rfc/rfc7662.html), dùng HTTP client có timeout
 và không theo redirect. Không tự parse/verify JWT hoặc tự viết SSO engine.
@@ -51,13 +53,11 @@ FLOWBRIDGE_OIDC_CLIENT_ID=YOUR_BACKEND_CLIENT
 FLOWBRIDGE_OIDC_CLIENT_SECRET='YOUR_BACKEND_CLIENT_SECRET'
 ```
 
-Provider phải trả `active=true`, đúng `iss`, đúng `aud`, `sub` không trống và `exp`
-chưa hết hạn. Cấu hình client có quyền introspect access token cho audience này.
+Provider phải trả `active=true`, đúng `iss`, đúng `aud`, `sub` không trống, `token_type=Bearer`, client_id hợp lệ và `exp` chưa hết hạn; `nbf` nếu có phải hợp lệ. ID/refresh token không dùng làm access token. Cấu hình client có quyền introspect access token cho audience này.
 Backend map **exact issuer + subject** sang `users`; user/role phải active, grant
 chưa revoked, đúng account type và scope. Không tin `X-Role`, `X-User-Id` hoặc role
 từ payload. Chưa có IdP: thiếu bearer trả 401, có bearer nhưng chưa cấu hình upstream
-trả 503; không có chế độ giả danh qua HTTP. Bootstrap/mapping identity làm riêng,
-không tự provision/cấp grant từ login payload.
+trả 503; không có chế độ giả danh qua HTTP. Bootstrap/link dùng `scripts/bootstrap_identity.py`, mặc định rollback; login không tự provision/cấp grant. Directory có client/secret riêng, chỉ đọc view-users/view-clients; backend kiểm service-account binding và đối chiếu loại tài khoản trong DB.
 
 EMPLOYEE chỉ xem/sửa PR của mình. APPROVER/WAREHOUSE đọc resource trong phòng ban
 được cấp; quyền đọc không cấp quyền sửa PR người khác. Service role chỉ dùng cho
@@ -69,8 +69,8 @@ Không đặt DSN hoặc database credentials vào frontend.
 
 ## Phạm vi endpoint
 
-46 operation của app/AI contract được mount khi có DB; 37 operation có đường xử lý
-database, 9 operation báo dependency chưa sẵn sàng:
+46 operation của app/AI contract được mount khi có DB; 38 operation có đường xử lý
+database/directory, 8 operation báo dependency chưa sẵn sàng:
 
 | Nhóm | Xử lý hiện tại |
 |---|---|
@@ -84,7 +84,8 @@ database, 9 operation báo dependency chưa sẵn sàng:
 | Email retry/result | Retry chỉ từ failed, delivery_unknown cần đối soát; outbox pending, không gửi email |
 | User update/grant/revoke | Kiểm ADMIN, account/scope/department, audit outbox; không tự cấp quyền |
 | Data lookup | Query theo bộ lọc; as-of chỉ cho receipt/prediction/report có timestamp quan sát |
-| Proposal decision, user provision | 503: chưa có workflow authoritative/identity provisioning adapter |
+| User provision | ADMIN liên kết UUID user đã có tại Keycloak qua directory được cấu hình; không tự tạo user IdP hoặc cấp grant |
+| Proposal decision | 503: chưa có workflow authoritative adapter |
 | Chat/history, predict, compare, risk flow, retrieve/index knowledge | 503: chưa có model/chat/document adapter |
 
 As-of cho catalog, PR hoặc PO hiện tại không có lịch sử đầy đủ sẽ trả 503. Không dùng
@@ -109,7 +110,7 @@ nhà cung cấp đã nhận đơn. Lỗi SQL/constraint/timeout trả envelope �
 # Mặc định: unit offline, không gọi Supabase.
 uv run --locked pytest -q
 # Chọn rõ integration: thiếu DB/migration phải fail, không skip.
-uv run --locked pytest tests/integration -m integration -q
+uv run --locked pytest tests/integration/test_supplier_database.py -m integration -q
 ```
 
 Integration dùng HTTPX ASGITransport và lifespan thật với PostgreSQL trên Supabase;
@@ -133,7 +134,7 @@ Backend đã bỏ API sample và hai biến `FLOWBRIDGE_SAMPLE_*`. Cờ sample c
 | 503 ở bước xác thực | IdP hỗ trợ RFC 7662 và đủ 5 biến `FLOWBRIDGE_OIDC_*` ở trên; client có quyền introspect, issuer/audience khớp token. |
 | 403 sau xác thực | Map đúng `external_issuer` + `external_subject` vào user active; cấp role/grant active, đúng human/service và global/department. |
 | 503 quyết định proposal | Workflow engine và adapter authoritative xác minh task/assignee/version, kèm worker chuyển outbox sang engine. |
-| 503 provision user | Adapter provisioning tới IdP và quy trình bootstrap ADMIN đầu tiên; không tự cấp ADMIN khi đăng nhập. |
+| 503 provision user | Cấu hình directory URL/client/secret có quyền đọc user/client trong realm; bootstrap ADMIN theo SSO.md. |
 | 503 chat/history, predict, compare, risk flow | Adapter chat/model/analysis có dữ liệu đầu vào, version và worker thực thi. |
 | 503 retrieve/index knowledge | Kho tài liệu/index và adapter kiểm ACL, provenance, version. |
 | PR/task/email dừng ở queued/pending | Durable outbox dispatcher và consumer analysis/workflow/email; timeout/retry/idempotency và đối soát email outcome chưa rõ. |

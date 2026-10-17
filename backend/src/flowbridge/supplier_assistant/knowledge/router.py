@@ -6,9 +6,11 @@ from ipaddress import ip_address
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request, Response
+from fastapi.openapi.utils import get_openapi
 from starlette.concurrency import run_in_threadpool
 
 from flowbridge.shared.errors import CoreError, ErrorCode, ErrorResponse
+from flowbridge.shared.openapi import register_fragment
 
 from .development import DEV_NOTICE, DevelopmentKnowledgeService
 from .models import RetrievalRequest, RetrievalResponse
@@ -66,11 +68,10 @@ async def retrieve_knowledge(
 
 def install_development_router(app: FastAPI) -> None:
     app.include_router(router)
-    original_openapi = app.openapi
+    register_fragment(app, "rag-development", lambda: development_document(app))
 
-    def development_openapi() -> dict:
-        schema = original_openapi()
-        schema["x-rag-development-mode"] = True
-        return schema
 
-    app.openapi = development_openapi
+def development_document(app: FastAPI) -> dict:
+    schema = get_openapi(title=app.title, version=app.version, routes=router.routes)
+    schema["x-rag-development-mode"] = True
+    return schema

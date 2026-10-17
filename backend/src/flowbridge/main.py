@@ -8,20 +8,24 @@
 
 # Application factory and bounded, app-owned runtime resources.
 
+import ssl
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from flowbridge.db import create_engine, create_session_factory, probe_connection
+from flowbridge.identity.router import install_identity_router
 from flowbridge.operations.router import router as operations_router
 from flowbridge.settings import Settings
 from flowbridge.shared.correlation import CorrelationMiddleware
 from flowbridge.shared.errors import register_exception_handlers
+from flowbridge.shared.openapi import install_openapi
 from flowbridge.supplier_assistant.contract import install_database_openapi
 from flowbridge.supplier_assistant.router import create_database_router
 
@@ -60,6 +64,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     ),
                     follow_redirects=False,
                     trust_env=False,
+                    verify=ssl.create_default_context(cafile=configuration.oidc_ca_bundle)
+                    if configuration.oidc_ca_bundle
+                    else True,
                 )
             )
             if engine is not None:
@@ -84,12 +91,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     service = DevelopmentKnowledgeService(configuration)
                     stack.push_async_callback(run_in_threadpool, service.close)
                     app.state.rag_dev_service = service
+                if configuration.rag_postgres_enabled:
+                    from flowbridge.supplier_assistant.knowledge.embeddings import QwenEmbedder
+                    from flowbridge.supplier_assistant.knowledge.postgres_service import (
+                        PgKnowledgeService,
+                    )
+                    from flowbridge.supplier_assistant.knowledge.postgres_store import (
+                        PgKnowledgeStore,
+                    )
+
+                    pg_store = PgKnowledgeStore(sessions)
+                    try:
+                        await pg_store.verify_schema()
+                    except Exception:
+                        raise RuntimeError("PostgreSQL knowledge schema check failed") from None
+                    pg_service = PgKnowledgeService(
+                        pg_store,
+                        QwenEmbedder(configuration.rag_postgres_model_cache_path),
+                    )
+                    stack.push_async_callback(run_in_threadpool, pg_service.close)
+                    app.state.rag_postgres_service = pg_service
                 yield
             finally:
                 # Gỡ tài nguyên khỏi state trước khi ExitStack thực sự đóng client/pool.
                 app.state.resources = None
                 app.state.rag_dev_service = None
                 app.state.ml_runtime = None
+                app.state.rag_postgres_service = None
 
     app = FastAPI(
         title="FlowBridge OpenCore",
@@ -103,13 +131,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.resources = None
     app.state.rag_dev_service = None
     app.state.ml_runtime = None
+    app.state.rag_postgres_service = None
     register_exception_handlers(app)
+    if configuration.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=configuration.cors_origins,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "Idempotency-Key",
+                "X-Confirmation-Token",
+            ],
+            expose_headers=["X-Correlation-Id"],
+        )
     # Starlette bọc middleware thêm sau ra ngoài: correlation phải bao cả nhánh lỗi.
     app.add_middleware(CorrelationMiddleware)
     app.include_router(operations_router)
     if configuration.database_url is not None:
         app.include_router(create_database_router())
         install_database_openapi(app)
+    if configuration.core_identity is not None:
+        install_identity_router(app)
     if configuration.ml_enabled:
         from flowbridge.supplier_assistant.prediction.router import install_prediction_router
 
@@ -118,6 +162,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from flowbridge.supplier_assistant.knowledge.router import install_development_router
 
         install_development_router(app)
+    install_openapi(app)
     return app
 
 

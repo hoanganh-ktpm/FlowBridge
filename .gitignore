@@ -20,5 +20,15 @@ htmlcov/
 .env.*
 !.env.example
 node_modules/
+playwright-report/
+test-results/
 .DS_Store
 Thumbs.db
+
+# Local RAG verification reports and generated results.
+docs/rag-*-report.md
+docs/rag-supabase-verification.md
+examples/rag/*_results.json
+examples/rag/supabase_http_readiness.json
+examples/rag/supabase_retrieval_latency.json
+examples/rag/seed_validation.json

@@ -3,7 +3,7 @@
 # Provided without warranty. See LICENSE.
 
 # Explicit integration suite: real Supabase, no skipped/mocked database operations.
-# Authentication alone is injected because this checkout has no configured IdP.
+# Authentication is injected only for SQL isolation; browser SSO has its own real-IdP suite.
 import asyncio
 import hashlib
 import json
@@ -17,17 +17,25 @@ import httpx
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from flowbridge.db import create_engine, get_session
+from flowbridge.identity.account_repository import IdentityAccountRepository
+from flowbridge.identity.audit import IdentityOutbox
 from flowbridge.identity.authentication import VerifiedIdentity, authenticated_identity
+from flowbridge.identity.bootstrap import bootstrap_identity
+from flowbridge.identity.directory import DirectoryIdentity
 from flowbridge.main import create_app
 from flowbridge.settings import Settings
+from flowbridge.shared.errors import CoreError, ErrorCode
 from flowbridge.supplier_assistant.contract import dto_validator
 from flowbridge.supplier_assistant.database_service import BUSINESS_TIMEZONE
 from flowbridge.supplier_assistant.repository import SupplierRepository, table
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def analysis_payloads() -> dict[str, Any]:
@@ -107,7 +115,10 @@ async def case() -> AsyncIterator[DatabaseCase]:
                     .scalars()
                     .all()
                 )
-                assert versions == ["0002_api_idempotency"], "Apply migration 0002 first"
+                heads = set(
+                    ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_heads()
+                )
+                assert heads and set(versions) == heads, "DB revision differs from source head"
                 uid = uuid4().hex
                 timestamp = datetime.now(UTC)
                 dept = await repo.insert(
@@ -134,7 +145,11 @@ async def case() -> AsyncIterator[DatabaseCase]:
                     "OTHER",
                 ]:
                     user_id = admin_id if code == "ADMIN" else uuid4()
-                    identities[code] = VerifiedIdentity("https://integration.invalid/" + uid, code)
+                    identities[code] = VerifiedIdentity(
+                        "https://integration.invalid/" + uid,
+                        code,
+                        account_type="service" if code.endswith("_SERVICE") else "human",
+                    )
                     user = await repo.insert(
                         "users",
                         {
@@ -858,3 +873,114 @@ async def test_concurrent_retry_commits_once_visible_on_independent_connection()
                 )
             )
         await engine.dispose()
+
+
+async def test_bootstrap_retries_keep_profile_grants_and_audit_idempotent(
+    case: DatabaseCase,
+) -> None:
+    # SQL integration for the operator boundary; directory metadata is injected only in this test.
+    identity = DirectoryIdentity(
+        "https://integration.invalid/bootstrap", str(uuid4()), "human", "Bootstrap test", None
+    )
+    async with case.sessions() as session, session.begin():
+        repo = SupplierRepository(session)
+        args = dict(
+            roles=["EMPLOYEE"],
+            department_id=case.data["department_id"],
+            granted_by=case.data["users"]["ADMIN"]["user_id"],
+        )
+        first = await bootstrap_identity(IdentityAccountRepository(session), identity, **args)
+        again = await bootstrap_identity(
+            IdentityAccountRepository(session), identity, display_name="must not overwrite", **args
+        )
+        assert first["created"] and first["grants_added"] == 1
+        assert again == {"user_id": first["user_id"], "created": False, "grants_added": 0}
+        user = await repo.get("users", first["user_id"])
+        assert user["display_name"] == "Bootstrap test"
+        assert await repo.count("user_roles", table("user_roles").c.user_id == user["user_id"]) == 1
+        assert (
+            await repo.count(
+                "outbox_events", table("outbox_events").c.aggregate_id == user["user_id"]
+            )
+            == 1
+        )
+
+
+async def test_first_admin_cannot_bypass_an_existing_admin_or_grant_as_employee(
+    case: DatabaseCase,
+) -> None:
+    identity = DirectoryIdentity(
+        "https://integration.invalid/bootstrap", str(uuid4()), "human", "Denied", None
+    )
+    async with case.sessions() as session, session.begin():
+        repo = SupplierRepository(session)
+        for kwargs in (
+            dict(roles=["ADMIN"], first_admin=True),
+            dict(roles=["ADMIN"], granted_by=case.data["users"]["EMPLOYEE"]["user_id"]),
+        ):
+            with pytest.raises(CoreError) as failure:
+                await bootstrap_identity(IdentityAccountRepository(session), identity, **kwargs)
+            assert failure.value.code == ErrorCode.FORBIDDEN
+        assert await repo.count("users", table("users").c.external_subject == identity.subject) == 0
+
+
+async def test_bootstrap_dry_run_transaction_leaves_no_user_grant_or_outbox(
+    case: DatabaseCase,
+) -> None:
+    identity = DirectoryIdentity(
+        "https://integration.invalid/dry-run", str(uuid4()), "human", "Dry run", None
+    )
+    async with case.sessions() as session, session.begin():
+        repo = SupplierRepository(session)
+        async with session.begin_nested() as transaction:
+            result = await bootstrap_identity(
+                IdentityAccountRepository(session),
+                identity,
+                roles=["EMPLOYEE"],
+                department_id=case.data["department_id"],
+                granted_by=case.data["users"]["ADMIN"]["user_id"],
+            )
+            assert result["created"]
+            await transaction.rollback()
+        user_id = UUID(result["user_id"])
+        assert await repo.count("users", table("users").c.user_id == user_id) == 0
+        assert await repo.count("user_roles", table("user_roles").c.user_id == user_id) == 0
+        assert (
+            await repo.count("outbox_events", table("outbox_events").c.aggregate_id == user_id) == 0
+        )
+
+
+async def test_bootstrap_audit_failure_rolls_back_identity_grant_and_event(
+    case: DatabaseCase,
+) -> None:
+    identity = DirectoryIdentity(
+        "https://integration.invalid/audit-failure", str(uuid4()), "human", "Rollback", None
+    )
+
+    class FailingAudit(IdentityOutbox):
+        async def bootstrap_applied(self, user_id: UUID, actor_id: UUID, roles: list[str]) -> None:
+            await super().bootstrap_applied(user_id, actor_id, roles)
+            self.user_id = user_id
+            raise RuntimeError("Injected failure after outbox write")
+
+    async with case.sessions() as session, session.begin():
+        repo = SupplierRepository(session)
+        audit = FailingAudit(session)
+        with pytest.raises(RuntimeError, match="Injected failure"):
+            async with session.begin_nested():
+                await bootstrap_identity(
+                    IdentityAccountRepository(session),
+                    identity,
+                    audit=audit,
+                    roles=["EMPLOYEE"],
+                    department_id=case.data["department_id"],
+                    granted_by=case.data["users"]["ADMIN"]["user_id"],
+                )
+        assert await repo.count("users", table("users").c.user_id == audit.user_id) == 0
+        assert await repo.count("user_roles", table("user_roles").c.user_id == audit.user_id) == 0
+        assert (
+            await repo.count(
+                "outbox_events", table("outbox_events").c.aggregate_id == audit.user_id
+            )
+            == 0
+        )

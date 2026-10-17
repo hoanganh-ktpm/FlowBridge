@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from flowbridge.db import get_session
 from flowbridge.identity.authentication import VerifiedIdentity, authenticated_identity
+from flowbridge.identity.directory import KeycloakDirectory
 from flowbridge.shared.errors import CoreError, ErrorCode
 from flowbridge.supplier_assistant.contract import (
     application_operations,
@@ -97,7 +98,32 @@ def database_endpoint(
         payload, query = await parse_request(request, spec)
         success = next(code for code in spec["responses"] if code.startswith("2"))
         schema = spec["responses"][success]["content"]["application/json"]["schema"]
-        service = SupplierDatabaseService(SupplierRepository(session))
+        if request.app.state.settings.rag_postgres_enabled and spec["operationId"] in {
+            "retrieveSupplierKnowledge",
+            "indexPreparedMarkdown",
+        }:
+            from flowbridge.supplier_assistant.knowledge.postgres_http import (
+                handle_postgres_knowledge,
+            )
+
+            try:
+                async with asyncio.timeout(
+                    request.app.state.settings.database_command_timeout_seconds
+                ):
+                    return await handle_postgres_knowledge(
+                        request, identity, spec["operationId"], payload
+                    )
+            except TimeoutError:
+                raise CoreError(ErrorCode.UPSTREAM_TIMEOUT) from None
+            except DBAPIError:
+                raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE) from None
+        resources = request.app.state.resources
+        service = SupplierDatabaseService(
+            SupplierRepository(session),
+            directory=KeycloakDirectory(resources.http, request.app.state.settings)
+            if resources is not None
+            else None,
+        )
         try:
             async with asyncio.timeout(request.app.state.settings.database_command_timeout_seconds):
                 async with session.begin():

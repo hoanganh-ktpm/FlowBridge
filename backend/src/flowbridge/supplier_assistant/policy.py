@@ -35,6 +35,7 @@ class SupplierPolicy:
         require(bool(matches), ErrorCode.FORBIDDEN)
         self.user = matches[0]
         require(self.user["status"] == "active", ErrorCode.FORBIDDEN)
+        require(self.user["account_type"] == identity.account_type, ErrorCode.FORBIDDEN)
         roles = {row["role_id"]: row for row in await self.repository.rows("roles")}
         grants = await self.repository.rows(
             "user_roles",

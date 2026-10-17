@@ -32,6 +32,8 @@ async def auth_client() -> AsyncIterator[tuple[httpx.AsyncClient, dict]]:
         "sub": "employee",
         "aud": ["flowbridge"],
         "exp": time() + 300,
+        "token_type": "Bearer",
+        "client_id": "flowbridge-web-a",
     }
 
     def introspect(request: httpx.Request) -> httpx.Response:
@@ -97,6 +99,14 @@ async def test_active_token_is_mapped_by_exact_issuer_and_subject(auth_client: t
         {"exp": 0},
         {"exp": None},
         {"active": "true"},
+        {"token_type": "Refresh"},
+        {"typ": "Refresh"},
+        {"token_type": "ID"},
+        {"client_id": None},
+        {"azp": "other-client"},
+        {"nbf": 99999999999},
+        {"exp": True},
+        {"nbf": True},
     ],
 )
 async def test_inactive_wrong_audience_issuer_or_expired_token_denied(

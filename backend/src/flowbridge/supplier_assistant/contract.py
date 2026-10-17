@@ -16,6 +16,7 @@ from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
 from flowbridge.shared.errors import CoreError, ErrorCode
+from flowbridge.shared.openapi import merge_document, register_fragment
 
 CONTRACT_URI = "urn:flowbridge:supplier-assistant:0.4.1"
 
@@ -50,22 +51,35 @@ def application_operations() -> tuple[tuple[str, str, dict[str, Any]], ...]:
 
 
 def install_database_openapi(app: FastAPI) -> None:
-    def database_openapi() -> dict[str, Any]:
-        if app.openapi_schema is None:
-            application, tools = application_documents()
-            application["paths"].update(tools["paths"])
-            application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
-            application["info"]["description"] = (
-                "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
-                "introspection; database roles enforce resource access. Workflow approval, "
-                "identity provisioning, chat and AI/document engines return 503 until connected. "
-                "Outbox events remain pending until a durable worker processes them."
-            )
-            application["x-database-migration"] = "0002_api_idempotency"
-            app.openapi_schema = application
-        return app.openapi_schema
+    register_fragment(
+        app,
+        "database",
+        lambda: database_document(rag_postgres_enabled=app.state.settings.rag_postgres_enabled),
+        base=True,
+    )
 
-    app.openapi = database_openapi
+
+def database_document(*, rag_postgres_enabled: bool = False) -> dict[str, Any]:
+    application, tools = application_documents()
+    merge_document(application, tools)
+    application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
+    application["info"]["description"] = (
+        "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
+        "introspection; database roles enforce resource access. Identity provisioning "
+        "links an existing verified Keycloak user through the configured directory. "
+        "Workflow approval, chat and AI/document engines return 503 until connected. "
+        "Outbox events remain pending until a durable worker processes them."
+    )
+    if rag_postgres_enabled:
+        application["info"]["description"] += (
+            " PostgreSQL knowledge retrieval/indexing is enabled: exact cosine, BM25/RRF, "
+            "verified AI_SERVICE and database-backed X-Job-Context. UserContext-only "
+            "knowledge calls are not supported by this implementation."
+        )
+    application["x-database-migration"] = (
+        "0003_core_knowledge" if rag_postgres_enabled else "0002_api_idempotency"
+    )
+    return application
 
 
 @lru_cache(maxsize=256)
