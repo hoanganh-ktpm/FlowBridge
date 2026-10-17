@@ -1,5 +1,19 @@
 # Checkpoint FlowBridge
 
+## 2026-10-17 — CODE-ML-02: Cập nhật hợp đồng ML (hoàn tất)
+
+- Phạm vi người dùng chốt: chỉ cập nhật hợp đồng API; đã hoàn tác mọi chỉnh sửa
+  thử ở schemas.py/router.py. Không còn diff runtime, dependency hoặc migration.
+- Repo FlowBridge, branch hoanganhdev_features, HEAD aebfe85. Cập nhật
+  contracts/supplier-assistant-layer2-api.yaml lên 0.2.0: thêm 5 route ML và
+  15 schema, request/response examples, bearer/role, idempotency, MAX rủi ro món
+  còn mở, item/deadline đại diện và trạng thái thiếu dữ liệu/điểm chưa hiệu chuẩn.
+- Phụ lục ML v1 phân biệt endpoint đã triển khai với các route thiết kế cũ;
+  giữ nguyên path/schema cũ, không sửa snapshot app/AI 0.4.1 hoặc .env.
+- Đã kiểm YAML không trùng key, OpenAPI 3.1, JSON Schema, 883 local refs,
+  8 ví dụ JSON; 5 route mới khớp runtime. git diff --check đạt.
+- Không chạy lại model/DB/integration vì chỉ đổi tài liệu; không commit/push/deploy.
+
 ## 2026-10-16 — CODE-ML-01: Prediction Service (hoàn tất code và kiểm thử)
 
 - Yêu cầu: triển khai hai luồng ML cho custom node sau khi pull code mới; rủi ro PO

@@ -1,17 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # FlowBridge; redistribution/modification under GNU GPL v3 or later.
 # Provided without warranty. See LICENSE.
-# Hợp đồng thiết kế; chưa triển khai runtime.
+# Thiết kế tầng 2 + phụ lục ML v1 đã triển khai; xem x-ml-runtime-contract.
 openapi: 3.1.0
 info:
   title: Supplier Assistant Layer 2 Service Contract
-  version: 0.1.0
+  version: 0.2.0
   description: |-
     Hợp đồng tầng 02 API Tools trong sơ đồ Supplier Assistant, phục vụ tầng 03
     Langflow/custom nodes và tầng 04 Web/App. Tầng 2 gồm API nghiệp vụ, cầu nối
     Langflow, công cụ đọc dữ liệu/ML/RAG/so sánh và giao diện worker bền vững.
     Đây là bản thiết kế độc lập để review trước triển khai, không thay snapshot
     app-api.yaml/ai-tools-api.yaml đang được runtime PostgreSQL sử dụng.
+    Phụ lục ML v1 bổ sung năm endpoint đã triển khai; xem x-ml-runtime-contract.
+    Endpoint ML dùng URL backend cổng 8000 và cơ chế bearer/role ghi tại từng operation.
 
     OpenCore 0.2.0 là tầng nền: Identity, Structured Data, Files, Workflow,
     Events, Notifications và Audit. Tầng 2 dùng các API này, không truy vấn SQL
@@ -25,7 +27,7 @@ servers:
     description: URL ví dụ; public route qua Gateway, internal route chỉ trong mạng dịch vụ.
 security:
   - BearerAuth: []
-x-contract-status: design-only; chưa triển khai hoặc chứng minh tích hợp thật
+x-contract-status: design-with-implemented-ml-extension; xem x-ml-runtime-contract
 x-architecture-layer: 02 API Tools; không nhầm với cách đánh số không gian ứng dụng DX-OS
 x-upstream:
   contract: opencore-api.yaml
@@ -552,7 +554,1003 @@ tags:
   - name: Knowledge indexing
   - name: Ordering
   - name: Supplier confirmation
+  - name: Supplier Assistant / ML
+    description: API ML v1 đã triển khai; request/response và quyền theo phụ lục ML.
+x-ml-runtime-contract:
+  version: 1.0.0
+  status: implemented; deployment requires configuration
+  enable: FLOWBRIDGE_ML_ENABLED=true; database + IdP + checkpoint/context
+  scope: Phụ lục ML đã triển khai. Các route cũ còn là thiết kế; không thay wire contract app/AI 0.4.1.
+  overrides: Với năm route ML, dùng quy ước và security tại phụ lục/operation ML; không áp payload,
+    UserContext/JobContext hoặc chuẩn Money của các tool thiết kế cũ vào route ML.
+  repository: ML runtime tái sử dụng repository PostgreSQL/SQLAlchemy và policy của backend hiện có;
+    custom node chỉ gọi HTTP API.
+  identity: RFC7662 bearer introspection + issuer/subject mapping + active DB grants. Một application DB; chưa multi-tenant.
+    Không nhận X-User-Context/JobContext cho các route ML này.
+  po_aggregation: MAX các điểm hợp lệ của món còn phải giao, kèm cùng item/deadline; món thiếu làm is_complete=false.
+  idempotency: 'PO POST: scope=verified actor + operation/order UUID + Idempotency-Key. Commit predictions và response
+    nguyên tử; kiểm quyền lại khi replay. Không body; key mới để chấm lại.'
+  probability: risk_score chưa hiệu chuẩn. score_is_calibrated=false; calibrated_late_probability=null.
+  features:
+    schema: '#/components/schemas/MLFeatureInput'
+    count: 19
+    categorical:
+    - prediction_stage
+    - supplier_id
+    - product_category
+    - confirmation_state
+    source: Backend lấy DB và tính features; không đưa RAG/free text/y vào X.
+  readiness: GET /_ops/ml/ready; probe vận hành riêng, không phải tool Agent.
+  not_implemented: Chưa scheduler/alert, calibration, dự đoán ngày giao chính xác hoặc RAG trong các endpoint ML.
 paths:
+  /api/v1/ml/scenarios/predict:
+    post:
+      tags:
+      - Supplier Assistant / ML
+      summary: Score one supplier/product purchase scenario
+      operationId: predictMLScenario
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MLScenarioRequest-Input'
+            example:
+              product_id: 00000001-0001-4001-8001-000000000001
+              supplier_id: 00000002-0002-4002-8002-000000000002
+              quantity: '100'
+              requested_delivery_date: '2026-11-01'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLScenarioResponse'
+              examples:
+                success:
+                  summary: Dữ liệu/số chỉ minh họa shape, không phải dự đoán thực tế.
+                  value:
+                    scenario:
+                      product_id: 00000001-0001-4001-8001-000000000001
+                      supplier_id: 00000002-0002-4002-8002-000000000002
+                      quantity: '100'
+                      requested_delivery_date: '2026-11-01'
+                    result:
+                      status: success
+                      risk_score: 0.18
+                      risk_level: low
+                      risk_threshold: 0.7
+                      score_is_calibrated: false
+                      calibrated_late_probability: null
+                      hist_sample_count: 35
+                      error_code: null
+                      missing_fields: []
+                      warnings: []
+                    trace:
+                      feature_asof: '2026-10-16T03:00:00Z'
+                      feature_schema_version: tabicl_supplier_fixed_v1
+                      preprocessing_version: supplier-features-v1
+                      model_version: tabicl-classifier-v2-20260212.ckpt
+                      context_dataset_version: example-context-v1
+                      prediction_id: null
+                      persisted: false
+                insufficient_data:
+                  value:
+                    scenario:
+                      product_id: 00000001-0001-4001-8001-000000000001
+                      supplier_id: 00000002-0002-4002-8002-000000000002
+                      quantity: '100'
+                      requested_delivery_date: '2026-11-01'
+                    result:
+                      status: insufficient_data
+                      risk_score: null
+                      risk_level: null
+                      risk_threshold: 0.7
+                      score_is_calibrated: false
+                      calibrated_late_probability: null
+                      hist_sample_count: null
+                      error_code: MISSING_DATA
+                      missing_fields:
+                      - q_ref
+                      warnings: []
+                    trace:
+                      feature_asof: '2026-10-16T03:00:00Z'
+                      feature_schema_version: tabicl_supplier_fixed_v1
+                      preprocessing_version: supplier-features-v1
+                      model_version: tabicl-classifier-v2-20260212.ckpt
+                      context_dataset_version: example-context-v1
+                      prediction_id: null
+                      persisted: false
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '400':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '500':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+      security:
+      - MLBearerAuth: []
+      x-contract-status: implemented; enabled by FLOWBRIDGE_ML_ENABLED
+      x-required-any-role:
+      - EMPLOYEE
+      - APPROVER
+      - WAREHOUSE
+      - AI_SERVICE
+      x-side-effects: []
+      description: Chấm một phương án NCC/sản phẩm/số lượng/deadline. Backend tự dựng đủ 19 features tại thời điểm
+        hiện tại; không nhận features, actor hoặc cutoff từ client. Không lưu prediction. NCC phải active, có offer
+        available và đạt MOQ; deadline >= ngày hiện tại tại Asia/Ho_Chi_Minh.
+    servers:
+    - url: http://127.0.0.1:8000
+      description: ML chạy cùng backend; URL local minh họa.
+  /api/v1/ml/suppliers/rank:
+    post:
+      tags:
+      - Supplier Assistant / ML
+      summary: Rank eligible suppliers by delivery risk
+      operationId: rankMLSuppliers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MLRankRequest'
+            example:
+              product_id: 00000001-0001-4001-8001-000000000001
+              quantity: '100'
+              requested_delivery_date: '2026-11-01'
+              top_k: 3
+              ranking_policy: risk_first
+              currency: VND
+              max_unit_price: '18000000'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLRankResponse'
+              examples:
+                success:
+                  summary: Dữ liệu/số chỉ minh họa shape, không phải dự đoán thực tế.
+                  value:
+                    status: success
+                    trace:
+                      feature_asof: '2026-10-16T03:00:00Z'
+                      feature_schema_version: tabicl_supplier_fixed_v1
+                      preprocessing_version: supplier-features-v1
+                      model_version: tabicl-classifier-v2-20260212.ckpt
+                      context_dataset_version: example-context-v1
+                      prediction_id: null
+                      persisted: false
+                    ranking_policy_version: risk-first-v1
+                    candidates:
+                    - supplier_id: 00000002-0002-4002-8002-000000000002
+                      supplier_name: NCC minh họa
+                      unit_price: '15500000.0000'
+                      currency: VND
+                      quoted_lead_days: 4
+                      rank: 1
+                      result:
+                        status: success
+                        risk_score: 0.18
+                        risk_level: low
+                        risk_threshold: 0.7
+                        score_is_calibrated: false
+                        calibrated_late_probability: null
+                        hist_sample_count: 35
+                        error_code: null
+                        missing_fields: []
+                        warnings: []
+                      reason_codes:
+                      - ML_RISK_ASCENDING
+                    unscored: []
+                    excluded: []
+                    considered_count: 1
+                    warnings:
+                    - AVAILABILITY_IS_NOT_A_CAPACITY_COMMITMENT
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '400':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '500':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+      security:
+      - MLBearerAuth: []
+      x-contract-status: implemented; enabled by FLOWBRIDGE_ML_ENABLED
+      x-required-any-role:
+      - EMPLOYEE
+      - APPROVER
+      - WAREHOUSE
+      - AI_SERVICE
+      x-side-effects: []
+      description: Tìm offer của sản phẩm; lọc active, available, MOQ, currency và giá trần. Chấm chung batch/cutoff,
+        xếp risk_score tăng dần rồi supplier UUID, trả top_k. Không quy đổi FX hoặc bảo đảm đủ năng lực giao hàng.
+        NCC không chấm được nằm ở unscored; không gán risk=0. Nếu tất cả NCC đã chấm đều high, trả warning. Không
+        ghi prediction.
+    servers:
+    - url: http://127.0.0.1:8000
+      description: ML chạy cùng backend; URL local minh họa.
+  /internal/v1/ml/purchase-orders/{order_id}/predict:
+    post:
+      tags:
+      - Supplier Assistant / ML
+      summary: 'AI_SERVICE: score open PO items and persist immutable predictions'
+      operationId: predictMLPurchaseOrder
+      security:
+      - MLBearerAuth: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 160
+          pattern: ^[A-Za-z0-9][A-Za-z0-9_.:/-]*$
+          title: Idempotency-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLOrderRisk'
+              examples:
+                success:
+                  summary: Dữ liệu/số chỉ minh họa shape, không phải dự đoán thực tế.
+                  value:
+                    purchase_order_id: 00000003-0003-4003-8003-000000000003
+                    aggregation_policy: max_open_item_v1
+                    status: success
+                    representative_risk_score: 0.8
+                    highest_risk_item_id: 00000004-0004-4004-8004-000000000004
+                    highest_risk_item_deadline: '2026-11-01'
+                    score_is_calibrated: false
+                    is_complete: true
+                    items:
+                    - po_item_id: 00000004-0004-4004-8004-000000000004
+                      product_id: 00000001-0001-4001-8001-000000000001
+                      requested_delivery_date: '2026-11-01'
+                      result:
+                        status: success
+                        risk_score: 0.8
+                        risk_level: high
+                        risk_threshold: 0.7
+                        score_is_calibrated: false
+                        calibrated_late_probability: null
+                        hist_sample_count: 35
+                        error_code: null
+                        missing_fields: []
+                        warnings: []
+                      trace:
+                        feature_asof: '2026-10-16T03:00:00Z'
+                        feature_schema_version: tabicl_supplier_fixed_v1
+                        preprocessing_version: supplier-features-v1
+                        model_version: tabicl-classifier-v2-20260212.ckpt
+                        context_dataset_version: example-context-v1
+                        prediction_id: 55555555-5555-4555-8555-555555555555
+                        persisted: true
+                    warnings: []
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Unauthorized
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Forbidden
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Not Found
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Conflict
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Unprocessable Entity
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Too Many Requests
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Service Unavailable
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Gateway Timeout
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '400':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '500':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+      x-contract-status: implemented; enabled by FLOWBRIDGE_ML_ENABLED
+      x-required-any-role:
+      - AI_SERVICE
+      x-side-effects:
+      - risk_predictions
+      - api_idempotency
+      description: Backend/worker AI_SERVICE gọi với order UUID và Idempotency-Key; không có body. Tự đọc PO, từng
+        item, lịch giao, biên nhận và xác nhận NCC. Chấm các món còn phải giao, lưu snapshot bất biến và retry response
+        trong cùng transaction. HTTP 200 sau commit; không tạo task/202 hoặc report/proposal. Retry cùng key trả kết
+        quả đã lưu sau kiểm quyền hiện tại; key mới để chấm lại. Cấp quyền AI_SERVICE qua issuer/subject và grant
+        DB, không qua prompt/header tự khai.
+    servers:
+    - url: http://127.0.0.1:8000
+      description: ML chạy cùng backend; URL local minh họa.
+  /api/v1/ml/purchase-orders/{order_id}/risk:
+    get:
+      tags:
+      - Supplier Assistant / ML
+      summary: 'Read fresh risk: maximum over open items'
+      operationId: getMLPurchaseOrderRisk
+      security:
+      - MLBearerAuth: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLOrderRisk'
+              examples:
+                success:
+                  summary: Dữ liệu/số chỉ minh họa shape, không phải dự đoán thực tế.
+                  value:
+                    purchase_order_id: 00000003-0003-4003-8003-000000000003
+                    aggregation_policy: max_open_item_v1
+                    status: success
+                    representative_risk_score: 0.8
+                    highest_risk_item_id: 00000004-0004-4004-8004-000000000004
+                    highest_risk_item_deadline: '2026-11-01'
+                    score_is_calibrated: false
+                    is_complete: true
+                    items:
+                    - po_item_id: 00000004-0004-4004-8004-000000000004
+                      product_id: 00000001-0001-4001-8001-000000000001
+                      requested_delivery_date: '2026-11-01'
+                      result:
+                        status: success
+                        risk_score: 0.8
+                        risk_level: high
+                        risk_threshold: 0.7
+                        score_is_calibrated: false
+                        calibrated_late_probability: null
+                        hist_sample_count: 35
+                        error_code: null
+                        missing_fields: []
+                        warnings: []
+                      trace:
+                        feature_asof: '2026-10-16T03:00:00Z'
+                        feature_schema_version: tabicl_supplier_fixed_v1
+                        preprocessing_version: supplier-features-v1
+                        model_version: tabicl-classifier-v2-20260212.ckpt
+                        context_dataset_version: example-context-v1
+                        prediction_id: 55555555-5555-4555-8555-555555555555
+                        persisted: true
+                    warnings: []
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Unauthorized
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Forbidden
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Not Found
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Conflict
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Unprocessable Entity
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Too Many Requests
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Service Unavailable
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Gateway Timeout
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '400':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '500':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+      x-contract-status: implemented; enabled by FLOWBRIDGE_ML_ENABLED
+      x-required-any-role:
+      - EMPLOYEE
+      - APPROVER
+      - WAREHOUSE
+      - AI_SERVICE
+      x-side-effects: []
+      description: Đọc kết quả đã lưu, không chạy lại model. Chỉ các món còn phải giao tham gia MAX. Chọn snapshot
+        mới nhất khớp model/schema/preprocessing/context version, context hash, checkpoint hash và feature policy.
+        Quá tuổi cho phép (mặc định 86400 giây), context không khả dụng hoặc chưa có prediction thì món đó chưa đủ
+        dữ liệu. Enforce quyền owner/phòng ban/service từ PR của PO. Không ghép điểm của món này với deadline món
+        khác.
+    servers:
+    - url: http://127.0.0.1:8000
+      description: ML chạy cùng backend; URL local minh họa.
+  /api/v1/ml/predictions/{prediction_id}:
+    get:
+      tags:
+      - Supplier Assistant / ML
+      summary: Read a persisted prediction after resource authorization
+      operationId: getMLPrediction
+      security:
+      - MLBearerAuth: []
+      parameters:
+      - name: prediction_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Prediction Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLPersistedPrediction'
+              examples:
+                success:
+                  summary: Dữ liệu/số chỉ minh họa shape, không phải dự đoán thực tế.
+                  value:
+                    prediction_id: 55555555-5555-4555-8555-555555555555
+                    request_id: 00000003-0003-4003-8003-000000000003
+                    request_item_id: 00000004-0004-4004-8004-000000000004
+                    po_item_id: 00000004-0004-4004-8004-000000000004
+                    supplier_id: 00000002-0002-4002-8002-000000000002
+                    product_id: 00000001-0001-4001-8001-000000000001
+                    quantity: 100.0
+                    requested_delivery_date: '2026-11-01'
+                    feature_asof: '2026-10-16T03:00:00Z'
+                    predicted_at: '2026-10-16T03:00:01Z'
+                    status: success
+                    risk_score: 0.8
+                    risk_threshold: 0.7
+                    risk_level: high
+                    feature_schema_version: tabicl_supplier_fixed_v1
+                    preprocessing_version: supplier-features-v1
+                    model_version: tabicl-classifier-v2-20260212.ckpt
+                    context_dataset_version: example-context-v1
+                    error_code: null
+                    score_is_calibrated: false
+                    calibrated_late_probability: null
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Unauthorized
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Forbidden
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Not Found
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Conflict
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Unprocessable Entity
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Too Many Requests
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Service Unavailable
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          description: Gateway Timeout
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '400':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+        '500':
+          description: Lỗi chuẩn, không phản chiếu input/secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+          headers:
+            X-Correlation-ID:
+              description: Mã truy vết request; lỗi dùng cùng giá trị ở request_id.
+              schema:
+                type: string
+      x-contract-status: implemented; enabled by FLOWBRIDGE_ML_ENABLED
+      x-required-any-role:
+      - EMPLOYEE
+      - APPROVER
+      - WAREHOUSE
+      - AI_SERVICE
+      x-side-effects: []
+      description: Đọc kết quả lịch sử và provenance theo prediction UUID sau kiểm quyền PR nguồn. Không chạy lại
+        model; không trả training context hay raw feature_snapshot. Kết quả lịch sử có thể đã cũ. quantity ở endpoint
+        audit này là JSON number theo runtime hiện có; quantity trong request scenario/rank là chuỗi decimal.
+    servers:
+    - url: http://127.0.0.1:8000
+      description: ML chạy cùng backend; URL local minh họa.
   /api/v1/purchase-requests:
     post:
       operationId: createPurchaseRequest
@@ -2488,6 +3486,756 @@ paths:
               decision: confirmed
 components:
   schemas:
+    MLCandidate:
+      properties:
+        supplier_id:
+          type: string
+          format: uuid
+          title: Supplier Id
+        supplier_name:
+          type: string
+          title: Supplier Name
+        unit_price:
+          type: string
+          title: Unit Price
+        currency:
+          type: string
+          title: Currency
+        quoted_lead_days:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Quoted Lead Days
+          description: Lead time báo giá tham khảo từ DB, không phải ngày giao do model dự đoán.
+        rank:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Rank
+        result:
+          $ref: '#/components/schemas/MLRiskResult'
+        reason_codes:
+          items:
+            type: string
+          type: array
+          title: Reason Codes
+      additionalProperties: false
+      type: object
+      required:
+      - supplier_id
+      - supplier_name
+      - unit_price
+      - currency
+      - quoted_lead_days
+      - result
+      title: Candidate
+    MLErrorCode:
+      type: string
+      enum:
+      - UNAUTHENTICATED
+      - FORBIDDEN
+      - NOT_FOUND
+      - VALIDATION_ERROR
+      - VERSION_CONFLICT
+      - IDEMPOTENCY_CONFLICT
+      - INVALID_STATE
+      - INSUFFICIENT_DATA
+      - MODEL_UNAVAILABLE
+      - UPSTREAM_UNAVAILABLE
+      - UPSTREAM_TIMEOUT
+      - RATE_LIMITED
+      - TOKEN_EXPIRED
+      - TOKEN_INVALID
+      - ANALYSIS_IN_PROGRESS
+      - LEASE_EXPIRED
+      - REQUEST_CHANGED
+      - REPORT_MISMATCH
+      - INTERNAL_ERROR
+      title: ErrorCode
+    MLErrorDetail:
+      properties:
+        field:
+          type: string
+          title: Field
+        reason:
+          type: string
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - field
+      - reason
+      title: ErrorDetail
+    MLErrorResponse:
+      properties:
+        code:
+          $ref: '#/components/schemas/MLErrorCode'
+        message:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          pattern: \S
+          title: Message
+        request_id:
+          type: string
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
+          title: Request Id
+        retryable:
+          type: boolean
+          title: Retryable
+        details:
+          items:
+            $ref: '#/components/schemas/MLErrorDetail'
+          type: array
+          title: Details
+      additionalProperties: false
+      type: object
+      required:
+      - code
+      - message
+      - request_id
+      - retryable
+      title: ErrorResponse
+    MLItemRisk:
+      properties:
+        po_item_id:
+          type: string
+          format: uuid
+          title: Po Item Id
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+        requested_delivery_date:
+          type: string
+          format: date
+          title: Requested Delivery Date
+        result:
+          $ref: '#/components/schemas/MLRiskResult'
+        trace:
+          anyOf:
+          - $ref: '#/components/schemas/MLTrace'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - po_item_id
+      - product_id
+      - requested_delivery_date
+      - result
+      title: ItemRisk
+    MLOrderRisk:
+      properties:
+        purchase_order_id:
+          type: string
+          format: uuid
+          title: Purchase Order Id
+        aggregation_policy:
+          type: string
+          const: max_open_item_v1
+          title: Aggregation Policy
+          default: max_open_item_v1
+        status:
+          type: string
+          enum:
+          - success
+          - partial
+          - insufficient_data
+          - no_open_items
+          title: Status
+        representative_risk_score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Representative Risk Score
+          minimum: 0
+          maximum: 1
+        highest_risk_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Highest Risk Item Id
+        highest_risk_item_deadline:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Highest Risk Item Deadline
+        score_is_calibrated:
+          type: boolean
+          const: false
+          title: Score Is Calibrated
+          default: false
+        is_complete:
+          type: boolean
+          title: Is Complete
+        items:
+          items:
+            $ref: '#/components/schemas/MLItemRisk'
+          type: array
+          title: Items
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+      additionalProperties: false
+      type: object
+      required:
+      - purchase_order_id
+      - status
+      - is_complete
+      - items
+      title: OrderRisk
+      description: 'MAX điểm hợp lệ của các PO item còn phải giao; highest_risk_item_id và deadline thuộc cùng món.
+        Đây là điểm đại diện, không phải xác suất ít nhất một món bị trễ. success: đủ điểm cho mọi món mở; partial:
+        chỉ một số món có điểm; insufficient_data: không món mở nào có điểm; no_open_items: không còn món phải giao,
+        risk/item/deadline đại diện null. is_complete=false khi có món chưa chấm được, không thay món thiếu bằng 0.'
+    MLRankRequest:
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+        quantity:
+          type: string
+          description: Decimal hữu hạn > 0, precision 18, scale <= 4; cùng unit sản phẩm.
+          examples:
+          - '100'
+          - '10.5000'
+          x-decimal-precision: 18
+          x-decimal-scale: 4
+        requested_delivery_date:
+          type: string
+          format: date
+          title: Requested Delivery Date
+        top_k:
+          type: integer
+          maximum: 10.0
+          minimum: 1.0
+          title: Top K
+          default: 3
+        ranking_policy:
+          type: string
+          const: risk_first
+          title: Ranking Policy
+          default: risk_first
+        currency:
+          anyOf:
+          - type: string
+            pattern: ^[A-Z]{3}$
+          - type: 'null'
+          title: Currency
+        max_unit_price:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Decimal hữu hạn >= 0, precision 18, scale <= 4. Có giá trần thì phải có currency.
+      additionalProperties: false
+      type: object
+      required:
+      - product_id
+      - quantity
+      - requested_delivery_date
+      title: RankRequest
+      allOf:
+      - if:
+          required:
+          - max_unit_price
+          properties:
+            max_unit_price:
+              type: string
+        then:
+          required:
+          - currency
+          properties:
+            currency:
+              type: string
+    MLRankResponse:
+      properties:
+        status:
+          type: string
+          enum:
+          - success
+          - partial
+          - insufficient_data
+          - no_eligible_suppliers
+          title: Status
+        trace:
+          $ref: '#/components/schemas/MLTrace'
+        ranking_policy_version:
+          type: string
+          title: Ranking Policy Version
+          default: risk-first-v1
+        candidates:
+          items:
+            $ref: '#/components/schemas/MLCandidate'
+          type: array
+          title: Candidates
+        unscored:
+          items:
+            $ref: '#/components/schemas/MLCandidate'
+          type: array
+          title: Unscored
+        excluded:
+          items:
+            type: object
+            required:
+            - supplier_id
+            - reason_codes
+            properties:
+              supplier_id:
+                type: string
+                format: uuid
+              reason_codes:
+                type: array
+                items:
+                  type: string
+          type: array
+          title: Excluded
+        considered_count:
+          type: integer
+          title: Considered Count
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      - trace
+      - candidates
+      - considered_count
+      title: RankResponse
+    MLRiskResult:
+      properties:
+        status:
+          type: string
+          enum:
+          - success
+          - insufficient_data
+          title: Status
+        risk_score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Risk Score
+        risk_level:
+          anyOf:
+          - type: string
+            enum:
+            - low
+            - high
+          - type: 'null'
+          title: Risk Level
+        risk_threshold:
+          type: number
+          title: Risk Threshold
+        score_is_calibrated:
+          type: boolean
+          const: false
+          title: Score Is Calibrated
+          default: false
+        calibrated_late_probability:
+          type: 'null'
+          title: Calibrated Late Probability
+        hist_sample_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Hist Sample Count
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        missing_fields:
+          items:
+            type: string
+          type: array
+          title: Missing Fields
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      - risk_threshold
+      title: RiskResult
+      description: risk_score trong [0,1] là điểm chưa hiệu chuẩn; risk_level=high khi score > threshold. Không diễn
+        đạt là xác suất nghiệp vụ đã kiểm chứng. hist_sample_count là số mẫu, không phải độ tin cậy. insufficient_data
+        giữ score null; missing_fields chỉ ra dữ liệu bắt buộc còn thiếu.
+    MLScenarioRequest-Input:
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+        supplier_id:
+          type: string
+          format: uuid
+          title: Supplier Id
+        quantity:
+          type: string
+          description: Decimal hữu hạn > 0, precision 18, scale <= 4; cùng unit sản phẩm.
+          examples:
+          - '100'
+          - '10.5000'
+          x-decimal-precision: 18
+          x-decimal-scale: 4
+        requested_delivery_date:
+          type: string
+          format: date
+          title: Requested Delivery Date
+      additionalProperties: false
+      type: object
+      required:
+      - product_id
+      - supplier_id
+      - quantity
+      - requested_delivery_date
+      title: ScenarioRequest
+    MLScenarioRequest-Output:
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+        supplier_id:
+          type: string
+          format: uuid
+          title: Supplier Id
+        quantity:
+          type: string
+          title: Quantity
+          decimal_places: 4
+          gt: 0
+          max_digits: 18
+        requested_delivery_date:
+          type: string
+          format: date
+          title: Requested Delivery Date
+      additionalProperties: false
+      type: object
+      required:
+      - product_id
+      - supplier_id
+      - quantity
+      - requested_delivery_date
+      title: ScenarioRequest
+    MLScenarioResponse:
+      properties:
+        scenario:
+          $ref: '#/components/schemas/MLScenarioRequest-Output'
+        result:
+          $ref: '#/components/schemas/MLRiskResult'
+        trace:
+          $ref: '#/components/schemas/MLTrace'
+      additionalProperties: false
+      type: object
+      required:
+      - scenario
+      - result
+      - trace
+      title: ScenarioResponse
+    MLTrace:
+      properties:
+        feature_asof:
+          type: string
+          format: date-time
+          title: Feature Asof
+        feature_schema_version:
+          type: string
+          title: Feature Schema Version
+          default: tabicl_supplier_fixed_v1
+        preprocessing_version:
+          type: string
+          title: Preprocessing Version
+          default: supplier-features-v1
+        model_version:
+          type: string
+          title: Model Version
+        context_dataset_version:
+          type: string
+          title: Context Dataset Version
+        prediction_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Prediction Id
+        persisted:
+          type: boolean
+          title: Persisted
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - feature_asof
+      - model_version
+      - context_dataset_version
+      title: Trace
+      description: 'Mốc dữ liệu và phiên bản. Scenario/rank: persisted=false, prediction_id=null. PO lưu thành công:
+        persisted=true, prediction_id là UUID đã commit.'
+    MLPersistedPrediction:
+      type: object
+      additionalProperties: false
+      properties:
+        prediction_id:
+          type: string
+          format: uuid
+        request_id:
+          type: string
+          format: uuid
+        request_item_id:
+          type: string
+          format: uuid
+        po_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        supplier_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        requested_delivery_date:
+          type: string
+          format: date
+        feature_asof:
+          type: string
+          format: date-time
+        predicted_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - success
+          - insufficient_data
+          - failed
+          - snapshot_only
+        risk_score:
+          anyOf:
+          - type: number
+            minimum: 0
+            maximum: 1
+          - type: 'null'
+        risk_threshold:
+          anyOf:
+          - type: number
+            minimum: 0
+            maximum: 1
+          - type: 'null'
+        risk_level:
+          anyOf:
+          - type: string
+            enum:
+            - low
+            - high
+          - type: 'null'
+        feature_schema_version:
+          type: string
+        preprocessing_version:
+          type: string
+        model_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+        context_dataset_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+        score_is_calibrated:
+          type: boolean
+          const: false
+        calibrated_late_probability:
+          type: 'null'
+      required:
+      - prediction_id
+      - request_id
+      - request_item_id
+      - po_item_id
+      - supplier_id
+      - product_id
+      - quantity
+      - requested_delivery_date
+      - feature_asof
+      - predicted_at
+      - status
+      - risk_score
+      - risk_threshold
+      - risk_level
+      - feature_schema_version
+      - preprocessing_version
+      - model_version
+      - context_dataset_version
+      - error_code
+      - score_is_calibrated
+      - calibrated_late_probability
+    MLFeatureInput:
+      additionalProperties: false
+      properties:
+        prediction_stage:
+          enum:
+          - PR_CREATED
+          - PO_MONITORING
+          title: Prediction Stage
+          type: string
+        supplier_id:
+          minLength: 1
+          title: Supplier Id
+          type: string
+        product_category:
+          minLength: 1
+          title: Product Category
+          type: string
+        order_size_ratio:
+          exclusiveMinimum: 0
+          title: Order Size Ratio
+          type: number
+        days_to_deadline:
+          title: Days To Deadline
+          type: number
+        non_working_days_to_deadline:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Non Working Days To Deadline
+        hist_lead_p50_days:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Hist Lead P50 Days
+        hist_lead_p90_days:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Hist Lead P90 Days
+        hist_late_rate_smoothed:
+          anyOf:
+          - maximum: 1
+            minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Hist Late Rate Smoothed
+        hist_sample_count:
+          minimum: 0
+          title: Hist Sample Count
+          type: integer
+        other_open_order_count:
+          minimum: 0
+          title: Other Open Order Count
+          type: integer
+        expected_issue_wait_days:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Expected Issue Wait Days
+        remaining_size_ratio:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Remaining Size Ratio
+        elapsed_days_since_issue:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Elapsed Days Since Issue
+        confirmation_state:
+          anyOf:
+          - enum:
+            - issued
+            - waiting_confirmation
+            - confirmed
+            - rejected
+            type: string
+          - type: 'null'
+          default: null
+          title: Confirmation State
+        confirmation_wait_days:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Confirmation Wait Days
+        received_fraction:
+          anyOf:
+          - maximum: 1
+            minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Received Fraction
+        days_since_last_receipt:
+          anyOf:
+          - minimum: 0
+            type: number
+          - type: 'null'
+          default: null
+          title: Days Since Last Receipt
+        promise_margin_days:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+          title: Promise Margin Days
+      required:
+      - prediction_stage
+      - supplier_id
+      - product_category
+      - order_size_ratio
+      - days_to_deadline
+      - non_working_days_to_deadline
+      - hist_lead_p50_days
+      - hist_lead_p90_days
+      - hist_late_rate_smoothed
+      - hist_sample_count
+      - other_open_order_count
+      - expected_issue_wait_days
+      - remaining_size_ratio
+      - elapsed_days_since_issue
+      - confirmation_state
+      - confirmation_wait_days
+      - received_fraction
+      - days_since_last_receipt
+      - promise_margin_days
+      title: Features
+      type: object
+      description: 19 thuộc tính do backend dựng. Không phải payload công khai; metadata/y không được thêm vào X.
     Version:
       type: integer
       minimum: 1
@@ -5318,6 +7066,11 @@ components:
       description: Projection hiện tại của dòng request; không đưa trường trạng thái mutable vào approved snapshot
         PurchaseLine. Job/report/status chỉ dùng revision đang đọc.
   securitySchemes:
+    MLBearerAuth:
+      type: http
+      scheme: bearer
+      description: Token được xác minh qua IdP RFC7662; loại actor và quyền lấy từ DB. PO write yêu cầu service AI_SERVICE,
+        không truyền credential xuống browser.
     BearerAuth:
       type: http
       scheme: bearer
