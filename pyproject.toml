@@ -75,6 +75,7 @@ include = [
     "/langflow/tests",
     "/langflow/setup_agent.py",
     "/langflow/setup_ver2.py",
+    "/langflow/repair_ver2_model.py",
     "/langflow/VER2.md",
     "/langflow/evaluate.py",
     "/langflow/scenarios.json",

@@ -151,7 +151,9 @@ backend thật. Không coi JSON mẫu/schema/flow tồn tại là bằng chứng
 
 `FlowBridge - ver2` nằm trong project riêng, gồm Agent trung tâm và ba agent con
 Dữ liệu/ML/RAG, nối bằng A2A Internal có sẵn. Dùng model selector/Agent/Prompt/Date/
-Structured Response/Parser/Operations chuẩn; chỉ API nghiệp vụ dùng custom adapter.
+Structured Response/Parser/Operations chuẩn. Bốn Agent mở rộng cấu hình endpoint/
+reasoning OpenAI (Chat Completions + none mặc định), giữ engine upstream; API nghiệp
+vụ dùng custom adapter.
 Xem [hướng dẫn và hợp đồng ver2](VER2.md). Không thay workflow trợ lý mua hàng v1.
 
 Code/config nhóm tạo: GPL-3.0-or-later, xem LICENSE. Langflow/lfx MIT theo requirements.

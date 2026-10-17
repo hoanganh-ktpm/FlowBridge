@@ -1,5 +1,64 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-07: Sửa Luna tool/reasoning cho ver2, không gọi OpenAI
+
+- User báo OpenAIInvalidRequestError: Luna function tools không dùng được với
+  reasoning trên Chat Completions; cần Responses hoặc reasoning_effort=none.
+  Repo hoanganhdev_features HEAD d76cc13; giữ checkpoint CODE-LANGFLOW-06 đang sửa.
+- Đã đọc OpenAI Docs model Luna/reasoning; model mặc định medium khi không đặt
+  effort. Native Agent Langflow1.12.6 không có input endpoint/reasoning; factory
+  get_llm có overrides. Không dùng key helper vì không có tool tương ứng; không
+  gửi request xác minh/model/Playground, chỉ đọc docs và metadata local.
+- Thêm runtime/flowbridge_agent/ver2_agent.py: kế thừa Agent chuẩn, giữ nguyên
+  engine/memory/tools/Structured Response; chỉ truyền vào model factory mode API,
+  effort, SDK retry/timeout. Mặc định Chat Completions + none + retries0 +45s.
+  Luna+Chat+effort khác none bị từ chối trước factory/request; Responses cho phép low.
+- setup_ver2.py dùng lớp tương thích khi dựng mặc định. repair_ver2_model.py vá
+  live bốn Agent, giữ preset/prompt/ID/dây nối/node khác; xác minh code cũ là wrapper
+  hoặc source Agent upstream trước thay; backup đầy đủ trong data/ver2-before-model-fix-*
+  (ignore). Không sửa v1, backend/service hoặc source dependency.
+- Repair đầu từ chối vì user đã Update component về source upstream; thêm so sánh
+  đúng file upstream rồi repair exit0, cập nhật4Agent và hash2flow ngoài ver2 giữ
+  nguyên ở thời điểm vá. Không dùng setup_ver2 --install để tránh ghi đè preset user.
+- 3 unittest offline đạt0.971s: factory nhận none/no retries; SDK serialize tool
+  payload vẫn có reasoning_effort=none; cấu hình sai bị chặn không gọi factory;
+  Responses+low đúng. Không invoke SDK/Agent. Ruff lint/format4 file và diff check đạt.
+- Export default sinh lại offline ngoài sandbox exit0, graph39node/35edge. Lượt
+  sandbox sinh export không kết thúc, đã dừng33483. Không nhập export mặc định đè live.
+- Post-repair metadata checker đạt:4Agent đúng mode/none/retry0, preset/edge giữ
+  nguyên; frontend chỉ chuẩn hóa measured.height/output display label/last_updated.
+  Hash install snapshot cũ lệch do thay đổi ngoài lượt, không dùng làm bằng chứng
+  hiện tại; repair đã so live pre/post cho workflow ngoài ver2 tại thời điểm sửa.
+- UI main thấy rõ hai dropdown Chat Completions và none, vẫn7edge; ảnh ignored
+  data/ver2-reasoning-none.png, tab được giữ. README/VER2.md/CHANGELOG và source
+  include cập nhật:25stock +4Agent mở rộng cấu hình +10API tools, không gọi model.
+- Hoàn tất sửa cấu hình/serialization theo lỗi đã báo; chưa nghiệm thu request
+  OpenAI thật. User có thể F5 và thử lại; muốn reasoning low cần chọn Responses.
+  Mọi OpenAI request do Codex test vẫn phải hỏi từng lần. Không commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-06: Xác nhận backend và ML sẵn sàng để thử Langflow
+
+- User yêu cầu khởi động backend/ML để tự chạy thử trên Langflow. Repo branch
+  hoanganhdev_features, HEAD d76cc13, đầu vào sạch. Giữ các workflow hiện có;
+  không gọi OpenAI thay user, không thay cấu hình auth hoặc chạy nghiệp vụ ghi.
+- Health HTTP thực tế xác nhận các service đã chạy trước lượt này nên tái sử dụng,
+  không mở thêm server trùng cổng: backend8000 live200, ready200 (DB runtime ready),
+  /_ops/ml/ready200 (ml_model ready), Langflow7860 version1.12.6 trả200.
+  ML tích hợp trong backend, không có microservice/port ML riêng.
+- Kiểm local artifact/dependency: TabICL/torch và checkpoint/context có sẵn. Context
+  source_kind=synthetic, version=synthetic-smoke-v1, chỉ phù hợp chạy thử kỹ thuật.
+  Không tải model, cài lại môi trường, thay .env, migrate hoặc seed.
+- Chỉ kiểm sự hiện diện các khóa cấu hình, không in giá trị: backend .env còn thiếu
+  5 trường OIDC; agent.env thiếu user access token (AI/JobContext cũng trống).
+  GET /api/v1/products không bearer trả401 UNAUTHENTICATED. Service ready chưa là
+  bằng chứng truy cập được API nghiệp vụ; cần nối đăng nhập FlowBridge/token thật.
+- Chẩn đoán read-only ở data/check_services.py (ignore), health checks exit0.
+  Lượt lệnh Python inline đầu lỗi quoting PowerShell; thay bằng file chẩn đoán rồi
+  kiểm thành công. Không smoke inference/Playground, không paid OpenAI request,
+  pytest hoặc truy vấn dữ liệu nghiệp vụ. Thay đổi tracked chỉ checkpoint này.
+- Hoàn tất yêu cầu service: backend/DB/ML/Langflow đang sẵn sàng; bàn giao giới hạn
+  xác thực để user không nhầm lỗi401 thành service chưa chạy. Không commit/push.
+
 ## 2026-10-18 — CODE-MERGE-02: Giải quyết conflict với main, hoãn test
 
 - Yêu cầu: gỡ conflict với main, chỉ sửa logic đơn giản và chưa chạy test.

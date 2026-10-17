@@ -32,15 +32,18 @@ Chat Input + Current Date ─> Prompt Template ─> Agent chuyên trách
 Agent (Structured Response) ─> Parser Stringify ─> Data Operations ─> Chat Output
 ```
 
-Dùng 29 node chuẩn Langflow và 10 bản sao node API nghiệp vụ (39 node/35 edge trong
-bốn flow). Các node chuẩn là Chat Input, Chat Output, Agent, A2A Agent, Current Date,
+Dùng 25 node chuẩn, 4 Agent Langflow có lớp cấu hình tương thích OpenAI và 10 bản sao
+node API nghiệp vụ (39 node/35 edge trong bốn flow). Các node chuẩn là Chat Input,
+Chat Output, A2A Agent, Current Date,
 Prompt Template, Parser và Data Operations. Không tự viết orchestration hay A2A
 client/server. Không thêm node chỉ để trang trí hoặc thêm lượt model định dạng JSON.
 
-Chỉ giữ custom cho API nghiệp vụ: có DTO canonical, phân quyền human/AI, endpoint
+Custom API nghiệp vụ có DTO canonical, phân quyền human/AI, endpoint
 cố định, pagination có giới hạn, decimal và JSON lỗi thống nhất. HTTP Request node
 thuần không thay thế đầy đủ các quy tắc đó. Ba custom service aggregator và custom
-Agent/model ở v1 không được dùng trong ver2. Không sửa source/runtime/graph của v1.
+Agent/model ở v1 không được dùng trong ver2. Bốn Agent vẫn dùng orchestration, memory,
+tool loop và Structured Response upstream; lớp ver2 chỉ truyền tùy chọn vào model
+factory. Không sửa source/runtime/graph của v1 hoặc dependency Langflow.
 
 Agent trung tâm thấy ba action `hoi_du_lieu`, `hoi_du_doan`, `hoi_tri_thuc`. A2A để
 **Internal**: chọn đúng flow con trong cùng project bằng ID; không cần HTTP hoặc
@@ -53,6 +56,11 @@ agent con mặc định 0 để tránh lấy nhầm dữ liệu nhiệm vụ tr�
 - Mỗi Agent: **Chọn mô hình**, **API key / biến bí mật**, **System prompt**, giới hạn
   lượt model, output token, số tin nhắn lịch sử. Mặc định `gpt-5.6-luna`/OpenAI.
   Dropdown native có thể mở phần cấu hình provider để chọn/thêm model khác.
+- Bốn Agent có **Endpoint OpenAI** và **Mức suy luận OpenAI**. Mặc định Chat
+  Completions + none để Luna dùng function tools. Để reasoning low trở lên, chọn
+  Responses; cấu hình Luna + Chat Completions + reasoning khác none bị chặn trước
+  request. `auto`/không truyền effort có thể dùng mặc định medium từ provider,
+  nên không dùng để né lỗi này. SDK retries mặc định0, timeout45s, chỉnh ở advanced.
 - API key tham chiếu biến Credential riêng `FLOWBRIDGE_VER2_OPENAI_API_KEY` trong
   Settings → Global Variables. Installer lấy key đã cấu hình local nếu biến chưa
   tồn tại; không ghi key vào JSON/source hoặc thay credential của v1. Thay key của
@@ -137,7 +145,8 @@ null dùng mặc định, `clear_defaults` chỉ khi người dùng yêu cầu b
 Agent chính/Dữ liệu tối đa 4 model calls; ML/RAG tối đa 2 mỗi lần được giao việc.
 Tắt date tool, calculator và tool retry; ngày giờ được node native thêm trực tiếp.
 Prompt giới hạn 3 A2A/lượt và 1 API tool ở ML/RAG, nhưng native Agent không có hard
-cap số tool hoặc tắt parallel calls/SDK retries qua các input hiện có. Đây là hướng
+cap số tool hoặc tắt parallel calls qua các input hiện có. Lớp model config của ver2
+đã bổ sung SDK retries0. Đây là hướng
 native để thử kiến trúc; không bảo đảm model không bao giờ chọn sai/gọi dư.
 
 Nhiều agent thường tốn thêm model calls so với v1. Một nhánh đơn giản thường cần
@@ -163,6 +172,13 @@ Chỉ cập nhật bốn endpoint `flowbridge-ver2-*` trong project đúng tên;
 `langflow/flows/ver2/`; installer giải quyết ID thực của flow con trước khi nối A2A.
 Nếu tự import JSON sang máy khác, phải import ba flow con trước và chọn lại chúng
 trên ba node A2A. Sao lưu cấu hình tự chỉnh trước khi dựng lại để khỏi mất preset.
+
+Nếu cần sửa lỗi Luna tool/reasoning trên một bộ ver2 đang tự chỉnh, dùng
+`python langflow/repair_ver2_model.py` bằng Python trong venv Langflow. Lệnh chỉ thêm
+model options và thay lớp cấu hình Agent; giữ preset/prompt/edge/ID, sao lưu vào
+`data/ver2-before-model-fix-*` (ignore) và kiểm hash các workflow ngoài ver2. Không
+chạy workflow. Không dùng Update All để ghi đè bốn Agent đã bổ sung tùy chọn bằng
+Agent stock chưa có các ô này.
 
 Tài liệu upstream: [A2A](https://docs.langflow.org/a2a-server),
 [Tools](https://docs.langflow.org/agents-tools). Cấu hình này đối chiếu source bản

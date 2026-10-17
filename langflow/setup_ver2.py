@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path[:0] = [str(ROOT), str(ROOT / "runtime"), str(ROOT.parent / "backend")]
 
 from flowbridge_agent.config import local_values  # noqa: E402
+from flowbridge_agent.ver2_agent import OpenAICompatibleAgent  # noqa: E402
 from flowbridge_agent.ver2_prompts import (  # noqa: E402
     CENTRAL_PROMPT,
     INPUT_TEMPLATE,
@@ -26,7 +27,6 @@ from flowbridge_agent.ver2_prompts import (  # noqa: E402
 from lfx.components.input_output.chat import ChatInput  # noqa: E402
 from lfx.components.input_output.chat_output import ChatOutput  # noqa: E402
 from lfx.components.models_and_agents.a2a_agent import A2AAgentComponent  # noqa: E402
-from lfx.components.models_and_agents.agent import AgentComponent  # noqa: E402
 from lfx.components.models_and_agents.prompt import PromptComponent  # noqa: E402
 from lfx.components.processing.operations import OperationsComponent  # noqa: E402
 from lfx.components.processing.parser import ParserComponent  # noqa: E402
@@ -129,8 +129,8 @@ def base_flow(service: str) -> tuple[dict, dict]:
         70,
     )
     agent = native(
-        AgentComponent,
-        "lfx.components.models_and_agents.agent",
+        OpenAICompatibleAgent,
+        "flowbridge_agent.ver2_agent",
         "Agent",
         service,
         agent_label,
@@ -363,8 +363,10 @@ class LangflowAPI:
 def write_export(service: str, flow: dict) -> None:
     target = ROOT / "flows/ver2" / (service + ".json")
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(flow, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    target.with_suffix(".json.license").write_text(NOTICE, encoding="utf-8")
+    target.write_text(
+        json.dumps(flow, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
+    target.with_suffix(".json.license").write_text(NOTICE, encoding="utf-8", newline="\n")
 
 
 async def build(install: bool, origin: str) -> None:

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Sửa Luna function tools trong Langflow ver2: thêm endpoint/reasoning chỉnh được vào lớp kế thừa Agent chuẩn, mặc định Chat Completions + none, chặn cấu hình bất tương thích trước request và tắt SDK retry mặc định. Giữ preset/dây nối/ID và workflow v1; kiểm serialization offline, chưa gọi OpenAI để nghiệm thu lại.
+
 - Thêm project Langflow độc lập FlowBridge - ver2: Agent trung tâm và ba agent Dữ liệu/ML/RAG qua A2A Internal native; model/prompt/schema chỉnh được, giữ API adapter canonical và workflow cũ. Chưa chạy inference/OpenAI hoặc nghiệm thu backend.
 
 - Đồng bộ đường dẫn Langflow với package `backend/flowbridge/` khi gộp main; giữ cấu hình và hợp đồng node hiện có.
