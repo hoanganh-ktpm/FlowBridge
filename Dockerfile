@@ -24,6 +24,7 @@ COPY LICENSE ./LICENSE
 COPY --from=dependencies /app/.venv /app/.venv
 COPY scripts ./scripts
 COPY infra/identity ./infra/identity
+COPY infra/gateway ./infra/gateway
 USER 10001:0
 EXPOSE 18082
 CMD ["python", "scripts/container_dev.py", "serve"]
@@ -32,6 +33,7 @@ FROM dependencies AS tooling
 RUN uv sync --locked --no-editable --group dev
 COPY scripts ./scripts
 COPY infra/identity ./infra/identity
+COPY infra/gateway ./infra/gateway
 COPY tests ./tests
 COPY alembic ./alembic
 COPY alembic.ini ./

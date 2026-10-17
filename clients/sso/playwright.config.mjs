@@ -15,7 +15,8 @@ process.env.FLOWBRIDGE_SSO_PUBLIC_CONFIG = path.join(state, "public.json");
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 export default defineConfig({
   testDir: "./tests", workers: 1, retries: 0, timeout: 120_000,
-  testMatch: runtime.core_identity ? ["**/*.spec.mjs"] : ["**/sso.spec.mjs"],
+  testMatch: process.env.FLOWBRIDGE_GATEWAY_TEST === "true" ? ["**/gateway.spec.mjs"] :
+    runtime.core_identity ? ["**/sso.spec.mjs", "**/core.spec.mjs"] : ["**/sso.spec.mjs"],
   outputDir: path.join(root, ".cache/identity-playwright"),
   reporter: "list",
   use: {

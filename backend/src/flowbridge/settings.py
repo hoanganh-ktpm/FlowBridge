@@ -8,6 +8,7 @@
 
 # Validated runtime configuration; dotenv paths resolve from the working directory.
 
+from ipaddress import ip_address, ip_network
 from pathlib import Path
 from typing import Literal, Self
 from urllib.parse import urlsplit
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     docs_enabled: bool = False
+    http_access_log_enabled: bool = False
+    # Empty by default: direct clients cannot supply trusted forwarding metadata.
+    trusted_proxy_ips: list[str] = Field(default_factory=list)
     rag_dev_enabled: bool = False
     rag_dev_catalog_path: Path = Path("examples/rag/catalog.json")
     rag_dev_index_path: Path = Path(".cache/rag")
@@ -90,6 +94,17 @@ class Settings(BaseSettings):
     oidc_admin_client_secret: SecretStr | None = None
     cors_origins: list[str] = Field(default_factory=list)
     core_identity: IdentityBinding | None = None
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def validate_trusted_proxy_ips(cls, values: list[str]) -> list[str]:
+        for value in values:
+            if "/" in value:
+                if ip_network(value, strict=True).prefixlen == 0:
+                    raise ValueError("Proxy trust must not include every address")
+            else:
+                ip_address(value)
+        return values
 
     @field_validator(
         "oidc_ca_bundle", "oidc_client_secret", "oidc_admin_client_secret", mode="before"

@@ -3,6 +3,7 @@
 # Provided without warranty. See LICENSE.
 
 from copy import deepcopy
+from urllib.parse import urljoin
 
 import pytest
 from fastapi import FastAPI
@@ -10,6 +11,7 @@ from fastapi import FastAPI
 from flowbridge.main import create_app
 from flowbridge.settings import Settings
 from flowbridge.shared.openapi import merge_document, register_fragment
+from flowbridge.supplier_assistant.contract import application_documents
 
 
 @pytest.mark.parametrize("collision", ["path", "operation", "schema", "security"])
@@ -67,3 +69,29 @@ def test_database_profiles_match_live_route_registry(ml: bool, count: int) -> No
 
     assert operations(live) == operations(exported)
     assert len(operations(exported)) == count
+
+
+@pytest.mark.parametrize(
+    "schema_url,expected",
+    [
+        ("http://127.0.0.1:18082/openapi.json", "http://127.0.0.1:18082/api/v1/departments"),
+        ("http://localhost:19000/openapi.json", "http://localhost:19000/api/v1/departments"),
+        (
+            "https://example.test/backend/openapi.json",
+            "https://example.test/backend/api/v1/departments",
+        ),
+    ],
+)
+def test_swagger_uses_serving_origin_without_changing_contract(
+    schema_url: str, expected: str
+) -> None:
+    original = application_documents()
+    app = create_app(
+        Settings(_env_file=None, database_url="postgresql+asyncpg://x:y@localhost/test")
+    )
+    schema = app.openapi()
+    assert schema["servers"] == [{"url": "."}]
+    base = urljoin(schema_url, schema["servers"][0]["url"])
+    assert urljoin(base, "api/v1/departments") == expected
+    assert application_documents() == original
+    assert schema["components"]["securitySchemes"] == original[0]["components"]["securitySchemes"]

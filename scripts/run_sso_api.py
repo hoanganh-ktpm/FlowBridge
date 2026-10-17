@@ -11,6 +11,7 @@ import uvicorn
 
 from flowbridge.main import create_app
 from flowbridge.settings import Settings
+from flowbridge.shared.access_log import access_log_config
 
 
 def main() -> None:
@@ -22,7 +23,15 @@ def main() -> None:
     args = parser.parse_args()
     runtime = json.loads((args.identity_dir / "runtime.json").read_text("utf-8"))
     settings = Settings(_env_file=root / ".env", **runtime)
-    uvicorn.run(create_app(settings), host=args.host, port=args.port, access_log=False)
+    uvicorn.run(
+        create_app(settings),
+        host=args.host,
+        port=args.port,
+        access_log=settings.http_access_log_enabled,
+        log_config=access_log_config(),
+        proxy_headers=True,
+        forwarded_allow_ips=settings.trusted_proxy_ips,
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FlowBridge; redistribution/modification under GNU GPL v3 or later.
+# Provided without warranty. See LICENSE.
+apisix:
+  node_listen: []
+  enable_admin: false
+  enable_control: false
+  enable_server_tokens: false
+  ssl:
+    enable: true
+    listen:
+      - port: 9443
+    ssl_protocols: TLSv1.2 TLSv1.3
+    ssl_trusted_certificate: /gateway-config/ca.pem
+  dns_resolver: [127.0.0.11]
+  resolver_timeout: 3
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+nginx_config:
+  worker_processes: 1
+  error_log: /dev/stderr
+  error_log_level: warn
+  http:
+    enable_access_log: true
+    access_log: /dev/stdout
+    access_log_format: '$remote_addr $request_method $uri $status $flowbridge_correlation_id'
+    client_max_body_size: 1024
+  http_server_configuration_snippet: |
+    error_page 401 = @gateway_401;
+    location @gateway_401 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      add_header WWW-Authenticate 'Bearer realm="flowbridge"' always;
+      return 401 '{"code":"UNAUTHENTICATED","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":false}';
+    }
+    error_page 403 = @gateway_403;
+    location @gateway_403 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      return 403 '{"code":"FORBIDDEN","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":false}';
+    }
+    error_page 404 = @gateway_404;
+    location @gateway_404 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      return 404 '{"code":"NOT_FOUND","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":false}';
+    }
+    error_page 413 = @gateway_413;
+    location @gateway_413 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      return 413 '{"code":"VALIDATION_ERROR","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":false}';
+    }
+    error_page 429 = @gateway_429;
+    location @gateway_429 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      add_header Retry-After 1 always;
+      return 429 '{"code":"RATE_LIMITED","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":true}';
+    }
+    error_page 500 = @gateway_500;
+    location @gateway_500 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      return 500 '{"code":"INTERNAL_ERROR","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":false}';
+    }
+    error_page 503 = @gateway_503;
+    location @gateway_503 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      add_header Retry-After 1 always;
+      return 503 '{"code":"UPSTREAM_UNAVAILABLE","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":true}';
+    }
+    error_page 504 = @gateway_504;
+    location @gateway_504 {
+      default_type application/json;
+      add_header X-Correlation-Id $flowbridge_correlation_id always;
+      add_header Retry-After 1 always;
+      return 504 '{"code":"UPSTREAM_TIMEOUT","message":"Gateway rejected the request.","request_id":"$flowbridge_correlation_id","retryable":true}';
+    }
+    error_page 502 = @gateway_503;
+  http_configuration_snippet: |
+    map $http_x_correlation_id $flowbridge_correlation_id {
+      default $request_id;
+      "~^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$" $http_x_correlation_id;
+    }
+plugins:
+  - proxy-rewrite
+  - response-rewrite
+  - openid-connect
+  - cors
+  - limit-req
