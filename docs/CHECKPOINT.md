@@ -1,5 +1,24 @@
 # Checkpoint FlowBridge
 
+## 2026-10-17 — CODE-LANGFLOW-01: Setup local cơ bản
+
+- User chỉ yêu cầu setup và hướng dẫn trong chat. Repo hoanganhdev_features,
+  HEAD 5606abd; đầu vào sạch. Plan/rules được dẫn chiếu không có trong checkout.
+- User yêu cầu gom gọn: Langflow 1.12.6 (MIT), môi trường ở `langflow/.venv`, SQLite/config/export
+  ở `langflow/data` (Git ignore); manifest/lock và launcher cùng trong `langflow`.
+  Không đổi dependency/backend/env/database của FlowBridge.
+- Mở bằng nhấp đúp `langflow/start.cmd`; launcher gọi `start.ps1`, bind loopback
+  127.0.0.1:7860 và tự mở browser; nếu đã chạy thì mở server hiện tại.
+  Đã kiểm launcher, server đang chạy ở session 54019. Đã xóa `.tools/langflow`.
+  SQLite quick_check OK, flow mẫu còn nguyên; pip check và hai lượt run sau chuyển đạt.
+  Langflow trên Windows báo telemetry writer WinError 87 rồi fallback direct-write;
+  không chặn startup hoặc chạy flow. Không sửa source dependency.
+- Flow `Test co ban`, ID 3f9d440d-8b7a-47a7-bebe-c4da240b9358:
+  Chat Input → Prompt Template → Chat Output; không cần model/API key nhà cung cấp.
+- `uv pip check`: 456 packages tương thích; health HTTP 200; hai lượt run thật
+  xác nhận output khớp input tiếng Việt. API key kiểm tra tạm đã xóa.
+- Hoàn tất phạm vi cơ bản; không commit/push hoặc nối các dịch vụ khác.
+
 ## 2026-10-17 — CODE-MERGE-01: Giải quyết conflict với main
 
 - Yêu cầu: xử lý conflict với main mới nhất. Checkout thực tế ở nhánh
