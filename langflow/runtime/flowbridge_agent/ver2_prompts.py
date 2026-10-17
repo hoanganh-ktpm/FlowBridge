@@ -71,7 +71,8 @@ nhiên, tự đọc ý định tương đương nhưng vẫn giữ các quy tắ
 
 Output dùng Structured Response của Agent: đúng MỘT record trong objects, gồm
 service, status, resolved, results, missing, questions, warnings. Langflow sẽ kiểm
-kiểu và bỏ envelope objects trước khi Parser stringify gửi về trung tâm.
+kiểu và bỏ envelope objects; Parser stringify + Data Operations bỏ khung Markdown,
+gửi chuỗi JSON về trung tâm, không dùng model riêng để định dạng lại.
 status chỉ success/partial/needs_input/ambiguous/not_found/unavailable/error.
 resolved chỉ gồm ID/tham số đã được xác minh; không biến giả định thành dữ kiện.
 results là danh sách ToolResult nguyên cấu trúc tool/status/input/data/error;
@@ -114,7 +115,9 @@ Không có chứng cứ thì nói không tìm thấy. Nếu chưa có AI token/J
 tắt thì unavailable, không thay bằng kiến thức mô hình hoặc dùng token người dùng.""",
 }
 
-CENTRAL_PROMPT = COMMON + """
+CENTRAL_PROMPT = (
+    COMMON
+    + """
 VAI TRÒ: bạn là Agent trung tâm của FlowBridge - ver2, trả lời tiếng Việt dễ hiểu.
 Bạn có đúng ba công cụ hoi_du_lieu, hoi_du_doan, hoi_tri_thuc; mỗi công cụ gọi một agent
 chuyên trách qua A2A Internal. Không nhìn thấy hay giả vờ tự gọi các API con.
@@ -170,15 +173,21 @@ TRUYỀN THAM SỐ
   và giới hạn mô hình, trích nguồn tài liệu khi có. PO risk là MAX item còn mở, không
   xác suất gộp. Không khẳng định kết quả runtime khi chưa có ToolResult thật.
 """
+)
 
 SERVICE_ACTIONS = {
     "database": [
-        "catalog_find_products", "catalog_find_suppliers", "catalog_get_supplier_offers",
-        "purchase_get_request", "purchase_get_order",
+        "catalog_find_products",
+        "catalog_find_suppliers",
+        "catalog_get_supplier_offers",
+        "purchase_get_request",
+        "purchase_get_order",
     ],
     "prediction": [
-        "prediction_rank_suppliers", "prediction_score_supplier",
-        "prediction_get_order_risk", "prediction_get_result",
+        "prediction_rank_suppliers",
+        "prediction_score_supplier",
+        "prediction_get_order_risk",
+        "prediction_get_result",
     ],
     "knowledge": ["knowledge_search_supplier"],
 }
@@ -220,7 +229,9 @@ def specialist_prompt(service: str) -> str:
         action + ": " + DESCRIPTIONS[action] for action in SERVICE_ACTIONS[service]
     )
     return (
-        COMMON + SPECIALIST_RULES[service] + SERVICE_OUTPUT
+        COMMON
+        + SPECIALIST_RULES[service]
+        + SERVICE_OUTPUT
         + "\nCÔNG CỤ ĐƯỢC PHÉP (schema thật tại Tools là nguồn chuẩn):\n"
         + descriptions
         + "\nVí dụ output needs_input (chỉ định dạng, không phải dữ liệu chạy):\n"
@@ -231,11 +242,21 @@ def specialist_prompt(service: str) -> str:
 def output_table() -> list[dict]:
     fields = [
         ("service", "str", False, "database/prediction/knowledge; đúng service đang xử lý"),
-        ("status", "str", False, "success/partial/needs_input/ambiguous/not_found/unavailable/error"),
+        (
+            "status",
+            "str",
+            False,
+            "success/partial/needs_input/ambiguous/not_found/unavailable/error",
+        ),
         ("resolved", "dict", False, "Chỉ ID/tham số đã xác minh; chưa biết bỏ ra, không bịa"),
         ("results", "dict", True, "Các ToolResult thật: tool/status/input/data/error; tối đa5"),
         ("missing", "str", True, "Tên các trường cần người dùng bổ sung; [] khi đủ"),
-        ("questions", "str", True, "Câu hỏi ngắn xin thông tin/chọn đúng đối tượng; [] khi không cần"),
+        (
+            "questions",
+            "str",
+            True,
+            "Câu hỏi ngắn xin thông tin/chọn đúng đối tượng; [] khi không cần",
+        ),
         ("warnings", "str", True, "Giới hạn, truncated, unavailable và cảnh báo từ API"),
     ]
     return [

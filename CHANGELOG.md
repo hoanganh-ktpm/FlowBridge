@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Thêm project Langflow độc lập FlowBridge - ver2: Agent trung tâm và ba agent Dữ liệu/ML/RAG qua A2A Internal native; model/prompt/schema chỉnh được, giữ API adapter canonical và workflow cũ. Chưa chạy inference/OpenAI hoặc nghiệm thu backend.
+
 - Đồng bộ đường dẫn Langflow với package `backend/flowbridge/` khi gộp main; giữ cấu hình và hợp đồng node hiện có.
 - Việt hóa node Langflow, chuẩn hóa prompt/description, hợp nhất tham số câu hỏi với mặc định/khóa, output JSON chung và hợp đồng chuyển dữ liệu giữa 10 tool. Thêm schema/ví dụ theo contract và 20 tình huống chưa chạy; chưa nghiệm thu lựa chọn tool của model.
 

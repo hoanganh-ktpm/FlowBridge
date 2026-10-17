@@ -14,6 +14,53 @@
   đã xử lý để kết thúc trạng thái unmerged; giữ merge chưa commit/push để user review.
   Không có docs/PLAN-OPENCORE.md hoặc PROJECT-RULES.md trong checkout.
 
+## 2026-10-18 — CODE-LANGFLOW-05: Hoàn tất cấu hình workflow A2A độc lập ver2
+
+- User yêu cầu tạo FlowBridge - ver2, giữ workflow cũ, ưu tiên node chuẩn Langflow;
+  agent trung tâm giao ba agent Dữ liệu/ML/RAG với bộ tools riêng. Giữ hoãn inference;
+  Codex vẫn phải hỏi từng OpenAI request nếu test trong chat, chưa gọi request nào.
+- Repo D:\OLP MNM 2025\FlowBridge, hoanganhdev_features; đầu vào sạch HEAD e936daa,
+  hiện HEAD e2f6c94 do thay đổi/merge bên ngoài trong lượt làm việc. Không commit/reset.
+- Đã kiểm source Langflow/lfx 1.12.6: A2A Internal có sẵn, gọi flow cùng project,
+  chọn theo ID metadata, cần flow_type=agent và a2a_enabled. Structured Response của
+  native Agent có tools dùng cùng agent loop rồi validate JSON, không riêng lượt LLM
+  formatting. Parser Stringify bọc Markdown; Data Operations chỉ bỏ khung ngoài.
+- Thêm setup_ver2.py, runtime/flowbridge_agent/ver2_prompts.py; native Chat I/O,
+  Agent, Current Date (Asia/Ho_Chi_Minh), Prompt Template, A2A Tool Mode, Parser và
+  Operations. Reuse 10 API tool adapters, không sửa runtime/prompt hoặc graph v1.
+- Đã import project riêng 8684d46e-7cb3-4d07-928e-117e9a6daa4f, main flow
+  c75e6796-ca7e-4026-b6d7-e1e42560b98d (tên FlowBridge - ver2), 3 flow con
+  Dữ liệu/Dự đoán ML/Tri thức RAG bật A2A, main không publish để tránh tự gọi.
+  Tổng 29 node chuẩn +10 API adapter, 35 edge trong bốn flow. Model chọn native
+  gpt-5.6-luna, max model calls chính/DB4, ML/RAG2, token chính1600/con6000,
+  lịch sử chính6/con0; tắt date/calculator tool và tool retry, giới hạn tool theo prompt.
+- Bốn Agent dùng biến Credential riêng FLOWBRIDGE_VER2_OPENAI_API_KEY. Launcher
+  bật A2A, nạp data/agent.env qua env-file chuẩn để provider picker nhận diện OpenAI;
+  import biến môi trường upstream không xác minh key/model qua OpenAI. Không sửa key v1.
+- Builder/launcher khớp backend/ mới sau khi source đổi từ backend/src/ trong lượt
+  làm việc; không sửa adapter/runtime v1. Server cũ16792, trung gian28699/11624 đã
+  dừng. Hiện Langflow session76586 startup complete, port7860, không chạy workflow.
+- Đã sửa hai lỗi cấu hình phát hiện bằng kiểm tra: Operations cần list object name/
+  icon, không list string; node.data.selected_output=structured_response để UI không
+  bỏ edge vào Parser. A2A tools_metadata runtime là DataFrame; checker dùng đúng kiểu.
+  GET danh sách flow loại starter examples bằng remove_example_flows (chỉ lọc, không xóa).
+- Import cuối session35056 exit0. Metadata checker data/check_ver2_metadata.py exit0:
+  Graph parse đủ39 node/35 edge, kiểu mọi cổng khớp, 3 A2A action schema chỉ input_value,
+  JSON sample qua Parser/Operations giữ nội dung, output table native validate, 3 agent
+  có trong A2A discovery. Hash JSON đầy đủ của Test co ban và workflow v1 không đổi.
+  Evidence ID/hash ở data/ver2-install.json (ignore), không chứa credential.
+- UI đã xem project đủ4 flow, main8 node/7 edge và model picker Luna, ML11 node/10 edge
+  với Structured Response, schema/top-k/giá/JSON/description chỉnh được. Ảnh ignored
+  data/ver2-project.png và data/ver2-main.png; tab mới giữ làm deliverable, tab v1 giữ nguyên.
+- Ruff lint/format 2 file mới và git diff --check đạt. VER2.md, README, CHANGELOG,
+  sdist includes cập nhật; export/sidecar tại flows/ver2. Không dependency, migration
+  hoặc DB nghiệp vụ mới. Không pytest, API nghiệp vụ, inference hoặc request OpenAI.
+- Hoàn tất phần code/cấu hình/UI theo yêu cầu. Chưa nghiệm thu hành vi LLM hoặc tích
+  hợp backend/auth. Native Agent không có hard cap tool/parallel/SDK retries qua input
+  hiện có; nhiều agent tăng số lượt model, không cam kết không gọi dư/sai. Chưa dùng
+  Validate/Enable model vì upstream có request xác minh. Khi user muốn test vẫn hỏi
+  trước mỗi OpenAI request trong chat. Không commit/push/deploy.
+
 ## 2026-10-18 — CODE-LANGFLOW-04: Hoàn tất cấu hình điều phối và hợp đồng input/output
 
 - User yêu cầu node/label tiếng Việt, prompt/description kỹ, mặc định chỉnh được,
