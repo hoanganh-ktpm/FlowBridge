@@ -21,7 +21,7 @@ def build_graph(*, task_id: str = "", supplier_id: str = "", log_config=None) ->
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
-    question = ChatInput().set(should_store_message=False)
+    question = ChatInput().set(should_store_message=True)
     retrieval = module.RetrieveSupplierKnowledge(_code=source.read_text(encoding="utf-8")).set(
         query=question.message_response,
         analysis_task_id=task_id,
@@ -30,7 +30,7 @@ def build_graph(*, task_id: str = "", supplier_id: str = "", log_config=None) ->
     )
     output = ChatOutput().set(
         input_value=retrieval.retrieve_message,
-        should_store_message=False,
+        should_store_message=True,
     )
     return Graph(
         question,

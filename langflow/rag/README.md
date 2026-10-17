@@ -58,6 +58,11 @@ $env:LANGFLOW_DO_NOT_TRACK = "true"
 3. Đặt **Supplier UUID** để lọc một nhà cung cấp, hoặc để trống để tìm trong phạm vi job.
 4. Mở Playground, nhập câu hỏi. Chat Output hiển thị đoạn trích và `core-document://` citation.
 
+Chat Input và Chat Output bật **Store Messages** để lưu hội thoại vào database của Langflow
+và phát sự kiện hiển thị đáp án trong Playground. Database này tách với kho tài liệu RAG.
+Khi thử token sai hoặc quyền bị từ chối, dùng một session riêng để các thẻ lỗi kiểm thử
+không lẫn vào hội thoại của người dùng.
+
 Task UUID do worker/operator cung cấp; không để LLM tự đoán. Backend kiểm tra grant, task,
 phòng ban và cutoff. Đây là flow theo job của AI service, chưa phải triển khai chat theo
 UserContext của nhân viên. Token lỗi/quyền bị thu hồi phải báo lỗi, không trả kết quả rỗng giả.
