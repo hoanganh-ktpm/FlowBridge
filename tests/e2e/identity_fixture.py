@@ -6,6 +6,7 @@
 import argparse
 import asyncio
 import json
+import os
 import ssl
 from datetime import UTC, datetime
 from pathlib import Path
@@ -82,6 +83,24 @@ async def run(state: Path, cleanup: bool) -> None:
                         table("departments").c.department_id == UUID(fixture["department_id"])
                     )
                 )
+            # NullPool gives a new DB connection after the cleanup transaction committed.
+            # Retain the manifest if verification fails so recovery can safely retry.
+            async with engine.connect() as verification:
+                await verification.execute(sa.text("SET TRANSACTION READ ONLY"))
+                for statement in (
+                    sa.select(sa.exists().where(table("users").c.user_id.in_(user_ids))),
+                    sa.select(
+                        sa.exists().where(
+                            table("departments").c.department_id == UUID(fixture["department_id"])
+                        )
+                    ),
+                    sa.select(
+                        sa.exists().where(table("purchase_requests").c.requested_by.in_(user_ids))
+                    ),
+                ):
+                    assert not (await verification.execute(statement)).scalar_one(), (
+                        "Fixture cleanup verification failed; preserve the manifest"
+                    )
             fixture_path.unlink()
             print("SSO browser fixture cleanup complete.")
             return
@@ -89,7 +108,20 @@ async def run(state: Path, cleanup: bool) -> None:
             raise RuntimeError("Existing fixture needs cleanup before preparing another run")
         operator = json.loads((state / "operator.json").read_text("utf-8"))
         assert operator["test_users"], "Prepare a local identity profile with --test-users"
-        assert settings.oidc_issuer.startswith("https://localhost:"), (
+        gateway_profile = False
+        if (
+            os.environ.get("FLOWBRIDGE_GATEWAY_TEST") == "true"
+            and os.environ.get("FLOWBRIDGE_DEV_TEST_MODE") == "true"
+            and (state / "gateway-profile.json").is_file()
+        ):
+            metadata = json.loads((state / "dev-profile.json").read_text("utf-8"))
+            gateway_profile = (
+                metadata.get("issuer_host") == "identity"
+                and metadata.get("lifespan") == 20
+                and settings.oidc_issuer
+                == (f"https://identity:{metadata['iam']}/realms/flowbridge")
+            )
+        assert settings.oidc_issuer.startswith("https://localhost:") or gateway_profile, (
             "Fixture is for local IAM only"
         )
         async with httpx.AsyncClient(

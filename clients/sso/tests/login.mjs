@@ -41,7 +41,10 @@ export async function login(page, account, origin) {
     await page.locator("#totp, #otp, #status").first().waitFor();
     if (await page.locator("#totp").isVisible()) {
       // Require a private profile: never enroll or persist credentials for production accounts.
-      expect(publicConfig.issuer.startsWith("https://localhost:")).toBe(true);
+      const isolatedGateway = process.env.FLOWBRIDGE_GATEWAY_TEST === "true" &&
+        fs.existsSync(path.join(state, "gateway-profile.json")) &&
+        /^https:\/\/identity:\d+\/realms\/flowbridge$/.test(publicConfig.issuer);
+      expect(publicConfig.issuer.startsWith("https://localhost:") || isolatedGateway).toBe(true);
       await page.locator("#mode-manual").click();
       const secret = (await page.locator("#kc-totp-secret-key").textContent()).replace(/\s/g, "");
       const existing = fs.existsSync(secretsPath) ? JSON.parse(fs.readFileSync(secretsPath, "utf8")) : {};

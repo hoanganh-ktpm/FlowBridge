@@ -8,6 +8,6 @@ KC_BOOTSTRAP_ADMIN_PASSWORD=$(cat /state/bootstrap-password)
 exec /opt/keycloak/bin/kc.sh start-dev --import-realm \
     --http-enabled=false --http-host=0.0.0.0 \
     --https-port="$FLOWBRIDGE_DEV_IAM_PORT" \
-    --hostname="https://localhost:$FLOWBRIDGE_DEV_IAM_PORT" \
+    --hostname="https://${FLOWBRIDGE_DEV_IAM_HOST:-localhost}:$FLOWBRIDGE_DEV_IAM_PORT" \
     --https-certificate-file=/state/certs/server.pem \
     --https-certificate-key-file=/state/certs/server.key
