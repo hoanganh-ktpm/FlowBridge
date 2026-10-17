@@ -1,6 +1,7 @@
 # FlowBridge project configuration: GPL-3.0-or-later; see LICENSE.
 .venv/
 .tools/
+.codegraph/
 .cache/
 .tmp/
 dist/

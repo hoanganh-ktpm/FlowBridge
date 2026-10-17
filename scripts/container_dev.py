@@ -42,12 +42,18 @@ def profile() -> dict[str, object]:
 
 
 def prepare_state(
-    state: Path = STATE, config: Path = CONFIG, source: Path = Path("/run/secrets/database-source")
+    state: Path = STATE,
+    config: Path = CONFIG,
+    source: Path = Path("/run/secrets/database-source"),
+    *,
+    issuer_host: str = "localhost",
 ) -> None:
     from dotenv import dotenv_values
     from prepare_identity import configure_core, prepare
 
     metadata = profile()
+    if issuer_host != "localhost":
+        metadata["issuer_host"] = issuer_host
     marker = state / "dev-profile.json"
     if marker.exists():
         if json.loads(marker.read_text("utf-8")) != metadata:
@@ -65,7 +71,13 @@ def prepare_state(
         # Do not silently rotate secrets left by a failed/partial preparation.
         if state.exists() and any(state.iterdir()):
             raise ContainerError("Unrecognized nonempty IAM state; use a new project")
-        prepare(state, int(metadata["iam"]), f"http://127.0.0.1:{metadata['api']}", True)
+        prepare(
+            state,
+            int(metadata["iam"]),
+            f"http://127.0.0.1:{metadata['api']}",
+            True,
+            issuer_host=issuer_host,
+        )
         configure_core(state, "local-dev", "supplier-assistant", int(metadata["lifespan"]))
         (state / "import").mkdir()
         shutil.copyfile(state / "realm.json", state / "import/flowbridge-realm.json")

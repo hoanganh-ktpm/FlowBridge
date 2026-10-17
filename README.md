@@ -1,5 +1,9 @@
 # FlowBridge
 
+Gateway Identity core dùng APISIX standalone, với TLS/OIDC và bộ kiểm thử Docker
+riêng: [thiết lập và nghiệm thu](docs/GATEWAY.md). Trạng thái hiện hành và phần
+còn mở được ghi trong [bằng chứng Gateway](docs/GATEWAY-TEST-RESULTS.md).
+
 **Trợ lý AI quản lý nhà cung cấp, hỗ trợ đánh giá rủi ro giao hàng và quy trình mua hàng có người phê duyệt.**
 
 FlowBridge kết hợp **LLM, Machine Learning và RAG** để hỗ trợ doanh nghiệp từ tra cứu thông tin nhà cung cấp đến lựa chọn phương án mua hàng, phê duyệt và xác nhận đơn. Dự án được phát triển theo kiến trúc DX-OS cho cuộc thi phần mềm nguồn mở OLP 2026.

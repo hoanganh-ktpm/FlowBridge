@@ -63,6 +63,9 @@ def database_document(*, rag_postgres_enabled: bool = False) -> dict[str, Any]:
     application, tools = application_documents()
     merge_document(application, tools)
     application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
+    # Resolve against the served OpenAPI URL, including a proxy prefix or custom port.
+    # The published contract's example host must not direct live Swagger requests.
+    application["servers"] = [{"url": "."}]
     application["info"]["description"] = (
         "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
         "introspection; database roles enforce resource access. Identity provisioning "

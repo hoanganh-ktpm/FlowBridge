@@ -7,6 +7,7 @@ import argparse
 import base64
 import hashlib
 import json
+import re
 import secrets
 import subprocess
 from pathlib import Path
@@ -16,7 +17,16 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def prepare(out: Path, port: int, api_url: str, test_users: bool) -> None:
+def prepare(
+    out: Path,
+    port: int,
+    api_url: str,
+    test_users: bool,
+    *,
+    issuer_host: str = "localhost",
+) -> None:
+    if not re.fullmatch(r"[a-zA-Z0-9](?:[a-zA-Z0-9.-]{0,251}[a-zA-Z0-9])?", issuer_host):
+        raise ValueError("issuer_host must be a DNS hostname")
     out = out.resolve()
     if (out / "operator.json").exists():
         raise RuntimeError(
@@ -63,7 +73,7 @@ def prepare(out: Path, port: int, api_url: str, test_users: bool) -> None:
     )
     extensions = certs / "server.ext"
     extensions.write_text(
-        "subjectAltName=DNS:localhost,IP:127.0.0.1\n"
+        f"subjectAltName=DNS:localhost,DNS:{issuer_host},IP:127.0.0.1\n"
         "basicConstraints=critical,CA:FALSE\nextendedKeyUsage=serverAuth\n",
         encoding="ascii",
     )
@@ -93,7 +103,7 @@ def prepare(out: Path, port: int, api_url: str, test_users: bool) -> None:
         capture_output=True,
     ).stdout
     spki = base64.b64encode(hashlib.sha256(der).digest()).decode("ascii")
-    issuer = f"https://localhost:{port}/realms/flowbridge"
+    issuer = f"https://{issuer_host}:{port}/realms/flowbridge"
     values = {
         "SSO_" + name + "_SECRET": secrets.token_urlsafe(32)
         for name in ("API", "DIRECTORY", "AI", "PO")
@@ -142,7 +152,7 @@ def prepare(out: Path, port: int, api_url: str, test_users: bool) -> None:
         "oidc_client_id": "flowbridge-api",
         "oidc_client_secret": values["SSO_API_SECRET"],
         "oidc_ca_bundle": str(certs / "ca.pem"),
-        "oidc_admin_url": f"https://localhost:{port}/admin/realms/flowbridge",
+        "oidc_admin_url": f"https://{issuer_host}:{port}/admin/realms/flowbridge",
         "oidc_admin_client_id": "flowbridge-directory",
         "oidc_admin_client_secret": values["SSO_DIRECTORY_SECRET"],
         "oidc_allowed_clients": [
