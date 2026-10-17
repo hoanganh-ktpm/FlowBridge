@@ -16,6 +16,7 @@ from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
 from flowbridge.shared.errors import CoreError, ErrorCode
+from flowbridge.shared.openapi import merge_document, register_fragment
 
 CONTRACT_URI = "urn:flowbridge:supplier-assistant:0.4.1"
 
@@ -50,23 +51,22 @@ def application_operations() -> tuple[tuple[str, str, dict[str, Any]], ...]:
 
 
 def install_database_openapi(app: FastAPI) -> None:
-    def database_openapi() -> dict[str, Any]:
-        if app.openapi_schema is None:
-            application, tools = application_documents()
-            application["paths"].update(tools["paths"])
-            application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
-            application["info"]["description"] = (
-                "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
-                "introspection; database roles enforce resource access. Identity provisioning "
-                "links an existing verified Keycloak user through the configured directory. "
-                "Workflow approval, chat and AI/document engines return 503 until connected. "
-                "Outbox events remain pending until a durable worker processes them."
-            )
-            application["x-database-migration"] = "0002_api_idempotency"
-            app.openapi_schema = application
-        return app.openapi_schema
+    register_fragment(app, "database", database_document, base=True)
 
-    app.openapi = database_openapi
+
+def database_document() -> dict[str, Any]:
+    application, tools = application_documents()
+    merge_document(application, tools)
+    application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
+    application["info"]["description"] = (
+        "Persistent PostgreSQL business API. Bearer tokens require configured IdP "
+        "introspection; database roles enforce resource access. Identity provisioning "
+        "links an existing verified Keycloak user through the configured directory. "
+        "Workflow approval, chat and AI/document engines return 503 until connected. "
+        "Outbox events remain pending until a durable worker processes them."
+    )
+    application["x-database-migration"] = "0002_api_idempotency"
+    return application
 
 
 @lru_cache(maxsize=256)

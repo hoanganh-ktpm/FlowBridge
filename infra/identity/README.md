@@ -18,3 +18,5 @@ Trên hệ khác, dùng distribution/Java tương ứng và gọi `kc.sh` upstre
 Production dùng cách cấu hình [Keycloak server](https://www.keycloak.org/server/configuration), [database](https://www.keycloak.org/server/db), [TLS](https://www.keycloak.org/server/enabletls) và [container](https://www.keycloak.org/server/containers) chuẩn. Database IAM phải tách khỏi application schema Supabase; chỉ môi trường local này dùng H2. Realm import không cập nhật realm đã có: quản lý thay đổi trên IdP bằng giao diện/CLI/Admin API được hỗ trợ, không reset realm để đổi config.
 
 Xem [hướng dẫn SSO](../../docs/SSO.md) để chạy API, bootstrap quyền, client A/B và test. Không dùng realm mẫu để giả identity qua HTTP; mọi token do IdP thật cấp và được backend kiểm tra.
+
+Profile container development/test dùng chính generator/realm template này: [DEV-CONTAINERS.md](../../docs/DEV-CONTAINERS.md). Docker Linux build, IAM/API/clients và unit/SQL Identity đã chạy; full SSO bị chặn bởi DB revision, image audit toàn phần còn mở. Không thay hướng dẫn production upstream.

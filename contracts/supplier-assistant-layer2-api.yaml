@@ -40,7 +40,7 @@ x-upstream:
   rule: Các component trên được chép nguyên định nghĩa từ contract tầng 1 để file này tự chứa. Đối chiếu cấu trúc
     khi nâng version; không dùng bản runtime đóng gói khác byte làm nguồn thay thế ngầm. Schema riêng là DTO dịch
     vụ, không phải ORM/DDL.
-  sha256: 3cd8cd7e97f5e018aeadaca55952c07d9d1d93d2e40797cb2641298ee0d376f2
+  sha256: fff9b9c92eb36dfe88c29b7a0e470bd11cc692ed031dc21bcfc1ba0827308067
 x-compatibility:
   relation_to_existing_sample: Bản review mới, không có cam kết tương thích wire với snapshot runtime 0.4.1. Một
     số tên route/operationId được giữ để dễ đối chiếu; chưa được thay snapshot, sinh client production hoặc tuyên
