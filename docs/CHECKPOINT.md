@@ -312,7 +312,7 @@ Các kết quả bên dưới do upstream ghi trên môi trường khác, chưa 
 - Đã xử lý 6 file conflict: .env.example, CHANGELOG.md, README.md, main.py, settings.py, pyproject.toml; bỏ cả marker cũ đã tồn tại trong CHANGELOG của main.
 - Giữ API PostgreSQL, bearer introspection và OpenAPI từ main. RAG development giữ lifecycle, loopback guard và DSN trống; kiểm tra guard sau khi Settings ghép DSN từ host/user/password.
 - Không khôi phục API/sample modules đã bị main loại bỏ. Router RAG dùng Header của FastAPI thay import shared.http đã bị xóa; bỏ nhánh Swagger Core sample.
-- Cập nhật tests/unit/test_knowledge_http.py, examples/rag/README.md và docs/rag-local-report.md theo cách chạy riêng; giữ nguyên bằng chứng thử Qwen trước merge và ghi rõ thời điểm.
+- Cập nhật tests/unit/test_knowledge_http.py và examples/rag/README.md theo cách chạy riêng; giữ nguyên bằng chứng thử Qwen trước merge và ghi rõ thời điểm.
 - Kiểm tra: 158 unit test pass, không skip; Ruff check/format pass; uv lock --check --offline pass. Hatchling build wheel và source tar.gz pass; kiểm nội dung archive và import wheel ngoài source, bootstrap/database/RAG OpenAPI pass.
 - Sandbox Windows làm asyncio treo khi tạo socket nội bộ; đã dừng các lượt đó và chạy lại unit suite ngoài sandbox thành công. rank-bm25 dùng từ thư mục test tạm, không sửa môi trường đang dùng.
 - Chưa chạy Supabase integration, migration/seed, Chroma thật hoặc tải/chạy Qwen; không thay dependency pin hoặc schema. Lockfile được Git tự gộp và kiểm tra đạt.

@@ -51,10 +51,15 @@ def application_operations() -> tuple[tuple[str, str, dict[str, Any]], ...]:
 
 
 def install_database_openapi(app: FastAPI) -> None:
-    register_fragment(app, "database", database_document, base=True)
+    register_fragment(
+        app,
+        "database",
+        lambda: database_document(rag_postgres_enabled=app.state.settings.rag_postgres_enabled),
+        base=True,
+    )
 
 
-def database_document() -> dict[str, Any]:
+def database_document(*, rag_postgres_enabled: bool = False) -> dict[str, Any]:
     application, tools = application_documents()
     merge_document(application, tools)
     application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
@@ -65,7 +70,15 @@ def database_document() -> dict[str, Any]:
         "Workflow approval, chat and AI/document engines return 503 until connected. "
         "Outbox events remain pending until a durable worker processes them."
     )
-    application["x-database-migration"] = "0002_api_idempotency"
+    if rag_postgres_enabled:
+        application["info"]["description"] += (
+            " PostgreSQL knowledge retrieval/indexing is enabled: exact cosine, BM25/RRF, "
+            "verified AI_SERVICE and database-backed X-Job-Context. UserContext-only "
+            "knowledge calls are not supported by this implementation."
+        )
+    application["x-database-migration"] = (
+        "0003_core_knowledge" if rag_postgres_enabled else "0002_api_idempotency"
+    )
     return application
 
 

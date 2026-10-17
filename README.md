@@ -8,7 +8,7 @@ Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằn
 
 > **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO dùng Keycloak, xem [hướng dẫn SSO](docs/SSO.md); hai API Identity core bật bằng binding tenant/application theo [Identity core](docs/IDENTITY-CORE.md); workflow approval, email worker, chat/model và kho tài liệu chưa được nối. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
 
-RAG đã có ingestion 6 hồ sơ Markdown, Qwen3 + Chroma/BM25/RRF, CLI và endpoint retrieval development bật riêng trên loopback. Xem [cách chạy CLI/Postman/PowerShell](examples/rag/README.md) và [báo cáo triển khai](docs/rag-local-report.md); document store, ACL thật và Langflow chưa được nối.
+RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md); Langflow chưa được nối.
 
 ML đã có API riêng để chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO bằng TabICLv2.
 Rủi ro đại diện PO lấy điểm cao nhất của các món còn phải giao, kèm món/deadline quyết định.
@@ -352,3 +352,7 @@ Repository được cấu hình tại [FlowBridge trên GitHub](https://github.c
 Mã và cấu hình do nhóm phát triển áp dụng **GNU GPL version 3 hoặc phiên bản sau — GPL-3.0-or-later**. Giấy phép cho phép sử dụng, nghiên cứu, sửa đổi và phân phối lại theo điều kiện GPL; phần mềm không có bảo hành. Xem toàn văn trong [LICENSE](LICENSE).
 
 Dependency giữ giấy phép, copyright và NOTICE upstream, được lấy qua package manager. Dữ liệu nghiệp vụ, tệp tải lên, tài liệu nguồn, dataset và trọng số mô hình bên ngoài có điều kiện sử dụng riêng; cần xác định nguồn gốc, quyền phân phối và attribution trước khi đưa vào demo hoặc phát hành.
+
+## RAG PostgreSQL và pgvector
+
+Giữ ba bảng Core theo thiết kế nhóm, dùng Qwen + exact cosine pgvector + BM25/RRF. Xem [thiết kế đã hiệu chỉnh](docs/rag-postgres-pgvector-design.md) và [migration, import, index, HTTP](docs/rag-postgres-setup.md). Bật `FLOWBRIDGE_RAG_POSTGRES_ENABLED=true` sau migration 0003; HTTP yêu cầu AI_SERVICE và JobContext từ database.

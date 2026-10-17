@@ -98,6 +98,25 @@ def database_endpoint(
         payload, query = await parse_request(request, spec)
         success = next(code for code in spec["responses"] if code.startswith("2"))
         schema = spec["responses"][success]["content"]["application/json"]["schema"]
+        if request.app.state.settings.rag_postgres_enabled and spec["operationId"] in {
+            "retrieveSupplierKnowledge",
+            "indexPreparedMarkdown",
+        }:
+            from flowbridge.supplier_assistant.knowledge.postgres_http import (
+                handle_postgres_knowledge,
+            )
+
+            try:
+                async with asyncio.timeout(
+                    request.app.state.settings.database_command_timeout_seconds
+                ):
+                    return await handle_postgres_knowledge(
+                        request, identity, spec["operationId"], payload
+                    )
+            except TimeoutError:
+                raise CoreError(ErrorCode.UPSTREAM_TIMEOUT) from None
+            except DBAPIError:
+                raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE) from None
         resources = request.app.state.resources
         service = SupplierDatabaseService(
             SupplierRepository(session),

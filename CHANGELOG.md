@@ -51,3 +51,10 @@
 - Áp dụng quy tắc code/review/license/test/release theo thể lệ hiện tại.
 
 Chưa có release công khai. Runtime hiện dùng Supabase và Keycloak SSO với cấu hình riêng; sample API đã bỏ. Đã có adapter ML/RAG local tùy cấu hình; workflow/email, ACL tài liệu production và nghiệm thu production vẫn còn các task tích hợp riêng.
+
+### PostgreSQL knowledge store 2026-10-16
+
+- Add/adopt three Core tables with immutable publication and byte-accurate chunk guards.
+- Add pgvector exact-cosine retrieval with existing BM25/RRF, per-version atomic generations, live authorization and stable citations.
+- Wire synchronous knowledge tools to verified AI_SERVICE and database JobContext; retain the separate fixture development mode.
+- Add operator import/index/inspect commands, setup documentation and bounded SQL validation evidence.
