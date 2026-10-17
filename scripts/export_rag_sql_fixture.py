@@ -65,7 +65,7 @@ def main():
         ],
     }
     module = ast.parse(
-        (root / "backend/src/flowbridge/supplier_assistant/knowledge/postgres_store.py").read_text(
+        (root / "backend/flowbridge/supplier_assistant/knowledge/postgres_store.py").read_text(
             "utf-8"
         )
     )

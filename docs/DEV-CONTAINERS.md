@@ -51,6 +51,9 @@ python scripts/dev_stack.py down
 Địa chỉ mặc định: API/Swagger [localhost:18082/docs](http://127.0.0.1:18082/docs),
 IAM [localhost:19444](https://localhost:19444), client A/B ở
 [8761](http://127.0.0.1:8761)/[8762](http://127.0.0.1:8762).
+Client A/B có giao diện nghiệp vụ React cho nhân viên/người duyệt/nhà cung cấp;
+xem [cách dùng và giới hạn](../clients/sso/README.md). Image client build bằng
+esbuild khi build Docker, runtime không tải dependency hoặc ghi bundle.
 Trình duyệt thủ công có thể chưa tin CA local; test browser dùng SPKI riêng như
 suite SSO hiện có, không đổi trust store hoặc tắt TLS verification đại trà.
 Swagger tại `/docs` dùng cùng địa chỉ/cổng đang mở để gọi API. Nếu tab cũ vẫn gọi
