@@ -5,7 +5,10 @@ Người nhận xét: Trần Minh An — Nhân viên kho
 Bộ phận: Hành chính — Nhân sự
 Ngày lập: 17/10/2026
 Mốc dữ liệu giao nhận: 15/10/2026, 18:00 (UTC+07:00)
-Phạm vi: 172 PO phát hành từ 01/05/2025 đến 15/10/2026.
+Phạm vi: 172 đơn đặt hàng phát hành từ 01/05/2025 đến 15/10/2026.
+
+Cách gọi trong hồ sơ: Phiếu yêu cầu mua hàng là phiếu nhân viên lập để đề nghị mua sắm. Đơn đặt hàng là chứng từ gửi nhà cung cấp sau khi phương án mua được duyệt.
+Mã đơn đặt hàng được giữ nguyên để đối chiếu chứng từ; ví dụ DEMO-PO-00015.
 
 ** 1. Nhận xét chung
 
@@ -13,15 +16,15 @@ Thương mại An Phú — NCC-01 tham gia cung ứng các nhóm hàng văn phò
 
 Hồ sơ cho thấy nhà cung cấp có cả đơn đáp ứng hạn giao và đơn hoàn tất muộn. Khi đặt tiếp, nên xem nhu cầu của từng mặt hàng và lượng hàng còn đang chờ nhận.
 
-Trong 160 PO đã nhận đủ, có 83 PO hoàn tất sau hạn gốc (51,88%). Ngoài ra còn 1 PO đã qua hạn nhưng chưa có đủ phiếu nhận. Bộ phận mua hàng nên rà soát các đơn còn thiếu trước khi chốt thêm nhu cầu gấp.
+Trong 160 đơn đặt hàng đã nhận đủ, có 83 đơn hoàn tất sau hạn gốc (51,88%). Ngoài ra còn 1 đơn đã qua hạn nhưng chưa có đủ phiếu nhận. Bộ phận mua hàng nên rà soát các đơn còn thiếu trước khi chốt thêm nhu cầu gấp.
 
 ** 2. Mặt hàng và điều kiện mua
 
 *** 2.1. Những mặt hàng đã có giao dịch
 
-Các mặt hàng dưới đây đã xuất hiện trong PO của kỳ theo dõi. Số lượng được tính riêng theo đơn vị mua; không cộng ram giấy với cuộn băng keo hoặc thiết bị.
+Các mặt hàng dưới đây đã xuất hiện trong đơn đặt hàng của kỳ theo dõi. Số lượng được tính riêng theo đơn vị mua; không cộng ram giấy với cuộn băng keo hoặc thiết bị.
 
-| Mặt hàng | Mã | Đơn vị | Số PO |
+| Mặt hàng | Mã | Đơn vị | Số đơn đặt hàng |
 |---|---|---|---|
 | Giấy Double A A4 80 gsm, 500 tờ/ram | DEMO-P01 | ram | 24 |
 | Chuột Logitech B100 USB, màu đen | DEMO-P02 | cái | 28 |
@@ -32,7 +35,7 @@ Các mặt hàng dưới đây đã xuất hiện trong PO của kỳ theo dõi.
 
 *** 2.2. Danh mục chào hàng mở rộng
 
-Danh mục được cập nhật ngày 17/10/2026 có 24 mặt hàng. Trong đó 18 mặt hàng mới chưa có PO trong phạm vi lịch sử này. Chưa dùng kết quả của mặt hàng cũ để khẳng định khả năng giao hàng hay chất lượng của các mặt hàng mới.
+Danh mục được cập nhật ngày 17/10/2026 có 24 mặt hàng. Trong đó 18 mặt hàng mới chưa có đơn đặt hàng trong phạm vi lịch sử này. Chưa dùng kết quả của mặt hàng cũ để khẳng định khả năng giao hàng hay chất lượng của các mặt hàng mới.
 
 | Mặt hàng bổ sung | Mã | Đơn vị mua |
 |---|---|---|
@@ -55,24 +58,24 @@ Danh mục được cập nhật ngày 17/10/2026 có 24 mặt hàng. Trong đó
 | Dây đai nhựa PP, rộng 12 mm, 10 kg/cuộn | DEMO-P23 | cuộn |
 | Tem nhãn nhiệt trực tiếp, 100 × 150 mm, 500 tem/cuộn | DEMO-P24 | cuộn |
 
-Khi đặt mua cần ghi đầy đủ mã, quy cách và đơn vị. Với giấy, giá tính theo ram; với bút, theo cây; với băng keo và màng quấn, theo cuộn. Quy cách đóng hộp không tự thay đổi đơn vị đã thống nhất trên PO.
+Khi đặt mua cần ghi đầy đủ mã, quy cách và đơn vị. Với giấy, giá tính theo ram; với bút, theo cây; với băng keo và màng quấn, theo cuộn. Quy cách đóng hộp không tự thay đổi đơn vị đã thống nhất trên đơn đặt hàng.
 
 ** 3. Tiến độ và hồ sơ đáng chú ý
 
 *** 3.1. Tổng hợp tại mốc dữ liệu
 
-- Đã nhận đủ: 160 PO.
-- Nhận đủ đúng hoặc trước hạn ban đầu: 77 PO.
-- Nhận đủ sau hạn: 83 PO, chiếm 51,88% trong nhóm đã hoàn tất.
-- Chưa nhận đủ: 12 PO; 1 PO đã nhận một phần.
-- Đã quá hạn nhưng chưa nhận đủ: 1 PO.
-- Chưa nhận đủ và chưa đến hạn: 11 PO.
+- Đã nhận đủ: 160 đơn đặt hàng.
+- Nhận đủ đúng hoặc trước hạn ban đầu: 77 đơn đặt hàng.
+- Nhận đủ sau hạn: 83 đơn đặt hàng, chiếm 51,88% trong nhóm đã hoàn tất.
+- Chưa nhận đủ: 12 đơn đặt hàng; 1 đơn đã nhận một phần.
+- Đã quá hạn nhưng chưa nhận đủ: 1 đơn đặt hàng.
+- Chưa nhận đủ và chưa đến hạn: 11 đơn đặt hàng.
 
 Tỷ lệ giao trễ ở trên chỉ tính trên các đơn đã nhận đủ. Các đơn còn mở được theo dõi riêng, chưa gán là giao đúng hạn.
 
-*** 3.2. DEMO-PO-00212 — Đơn hoàn tất muộn
+*** 3.2. Đơn đặt hàng DEMO-PO-00212 — Đơn hoàn tất muộn
 
-Đơn DEMO-PO-00212 đặt 270 cuộn Băng keo Scotch 371 vàng, 48 mm × 100 m (DEMO-P03), phát hành ngày 18/08/2025, hạn nhận đủ ban đầu là 12/09/2025.
+Đơn đặt hàng mã DEMO-PO-00212, gồm 270 cuộn Băng keo Scotch 371 vàng, 48 mm × 100 m (DEMO-P03), phát hành ngày 18/08/2025, hạn nhận đủ ban đầu là 12/09/2025.
 
 - Đợt 1: nhận 117 cuộn ngày 15/09/2025; phiếu nhận b56a4da7.
 - Đợt 2: nhận 153 cuộn ngày 08/10/2025; phiếu nhận ff2570f2.
@@ -81,11 +84,11 @@ Kho đã nhận đủ ngày 08/10/2025. Tính theo hạn gốc, đơn hoàn tấ
 
 Cam kết mới nhất trong hồ sơ là ngày 08/10/2025, được ghi nhận ngày 25/08/2025. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
 
-Đơn giá trên PO: 47.238 đồng/cuộn; giá trị dòng hàng: 12.754.260 đồng, chưa bao gồm VAT.
+Đơn giá trên đơn đặt hàng: 47.238 đồng/cuộn; giá trị dòng hàng: 12.754.260 đồng, chưa bao gồm VAT.
 
-*** 3.3. DEMO-PO-00950 — Đơn đáp ứng hạn giao
+*** 3.3. Đơn đặt hàng DEMO-PO-00950 — Đơn đáp ứng hạn giao
 
-Đơn DEMO-PO-00950 đặt 86 cuộn Băng keo Scotch 371 vàng, 48 mm × 100 m (DEMO-P03), phát hành ngày 21/09/2026, hạn nhận đủ ban đầu là 15/10/2026.
+Đơn đặt hàng mã DEMO-PO-00950, gồm 86 cuộn Băng keo Scotch 371 vàng, 48 mm × 100 m (DEMO-P03), phát hành ngày 21/09/2026, hạn nhận đủ ban đầu là 15/10/2026.
 
 - Đợt 1: nhận 86 cuộn ngày 14/10/2026; phiếu nhận e47232f2.
 
@@ -93,11 +96,11 @@ Kho đã nhận đủ ngày 14/10/2026, đáp ứng hạn giao ban đầu. Đây
 
 Cam kết mới nhất trong hồ sơ là ngày 15/10/2026, được ghi nhận ngày 27/09/2026. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
 
-Đơn giá trên PO: 47.238 đồng/cuộn; giá trị dòng hàng: 4.062.468 đồng, chưa bao gồm VAT.
+Đơn giá trên đơn đặt hàng: 47.238 đồng/cuộn; giá trị dòng hàng: 4.062.468 đồng, chưa bao gồm VAT.
 
-*** 3.4. DEMO-PO-00940 — Đơn quá hạn còn thiếu hàng
+*** 3.4. Đơn đặt hàng DEMO-PO-00940 — Đơn quá hạn còn thiếu hàng
 
-Đơn DEMO-PO-00940 đặt 70 cái Bàn phím Logitech K120 USB, màu đen (DEMO-P05), phát hành ngày 17/09/2026, hạn nhận đủ ban đầu là 29/09/2026.
+Đơn đặt hàng mã DEMO-PO-00940, gồm 70 cái Bàn phím Logitech K120 USB, màu đen (DEMO-P05), phát hành ngày 17/09/2026, hạn nhận đủ ban đầu là 29/09/2026.
 
 Đến mốc dữ liệu, kho chưa có phiếu ghi nhận nhận hàng cho đơn này.
 
@@ -105,11 +108,11 @@ Còn 70 cái chưa được ghi nhận nhận đủ. Đơn đang quá hạn 16 n
 
 Cam kết mới nhất trong hồ sơ là ngày 21/10/2026, được ghi nhận ngày 19/09/2026. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
 
-Đơn giá trên PO: 197.378 đồng/cái; giá trị dòng hàng: 13.816.460 đồng, chưa bao gồm VAT.
+Đơn giá trên đơn đặt hàng: 197.378 đồng/cái; giá trị dòng hàng: 13.816.460 đồng, chưa bao gồm VAT.
 
-*** 3.5. DEMO-PO-00970 — Đơn chưa đến hạn cần tiếp tục theo dõi
+*** 3.5. Đơn đặt hàng DEMO-PO-00970 — Đơn chưa đến hạn cần tiếp tục theo dõi
 
-Đơn DEMO-PO-00970 đặt 23 cây Bút bi Thiên Long TL-027, 0,5 mm, mực xanh (DEMO-P04), phát hành ngày 03/10/2026, hạn nhận đủ ban đầu là 17/10/2026.
+Đơn đặt hàng mã DEMO-PO-00970, gồm 23 cây Bút bi Thiên Long TL-027, 0,5 mm, mực xanh (DEMO-P04), phát hành ngày 03/10/2026, hạn nhận đủ ban đầu là 17/10/2026.
 
 - Đợt 1: nhận 16 cây ngày 12/10/2026; phiếu nhận 6b6ac03a.
 
@@ -117,13 +120,13 @@ Còn 7 cây chưa được ghi nhận nhận đủ. Đơn chưa đến hạn t�
 
 Cam kết mới nhất trong hồ sơ là ngày 19/10/2026, được ghi nhận ngày 06/10/2026. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
 
-Đơn giá trên PO: 4.731 đồng/cây; giá trị dòng hàng: 108.813 đồng, chưa bao gồm VAT.
+Đơn giá trên đơn đặt hàng: 4.731 đồng/cây; giá trị dòng hàng: 108.813 đồng, chưa bao gồm VAT.
 
 ** 4. Chất lượng hàng hóa và tiếp nhận
 
 *** 4.1. Phạm vi đã đối chiếu
 
-Kho có 240 phiếu ghi nhận tiếp nhận hàng liên quan các PO trong báo cáo. Các phiếu này dùng để đối chiếu số lượng đã nhận và thời điểm hoàn tất từng đơn.
+Kho có 240 phiếu ghi nhận tiếp nhận hàng liên quan các đơn đặt hàng trong báo cáo. Các phiếu này dùng để đối chiếu số lượng đã nhận và thời điểm hoàn tất từng đơn.
 
 Phiếu nhận chưa có trường ghi kết quả thử nghiệm, số lượng kiểm mẫu hoặc số lượng bị loại. Vì vậy, việc đã nhận đủ không đồng nghĩa toàn bộ hàng đã qua kiểm tra chất lượng chi tiết.
 
@@ -131,33 +134,33 @@ Phiếu nhận chưa có trường ghi kết quả thử nghiệm, số lượng
 
 Tập hồ sơ được đối chiếu lần này chưa có biên bản riêng về bao bì hư hỏng, ảnh kiểm tra hay phiếu phản ánh chất lượng. Chưa đủ căn cứ nhận xét về độ nguyên vẹn của bao bì, độ bám dính của băng keo hoặc độ bền thiết bị.
 
-Nếu bộ phận sử dụng ghi nhận vấn đề, cần bổ sung mã PO, mặt hàng, số lượng bị ảnh hưởng, ngày phát hiện và người kiểm tra để có thể theo dõi xử lý.
+Nếu bộ phận sử dụng ghi nhận vấn đề, cần bổ sung mã đơn đặt hàng, mặt hàng, số lượng bị ảnh hưởng, ngày phát hiện và người kiểm tra để có thể theo dõi xử lý.
 
 ** 5. Phản hồi và phối hợp
 
 *** 5.1. Xác nhận đơn và cập nhật cam kết
 
-Có 153/172 PO có bản ghi xác nhận lịch giao; 19 PO chưa có bản ghi xác nhận tại mốc dữ liệu.
+Có 153/172 đơn đặt hàng có bản ghi xác nhận lịch giao; 19 đơn đặt hàng chưa có bản ghi xác nhận tại mốc dữ liệu.
 
-Trung vị thời gian từ phát hành PO đến bản ghi xác nhận đầu tiên là 1.51 ngày. Có 57 PO ghi nhận thay đổi cam kết qua nhiều phiên bản. Cần đọc thời điểm từng lần cập nhật khi đánh giá nhà cung cấp có báo sớm hay chỉ thay đổi lịch sau hạn.
+Trung vị thời gian từ phát hành đơn đặt hàng đến bản ghi xác nhận đầu tiên là 1.51 ngày. Có 57 đơn đặt hàng ghi nhận thay đổi cam kết qua nhiều phiên bản. Cần đọc thời điểm từng lần cập nhật khi đánh giá nhà cung cấp có báo sớm hay chỉ thay đổi lịch sau hạn.
 
 Hồ sơ xác nhận chưa lưu đầy đủ nội dung trao đổi về nguyên nhân thiếu hàng. Do đó chưa quy nguyên nhân giao trễ cho tồn kho, vận chuyển hay bộ phận mua hàng nếu không có căn cứ bổ sung.
 
 *** 5.2. Xử lý khiếu nại và khắc phục
 
-Chưa có hồ sơ khiếu nại, biên bản đổi trả hoặc xác nhận đóng sự cố trong tập dữ liệu này. Tốc độ xác nhận PO không được dùng thay cho thời gian giải quyết khiếu nại. Nếu có cam kết khắc phục, cần theo dõi đến khi có kết quả kiểm tra.
+Chưa có hồ sơ khiếu nại, biên bản đổi trả hoặc xác nhận đóng sự cố trong tập dữ liệu này. Tốc độ xác nhận đơn đặt hàng không được dùng thay cho thời gian giải quyết khiếu nại. Nếu có cam kết khắc phục, cần theo dõi đến khi có kết quả kiểm tra.
 
 ** 6. Giá và chứng từ
 
 *** 6.1. Giá trên các đơn đã đặt
 
-Đơn giá được lưu theo từng dòng PO, tính bằng VND theo đơn vị mua và chưa bao gồm VAT. Giá trị dòng bằng đơn giá nhân số lượng; tổng PO bằng tổng các dòng hàng. Không so trực tiếp tổng tiền của hai đơn khác quy cách hoặc khác khối lượng mua.
+Đơn giá được lưu theo từng dòng đơn đặt hàng, tính bằng VND theo đơn vị mua và chưa bao gồm VAT. Giá trị dòng bằng đơn giá nhân số lượng; tổng đơn đặt hàng bằng tổng các dòng hàng. Không so trực tiếp tổng tiền của hai đơn khác quy cách hoặc khác khối lượng mua.
 
 Các mức giá thuộc bộ dữ liệu mô phỏng, không phải báo giá giao dịch thực tế. Chưa có hóa đơn để kết luận mức giá đã thanh toán hay mức độ cạnh tranh so với thị trường.
 
 *** 6.2. Chứng từ cần đối chiếu thêm
 
-Đã có PO, lịch giao, bản ghi xác nhận và phiếu nhận theo từng đợt. Chưa có hóa đơn VAT, chứng từ thanh toán hoặc hồ sơ bảo hành trong phạm vi đánh giá. Cần bổ sung các chứng từ này khi kiểm tra thanh toán hoặc bảo hành; không coi email phát hành PO là bằng chứng hàng đã được nhận.
+Đã có đơn đặt hàng, lịch giao, bản ghi xác nhận và phiếu nhận theo từng đợt. Chưa có hóa đơn VAT, chứng từ thanh toán hoặc hồ sơ bảo hành trong phạm vi đánh giá. Cần bổ sung các chứng từ này khi kiểm tra thanh toán hoặc bảo hành; không coi email phát hành đơn đặt hàng là bằng chứng hàng đã được nhận.
 
 ** 7. Đề xuất hợp tác và việc cần theo dõi
 
@@ -169,10 +172,10 @@ Nếu thống nhất giao nhiều đợt, cần ghi rõ số lượng và lịch
 
 *** 7.2. Danh sách theo dõi
 
-- Bộ phận mua hàng: rà soát DEMO-PO-00940, xác nhận lại kế hoạch cho 70 cái chưa ghi nhận nhận đủ. Kiểm tra cả khả năng chậm cập nhật phiếu nhận.
-- Bộ phận mua hàng: theo dõi DEMO-PO-00970 theo hạn 17/10/2026; lưu lại mọi thay đổi cam kết.
+- Bộ phận mua hàng: rà soát đơn đặt hàng DEMO-PO-00940, xác nhận lại kế hoạch cho 70 cái chưa ghi nhận nhận đủ. Kiểm tra cả khả năng chậm cập nhật phiếu nhận.
+- Bộ phận mua hàng: theo dõi đơn đặt hàng DEMO-PO-00970 theo hạn 17/10/2026; lưu lại mọi thay đổi cam kết.
 - Trần Minh An: cập nhật phiếu nhận khi hàng về và đối chiếu số lượng còn thiếu trước khi ghi nhận hoàn tất.
-- Bộ phận sử dụng: bổ sung phản ánh có mã PO và kết quả kiểm tra nếu phát sinh vấn đề chất lượng; chưa đánh dấu đóng khi mới chỉ có lời hứa xử lý.
+- Bộ phận sử dụng: bổ sung phản ánh có mã đơn đặt hàng và kết quả kiểm tra nếu phát sinh vấn đề chất lượng; chưa đánh dấu đóng khi mới chỉ có lời hứa xử lý.
 
 *** 7.3. Mốc rà soát tiếp theo
 

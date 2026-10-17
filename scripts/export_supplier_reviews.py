@@ -55,7 +55,8 @@ def po_facts(row):
 
 def render_case(order):
     lines = [
-        f"Đơn {order['po_number']} đặt {number(order['ordered_quantity'])} {order['unit']} "
+        f"Đơn đặt hàng mã {order['po_number']}, gồm "
+        f"{number(order['ordered_quantity'])} {order['unit']} "
         f"{order['product_name']} ({order['product_code']}), phát hành ngày "
         f"{day(order['order_date'])}, hạn nhận đủ ban đầu là "
         f"{day(order['requested_delivery_date'])}.",
@@ -113,7 +114,7 @@ def render_case(order):
             "",
         ]
     lines += [
-        f"Đơn giá trên PO: {amount(order['unit_price'])}/{order['unit']}; "
+        f"Đơn giá trên đơn đặt hàng: {amount(order['unit_price'])}/{order['unit']}; "
         f"giá trị dòng hàng: {amount(order['line_total'])}, chưa bao gồm VAT."
     ]
     return "\n".join(lines)
@@ -145,7 +146,7 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "nhận đủ hàng. Một số đơn đã có hàng về trước nhưng phần còn lại đến sau hạn.",
         "Hồ sơ cho thấy nhà cung cấp có cả đơn đáp ứng hạn giao và đơn hoàn tất muộn. "
         "Khi đặt tiếp, nên xem nhu cầu của từng mặt hàng và lượng hàng còn đang chờ nhận.",
-        "Bộ phận kho đã rà soát các lần nhận hàng với hạn giao trên PO. "
+        "Bộ phận kho đã rà soát các lần nhận hàng với hạn giao trên đơn đặt hàng. "
         "Nhận xét dưới đây tập trung vào kết quả đã ghi nhận, cùng các đơn còn cần theo dõi.",
     ][int(code[-2:]) % 3]
     lines = [
@@ -156,8 +157,12 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         f"Bộ phận: {reviewer['department_name']}",
         f"Ngày lập: {day(generated)}",
         f"Mốc dữ liệu giao nhận: {day(ASOF)}, 18:00 (UTC+07:00)",
-        f"Phạm vi: {len(orders)} PO phát hành từ "
+        f"Phạm vi: {len(orders)} đơn đặt hàng phát hành từ "
         f"{day(min(order['order_date'] for order in orders))} đến {day(ASOF)}.",
+        "",
+        "Cách gọi trong hồ sơ: Phiếu yêu cầu mua hàng là phiếu nhân viên lập để đề nghị "
+        "mua sắm. Đơn đặt hàng là chứng từ gửi nhà cung cấp sau khi phương án mua được duyệt.",
+        f"Mã đơn đặt hàng được giữ nguyên để đối chiếu chứng từ; ví dụ {orders[0]['po_number']}.",
         "",
         "** 1. Nhận xét chung",
         "",
@@ -166,18 +171,18 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "",
         intro,
         "",
-        f"Trong {len(complete)} PO đã nhận đủ, có {len(late)} PO hoàn tất sau hạn gốc "
-        f"({rate}). Ngoài ra còn {len(overdue)} PO đã qua hạn nhưng chưa có đủ phiếu nhận. "
+        f"Trong {len(complete)} đơn đặt hàng đã nhận đủ, có {len(late)} đơn hoàn tất sau hạn gốc "
+        f"({rate}). Ngoài ra còn {len(overdue)} đơn đã qua hạn nhưng chưa có đủ phiếu nhận. "
         "Bộ phận mua hàng nên rà soát các đơn còn thiếu trước khi chốt thêm nhu cầu gấp.",
         "",
         "** 2. Mặt hàng và điều kiện mua",
         "",
         "*** 2.1. Những mặt hàng đã có giao dịch",
         "",
-        "Các mặt hàng dưới đây đã xuất hiện trong PO của kỳ theo dõi. Số lượng được tính "
+        "Các mặt hàng dưới đây đã xuất hiện trong đơn đặt hàng của kỳ theo dõi. Số lượng được tính "
         "riêng theo đơn vị mua; không cộng ram giấy với cuộn băng keo hoặc thiết bị.",
         "",
-        "| Mặt hàng | Mã | Đơn vị | Số PO |",
+        "| Mặt hàng | Mã | Đơn vị | Số đơn đặt hàng |",
         "|---|---|---|---|",
     ]
     counts = Counter(order["product_code"] for order in orders)
@@ -192,7 +197,7 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "*** 2.2. Danh mục chào hàng mở rộng",
         "",
         f"Danh mục được cập nhật ngày {day(generated)} có {len(products)} mặt hàng. "
-        f"Trong đó {len(products) - len(counts)} mặt hàng mới chưa có PO trong phạm vi "
+        f"Trong đó {len(products) - len(counts)} mặt hàng mới chưa có đơn đặt hàng trong phạm vi "
         "lịch sử này. Chưa dùng kết quả của mặt hàng cũ để khẳng định khả năng giao hàng "
         "hay chất lượng của các mặt hàng mới.",
         "",
@@ -208,18 +213,19 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "",
         "Khi đặt mua cần ghi đầy đủ mã, quy cách và đơn vị. Với giấy, giá tính theo ram; "
         "với bút, theo cây; với băng keo và màng quấn, theo cuộn. Quy cách đóng hộp "
-        "không tự thay đổi đơn vị đã thống nhất trên PO.",
+        "không tự thay đổi đơn vị đã thống nhất trên đơn đặt hàng.",
         "",
         "** 3. Tiến độ và hồ sơ đáng chú ý",
         "",
         "*** 3.1. Tổng hợp tại mốc dữ liệu",
         "",
-        f"- Đã nhận đủ: {len(complete)} PO.",
-        f"- Nhận đủ đúng hoặc trước hạn ban đầu: {len(ontime)} PO.",
-        f"- Nhận đủ sau hạn: {len(late)} PO, chiếm {rate} trong nhóm đã hoàn tất.",
-        f"- Chưa nhận đủ: {len(opened)} PO; {len(partial)} PO đã nhận một phần.",
-        f"- Đã quá hạn nhưng chưa nhận đủ: {len(overdue)} PO.",
-        f"- Chưa nhận đủ và chưa đến hạn: {len(pending)} PO.",
+        f"- Đã nhận đủ: {len(complete)} đơn đặt hàng.",
+        f"- Nhận đủ đúng hoặc trước hạn ban đầu: {len(ontime)} đơn đặt hàng.",
+        f"- Nhận đủ sau hạn: {len(late)} đơn đặt hàng, chiếm {rate} trong nhóm đã hoàn tất.",
+        f"- Chưa nhận đủ: {len(opened)} đơn đặt hàng; "
+        f"{len(partial)} đơn đã nhận một phần.",
+        f"- Đã quá hạn nhưng chưa nhận đủ: {len(overdue)} đơn đặt hàng.",
+        f"- Chưa nhận đủ và chưa đến hạn: {len(pending)} đơn đặt hàng.",
         "",
         "Tỷ lệ giao trễ ở trên chỉ tính trên các đơn đã nhận đủ. Các đơn còn mở được "
         "theo dõi riêng, chưa gán là giao đúng hạn.",
@@ -245,13 +251,18 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
             )
         )
     for i, (title, order) in enumerate(cases, 2):
-        lines += [f"*** 3.{i}. {order['po_number']} — {title}", "", render_case(order), ""]
+        lines += [
+            f"*** 3.{i}. Đơn đặt hàng {order['po_number']} — {title}",
+            "",
+            render_case(order),
+            "",
+        ]
     lines += [
         "** 4. Chất lượng hàng hóa và tiếp nhận",
         "",
         "*** 4.1. Phạm vi đã đối chiếu",
         "",
-        f"Kho có {receipt_count} phiếu ghi nhận tiếp nhận hàng liên quan các PO trong "
+        f"Kho có {receipt_count} phiếu ghi nhận tiếp nhận hàng liên quan các đơn đặt hàng trong "
         "báo cáo. Các phiếu này dùng để đối chiếu số lượng đã nhận và thời điểm hoàn "
         "tất từng đơn.",
         "",
@@ -265,21 +276,21 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "ảnh kiểm tra hay phiếu phản ánh chất lượng. Chưa đủ căn cứ nhận xét về "
         "độ nguyên vẹn của bao bì, độ bám dính của băng keo hoặc độ bền thiết bị.",
         "",
-        "Nếu bộ phận sử dụng ghi nhận vấn đề, cần bổ sung mã PO, mặt hàng, số lượng "
+        "Nếu bộ phận sử dụng ghi nhận vấn đề, cần bổ sung mã đơn đặt hàng, mặt hàng, số lượng "
         "bị ảnh hưởng, ngày phát hiện và người kiểm tra để có thể theo dõi xử lý.",
         "",
         "** 5. Phản hồi và phối hợp",
         "",
         "*** 5.1. Xác nhận đơn và cập nhật cam kết",
         "",
-        f"Có {len(confirmed)}/{len(orders)} PO có bản ghi xác nhận lịch giao; "
-        f"{len(orders) - len(confirmed)} PO chưa có bản ghi xác nhận tại mốc dữ liệu.",
+        f"Có {len(confirmed)}/{len(orders)} đơn đặt hàng có bản ghi xác nhận lịch giao; "
+        f"{len(orders) - len(confirmed)} đơn đặt hàng chưa có bản ghi xác nhận tại mốc dữ liệu.",
         "",
     ]
     if waits:
         lines += [
-            f"Trung vị thời gian từ phát hành PO đến bản ghi xác nhận đầu tiên là "
-            f"{median(waits):.2f} ngày. Có {len(revised)} PO ghi nhận thay đổi cam kết "
+            f"Trung vị thời gian từ phát hành đơn đặt hàng đến bản ghi xác nhận đầu tiên là "
+            f"{median(waits):.2f} ngày. Có {len(revised)} đơn đặt hàng ghi nhận thay đổi cam kết "
             "qua nhiều phiên bản. Cần đọc thời điểm từng lần cập nhật khi đánh giá "
             "nhà cung cấp có báo sớm hay chỉ thay đổi lịch sau hạn.",
             "",
@@ -292,15 +303,15 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "*** 5.2. Xử lý khiếu nại và khắc phục",
         "",
         "Chưa có hồ sơ khiếu nại, biên bản đổi trả hoặc xác nhận đóng sự cố trong tập "
-        "dữ liệu này. Tốc độ xác nhận PO không được dùng thay cho thời gian giải quyết "
+        "dữ liệu này. Tốc độ xác nhận đơn đặt hàng không được dùng thay cho thời gian giải quyết "
         "khiếu nại. Nếu có cam kết khắc phục, cần theo dõi đến khi có kết quả kiểm tra.",
         "",
         "** 6. Giá và chứng từ",
         "",
         "*** 6.1. Giá trên các đơn đã đặt",
         "",
-        "Đơn giá được lưu theo từng dòng PO, tính bằng VND theo đơn vị mua và chưa "
-        "bao gồm VAT. Giá trị dòng bằng đơn giá nhân số lượng; tổng PO bằng tổng "
+        "Đơn giá được lưu theo từng dòng đơn đặt hàng, tính bằng VND theo đơn vị mua và chưa "
+        "bao gồm VAT. Giá trị dòng bằng đơn giá nhân số lượng; tổng đơn đặt hàng bằng tổng "
         "các dòng hàng. Không so trực tiếp tổng tiền của hai đơn khác quy cách hoặc "
         "khác khối lượng mua.",
         "",
@@ -310,10 +321,10 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
         "",
         "*** 6.2. Chứng từ cần đối chiếu thêm",
         "",
-        "Đã có PO, lịch giao, bản ghi xác nhận và phiếu nhận theo từng đợt. Chưa có "
+        "Đã có đơn đặt hàng, lịch giao, bản ghi xác nhận và phiếu nhận theo từng đợt. Chưa có "
         "hóa đơn VAT, chứng từ thanh toán hoặc hồ sơ bảo hành trong phạm vi đánh giá. "
         "Cần bổ sung các chứng từ này khi kiểm tra thanh toán hoặc bảo hành; "
-        "không coi email phát hành PO là bằng chứng hàng đã được nhận.",
+        "không coi email phát hành đơn đặt hàng là bằng chứng hàng đã được nhận.",
         "",
         "** 7. Đề xuất hợp tác và việc cần theo dõi",
         "",
@@ -333,20 +344,20 @@ def render_review(supplier, reviewer, orders, products, focus, generated):
     if overdue:
         order = max(overdue, key=lambda item: item["overdue_days"])
         lines += [
-            f"- Bộ phận mua hàng: rà soát {order['po_number']}, xác nhận lại kế hoạch "
+            f"- Bộ phận mua hàng: rà soát đơn đặt hàng {order['po_number']}, xác nhận lại kế hoạch "
             f"cho {number(order['ordered_quantity'] - order['received'])} {order['unit']} "
             "chưa ghi nhận nhận đủ. Kiểm tra cả khả năng chậm cập nhật phiếu nhận."
         ]
     if pending:
         order = min(pending, key=lambda item: item["requested_delivery_date"])
         lines += [
-            f"- Bộ phận mua hàng: theo dõi {order['po_number']} theo hạn "
+            f"- Bộ phận mua hàng: theo dõi đơn đặt hàng {order['po_number']} theo hạn "
             f"{day(order['requested_delivery_date'])}; lưu lại mọi thay đổi cam kết."
         ]
     lines += [
         f"- {reviewer['display_name']}: cập nhật phiếu nhận khi hàng về và đối chiếu "
         "số lượng còn thiếu trước khi ghi nhận hoàn tất.",
-        "- Bộ phận sử dụng: bổ sung phản ánh có mã PO và kết quả kiểm tra nếu phát "
+        "- Bộ phận sử dụng: bổ sung phản ánh có mã đơn đặt hàng và kết quả kiểm tra nếu phát "
         "sinh vấn đề chất lượng; chưa đánh dấu đóng khi mới chỉ có lời hứa xử lý.",
         "",
         "*** 7.3. Mốc rà soát tiếp theo",

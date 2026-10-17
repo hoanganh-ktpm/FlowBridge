@@ -23,7 +23,7 @@ def main() -> int:
     parser.add_argument("--flow-id")
     parser.add_argument("--task-id")
     parser.add_argument("--supplier-id", default="3806e329-2ebe-5cfc-895d-1bd60894b348")
-    parser.add_argument("--query", default="PO DEMO-PO-00212 giao trễ như thế nào?")
+    parser.add_argument("--query", default="Đơn đặt hàng DEMO-PO-00212 giao trễ như thế nào?")
     parser.add_argument("--expected-text", default="26 ngày")
     args = parser.parse_args()
     try:
