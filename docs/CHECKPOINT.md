@@ -1,5 +1,34 @@
 # Checkpoint FlowBridge
 
+## 2026-10-17 — CODE-MERGE-01: Giải quyết conflict với main
+
+- Yêu cầu: xử lý conflict với main mới nhất. Checkout thực tế ở nhánh
+  hoanganhdev_features, HEAD f2d82cd; đầu vào sạch, không có merge dở.
+- Fetch origin thành công; main mới nhất efac7ed. Đã merge --no-commit --no-ff
+  origin/main vào nhánh hiện tại; không chuyển hoặc ghi lên nhánh main.
+- Conflict duy nhất ở checkpoint: giữ cả CODE-ML-02 và lịch sử SSO/RAG/container
+  từ main, không lặp tiêu đề CODE-ML-01. Hợp đồng ML 0.2.0 tự gộp; chỉ nhận
+  checksum Core upstream mới từ main, giữ đủ năm endpoint ML.
+- Người dùng chốt chỉ sửa conflict cơ bản, không chạy unit test; lượt pytest
+  vừa khởi chạy bị hủy, không có kết quả kiểm thử mới. Đã bỏ hết conflict
+  marker; git diff --check và staged diff --check đạt.
+- Giữ các thay đổi main tự gộp, chỉ sửa thủ công checkpoint. Không chạy
+  migration/seed, sửa .env, tạo commit hoặc push. Merge chờ người dùng commit.
+
+## 2026-10-17 — CODE-ML-02: Cập nhật hợp đồng ML (hoàn tất)
+
+- Phạm vi người dùng chốt: chỉ cập nhật hợp đồng API; đã hoàn tác mọi chỉnh sửa
+  thử ở schemas.py/router.py. Không còn diff runtime, dependency hoặc migration.
+- Repo FlowBridge, branch hoanganhdev_features, HEAD aebfe85. Cập nhật
+  contracts/supplier-assistant-layer2-api.yaml lên 0.2.0: thêm 5 route ML và
+  15 schema, request/response examples, bearer/role, idempotency, MAX rủi ro món
+  còn mở, item/deadline đại diện và trạng thái thiếu dữ liệu/điểm chưa hiệu chuẩn.
+- Phụ lục ML v1 phân biệt endpoint đã triển khai với các route thiết kế cũ;
+  giữ nguyên path/schema cũ, không sửa snapshot app/AI 0.4.1 hoặc .env.
+- Đã kiểm YAML không trùng key, OpenAPI 3.1, JSON Schema, 883 local refs,
+  8 ví dụ JSON; 5 route mới khớp runtime. git diff --check đạt.
+- Không chạy lại model/DB/integration vì chỉ đổi tài liệu; không commit/push/deploy.
+
 ## 17/10/2026 — Đã commit Docker dev/test và migration0003
 
 - User đã yêu cầu commit. Repo FlowBridge, branch `huuhuandev_features`, HEAD mới `5e82e34`; commit `feat(dev): add container stack and reconcile knowledge migration` gồm 31 file, 1826 insertions / 19 deletions.
