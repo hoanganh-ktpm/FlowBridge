@@ -158,6 +158,38 @@ chạy câu hỏi nào và vẫn phải xin phép từng OpenAI request khi test
 RAG cần AI bearer và JobContext thật; thiếu thì tool RAG không đăng ký, agent báo
 unavailable. Chưa nghiệm thu auth/backend/model hoặc độ chính xác chọn tool.
 
+## Test local khi chưa có SSO
+
+Mở `start.cmd` để chạy Langflow, rồi nhấp đúp `start-test-backend.cmd`. Launcher tạo
+token ngẫu nhiên trong `data/local-test.json` (Git ignore), dùng tài khoản human
+active có quyền đọc đang có trong database và nối 9 node Dữ liệu/ML của ver2 sang
+`http://127.0.0.1:8001`. F5 tab ver2 trước khi thử. Không thay `.env`, credential
+OpenAI, prompt, input mặc định, dây nối hoặc workflow v1.
+
+Đây là entry point test riêng trong `scripts/langflow_test_backend.py`; backend
+thường trên8000 vẫn dùng SSO. Server test chỉ bind/check loopback, yêu cầu token
+local, giữ policy/grant/ownership và dùng transaction PostgreSQL read-only. Chỉ
+mở tra sản phẩm/NCC/báo giá/PR/PO, rank/scenario và đọc prediction/rủi ro đã lưu;
+chặn API ghi, administration, RAG và chấm-lưu PO. Chỉ chạy environment=development.
+Không dùng chế độ này như nghiệm thu SSO hoặc triển khai production.
+
+Khi tự mở launcher sau này, giữ cửa sổ backend test mở; Ctrl+C để dừng. Để khôi phục
+origin/token cũ của riêng 9 node mà vẫn giữ các chỉnh sửa workflow khác, chạy từ root:
+
+```powershell
+.\langflow\.venv\Scripts\python.exe langflow/connect_local_test.py --disconnect
+```
+
+Backup connection ở `data/local-test-connection.json` (ignore). Lệnh từ chối ghi đè
+nếu người dùng đã thay connection hoặc node. Muốn nối lại, mở launcher; Langflow
+phải đang chạy. Token backend local là Credential riêng, không phải OpenAI key.
+
+Đã kiểm API thật: catalog/PR/PO200, ML rank200 và guard DB chặn write25006. Context ML
+hiện dùng synthetic-smoke-v1, thiếu quantity reference (`q_ref`), nên case băng keo
+có thể trả insufficient_data thay vì xếp hạng. Đây là giới hạn dữ liệu ML còn lại,
+không phải lỗi xác thực. Có hai loại băng keo; dùng mã DEMO-P03 hoặc DEMO-P19 khi
+muốn xác định rõ sản phẩm. Chưa gọi OpenAI để nghiệm thu hội thoại.
+
 ## Dựng lại riêng ver2
 
 Từ root repo, khi Langflow đang mở:

@@ -1,5 +1,52 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-09: Khôi phục reasoning none cho Agent trung tâm
+
+- User báo ValueError guard Luna/Chat trước request. Repo hoanganhdev_features
+  HEAD d20a1fc, giữ thay đổi local CODE-LANGFLOW-08; không gọi OpenAI.
+- Metadata thực tế: 3 Agent con Chat Completions/none, Agent trung tâm Chat
+  Completions/medium. Hai tab IAB giữ bản nháp cũ khác nhau; chưa xác định thao tác
+  nào đã đổi medium, không suy là backend hoặc SSO tự thay model.
+- Đưa hai tab main về Home trước PATCH để tránh autosave cũ. Backup ignored
+  data/central-before-effort-*.json; chỉ đổi một field effort trung tâm medium→none.
+  Đọc lại đủ4 Agent đúng Chat/none, hash5 flow còn lại nguyên, dây nối/preset và
+  9 connection Dữ liệu/ML→8001 giữ nguyên. Không sửa runtime/guard hoặc gọi model.
+- Mở lại tab main từ metadata mới; user có thể thử tiếp. Nếu muốn reasoning khác
+  none cần chọn Responses trước. Không claim nghiệm thu một lượt OpenAI thật.
+
+## 2026-10-18 — CODE-LANGFLOW-08: Backend test local tách SSO (hoàn tất)
+
+- User yêu cầu thực hiện backend test riêng localhost:8001 để thử nhanh Langflow.
+  Repo hoanganhdev_features HEAD d20a1fc, đầu vào sạch; thay đổi CODE-LANGFLOW-07
+  đã được lưu bởi thao tác ngoài lượt này. Không commit/push hoặc gọi OpenAI.
+- Phương án: launcher riêng dùng app/service/ML hiện có, token local ngẫu nhiên,
+  danh tính human đang active với grant thật trong DB; chỉ thay dependency xác thực.
+  Giữ policy/ownership, allowlist API tra cứu và ML không lưu, session DB read-only,
+  bind/check loopback; không thêm bypass vào backend mặc định hoặc sửa .env.
+- Chỉ sửa origin/credential của các node dữ liệu/ML ver2 qua metadata API, backup
+  trước thay; giữ v1 và prompt/preset/dây nối. RAG vẫn cần quyền/context thật.
+- Đã thêm scripts/langflow_test_backend.py, start-test-backend.cmd/.ps1 và
+  connect_local_test.py; profile/token ngẫu nhiên ở ignored data/local-test.json,
+  reuse active human/grant thật, không tạo user/grant hoặc sửa .env/schema/data.
+  Backend mặc định không import entry point này; chỉ launcher riêng dùng override.
+- Đã chạy server8001 session68261; live/ready/ML/marker200, token thiếu401.
+  Nối9 tool bằng Credential Langflow riêng và backup các field cũ trước PATCH;
+  hash4 flow ngoài hai flow Dữ liệu/ML giữ nguyên. --disconnect khôi phục field
+  theo node ID, từ chối nếu connection đã được user đổi; chưa chạy rollback live.
+- Unit7 đạt1.69s ngoài sandbox: loopback/token/duplicate headers/host, API ghi/RAG/
+  internal ML/admin bị chặn và normal app giữ auth/command routes. Lượt sandbox
+  treo36324 đã dừng; lượt đầu ngoài sandbox2fail do FastAPI defer router inclusion,
+  sửa bằng lọc APIRouter trước include, lượt cuối7pass. Ruff3file/diff check đạt.
+- HTTP read-only smoke ignored data/check_local_test.py exit0:5 catalog/PR/PO200,
+  rank100 cuộn DEMO-P19 nhận ngày mai/top2 HTTP200, status=insufficient_data,
+  missing_fields=[q_ref]; context synthetic có quantity_references rỗng. Không
+  tự tạo q_ref/score. Có2 loại băng keo, câu hỏi chung cần hỏi chọn.
+- DB guard thực tế SHOW transaction_read_only=on; UPDATE WHERE FALSE bị từ chối
+  SQLSTATE25006 (zero-row statement, không sửa record). API ghi bị404/405 trước
+  service. Backend8000 vẫn live200 và API thiếu bearer401. OpenAI requests0.
+- Chỉ nghiệm thu bypass local/API, chưa chạy hội thoại/LLM và chưa có prediction
+  thành công cho case thiếuq_ref. Không migration/dependency mới/seed/commit/push.
+
 ## 2026-10-18 — CODE-LANGFLOW-07: Sửa Luna tool/reasoning cho ver2, không gọi OpenAI
 
 - User báo OpenAIInvalidRequestError: Luna function tools không dùng được với

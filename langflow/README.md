@@ -1,5 +1,10 @@
 # Langflow cho FlowBridge
 
+Thử riêng **ver2** khi chưa cấu hình SSO: mở Langflow bằng `start.cmd`, sau đó nhấp
+đúp [start-test-backend.cmd](start-test-backend.cmd). Backend test chạy riêng tại
+`http://127.0.0.1:8001`; 9 node Dữ liệu/ML của ver2 dùng credential local tự tạo.
+F5 tab ver2 trước khi chat. Xem [cách chạy/dừng và giới hạn](VER2.md#test-local-khi-chưa-có-sso).
+
 Nhấp đúp start.cmd, mở **FlowBridge - Trợ lý mua hàng**.
 
 **Nhập câu hỏi → Trợ lý mua hàng → Trả lời người dùng**.
