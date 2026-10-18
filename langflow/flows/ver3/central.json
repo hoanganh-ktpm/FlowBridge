@@ -1,0 +1,2651 @@
+{
+  "name": "FlowBridge - ver3",
+  "description": "Clone từ ver2 đã lưu; ver3 phân tầng, runtime quản lý hợp đồng/evidence, cổng chat 0–2 model requests.",
+  "endpoint_name": "flowbridge-ver3-central",
+  "is_component": false,
+  "flow_type": "agent",
+  "a2a_enabled": false,
+  "access_type": "PRIVATE",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-v2-central",
+        "type": "genericNode",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "id": "ChatInput-v2-central",
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "files": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "file_path": "",
+                "fileTypes": [
+                  "csv",
+                  "json",
+                  "pdf",
+                  "txt",
+                  "md",
+                  "mdx",
+                  "yaml",
+                  "yml",
+                  "xml",
+                  "html",
+                  "htm",
+                  "docx",
+                  "py",
+                  "sh",
+                  "sql",
+                  "js",
+                  "ts",
+                  "tsx",
+                  "jpg",
+                  "jpeg",
+                  "png",
+                  "bmp",
+                  "image"
+                ],
+                "temp_file": true,
+                "list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "files",
+                "value": "",
+                "display_name": "Files",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Files to be sent with the message.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "file",
+                "_input_type": "FileInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\nfrom lfx.components.input_output.chat import ChatInput as NativeComponent\nclass ChatInput(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "context_id": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "context_id",
+                "value": "",
+                "display_name": "Context ID",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The context ID of the chat. Adds an extra layer to the local memory.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "input_value": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "multiline": true,
+                "ai_enabled": false,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "hi",
+                "display_name": "Câu hỏi",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [],
+                "dynamic": false,
+                "info": "Message to be passed as input.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "copy_field": false,
+                "password": false,
+                "type": "str",
+                "_input_type": "MultilineInput"
+              },
+              "sender": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Machine",
+                  "User"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "sender",
+                "value": "User",
+                "display_name": "Sender Type",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Type of sender.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              },
+              "sender_name": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "sender_name",
+                "value": "User",
+                "display_name": "Sender Name",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "Name of the sender.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "session_id": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "session_id",
+                "value": "",
+                "display_name": "Session ID",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The session ID of the chat. If empty, the current session ID parameter will be used.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "should_store_message": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "should_store_message",
+                "value": true,
+                "display_name": "Lưu câu hỏi vào lịch sử",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Store the message in the history.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
+              }
+            },
+            "description": "Nhận câu hỏi tự nhiên từ Playground và chuyển cho trợ lý.",
+            "icon": "MessagesSquare",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "Nhập câu hỏi",
+            "documentation": "https://docs.langflow.org/chat-input-and-output",
+            "minimized": true,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Message"
+                ],
+                "selected": "Message",
+                "name": "message",
+                "display_name": "Chat Message",
+                "method": "message_response",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_value",
+              "should_store_message",
+              "sender",
+              "sender_name",
+              "session_id",
+              "context_id",
+              "files"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": true,
+            "metadata": {
+              "module": "custom_components.chat_input",
+              "code_hash": "82e819708202",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "lfx",
+                    "version": "1.12.6"
+                  }
+                ]
+              }
+            },
+            "tool_mode": false,
+            "lf_version": "1.12.6"
+          },
+          "display_name": "Nhập câu hỏi",
+          "description": "Nhận câu hỏi tự nhiên từ Playground và chuyển cho trợ lý."
+        },
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 221
+        }
+      },
+      {
+        "id": "CurrentDate-v2-central",
+        "type": "genericNode",
+        "position": {
+          "x": 0,
+          "y": 420
+        },
+        "data": {
+          "id": "CurrentDate-v2-central",
+          "type": "CurrentDate",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\nfrom lfx.components.utilities.current_date import CurrentDateComponent as NativeComponent\nclass CurrentDateComponent(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "timezone": {
+                "tool_mode": true,
+                "trace_as_metadata": true,
+                "options": [
+                  "Asia/Ho_Chi_Minh",
+                  "UTC"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "timezone",
+                "value": "Asia/Ho_Chi_Minh",
+                "display_name": "Múi giờ",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Select the timezone for the current date and time.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              }
+            },
+            "description": "Lấy ngày giờ theo múi giờ đã chọn, không gọi model.",
+            "icon": "clock",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "Ngày giờ Việt Nam",
+            "documentation": "https://docs.langflow.org/current-date",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Message"
+                ],
+                "selected": "Message",
+                "name": "current_date",
+                "display_name": "Current Date",
+                "method": "get_current_date",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "timezone"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": true,
+            "metadata": {
+              "module": "custom_components.current_date",
+              "code_hash": "a37834ad5239",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "lfx",
+                    "version": "1.12.6"
+                  }
+                ]
+              }
+            },
+            "tool_mode": false,
+            "lf_version": "1.12.6"
+          },
+          "display_name": "Ngày giờ Việt Nam",
+          "description": "Lấy ngày giờ theo múi giờ đã chọn, không gọi model."
+        },
+        "selected": false,
+        "dragging": false,
+        "measured": {
+          "width": 320,
+          "height": 221
+        }
+      },
+      {
+        "id": "ConversationState-v3-central",
+        "type": "genericNode",
+        "position": {
+          "x": 400,
+          "y": 0
+        },
+        "data": {
+          "id": "ConversationState-v3-central",
+          "type": "ConversationState",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "business_time": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "business_time",
+                "value": "",
+                "display_name": "Ngày giờ nghiệp vụ",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import ConversationState as NativeComponent\n\n\nclass ConversationState(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "input_value": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Câu hỏi",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              }
+            },
+            "description": "Đọc state theo user/flow/session, khóa cập nhật chồng chéo; không gọi model.",
+            "icon": "Database",
+            "base_classes": [
+              "JSON"
+            ],
+            "display_name": "Trạng thái hội thoại · ver3",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "context",
+                "display_name": "Ngữ cảnh có kiểm soát",
+                "method": "read_state",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "required_inputs": null,
+                "allows_loop": false,
+                "loop_types": null,
+                "group_outputs": false,
+                "options": null,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_value",
+              "business_time"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.trng_thi_hi_thoi__ver3",
+              "code_hash": "c80f15f66d6b",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false,
+            "lf_version": "1.12.6"
+          },
+          "display_name": "Trạng thái hội thoại · ver3",
+          "description": "Đọc state theo user/flow/session, khóa cập nhật chồng chéo; không gọi model."
+        },
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 304
+        }
+      },
+      {
+        "id": "RequestNormalizer-v3-central",
+        "type": "genericNode",
+        "position": {
+          "x": 787.7434645238083,
+          "y": -10.095654401544621
+        },
+        "data": {
+          "id": "RequestNormalizer-v3-central",
+          "type": "RequestNormalizer",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "context": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "context",
+                "value": "",
+                "display_name": "Ngữ cảnh",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Data",
+                  "JSON"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "api_key": {
+                "load_from_db": true,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "api_key",
+                "value": "FLOWBRIDGE_VER2_OPENAI_API_KEY",
+                "display_name": "OpenAI API key",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "password": true,
+                "type": "str",
+                "_input_type": "SecretStrInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import RequestNormalizer as NativeComponent\n\n\nclass RequestNormalizer(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "model_name": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "gpt-4o-mini",
+                  "gpt-4.1-mini",
+                  "gpt-5.6-luna"
+                ],
+                "options_metadata": [],
+                "combobox": true,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "model_name",
+                "value": "gpt-4o-mini",
+                "display_name": "Model cổng",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              },
+              "output_tokens": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "output_tokens",
+                "value": 900,
+                "display_name": "Giới hạn output token",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "int",
+                "_input_type": "IntInput"
+              },
+              "planner_model": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "planner_model",
+                "value": "gpt-5.6-luna",
+                "display_name": "Model phân tích bổ sung (tùy chọn)",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "StrInput"
+              },
+              "timeout": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "timeout",
+                "value": 45,
+                "display_name": "Timeout model (giây)",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "int",
+                "_input_type": "IntInput"
+              }
+            },
+            "description": "Lời chào khớp mẫu: 0 request; hiểu yêu cầu + trích slots: 1 request có schema.",
+            "icon": "Filter",
+            "base_classes": [
+              "JSON"
+            ],
+            "display_name": "Cổng chat và chuẩn hóa · ver3",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "request",
+                "display_name": "Yêu cầu chuẩn",
+                "method": "normalize",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "required_inputs": null,
+                "allows_loop": false,
+                "loop_types": null,
+                "group_outputs": false,
+                "options": null,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "context",
+              "model_name",
+              "api_key",
+              "planner_model",
+              "output_tokens",
+              "timeout"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.cng_chat_v_chun_ha__ver3",
+              "code_hash": "f32b9b1c6ad1",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false,
+            "lf_version": "1.12.6"
+          },
+          "display_name": "Cổng chat và chuẩn hóa · ver3",
+          "description": "Lời chào khớp mẫu: 0 request; hiểu yêu cầu + trích slots: 1 request có schema."
+        },
+        "selected": false,
+        "dragging": false,
+        "measured": {
+          "width": 320,
+          "height": 428
+        }
+      },
+      {
+        "id": "WorkflowController-v3-central",
+        "type": "genericNode",
+        "position": {
+          "x": 1294.7608639961384,
+          "y": -3.3652181338482077
+        },
+        "data": {
+          "id": "WorkflowController-v3-central",
+          "type": "WorkflowController",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "database_tools": {
+                "trace_as_metadata": true,
+                "list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "database_tools",
+                "value": "",
+                "display_name": "A2A · Dữ liệu",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Tool"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "knowledge_tools": {
+                "trace_as_metadata": true,
+                "list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "knowledge_tools",
+                "value": "",
+                "display_name": "A2A · RAG",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Tool"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "prediction_tools": {
+                "trace_as_metadata": true,
+                "list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "prediction_tools",
+                "value": "",
+                "display_name": "A2A · ML",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Tool"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "request": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "request",
+                "value": "",
+                "display_name": "Yêu cầu chuẩn",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Data",
+                  "JSON"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import WorkflowController as NativeComponent\n\n\nclass WorkflowController(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              }
+            },
+            "description": "Resolve → hỏi chọn/bổ sung → ML/RAG; code giữ evidence, tối đa 6 service calls.",
+            "icon": "Workflow",
+            "base_classes": [
+              "JSON"
+            ],
+            "display_name": "Điều phối trạng thái · ver3",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "result",
+                "display_name": "Kết quả đã kiểm",
+                "method": "run_workflow",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "request",
+              "database_tools",
+              "prediction_tools",
+              "knowledge_tools"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.iu_phi_trng_thi__ver3",
+              "code_hash": "1174a516ad44",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "Điều phối trạng thái · ver3",
+          "description": "Resolve → hỏi chọn/bổ sung → ML/RAG; code giữ evidence, tối đa 6 service calls."
+        },
+        "selected": false,
+        "dragging": false,
+        "measured": {
+          "width": 320,
+          "height": 228
+        }
+      },
+      {
+        "id": "AnswerRenderer-v3-central",
+        "type": "genericNode",
+        "position": {
+          "x": 1780,
+          "y": 0
+        },
+        "data": {
+          "id": "AnswerRenderer-v3-central",
+          "type": "AnswerRenderer",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "result": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "result",
+                "value": "",
+                "display_name": "Kết quả",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Data",
+                  "JSON"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import AnswerRenderer as NativeComponent\n\n\nclass AnswerRenderer(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              }
+            },
+            "description": "Câu hỏi/bảng/nguồn theo ToolResult thực; không thêm request OpenAI.",
+            "icon": "MessageSquare",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "Diễn đạt từ kết quả · ver3",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Message"
+                ],
+                "selected": "Message",
+                "name": "response",
+                "display_name": "Trả lời",
+                "method": "answer",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "required_inputs": null,
+                "allows_loop": false,
+                "loop_types": null,
+                "group_outputs": false,
+                "options": null,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "result"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.din_t_t_kt_qu__ver3",
+              "code_hash": "0aff8b7a751c",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false,
+            "lf_version": "1.12.6"
+          },
+          "display_name": "Diễn đạt từ kết quả · ver3",
+          "description": "Câu hỏi/bảng/nguồn theo ToolResult thực; không thêm request OpenAI."
+        },
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 184
+        }
+      },
+      {
+        "id": "ChatOutput-v2-central",
+        "type": "genericNode",
+        "position": {
+          "x": 2200,
+          "y": 0
+        },
+        "data": {
+          "id": "ChatOutput-v2-central",
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Câu trả lời từ trợ lý",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Data",
+                  "JSON",
+                  "DataFrame",
+                  "Table",
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "Message to be passed as output.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "clean_data": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "clean_data",
+                "value": true,
+                "display_name": "Basic Clean Data",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Whether to clean data before converting to string.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\nfrom lfx.components.input_output.chat_output import ChatOutput as NativeComponent\nclass ChatOutput(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "context_id": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "context_id",
+                "value": "",
+                "display_name": "Context ID",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The context ID of the chat. Adds an extra layer to the local memory.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "data_template": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "data_template",
+                "value": "{text}",
+                "display_name": "Data Template",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "Template to convert Data to Text. If left empty, it will be dynamically set to the Data's text key.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "sender": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Machine",
+                  "User"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "sender",
+                "value": "Machine",
+                "display_name": "Sender Type",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Type of sender.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              },
+              "sender_name": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "sender_name",
+                "value": "FlowBridge ver3",
+                "display_name": "Sender Name",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "Name of the sender.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "session_id": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "session_id",
+                "value": "",
+                "display_name": "Session ID",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The session ID of the chat. If empty, the current session ID parameter will be used.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "should_store_message": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "should_store_message",
+                "value": true,
+                "display_name": "Lưu câu trả lời",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Store the message in the history.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
+              }
+            },
+            "description": "Hiển thị câu trả lời trợ lý đã tổng hợp từ các công cụ.",
+            "icon": "MessagesSquare",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "Trả lời người dùng",
+            "documentation": "https://docs.langflow.org/chat-input-and-output",
+            "minimized": true,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Message"
+                ],
+                "selected": "Message",
+                "name": "message",
+                "display_name": "Output Message",
+                "method": "message_response",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_value",
+              "should_store_message",
+              "sender",
+              "sender_name",
+              "session_id",
+              "context_id",
+              "data_template",
+              "clean_data"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": true,
+            "metadata": {
+              "module": "custom_components.chat_output",
+              "code_hash": "1044c9d98c7f",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "lfx",
+                    "version": "1.12.6"
+                  }
+                ]
+              }
+            },
+            "tool_mode": false,
+            "lf_version": "1.12.6"
+          },
+          "display_name": "Trả lời người dùng",
+          "description": "Hiển thị câu trả lời trợ lý đã tổng hợp từ các công cụ."
+        },
+        "selected": false,
+        "measured": {
+          "width": 320,
+          "height": 184
+        }
+      },
+      {
+        "id": "RuntimeA2A-v3-database",
+        "type": "genericNode",
+        "position": {
+          "x": 850,
+          "y": 900
+        },
+        "data": {
+          "id": "RuntimeA2A-v3-database",
+          "type": "RuntimeA2A",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "agent_card": {
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "agent_card",
+                "value": {},
+                "display_name": "Agent card",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "The remote agent's advertised card. Appears when you enter a URL that returns one.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "button_text": "View agent card",
+                "button_icon": "id-card",
+                "type": "data_display",
+                "_input_type": "DataDisplayInput"
+              },
+              "agent_name_selected": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "FlowBridge - ver3 - Dữ liệu"
+                ],
+                "options_metadata": [
+                  {
+                    "id": "e4d9ea71-12d0-498d-9dc2-773ebae49ad3"
+                  }
+                ],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "agent_name_selected",
+                "value": "FlowBridge - ver3 - Dữ liệu",
+                "display_name": "Agent",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "An agent flow in this project (one with a chat input and a chat output).",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput",
+                "load_from_db": false
+              },
+              "agent_url": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "agent_url",
+                "value": "",
+                "display_name": "Agent URL",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The remote A2A agent's URL. Paste either its base URL or its /.well-known/agent-card.json card URL; both resolve the same agent.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "api_key": {
+                "load_from_db": true,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "api_key",
+                "value": "",
+                "display_name": "API Key",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [],
+                "dynamic": false,
+                "info": "Optional API key sent as x-api-key, for agents that require it.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "password": true,
+                "type": "str",
+                "_input_type": "SecretStrInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import RuntimeA2A as NativeComponent\n\n\nclass RuntimeA2A(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "input_value": {
+                "tool_mode": true,
+                "trace_as_input": true,
+                "multiline": true,
+                "ai_enabled": false,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Request do runtime tạo",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The message to send to the agent.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "copy_field": false,
+                "password": false,
+                "type": "str",
+                "_input_type": "MultilineInput"
+              },
+              "mode": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Internal",
+                  "External"
+                ],
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "mode",
+                "value": "Internal",
+                "display_name": "Mode",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Internal calls another agent flow in this project. External calls a remote A2A agent by its URL.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "tab",
+                "_input_type": "TabInput",
+                "load_from_db": false
+              },
+              "target_service": {
+                "value": "database"
+              },
+              "timeout": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "timeout",
+                "value": 60,
+                "display_name": "Timeout (s)",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Maximum seconds to wait for the agent's reply.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "int",
+                "_input_type": "IntInput"
+              },
+              "tools_metadata": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "is_list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "tools_metadata",
+                "value": [
+                  {
+                    "name": "send_to_agent",
+                    "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+                    "tags": [
+                      "send_to_agent"
+                    ],
+                    "status": true,
+                    "approval_actions": [],
+                    "display_name": "send_to_agent",
+                    "display_description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+                    "readonly": false,
+                    "args": {
+                      "input_value": {
+                        "description": "The message to send to the agent.",
+                        "title": "Input Value",
+                        "type": "string"
+                      }
+                    }
+                  }
+                ],
+                "display_name": "Actions",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Modify tool names and descriptions to help agents understand when to use each tool.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "tools",
+                "_input_type": "ToolsInput"
+              }
+            },
+            "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+            "icon": "bot",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "A2A · Dữ liệu",
+            "documentation": "https://docs.langflow.org/a2a-server",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Tool"
+                ],
+                "selected": "Tool",
+                "name": "component_as_tool",
+                "hidden": null,
+                "display_name": "Toolset",
+                "method": "to_toolkit",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "required_inputs": null,
+                "allows_loop": false,
+                "loop_types": null,
+                "group_outputs": false,
+                "options": null,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "mode",
+              "agent_name_selected",
+              "agent_url",
+              "agent_card",
+              "input_value",
+              "api_key",
+              "timeout",
+              "target_service"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.a2a_dch_v__ver3",
+              "code_hash": "b68a325213c6",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": true
+          },
+          "display_name": "A2A · Dữ liệu",
+          "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát."
+        }
+      },
+      {
+        "id": "RuntimeA2A-v3-prediction",
+        "type": "genericNode",
+        "position": {
+          "x": 1280,
+          "y": 900
+        },
+        "data": {
+          "id": "RuntimeA2A-v3-prediction",
+          "type": "RuntimeA2A",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "agent_card": {
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "agent_card",
+                "value": "",
+                "display_name": "Agent card",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "The remote agent's advertised card. Appears when you enter a URL that returns one.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "button_text": "View agent card",
+                "button_icon": "id-card",
+                "type": "data_display",
+                "_input_type": "DataDisplayInput"
+              },
+              "agent_name_selected": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "FlowBridge - ver3 - Dự đoán ML"
+                ],
+                "options_metadata": [
+                  {
+                    "id": "6349ef42-797c-4739-9e86-6eec55a56031"
+                  }
+                ],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "agent_name_selected",
+                "value": "FlowBridge - ver3 - Dự đoán ML",
+                "display_name": "Agent",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "An agent flow in this project (one with a chat input and a chat output).",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput",
+                "load_from_db": false
+              },
+              "agent_url": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "agent_url",
+                "value": "",
+                "display_name": "Agent URL",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The remote A2A agent's URL. Paste either its base URL or its /.well-known/agent-card.json card URL; both resolve the same agent.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "api_key": {
+                "load_from_db": true,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "api_key",
+                "value": "",
+                "display_name": "API Key",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [],
+                "dynamic": false,
+                "info": "Optional API key sent as x-api-key, for agents that require it.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "password": true,
+                "type": "str",
+                "_input_type": "SecretStrInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import RuntimeA2A as NativeComponent\n\n\nclass RuntimeA2A(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "input_value": {
+                "tool_mode": true,
+                "trace_as_input": true,
+                "multiline": true,
+                "ai_enabled": false,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Request do runtime tạo",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The message to send to the agent.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "copy_field": false,
+                "password": false,
+                "type": "str",
+                "_input_type": "MultilineInput"
+              },
+              "mode": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Internal",
+                  "External"
+                ],
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "mode",
+                "value": "Internal",
+                "display_name": "Mode",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Internal calls another agent flow in this project. External calls a remote A2A agent by its URL.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "tab",
+                "_input_type": "TabInput",
+                "load_from_db": false
+              },
+              "target_service": {
+                "value": "prediction"
+              },
+              "timeout": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "timeout",
+                "value": 60,
+                "display_name": "Timeout (s)",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Maximum seconds to wait for the agent's reply.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "int",
+                "_input_type": "IntInput"
+              },
+              "tools_metadata": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "is_list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "tools_metadata",
+                "value": [
+                  {
+                    "name": "send_to_agent",
+                    "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+                    "tags": [
+                      "send_to_agent"
+                    ],
+                    "status": true,
+                    "approval_actions": [],
+                    "display_name": "send_to_agent",
+                    "display_description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+                    "readonly": false,
+                    "args": {
+                      "input_value": {
+                        "description": "The message to send to the agent.",
+                        "title": "Input Value",
+                        "type": "string"
+                      }
+                    }
+                  }
+                ],
+                "display_name": "Actions",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Modify tool names and descriptions to help agents understand when to use each tool.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "tools",
+                "_input_type": "ToolsInput"
+              }
+            },
+            "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+            "icon": "bot",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "A2A · Dự đoán ML",
+            "documentation": "https://docs.langflow.org/a2a-server",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Tool"
+                ],
+                "selected": "Tool",
+                "name": "component_as_tool",
+                "hidden": null,
+                "display_name": "Toolset",
+                "method": "to_toolkit",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "required_inputs": null,
+                "allows_loop": false,
+                "loop_types": null,
+                "group_outputs": false,
+                "options": null,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "mode",
+              "agent_name_selected",
+              "agent_url",
+              "agent_card",
+              "input_value",
+              "api_key",
+              "timeout",
+              "target_service"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.a2a_dch_v__ver3",
+              "code_hash": "b68a325213c6",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": true
+          },
+          "display_name": "A2A · Dự đoán ML",
+          "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát."
+        }
+      },
+      {
+        "id": "RuntimeA2A-v3-knowledge",
+        "type": "genericNode",
+        "position": {
+          "x": 1710,
+          "y": 900
+        },
+        "data": {
+          "id": "RuntimeA2A-v3-knowledge",
+          "type": "RuntimeA2A",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "agent_card": {
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "agent_card",
+                "value": "",
+                "display_name": "Agent card",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "The remote agent's advertised card. Appears when you enter a URL that returns one.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "button_text": "View agent card",
+                "button_icon": "id-card",
+                "type": "data_display",
+                "_input_type": "DataDisplayInput"
+              },
+              "agent_name_selected": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "FlowBridge - ver3 - Tri thức RAG"
+                ],
+                "options_metadata": [
+                  {
+                    "id": "b024e799-380a-4ed0-8a4b-eea22a11971f"
+                  }
+                ],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": false,
+                "name": "agent_name_selected",
+                "value": "FlowBridge - ver3 - Tri thức RAG",
+                "display_name": "Agent",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "An agent flow in this project (one with a chat input and a chat output).",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput",
+                "load_from_db": false
+              },
+              "agent_url": {
+                "tool_mode": false,
+                "trace_as_input": true,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "agent_url",
+                "value": "",
+                "display_name": "Agent URL",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The remote A2A agent's URL. Paste either its base URL or its /.well-known/agent-card.json card URL; both resolve the same agent.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "str",
+                "_input_type": "MessageTextInput"
+              },
+              "api_key": {
+                "load_from_db": true,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "api_key",
+                "value": "",
+                "display_name": "API Key",
+                "advanced": true,
+                "api_editable": false,
+                "input_types": [],
+                "dynamic": false,
+                "info": "Optional API key sent as x-api-key, for agents that require it.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "password": true,
+                "type": "str",
+                "_input_type": "SecretStrInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver3_nodes import RuntimeA2A as NativeComponent\n\n\nclass RuntimeA2A(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "input_value": {
+                "tool_mode": true,
+                "trace_as_input": true,
+                "multiline": true,
+                "ai_enabled": false,
+                "trace_as_metadata": true,
+                "load_from_db": false,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Request do runtime tạo",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "The message to send to the agent.",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "copy_field": false,
+                "password": false,
+                "type": "str",
+                "_input_type": "MultilineInput"
+              },
+              "mode": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Internal",
+                  "External"
+                ],
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "mode",
+                "value": "Internal",
+                "display_name": "Mode",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Internal calls another agent flow in this project. External calls a remote A2A agent by its URL.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "tab",
+                "_input_type": "TabInput",
+                "load_from_db": false
+              },
+              "target_service": {
+                "value": "knowledge"
+              },
+              "timeout": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "timeout",
+                "value": 60,
+                "display_name": "Timeout (s)",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Maximum seconds to wait for the agent's reply.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "int",
+                "_input_type": "IntInput"
+              },
+              "tools_metadata": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "is_list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "tools_metadata",
+                "value": [
+                  {
+                    "name": "send_to_agent",
+                    "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+                    "tags": [
+                      "send_to_agent"
+                    ],
+                    "status": true,
+                    "approval_actions": [],
+                    "display_name": "send_to_agent",
+                    "display_description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+                    "readonly": false,
+                    "args": {
+                      "input_value": {
+                        "description": "The message to send to the agent.",
+                        "title": "Input Value",
+                        "type": "string"
+                      }
+                    }
+                  }
+                ],
+                "display_name": "Actions",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Modify tool names and descriptions to help agents understand when to use each tool.",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "tools",
+                "_input_type": "ToolsInput"
+              }
+            },
+            "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát.",
+            "icon": "bot",
+            "base_classes": [
+              "Message"
+            ],
+            "display_name": "A2A · Tri thức RAG",
+            "documentation": "https://docs.langflow.org/a2a-server",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Tool"
+                ],
+                "selected": "Tool",
+                "name": "component_as_tool",
+                "hidden": null,
+                "display_name": "Toolset",
+                "method": "to_toolkit",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "required_inputs": null,
+                "allows_loop": false,
+                "loop_types": null,
+                "group_outputs": false,
+                "options": null,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "mode",
+              "agent_name_selected",
+              "agent_url",
+              "agent_card",
+              "input_value",
+              "api_key",
+              "timeout",
+              "target_service"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.a2a_dch_v__ver3",
+              "code_hash": "b68a325213c6",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": true
+          },
+          "display_name": "A2A · Tri thức RAG",
+          "description": "Native Internal A2A với định danh và hợp đồng dịch vụ do runtime kiểm soát."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-ChatInput-v2-central{œdataTypeœ:œChatInputœ,œidœ:œChatInput-v2-centralœ,œnameœ:œmessageœ,œoutput_typesœ:[œMessageœ]}-ConversationState-v3-central{œfieldNameœ:œinput_valueœ,œidœ:œConversationState-v3-centralœ,œinputTypesœ:[œMessageœ],œtypeœ:œstrœ}",
+        "source": "ChatInput-v2-central",
+        "target": "ConversationState-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œChatInputœ,œidœ:œChatInput-v2-centralœ,œnameœ:œmessageœ,œoutput_typesœ:[œMessageœ]}",
+        "targetHandle": "{œfieldNameœ:œinput_valueœ,œidœ:œConversationState-v3-centralœ,œinputTypesœ:[œMessageœ],œtypeœ:œstrœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "ChatInput",
+            "id": "ChatInput-v2-central",
+            "name": "message",
+            "output_types": [
+              "Message"
+            ]
+          },
+          "targetHandle": {
+            "fieldName": "input_value",
+            "id": "ConversationState-v3-central",
+            "inputTypes": [
+              "Message"
+            ],
+            "type": "str"
+          }
+        },
+        "className": "",
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-CurrentDate-v2-central{œdataTypeœ:œCurrentDateœ,œidœ:œCurrentDate-v2-centralœ,œnameœ:œcurrent_dateœ,œoutput_typesœ:[œMessageœ]}-ConversationState-v3-central{œfieldNameœ:œbusiness_timeœ,œidœ:œConversationState-v3-centralœ,œinputTypesœ:[œMessageœ],œtypeœ:œstrœ}",
+        "source": "CurrentDate-v2-central",
+        "target": "ConversationState-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œCurrentDateœ,œidœ:œCurrentDate-v2-centralœ,œnameœ:œcurrent_dateœ,œoutput_typesœ:[œMessageœ]}",
+        "targetHandle": "{œfieldNameœ:œbusiness_timeœ,œidœ:œConversationState-v3-centralœ,œinputTypesœ:[œMessageœ],œtypeœ:œstrœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "CurrentDate",
+            "id": "CurrentDate-v2-central",
+            "name": "current_date",
+            "output_types": [
+              "Message"
+            ]
+          },
+          "targetHandle": {
+            "fieldName": "business_time",
+            "id": "ConversationState-v3-central",
+            "inputTypes": [
+              "Message"
+            ],
+            "type": "str"
+          }
+        },
+        "className": "",
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-ConversationState-v3-central{œdataTypeœ:œConversationStateœ,œidœ:œConversationState-v3-centralœ,œnameœ:œcontextœ,œoutput_typesœ:[œJSONœ]}-RequestNormalizer-v3-central{œfieldNameœ:œcontextœ,œidœ:œRequestNormalizer-v3-centralœ,œinputTypesœ:[œDataœ,œJSONœ],œtypeœ:œotherœ}",
+        "source": "ConversationState-v3-central",
+        "target": "RequestNormalizer-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œConversationStateœ,œidœ:œConversationState-v3-centralœ,œnameœ:œcontextœ,œoutput_typesœ:[œJSONœ]}",
+        "targetHandle": "{œfieldNameœ:œcontextœ,œidœ:œRequestNormalizer-v3-centralœ,œinputTypesœ:[œDataœ,œJSONœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "ConversationState",
+            "id": "ConversationState-v3-central",
+            "name": "context",
+            "output_types": [
+              "JSON"
+            ]
+          },
+          "targetHandle": {
+            "fieldName": "context",
+            "id": "RequestNormalizer-v3-central",
+            "inputTypes": [
+              "Data",
+              "JSON"
+            ],
+            "type": "other"
+          }
+        },
+        "className": "",
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-RequestNormalizer-v3-central{œdataTypeœ:œRequestNormalizerœ,œidœ:œRequestNormalizer-v3-centralœ,œnameœ:œrequestœ,œoutput_typesœ:[œJSONœ]}-WorkflowController-v3-central{œfieldNameœ:œrequestœ,œidœ:œWorkflowController-v3-centralœ,œinputTypesœ:[œDataœ,œJSONœ],œtypeœ:œotherœ}",
+        "source": "RequestNormalizer-v3-central",
+        "target": "WorkflowController-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œRequestNormalizerœ,œidœ:œRequestNormalizer-v3-centralœ,œnameœ:œrequestœ,œoutput_typesœ:[œJSONœ]}",
+        "targetHandle": "{œfieldNameœ:œrequestœ,œidœ:œWorkflowController-v3-centralœ,œinputTypesœ:[œDataœ,œJSONœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "RequestNormalizer",
+            "id": "RequestNormalizer-v3-central",
+            "name": "request",
+            "output_types": [
+              "JSON"
+            ]
+          },
+          "targetHandle": {
+            "fieldName": "request",
+            "id": "WorkflowController-v3-central",
+            "inputTypes": [
+              "Data",
+              "JSON"
+            ],
+            "type": "other"
+          }
+        },
+        "className": "",
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-WorkflowController-v3-central{œdataTypeœ:œWorkflowControllerœ,œidœ:œWorkflowController-v3-centralœ,œnameœ:œresultœ,œoutput_typesœ:[œJSONœ]}-AnswerRenderer-v3-central{œfieldNameœ:œresultœ,œidœ:œAnswerRenderer-v3-centralœ,œinputTypesœ:[œDataœ,œJSONœ],œtypeœ:œotherœ}",
+        "source": "WorkflowController-v3-central",
+        "target": "AnswerRenderer-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œWorkflowControllerœ,œidœ:œWorkflowController-v3-centralœ,œnameœ:œresultœ,œoutput_typesœ:[œJSONœ]}",
+        "targetHandle": "{œfieldNameœ:œresultœ,œidœ:œAnswerRenderer-v3-centralœ,œinputTypesœ:[œDataœ,œJSONœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "WorkflowController",
+            "id": "WorkflowController-v3-central",
+            "name": "result",
+            "output_types": [
+              "JSON"
+            ]
+          },
+          "targetHandle": {
+            "fieldName": "result",
+            "id": "AnswerRenderer-v3-central",
+            "inputTypes": [
+              "Data",
+              "JSON"
+            ],
+            "type": "other"
+          }
+        },
+        "className": "",
+        "selected": false
+      },
+      {
+        "id": "reactflow__edge-AnswerRenderer-v3-central{œdataTypeœ:œAnswerRendererœ,œidœ:œAnswerRenderer-v3-centralœ,œnameœ:œresponseœ,œoutput_typesœ:[œMessageœ]}-ChatOutput-v2-central{œfieldNameœ:œinput_valueœ,œidœ:œChatOutput-v2-centralœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "source": "AnswerRenderer-v3-central",
+        "target": "ChatOutput-v2-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œAnswerRendererœ,œidœ:œAnswerRenderer-v3-centralœ,œnameœ:œresponseœ,œoutput_typesœ:[œMessageœ]}",
+        "targetHandle": "{œfieldNameœ:œinput_valueœ,œidœ:œChatOutput-v2-centralœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "AnswerRenderer",
+            "id": "AnswerRenderer-v3-central",
+            "name": "response",
+            "output_types": [
+              "Message"
+            ]
+          },
+          "targetHandle": {
+            "fieldName": "input_value",
+            "id": "ChatOutput-v2-central",
+            "inputTypes": [
+              "Data",
+              "JSON",
+              "DataFrame",
+              "Table",
+              "Message"
+            ],
+            "type": "other"
+          }
+        },
+        "className": "",
+        "selected": false
+      },
+      {
+        "id": "RuntimeA2A-v3-database-component_as_tool-WorkflowController-v3-central-database_tools",
+        "source": "RuntimeA2A-v3-database",
+        "target": "WorkflowController-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œRuntimeA2Aœ,œidœ:œRuntimeA2A-v3-databaseœ,œnameœ:œcomponent_as_toolœ,œoutput_typesœ:[œToolœ]}",
+        "targetHandle": "{œidœ:œWorkflowController-v3-centralœ,œfieldNameœ:œdatabase_toolsœ,œinputTypesœ:[œToolœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "RuntimeA2A",
+            "id": "RuntimeA2A-v3-database",
+            "name": "component_as_tool",
+            "output_types": [
+              "Tool"
+            ]
+          },
+          "targetHandle": {
+            "id": "WorkflowController-v3-central",
+            "fieldName": "database_tools",
+            "inputTypes": [
+              "Tool"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "RuntimeA2A-v3-prediction-component_as_tool-WorkflowController-v3-central-prediction_tools",
+        "source": "RuntimeA2A-v3-prediction",
+        "target": "WorkflowController-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œRuntimeA2Aœ,œidœ:œRuntimeA2A-v3-predictionœ,œnameœ:œcomponent_as_toolœ,œoutput_typesœ:[œToolœ]}",
+        "targetHandle": "{œidœ:œWorkflowController-v3-centralœ,œfieldNameœ:œprediction_toolsœ,œinputTypesœ:[œToolœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "RuntimeA2A",
+            "id": "RuntimeA2A-v3-prediction",
+            "name": "component_as_tool",
+            "output_types": [
+              "Tool"
+            ]
+          },
+          "targetHandle": {
+            "id": "WorkflowController-v3-central",
+            "fieldName": "prediction_tools",
+            "inputTypes": [
+              "Tool"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "RuntimeA2A-v3-knowledge-component_as_tool-WorkflowController-v3-central-knowledge_tools",
+        "source": "RuntimeA2A-v3-knowledge",
+        "target": "WorkflowController-v3-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œRuntimeA2Aœ,œidœ:œRuntimeA2A-v3-knowledgeœ,œnameœ:œcomponent_as_toolœ,œoutput_typesœ:[œToolœ]}",
+        "targetHandle": "{œidœ:œWorkflowController-v3-centralœ,œfieldNameœ:œknowledge_toolsœ,œinputTypesœ:[œToolœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "RuntimeA2A",
+            "id": "RuntimeA2A-v3-knowledge",
+            "name": "component_as_tool",
+            "output_types": [
+              "Tool"
+            ]
+          },
+          "targetHandle": {
+            "id": "WorkflowController-v3-central",
+            "fieldName": "knowledge_tools",
+            "inputTypes": [
+              "Tool"
+            ],
+            "type": "other"
+          }
+        }
+      }
+    ],
+    "viewport": {
+      "x": -274.2758583086918,
+      "y": -243.1178772323484,
+      "zoom": 0.4746646328977672
+    }
+  },
+  "a2a_card_overrides": null
+}

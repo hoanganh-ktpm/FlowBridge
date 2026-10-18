@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- Khoanh sửa dependency định danh ML→Data ở ver2: tách câu hỏi con khỏi mục tiêu
+  tư vấn NCC; chỉ xác nhận lookup hoàn tất bằng receipt thật khi lỗi duy nhất là
+  handoff ngoài phạm vi. Giữ các lỗi/quyền/nhập nhằng và các nhánh khác; user tự test.
+
+- Thêm 11 node xử lý giao tiếp ver2, chỉ nối lại dây và giữ nguyên mọi node cũ:
+  adapter A2A chuẩn hóa task, gắn receipt thật và đóng dependency đã xong; kiểm
+  reply + Type Convert native. Không thêm model định dạng hoặc nới ngân sách.
+
+- Sửa ver2 gọi ML khi thiếu lượng/ngày: runtime yêu cầu tra sản phẩm hoặc hỏi bổ sung
+  trước khi xếp hạng. Tách lỗi chạy agent và lỗi reply, giữ trace và mã lỗi cụ thể;
+  không diễn giải thiếu đầu vào/lỗi A2A thành backend ML ngừng hoạt động.
+
+- Sửa định danh RuntimeA2A ver3: tên/ID riêng và source khớp component đăng ký,
+  tránh editor nhận nhầm thành A2AAgent native làm mất route. Controller nhận ba
+  dịch vụ qua ba cổng riêng, bỏ tìm tên/metadata trong list tool chung; repair giữ cấu hình và
+  backup trước khi đổi. Không chạy hội thoại/test OpenAI theo yêu cầu người dùng.
+
+- Thêm FlowBridge ver3: clone bốn flow ver2 hiện tại, lưu bản clone nguyên trạng
+  trước khi phân tầng; giữ nguyên API tool/preset/credential và ver2. Cổng chat có
+  schema, state theo user/flow/session với CAS/TTL, controller hữu hạn và ba nhánh
+  ServiceBridge không LLM; runtime giữ evidence/UUID, renderer dùng ToolResult.
+  Kiểm hồi quy offline và engine native A2A/ML không OpenAI; dữ liệu ML demo vẫn
+  có thể insufficient_data. Thêm export, verifier và khôi phục có guard.
+
+- Bật RAG Supabase/pgvector trên backend Langflow test: token local ánh xạ vào
+  AI_SERVICE và JobContext thật, giữ policy/cutoff và toàn bộ session read-only.
+  Thêm chuẩn bị profile, nối/khôi phục riêng tool RAG và tự nối lại qua launcher;
+  dùng chunk có sẵn, không import/reindex. 23 unit tests đạt; truy hồi thật200 với
+  3chunk đúng NCC, guards token/context đạt và DB không đổi. Không gọi OpenAI.
+
+- Sửa OpenAI400 additionalProperties ở Structured Response ver2 khi Agent con không
+  có tool: object động dùng function_calling không strict và Pydantic local; giữ
+  ToolResult/JSON lồng nhau, schema/prompt/preset/kết nối. Thêm repair riêng3Agent,
+  cập nhật installer/export;9 kiểm thử offline đạt, không gọi OpenAI để test.
+
+- Thêm launcher backend test riêng tại127.0.0.1:8001 cho Langflow ver2: token local,
+  reuse active human/grant thật, API allowlist và PostgreSQL read-only; giữ SSO backend
+  thường/v1. Nối9 node Dữ liệu/ML qua Credential riêng, backup/khôi phục connection.
+  Unit7pass/API smoke đạt; ML vẫn insufficient_data khi thiếuq_ref, chưa gọi OpenAI.
+
+- Sửa Luna function tools trong Langflow ver2: thêm endpoint/reasoning chỉnh được vào lớp kế thừa Agent chuẩn, mặc định Chat Completions + none, chặn cấu hình bất tương thích trước request và tắt SDK retry mặc định. Giữ preset/dây nối/ID và workflow v1; kiểm serialization offline, chưa gọi OpenAI để nghiệm thu lại.
+
+- Thêm project Langflow độc lập FlowBridge - ver2: Agent trung tâm và ba agent Dữ liệu/ML/RAG qua A2A Internal native; model/prompt/schema chỉnh được, giữ API adapter canonical và workflow cũ. Chưa chạy inference/OpenAI hoặc nghiệm thu backend.
+
 - Đồng bộ đường dẫn Langflow với package `backend/flowbridge/` khi gộp main; giữ cấu hình và hợp đồng node hiện có.
 - Việt hóa node Langflow, chuẩn hóa prompt/description, hợp nhất tham số câu hỏi với mặc định/khóa, output JSON chung và hợp đồng chuyển dữ liệu giữa 10 tool. Thêm schema/ví dụ theo contract và 20 tình huống chưa chạy; chưa nghiệm thu lựa chọn tool của model.
 
