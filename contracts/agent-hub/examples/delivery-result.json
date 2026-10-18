@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "run_id": "ma-luot-xu-ly",
+  "answer": "NCC-03 có 110/181 đơn đã nhận đủ bị trễ, tương đương 60,77%.",
+  "datasets": [
+    {
+      "id": "delivery_counts",
+      "title": "Tiến độ giao hàng — NCC-03",
+      "columns": [
+        {
+          "field": "delivery_status",
+          "label": "Tình trạng giao hàng",
+          "type": "string"
+        },
+        {
+          "field": "order_count",
+          "label": "Số đơn đặt hàng",
+          "type": "integer",
+          "unit": "đơn đặt hàng"
+        }
+      ],
+      "rows": [
+        {"delivery_status": "Nhận đủ đúng hạn", "order_count": 71},
+        {"delivery_status": "Nhận đủ trễ hạn", "order_count": 110},
+        {"delivery_status": "Chưa nhận đủ, quá hạn", "order_count": 5},
+        {"delivery_status": "Chưa nhận đủ, chưa quá hạn", "order_count": 2},
+        {"delivery_status": "Thiếu dữ liệu lịch giao", "order_count": 0}
+      ],
+      "context": {
+        "as_of": "2026-10-17T16:57:35.254484+00:00",
+        "period_from": "2025-04-28",
+        "period_to": "2026-10-17",
+        "complete": true,
+        "count_unit": "đơn đặt hàng",
+        "metric_definition": "Mỗi đơn chỉ thuộc một nhóm trạng thái.",
+        "denominator_definition": "Tỷ lệ trễ = đơn nhận đủ trễ / tổng đơn đã nhận đủ."
+      },
+      "source_ids": ["delivery_source"]
+    }
+  ],
+  "tables": [
+    {
+      "id": "delivery_table",
+      "title": "Số đơn theo tình trạng",
+      "dataset_id": "delivery_counts",
+      "fields": ["delivery_status", "order_count"]
+    }
+  ],
+  "charts": [
+    {
+      "id": "delivery_chart",
+      "title": "Tiến độ giao hàng — NCC-03",
+      "dataset_id": "delivery_counts",
+      "type": "bar",
+      "orientation": "horizontal",
+      "stacking": "none",
+      "x_field": "delivery_status",
+      "x_label": "Tình trạng",
+      "y_label": "Số đơn đặt hàng",
+      "y_unit": "đơn đặt hàng",
+      "series": [
+        {"field": "order_count", "label": "Số đơn đặt hàng"}
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "delivery_source",
+      "kind": "tool",
+      "tool": "supplier_delivery_statistics"
+    }
+  ],
+  "warnings": [],
+  "questions": [],
+  "error": null
+}

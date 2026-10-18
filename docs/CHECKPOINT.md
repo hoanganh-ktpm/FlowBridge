@@ -1,5 +1,31 @@
 # Checkpoint FlowBridge
 
+## 2026-10-19 — CODE-LANGFLOW-18: Hợp đồng Agent Hub cho Web/App
+
+- User xác nhận ver2 đã chạy ổn, yêu cầu viết hợp đồng kỹ trong thư mục contract
+  dựa trên template (1).json. Dùng contracts/ hiện có, không tạo root contract/ mới.
+- Repo branch test-langflow-ver2-optimize, HEAD 1d08e3f; đầu lượt git status sạch.
+  Đã đọc AGENTS.md workspace cha; PROJECT-RULES.md/PLAN-OPENCORE.md được tham chiếu
+  không tồn tại trong checkout hiện tại. Không dùng ghi chú cũ để chặn phạm vi mới.
+- Thêm contracts/agent-hub-api.yaml OpenAPI 3.1 (12 operation), agent-hub/README.md,
+  JSON Schema 2020-12 result/event và ví dụ JSON/SSE/HTTP. Mẫu đầu ra gốc sao nguyên
+  byte vào examples/delivery-result.json; provenance phân biệt dữ liệu người dùng
+  và ví dụ tổng hợp, không gán giấy phép code cho upload.
+- Chốt Langflow tự điều phối/gọi phụ thuộc trong run scope; Hub chỉ xác thực/lưu/
+  truyền và kiểm boundary. Selection snapshot theo conversation revision; metadata
+  actual agents riêng để giữ 11 trường result. Dataset/table/chart references, đơn vị,
+  decimal, mẫu số tỷ lệ, normal/percent stack, limits/null/empty và validation rõ ràng.
+- Hợp đồng bao gồm async admission/idempotency, single active run, SSE replay/retention,
+  cancellation race, clarification run mới, quyền trên mọi hop và không dùng token demo
+  global cho web users. Cập nhật contracts/README.md và CHANGELOG.md.
+- Chỉ bàn giao hợp đồng thiết kế: không endpoint/backend/router/model/flow sửa đổi,
+  không dependency/migration/checksum snapshot App/AI/Core; không commit/push/restart.
+  Không chạy test, validator, model, workflow hoặc HTTP nghiệp vụ theo yêu cầu user
+  tự kiểm thử. Chỉ đọc file/Git và rà tài liệu trực tiếp, không tuyên bố đã nghiệm thu.
+- Bước sau: triển khai Hub persistence/admission/SSE theo contract và thêm integration
+  run selection/evidence bridge/JSON builder vào ver2 khi user yêu cầu; không coi
+  các endpoint hoặc node đã hoạt động chỉ vì có hợp đồng này.
+
 ## 2026-10-18 — CODE-LANGFLOW-17: Khoanh lỗi handoff ngoài nhiệm vụ resolve của ML
 
 - User yêu cầu xử lý lỗi triệt để trong phạm vi hẹp rồi dặn không kiểm thử, user
