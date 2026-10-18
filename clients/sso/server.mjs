@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {parseArgs} from "node:util";
+import {buildBusiness} from "./build.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const {values} = parseArgs({options: {
@@ -18,9 +19,14 @@ if (!["127.0.0.1", "0.0.0.0"].includes(values.host)) throw new Error("Invalid --
 const port = Number(values.port);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Invalid --port");
 const config = JSON.parse(await fs.readFile(path.resolve(values.config), "utf8"));
+if (process.env.FLOWBRIDGE_CLIENT_PREBUILT === "true") await fs.access(path.join(root, "dist/business.js"));
+else await buildBusiness();
 const assets = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/app.js", ["app.js", "application/javascript; charset=utf-8"]],
+  ["/business.js", ["dist/business.js", "application/javascript; charset=utf-8"]],
+  ["/business.js.LEGAL.txt", ["dist/business.js.LEGAL.txt", "text/plain; charset=utf-8"]],
+  ["/business.css", ["business.css", "text/css; charset=utf-8"]],
   ["/keycloak.js", ["node_modules/keycloak-js/lib/keycloak.js", "application/javascript; charset=utf-8"]],
 ]);
 http.createServer(async (request, response) => {

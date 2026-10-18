@@ -1,5 +1,9 @@
 # FlowBridge
 
+Giao diện nghiệp vụ React đơn giản cho nhân viên/người duyệt/nhà cung cấp nằm tại
+[clients/sso](clients/sso/README.md), dùng SSO và API hiện có. Người duyệt hiện xem
+đề xuất; quyết định phê duyệt còn chờ workflow. Hướng dẫn chạy và test ở README client.
+
 Gateway Identity core dùng APISIX standalone, với TLS/OIDC và bộ kiểm thử Docker
 riêng: [thiết lập và nghiệm thu](docs/GATEWAY.md). Trạng thái hiện hành và phần
 còn mở được ghi trong [bằng chứng Gateway](docs/GATEWAY-TEST-RESULTS.md).
@@ -15,6 +19,7 @@ Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằn
 RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md). Có [flow Langflow chỉ truy hồi RAG](langflow/rag/README.md), dùng token Keycloak và JobContext; chưa có bước LLM tổng hợp hoặc ghép ML trong flow này.
 
 ML đã có API riêng để chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO bằng TabICLv2.
+Flow agent và custom node cho Langflow: [cấu hình Langflow](langflow/README.md).
 Rủi ro đại diện PO lấy điểm cao nhất của các món còn phải giao, kèm món/deadline quyết định.
 Bật bằng `FLOWBRIDGE_ML_ENABLED=true` sau khi cài extra `ml`, chuẩn bị checkpoint/context
 và cấu hình Identity. Xem [hướng dẫn ML và custom node Langflow](docs/ML-SERVICE.md).
@@ -141,7 +146,7 @@ Request/response/status theo contract. API đọc/ghi dữ liệu PostgreSQL th�
 
 ```text
 FlowBridge/
-├── backend/src/flowbridge/   Package backend Python hiện có
+├── backend/flowbridge/       Package backend Python hiện có
 ├── tests/unit/              Unit test Settings, lifecycle, lỗi/correlation và probes dùng mock
 ├── tests/integration/       HTTP/SQL với Supabase thật; chỉ tiêm danh tính trong test
 ├── clients/                 Client SSO A/B và browser tests; UI nghiệp vụ còn thiếu

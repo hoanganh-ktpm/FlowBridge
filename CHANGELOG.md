@@ -4,6 +4,15 @@
 
 - Thêm custom component và flow Langflow chỉ truy hồi RAG qua bearer Keycloak + JobContext; cấu hình service credential ở server, xuất đoạn trích/citation, môi trường Langflow riêng và helper kiểm thử. Không gọi ML hoặc LLM trong flow này.
 
+- Đồng bộ đường dẫn Langflow với package `backend/flowbridge/` khi gộp main; giữ cấu hình và hợp đồng node hiện có.
+- Việt hóa node Langflow, chuẩn hóa prompt/description, hợp nhất tham số câu hỏi với mặc định/khóa, output JSON chung và hợp đồng chuyển dữ liệu giữa 10 tool. Thêm schema/ví dụ theo contract và 20 tình huống chưa chạy; chưa nghiệm thu lựa chọn tool của model.
+
+- Thêm flow Langflow với OpenAI model tùy chọn, 10 node tác vụ chỉnh tham số/Input JSON/description và 3 tầng Database/ML/RAG; hỗ trợ khóa input, JSON output, giới hạn lượt gọi, cache, credential local và câu hỏi mẫu. Chưa nghiệm thu model/backend theo yêu cầu hoãn test.
+- Gom setup Langflow local vào `langflow/`, giữ dữ liệu/flow mẫu và thêm `start.cmd` để mở bằng nhấp đúp trên Windows.
+- Bỏ lớp thư mục `src` của backend: package Python chuyển sang `backend/flowbridge/`; cập nhật build, Alembic, script đồng bộ contract và tài liệu. Tên import `flowbridge` giữ nguyên.
+
+- Thêm giao diện nghiệp vụ React tại client SSO: catalog, yêu cầu mua hàng nhiều dòng, xem PO/đề xuất và phản hồi nhà cung cấp bằng token. Quyết định duyệt chờ workflow; không giả tác động email/phân tích. Thêm build esbuild, lock React/React DOM và suite kiểm thử browser UI riêng.
+
 - Sửa Swagger của API PostgreSQL dùng server URL tương đối theo địa chỉ phục vụ OpenAPI, thay host ví dụ cổng8000. Try it out dùng đúng cổng dev/proxy prefix; giữ snapshot contract và cơ chế bearer authentication.
 
 - Thêm profile APISIX standalone cho hai API Identity core: TLS/CA, OIDC bearer introspection, public allowlist, network isolation, proxy trust tường minh, correlation và limits. Thêm runner nghiệm thu Docker riêng với cleanup/recovery và HTTP/browser assertions; các receiver core khác chưa được public. Nghiệm thu từ archive sạch:296unit container,21HTTP,1browser IAM/API và log/cleanup đạt.
