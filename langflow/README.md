@@ -1,5 +1,16 @@
 # Langflow cho FlowBridge
 
+**FlowBridge - ver3** clone đầy đủ từ ver2 rồi thay phần điều phối bằng cổng chat,
+state/controller và service bridge không LLM; giữ API tool/preset/kết nối ver2.
+Xem [sơ đồ, ngân sách, kiểm thử và khôi phục ver3](VER3.md).
+
+Thử riêng **ver2** khi chưa cấu hình SSO: mở Langflow bằng `start.cmd`, sau đó nhấp
+đúp [start-test-backend.cmd](start-test-backend.cmd). Backend test chạy riêng tại
+`http://127.0.0.1:8001`; các node Dữ liệu/ML của ver2 dùng credential local tự tạo.
+F5 tab ver2 trước khi chat. Xem [cách chạy/dừng và giới hạn](VER2.md#test-local-khi-chưa-có-sso).
+RAG có thể dùng Markdown/chunk đã lập chỉ mục trên Supabase; xem phần chuẩn bị RAG
+trong hướng dẫn trên. Không cần nhập hoặc lập chỉ mục lại tài liệu.
+
 Nhấp đúp start.cmd, mở **FlowBridge - Trợ lý mua hàng**.
 
 **Nhập câu hỏi → Trợ lý mua hàng → Trả lời người dùng**.
@@ -146,6 +157,18 @@ chat. Agent trong Playground vẫn tự động theo yêu cầu người dùng.
 
 Hiện chỉ kiểm cấu hình/schema/giao diện; chưa nghiệm thu câu hỏi/LLM hoặc tích hợp
 backend thật. Không coi JSON mẫu/schema/flow tồn tại là bằng chứng chọn đúng tool.
+
+## Bản nhiều agent riêng
+
+`FlowBridge - ver2` nằm trong project riêng, gồm Agent trung tâm và ba agent con
+Dữ liệu/ML/RAG, nối bằng A2A Internal có sẵn. Dùng model selector/Agent/Prompt/Date/
+Structured Response/Parser/Operations chuẩn. Bốn Agent mở rộng cấu hình endpoint/
+reasoning OpenAI (Chat Completions + none mặc định), giữ engine upstream; API nghiệp
+vụ dùng custom adapter. Ba Agent con dùng thêm adapter Structured Response cho JSON
+object động ở nhánh native không có tool; vẫn kiểm Pydantic tại local, giữ nguyên
+schema/JSON và không thêm model call. Bộ ver2 cũ sửa riêng bằng
+`langflow/repair_ver2_structured.py` với Python trong venv Langflow, rồi F5.
+Xem [hướng dẫn và hợp đồng ver2](VER2.md). Không thay workflow trợ lý mua hàng v1.
 
 Code/config nhóm tạo: GPL-3.0-or-later, xem LICENSE. Langflow/lfx MIT theo requirements.
 Không đóng gói .venv, data, model weights hoặc cache.

@@ -1,5 +1,327 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-17: Khoanh lỗi handoff ngoài nhiệm vụ resolve của ML
+
+- User yêu cầu xử lý lỗi triệt để trong phạm vi hẹp rồi dặn không kiểm thử, user
+  tự test. Không chạy pytest, model, workflow hoặc API nghiệp vụ trong lần sửa này.
+- Thêm ver2_entity_dependency.py; adapter chỉ gọi helper khi prediction rank/score
+  nhờ database resolve_entities. Thu hẹp question/known vào selector định danh;
+  điều kiện quantity/date/pricing nằm nguyên ở request ML cha.
+- Reply lỗi duy nhất INVALID_DEPENDENCY chỉ được xác nhận hoàn thành khi mọi
+  receipt là catalog_resolve_entities thật, thuộc run hiện tại, trả success,
+  không truncated/missing/questions/warnings; từng entity có đúng1item, UUID,
+  mã/tên/đơn vị khớp resolved và selector. Score cần cả product+supplier. Warning
+  cũ chuyển vào trace/audit; các lỗi khác hoặc thiếu proof giữ nguyên.
+- Không sửa finish_reply/middleware chung, không bỏ kiểm handoff toàn ver2; không
+  đổi config/graph/model/key/preset/giới hạn hoặc các nhánh Data trực tiếp, offers,
+  danh mục, PR/PO, RAG, stored_result. Không commit/push. Không nghiệm thu hành vi
+  model thật; user tự kiểm tra sau khi Langflow nạp lại runtime.
+- Đã khởi động lại Langflow để nạp helper; log ignored
+  ver2-entity-fix-20261018-204201. Không PATCH metadata/graph, không gọi endpoint
+  health hoặc chạy kiểm thử theo yêu cầu user.
+
+## 2026-10-18 — CODE-LANGFLOW-16: Thêm node chuẩn hóa A2A ver2, giữ node cũ
+
+- User yêu cầu phân tích lỗi DEMO-P03 và chỉ thêm node/nối dây, cực ưu tiên native.
+  Read trace959fed03: Data resolve thành công; ML gọi Data với task rank_suppliers/
+  offers và evidence bị model chép sai. Không gọi prediction_rank_suppliers;
+  tổng4A2A/12model, cảnh báo INVALID_HANDOFF_REQUEST/INVALID_DEPENDENCY/output invalid.
+- Chỉ thêm runtime/component mới: 5A2AProtocolAdapter bọc Tool cũ, giữ request cha,
+  task đúng vai trò, evidence lấy từ receipt runtime theo đối tượng; thu gọn reply
+  thành công cho model. action động ngừng đưa Data vào Tools sau dependency.
+  Thêm3ReplyEnvelope +3Type Convert native ở output; reuse Parser cũ. Không sửa
+  source/runtime/metadata/prompt/model/key/preset/position của bất kỳ node cũ nào.
+- Installer có backup, concurrency check, rollback, kiểm toàn object từng node cũ,
+  hash flow ngoài ver2. Đã áp dụng11node vào4flow, export cập nhật cùng phép thêm.
+  Backup ignored data/ver2-before-protocol-nodes-20261018-195338, preservation.json
+  ghi hash node cũ. Lần apply đầu405 do thiếu PATCH đã rollback trước khi áp dụng lại.
+- 54tests coordination/protocol offline đạt7.81s, gồm native create_agent/A2A giả lập
+  Data→ML API và không hiện Data ở model call sau. 4graph from_payload/topological
+  đạt, không chạy workflow thật/model/OpenAI/API nghiệp vụ. Thiết kế và giới hạn ở
+  langflow/VER2-PROTOCOL.md. Không commit/push hoặc sửa ver3.
+- Đã restart Langflow, startup/version1.12.6 đạt; đọc lại4flow xác nhận38node cũ
+  nguyên object và11node mới có đủ dây. Log ignored ver2-protocol-20261018-195544.
+
+## 2026-10-18 — CODE-LANGFLOW-15: Chặn ML thiếu đầu vào ở ver2
+
+- User yêu cầu sửa gọn ca băng keo thiếu lượng/ngày gọi rank_suppliers rồi báo
+  SERVICE_CALL_FAILED. Thêm preflight trong CoordinationMiddleware trước handler:
+  cần tra sản phẩm thì needs_service/database.resolve_entities; có receipt đúng sản
+  phẩm thì needs_input. Không gọi ML, dùng nhầm receipt hoặc cache trạng thái thiếu.
+- Tách lỗi execution/reply, giữ SERVICE_MISMATCH và mã budget đã biết, thêm trace;
+  lỗi nội bộ trả error thay vì khẳng định backend unavailable. Không lộ provider text.
+- Bổ sung prompt trong source/export và flow trung tâm đang lưu, giữ nguyên mọi
+  field khác và hash các flow khác. Backup ignored
+  data/ver2-before-preflight-20261018-193348.json. Restart Langflow để nạp runtime;
+  log ignored ver2-preflight-20261018-193414. Không đổi cấu hình giới hạn lượt.
+- 40 kiểm thử coordination offline đạt (13.84s), Ruff đạt; không chạy hội thoại,
+  workflow thật hoặc OpenAI. Không sửa ver3, dependency, credential; không commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-14: Tách cổng controller theo dịch vụ (đã áp dụng, user tự test)
+
+- User vẫn báo lỗi cũ; giữ yêu cầu chỉ sửa, user tự test. Không chạy hội thoại,
+  pytest/model/API nghiệp vụ. Read live thấy3RuntimeA2A mới vẫn đúng class/ID/target,
+  không bị revert về native; bước sửa CODE-LANGFLOW-13 chưa đủ. Main có UI changes,
+  ba flow con giữ hash nguyên. Không đổ nguyên nhân lần này cho định danh node.
+- Loại bỏ tìm service trong list Tool bằng name hoặc custom metadata. Controller
+  có3input riêng database_tools/prediction_tools/knowledge_tools, canvas nối trực
+  tiếp theo vai trò. Bound request/ToolResult/correlation/ACL native vẫn kiểm.
+- Đã sửa runtime, builder và repair có backup/guard; repair giữ preset/model/key,
+  cập nhật frontend controller/cạnh và kiểm đủ3cổng duy nhất trước PATCH. Ruff đạt.
+- Đọc trace build cũ qua API read-only để đối chiếu, không chạy graph. Các record
+  build trả về vẫn là greeting18:54 nên không dùng làm bằng chứng lỗi request mới.
+- repair_ver3_routes.py exit0, backup ignored trước thay ở
+  data/ver3-before-route-fix-20261018-191329.json. Main/export/manifest cập nhật;
+  hash các flow khác/preset/model/key giữ nguyên. Static wiring đúng: database
+  →database_tools, prediction→prediction_tools, knowledge→knowledge_tools.
+- Đã restart Langflow để nạp controller schema mới; chỉ đọc endpoint version
+  xác nhận startup, không chạy graph/hội thoại/pytest/model. Ruff/diff check đạt.
+  User F5 ver3 và tự test. Không sửa ver2/dependency/migration hoặc commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-13: Sửa SERVICE_NOT_CONNECTED khi mở canvas ver3 (đã áp dụng, user tự test)
+
+- User báo 'tôi muốn đặt băng keo' lỗi SERVICE_NOT_CONNECTED. Branch/HEAD vẫn
+  test-langflow-ver2-optimize/affb198; giữ toàn bộ thay đổi CODE-LANGFLOW-12.
+- Read live:3flowcon nguyên hash; main đổi3A2A về native A2AAgent, code upstream,
+  mất target_service và cả3tool tên send_to_agent. Canvas vẫn9edge nên controller
+  không tìm tên hoi_du_lieu. RuntimeA2A đã kế thừa name=A2AAgent và ID prefix cũ,
+  editor nhận nhầm canonical component. Test API trước chưa bao phủ mở/lưu canvas.
+- User chỉ yêu cầu sửa, sẽ tự test; dừng kế hoạch kiểm thử/UI round-trip, không
+  chạy pytest, hội thoại hay OpenAI. Đã đưa tab Home để tránh autosave bản cũ.
+- Sửa RuntimeA2A.name và node ID riêng; source wrapper dùng đúng file đăng ký.
+  Controller định tuyến metadata flowbridge_service/protocol thay tên action.
+  Thu hẹp mô tả khả năng chỉ đọc/tư vấn chuẩn bị mua, không hứa tạo/gửi đơn.
+- repair_ver3_routes.py exit0: chỉ sửa3A2A/edge và4wrapper source trung tâm,
+  giữ input/model/key/preset, API tools và hash mọi flow khác. Backup ignored
+  data/ver3-before-route-fix-20261018-190519.json; export/manifest ver3 cập nhật.
+  Ruff format/check đạt; không dependency/migration/credential mới.
+- Đã khởi động lại Langflow để nạp runtime/library mới; bàn giao user F5 và tự
+  test. Chỉ đọc endpoint version để xác nhận startup; không chạy graph, pytest
+  hoặc OpenAI. Giữ ver2 nguyên và không commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-12: Clone ver2 sang ver3 và phân tầng (hoàn tất)
+
+- User yêu cầu clone đầy đủ ver2 hiện tại sang project ver3 rồi mới chỉnh theo đặc
+  tả đính kèm; giữ ver2 nguyên. Branch test-langflow-ver2-optimize, HEAD affb198,
+  đầu vào sạch. Không commit/push hoặc chạy request OpenAI trả phí.
+- Đã đọc ../AGENTS.md, checkpoint và runtime/setup ver2. PROJECT-RULES.md và
+  PLAN-OPENCORE.md không tồn tại trong checkout. Kế thừa API adapter/preset/kết nối,
+  native Chat/Date/A2A và giữ snapshot trước biến đổi để khôi phục.
+- Đã thêm ver3_contracts/state/workflow/nodes, setup_ver3 và test_ver3. Dựng metadata
+  offline thành công; 23 test đạt (5.79s): schema strict, 0-call greeting, 1 mocked
+  extraction+usage, ambiguity/followup, UUID invalidation, unit/date, PR multi-line,
+  supplier scenario, evidence/lease/CAS/isolation, giữ nguyên API adapters/cổng nối.
+- Langflow7860 ban đầu tắt; đã khởi động riêng bằng runtime/config hiện có, không
+  chạy model. Read live đủ4ver2 (5/4/1API tools); kiểm metadata bị sandbox10013,
+  chạy ngoài sandbox được cho phép. Builder lần đầu sửa alias NativeComponent và
+  input_types JSON/Data theo upstream; không sửa dependency.
+- setup_ver3 --install exit0: project ver3, main0209570f-7578-4c73-82f4-14e2e5742519;
+  backup ignored data/ver3-clone-20261018-184113. Đủ4flow, 29node/25edge;10API
+  adapter giữ nguyên byteJSON. Hash6flow cũ đều nguyên; verifier kiểm lại4ver2.
+- Native engine greeting smoke đạt0model/0service. Service integration trên flow
+  tạm đã xóa: DEMO-P07 resolve success → rank insufficient_data,2service/0model.
+  Phát hiện/sửa Message kế thừa Data phải đọc text trước data; có regression test.
+  Runtime/API thật không còn lỗi handoff/evidence. Không dùng OpenAI thật.
+- Cuối suite107passed26.48s; Ruff/diff check đạt. Thêm VER3/README/CHANGELOG và
+  source packaging; không dependency/migration backend. Planner khó kế thừa model
+  ver2, cổng4o-mini,0/1/tối đa2request; token/trace trong session_metadata native.
+- Runtime cuối đã nạp. Verifier cuối exit0: Graph parse29node/25edge,4ver2hash
+  nguyên,10APInode giữ nguyênJSON, native greeting0model/0service. Export4JSON
+  và sidecar không literal secret; Ruff/diff check đạt.
+- RAG thật exit0: NCC-06 resolve success → retrieve success,2service/0model,
+  3chunk nguồn thật từ PostgreSQL+embedder local. Flow kiểm tạm đã xóa; report
+  ignored data/ver3-rag-smoke.json. Không import/reindex hoặc viết DB nghiệp vụ.
+- Rank smoke bản cuối exit0,2service/0model;6NCC đều thiếuq_ref, renderer trả
+  bảng ứng viên chưa chấm và nêu đúngq_ref. Report data/ver3-service-smoke.json.
+- Đã hoàn tất source/export/docs, yêu cầu mở main ver3 trong panel (tool queued).
+  Còn giới hạn: chưa
+  gọi OpenAI thật để nghiệm thu ngôn ngữ/model availability; dữ liệu ML demo còn
+  insufficient_data, không bịa điểm. Có --restore-clone guard và ver2 nguyên để
+  quay lại. Langflow7860/backendtest8001 đang chạy. Không commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-11: RAG Supabase trên backend test (hoàn tất)
+
+- User yêu cầu bật RAG test và xác nhận Markdown/chunk đã có trên Supabase.
+  Branch test-langflow-no-SSO HEAD2de18f1; không commit/push, không gọi OpenAI.
+  Giữ thay đổi CODE-LANGFLOW-10 và data/coordination ngoài lượt; không ghi đè các
+  node/prompt/export đang được sửa đồng thời. Docs PROJECT-RULES/PLAN-OPENCORE không
+  tồn tại trong checkout hiện tại; tuân theo ../AGENTS.md và code/contract đang có.
+- Audit read-only thấy6documents/24versions/633chunks, profile Qwen đúng; thiếu bật
+  backend PostgreSQL RAG, service identity/JobContext và local query embedder.
+  Bỏ kế hoạch fixture/Chroma; dùng PgKnowledgeService/PgKnowledgeStore/job_scope có
+  sẵn. Không import, reindex, tạo job/role, sửa DB/schema/migrate hoặc giả context.
+- uv sync --locked --extra ml --extra rag --group dev --group build exit0 (97533),
+  không đổi dependency/lock. Tải public Qwen0.6B revision
+  97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3 vào cache ignore (24837exit0), không gửi
+  tài liệu ra ngoài. Embedder local1024/cosine/normalized/cpu-fp32/seq2048 đúng index.
+- scripts/prepare_langflow_rag.py chọn active AI_SERVICE và task thật qua policy/
+  job_scope, kiểm chunk/version nhìn thấy đúng profile. Lưu ignored local-test.json,
+  không ghi DB. Sáu tài liệu truy cập được; cutoff17/10/2026 21:19VN (feature_asof).
+  Scope vẫn theo task/PR revision/phòng ban/trạng thái và publication cutoff.
+- scripts/langflow_test_backend.py bật PostgreSQL RAG qua --rag hoặc saved profile;
+  auth local map RAG vào AI account thật, data/ML vào human thật, role live vẫn kiểm.
+  Chỉ mở POST retrieve-knowledge, không mở index/admin/write. Tất cả session engine
+  readonly (kể cả factory RAG), warm query embedder trước ready; SSO thường/v1 giữ.
+- langflow/connect_local_rag.py chỉ patch4field connection của tool knowledge ver2,
+  backup before/applied trong ignored local-rag-connection.json, restore có guard.
+  Đã nối8001/Credential local/JobContext thật/enabled; các flow khác hash giữ nguyên.
+  Launcher tự nối lại; connect_local_test chấp nhận3hoặc5data tools để tương thích
+  bản data đang được nâng cấp, ML vẫn4; không chạy reconnect data/ML trong lượt này.
+- Backend hiện chạy session19706 PID28032 port8001, startup ML/Qwen sẵn sàng.
+  Cố kiểm server cũ thấy port không listen nên không kill process nào. Langflow7860
+  giữ nguyên; user F5 để nhận connection. Không restart hoặc chạy Playground.
+- Unit local_backend + rag_backend + knowledge_postgres_http:23passed2.39s (gồm
+  model warm/readonly lifecycle), không dùng OpenAI. Real HTTP/SQL smoke66875exit0:
+  retrieve200,3chunk đúng supplier Phúc Lâm, nguồn core-document; thiếu token401,
+  thiếu context422, job không tồn tại404, index404/405; catalog/ML readiness200.
+  SQL trước/sau không đổi (6documents,24versions,633chunks,6idempotency).
+  Evidence đầy đủ trong ignored data/pg-rag-test-result.json; không chép text/token.
+- Cập nhật README/VER2/CHANGELOG và source packaging connector mới. Ruff check,
+  format5file và git diff --check đạt; không thay manifest dependencies. Giới hạn:
+  xác thực test local chưa
+  phải SSO/OIDC; chưa nghiệm thu hội thoại OpenAI hoặc độ chính xác tổng hợp model.
+
+## 2026-10-18 — CODE-LANGFLOW-10: Sửa Structured Response object động (hoàn tất)
+
+- User báo OpenAI400 additionalProperties ở resolved khi A2A RAG. Repo branch
+  test-langflow-no-SSO HEAD2de18f1, đầu vào sạch; không reset/commit/push/gọi OpenAI.
+- Đọc OpenAI Docs structured outputs và source lfx1.12.6: output_schema dict sinh
+  dict[str,Any]/additionalProperties=true. Agent có tools dùng prompt fallback;
+  Agent không tools dùng native with_structured_output mặc định json_schema strict.
+  Tool RAG không đăng ký khi thiếu credential/context nên lộ lỗi native này.
+- Phương án: subclass riêng3agentcon, giữ orchestration/schema/Parser/JSON công khai;
+  chỉ nhánh native OpenAI với schema chứa object động dùng function_calling,
+  strict=False qua API LangChain chuẩn, Pydantic vẫn kiểm kết quả. Không đặt false
+  vào dict rỗng làm mất resolved/ToolResult. Không retry hoặc thêm model call.
+- Thêm ver2_structured.py: StructuredServiceAgent kế thừa lớp model; json_response
+  upstream được giữ, scope chỉ bọc model native OpenAI khi không có tool. Luồng
+  agent/tool không nhận proxy. Pydantic vẫn kiểm outer types; provider không strict
+  nên không claim provider-enforced schema hoặc độ chính xác nghiệp vụ.
+- Test_ver2_structured.py6case + test model3case **9 passed1.268s**, hoàn toàn mock
+  ChatOpenAI.ainvoke hoặc chỉ serialize SDK với placeholder. Chứng minh arbitrary
+  dict có trong schema nonstrict, JSON/chunk/reference/escape roundtrip nguyên;
+  output sai bị reject, không fallback/retry, đúng1 mockedcall và reset scope.
+  Lượt đầu8test đạt5.457s; đã bổ sung case chạy json_response upstream đầy đủ.
+- repair_ver2_structured.py đã chạy exit0: vá3flowcon, backup ignored trước thay,
+  mọi preset/prompt/schema/edge/connection giữ nguyên, hash3flow ngoài phạm vi nguyên.
+  Không restart Langflow: wrapper import module lớp mới chưa có ở process trước.
+- setup_ver2.py dựng mặc định đúng subtype cho3agentcon; sinh export offline exit0,
+  đủ39node/35edge, không --install đè live. repair_ver2_model.py giữ subtype này để
+  không mất sửa structured khi sửa cấu hình model sau này. Tài liệu/changelog/sdist
+  include cập nhật; không dependency/migration/DB writes/credential/backend/SSO mới.
+- Không có tab IAB đang mở khi kiểm inventory nên không sửa UI draft. User F5 và
+  thử lại. Chưa nghiệm thu OpenAI thật, Codex vẫn hỏi trước mỗi request trả phí;
+  RAG vẫn cần tool/token/JobContext/backend thật. Không commit/push.
+- Rà cuối Ruff5file/format/diff check đạt. Source export3flowcon chỉ đổi code và
+  metadata subtype, không đổi schema/edge. Phát hiện ver2_data.py untracked xuất
+  hiện từ thao tác ngoài lượt; không tạo/sửa/xóa hoặc gộp file đó vào thay đổi này.
+
+## 2026-10-18 — CODE-LANGFLOW-09: Khôi phục reasoning none cho Agent trung tâm
+
+- User báo ValueError guard Luna/Chat trước request. Repo hoanganhdev_features
+  HEAD d20a1fc, giữ thay đổi local CODE-LANGFLOW-08; không gọi OpenAI.
+- Metadata thực tế: 3 Agent con Chat Completions/none, Agent trung tâm Chat
+  Completions/medium. Hai tab IAB giữ bản nháp cũ khác nhau; chưa xác định thao tác
+  nào đã đổi medium, không suy là backend hoặc SSO tự thay model.
+- Đưa hai tab main về Home trước PATCH để tránh autosave cũ. Backup ignored
+  data/central-before-effort-*.json; chỉ đổi một field effort trung tâm medium→none.
+  Đọc lại đủ4 Agent đúng Chat/none, hash5 flow còn lại nguyên, dây nối/preset và
+  9 connection Dữ liệu/ML→8001 giữ nguyên. Không sửa runtime/guard hoặc gọi model.
+- Mở lại tab main từ metadata mới; user có thể thử tiếp. Nếu muốn reasoning khác
+  none cần chọn Responses trước. Không claim nghiệm thu một lượt OpenAI thật.
+
+## 2026-10-18 — CODE-LANGFLOW-08: Backend test local tách SSO (hoàn tất)
+
+- User yêu cầu thực hiện backend test riêng localhost:8001 để thử nhanh Langflow.
+  Repo hoanganhdev_features HEAD d20a1fc, đầu vào sạch; thay đổi CODE-LANGFLOW-07
+  đã được lưu bởi thao tác ngoài lượt này. Không commit/push hoặc gọi OpenAI.
+- Phương án: launcher riêng dùng app/service/ML hiện có, token local ngẫu nhiên,
+  danh tính human đang active với grant thật trong DB; chỉ thay dependency xác thực.
+  Giữ policy/ownership, allowlist API tra cứu và ML không lưu, session DB read-only,
+  bind/check loopback; không thêm bypass vào backend mặc định hoặc sửa .env.
+- Chỉ sửa origin/credential của các node dữ liệu/ML ver2 qua metadata API, backup
+  trước thay; giữ v1 và prompt/preset/dây nối. RAG vẫn cần quyền/context thật.
+- Đã thêm scripts/langflow_test_backend.py, start-test-backend.cmd/.ps1 và
+  connect_local_test.py; profile/token ngẫu nhiên ở ignored data/local-test.json,
+  reuse active human/grant thật, không tạo user/grant hoặc sửa .env/schema/data.
+  Backend mặc định không import entry point này; chỉ launcher riêng dùng override.
+- Đã chạy server8001 session68261; live/ready/ML/marker200, token thiếu401.
+  Nối9 tool bằng Credential Langflow riêng và backup các field cũ trước PATCH;
+  hash4 flow ngoài hai flow Dữ liệu/ML giữ nguyên. --disconnect khôi phục field
+  theo node ID, từ chối nếu connection đã được user đổi; chưa chạy rollback live.
+- Unit7 đạt1.69s ngoài sandbox: loopback/token/duplicate headers/host, API ghi/RAG/
+  internal ML/admin bị chặn và normal app giữ auth/command routes. Lượt sandbox
+  treo36324 đã dừng; lượt đầu ngoài sandbox2fail do FastAPI defer router inclusion,
+  sửa bằng lọc APIRouter trước include, lượt cuối7pass. Ruff3file/diff check đạt.
+- HTTP read-only smoke ignored data/check_local_test.py exit0:5 catalog/PR/PO200,
+  rank100 cuộn DEMO-P19 nhận ngày mai/top2 HTTP200, status=insufficient_data,
+  missing_fields=[q_ref]; context synthetic có quantity_references rỗng. Không
+  tự tạo q_ref/score. Có2 loại băng keo, câu hỏi chung cần hỏi chọn.
+- DB guard thực tế SHOW transaction_read_only=on; UPDATE WHERE FALSE bị từ chối
+  SQLSTATE25006 (zero-row statement, không sửa record). API ghi bị404/405 trước
+  service. Backend8000 vẫn live200 và API thiếu bearer401. OpenAI requests0.
+- Chỉ nghiệm thu bypass local/API, chưa chạy hội thoại/LLM và chưa có prediction
+  thành công cho case thiếuq_ref. Không migration/dependency mới/seed/commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-07: Sửa Luna tool/reasoning cho ver2, không gọi OpenAI
+
+- User báo OpenAIInvalidRequestError: Luna function tools không dùng được với
+  reasoning trên Chat Completions; cần Responses hoặc reasoning_effort=none.
+  Repo hoanganhdev_features HEAD d76cc13; giữ checkpoint CODE-LANGFLOW-06 đang sửa.
+- Đã đọc OpenAI Docs model Luna/reasoning; model mặc định medium khi không đặt
+  effort. Native Agent Langflow1.12.6 không có input endpoint/reasoning; factory
+  get_llm có overrides. Không dùng key helper vì không có tool tương ứng; không
+  gửi request xác minh/model/Playground, chỉ đọc docs và metadata local.
+- Thêm runtime/flowbridge_agent/ver2_agent.py: kế thừa Agent chuẩn, giữ nguyên
+  engine/memory/tools/Structured Response; chỉ truyền vào model factory mode API,
+  effort, SDK retry/timeout. Mặc định Chat Completions + none + retries0 +45s.
+  Luna+Chat+effort khác none bị từ chối trước factory/request; Responses cho phép low.
+- setup_ver2.py dùng lớp tương thích khi dựng mặc định. repair_ver2_model.py vá
+  live bốn Agent, giữ preset/prompt/ID/dây nối/node khác; xác minh code cũ là wrapper
+  hoặc source Agent upstream trước thay; backup đầy đủ trong data/ver2-before-model-fix-*
+  (ignore). Không sửa v1, backend/service hoặc source dependency.
+- Repair đầu từ chối vì user đã Update component về source upstream; thêm so sánh
+  đúng file upstream rồi repair exit0, cập nhật4Agent và hash2flow ngoài ver2 giữ
+  nguyên ở thời điểm vá. Không dùng setup_ver2 --install để tránh ghi đè preset user.
+- 3 unittest offline đạt0.971s: factory nhận none/no retries; SDK serialize tool
+  payload vẫn có reasoning_effort=none; cấu hình sai bị chặn không gọi factory;
+  Responses+low đúng. Không invoke SDK/Agent. Ruff lint/format4 file và diff check đạt.
+- Export default sinh lại offline ngoài sandbox exit0, graph39node/35edge. Lượt
+  sandbox sinh export không kết thúc, đã dừng33483. Không nhập export mặc định đè live.
+- Post-repair metadata checker đạt:4Agent đúng mode/none/retry0, preset/edge giữ
+  nguyên; frontend chỉ chuẩn hóa measured.height/output display label/last_updated.
+  Hash install snapshot cũ lệch do thay đổi ngoài lượt, không dùng làm bằng chứng
+  hiện tại; repair đã so live pre/post cho workflow ngoài ver2 tại thời điểm sửa.
+- UI main thấy rõ hai dropdown Chat Completions và none, vẫn7edge; ảnh ignored
+  data/ver2-reasoning-none.png, tab được giữ. README/VER2.md/CHANGELOG và source
+  include cập nhật:25stock +4Agent mở rộng cấu hình +10API tools, không gọi model.
+- Hoàn tất sửa cấu hình/serialization theo lỗi đã báo; chưa nghiệm thu request
+  OpenAI thật. User có thể F5 và thử lại; muốn reasoning low cần chọn Responses.
+  Mọi OpenAI request do Codex test vẫn phải hỏi từng lần. Không commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-06: Xác nhận backend và ML sẵn sàng để thử Langflow
+
+- User yêu cầu khởi động backend/ML để tự chạy thử trên Langflow. Repo branch
+  hoanganhdev_features, HEAD d76cc13, đầu vào sạch. Giữ các workflow hiện có;
+  không gọi OpenAI thay user, không thay cấu hình auth hoặc chạy nghiệp vụ ghi.
+- Health HTTP thực tế xác nhận các service đã chạy trước lượt này nên tái sử dụng,
+  không mở thêm server trùng cổng: backend8000 live200, ready200 (DB runtime ready),
+  /_ops/ml/ready200 (ml_model ready), Langflow7860 version1.12.6 trả200.
+  ML tích hợp trong backend, không có microservice/port ML riêng.
+- Kiểm local artifact/dependency: TabICL/torch và checkpoint/context có sẵn. Context
+  source_kind=synthetic, version=synthetic-smoke-v1, chỉ phù hợp chạy thử kỹ thuật.
+  Không tải model, cài lại môi trường, thay .env, migrate hoặc seed.
+- Chỉ kiểm sự hiện diện các khóa cấu hình, không in giá trị: backend .env còn thiếu
+  5 trường OIDC; agent.env thiếu user access token (AI/JobContext cũng trống).
+  GET /api/v1/products không bearer trả401 UNAUTHENTICATED. Service ready chưa là
+  bằng chứng truy cập được API nghiệp vụ; cần nối đăng nhập FlowBridge/token thật.
+- Chẩn đoán read-only ở data/check_services.py (ignore), health checks exit0.
+  Lượt lệnh Python inline đầu lỗi quoting PowerShell; thay bằng file chẩn đoán rồi
+  kiểm thành công. Không smoke inference/Playground, không paid OpenAI request,
+  pytest hoặc truy vấn dữ liệu nghiệp vụ. Thay đổi tracked chỉ checkpoint này.
+- Hoàn tất yêu cầu service: backend/DB/ML/Langflow đang sẵn sàng; bàn giao giới hạn
+  xác thực để user không nhầm lỗi401 thành service chưa chạy. Không commit/push.
+
 ## 2026-10-18 — CODE-MERGE-02: Giải quyết conflict với main, hoãn test
 
 - Yêu cầu: gỡ conflict với main, chỉ sửa logic đơn giản và chưa chạy test.
@@ -13,6 +335,53 @@
 - Đã rà toàn repo: không còn marker conflict; git diff --check đạt. Stage các file
   đã xử lý để kết thúc trạng thái unmerged; giữ merge chưa commit/push để user review.
   Không có docs/PLAN-OPENCORE.md hoặc PROJECT-RULES.md trong checkout.
+
+## 2026-10-18 — CODE-LANGFLOW-05: Hoàn tất cấu hình workflow A2A độc lập ver2
+
+- User yêu cầu tạo FlowBridge - ver2, giữ workflow cũ, ưu tiên node chuẩn Langflow;
+  agent trung tâm giao ba agent Dữ liệu/ML/RAG với bộ tools riêng. Giữ hoãn inference;
+  Codex vẫn phải hỏi từng OpenAI request nếu test trong chat, chưa gọi request nào.
+- Repo D:\OLP MNM 2025\FlowBridge, hoanganhdev_features; đầu vào sạch HEAD e936daa,
+  hiện HEAD e2f6c94 do thay đổi/merge bên ngoài trong lượt làm việc. Không commit/reset.
+- Đã kiểm source Langflow/lfx 1.12.6: A2A Internal có sẵn, gọi flow cùng project,
+  chọn theo ID metadata, cần flow_type=agent và a2a_enabled. Structured Response của
+  native Agent có tools dùng cùng agent loop rồi validate JSON, không riêng lượt LLM
+  formatting. Parser Stringify bọc Markdown; Data Operations chỉ bỏ khung ngoài.
+- Thêm setup_ver2.py, runtime/flowbridge_agent/ver2_prompts.py; native Chat I/O,
+  Agent, Current Date (Asia/Ho_Chi_Minh), Prompt Template, A2A Tool Mode, Parser và
+  Operations. Reuse 10 API tool adapters, không sửa runtime/prompt hoặc graph v1.
+- Đã import project riêng 8684d46e-7cb3-4d07-928e-117e9a6daa4f, main flow
+  c75e6796-ca7e-4026-b6d7-e1e42560b98d (tên FlowBridge - ver2), 3 flow con
+  Dữ liệu/Dự đoán ML/Tri thức RAG bật A2A, main không publish để tránh tự gọi.
+  Tổng 29 node chuẩn +10 API adapter, 35 edge trong bốn flow. Model chọn native
+  gpt-5.6-luna, max model calls chính/DB4, ML/RAG2, token chính1600/con6000,
+  lịch sử chính6/con0; tắt date/calculator tool và tool retry, giới hạn tool theo prompt.
+- Bốn Agent dùng biến Credential riêng FLOWBRIDGE_VER2_OPENAI_API_KEY. Launcher
+  bật A2A, nạp data/agent.env qua env-file chuẩn để provider picker nhận diện OpenAI;
+  import biến môi trường upstream không xác minh key/model qua OpenAI. Không sửa key v1.
+- Builder/launcher khớp backend/ mới sau khi source đổi từ backend/src/ trong lượt
+  làm việc; không sửa adapter/runtime v1. Server cũ16792, trung gian28699/11624 đã
+  dừng. Hiện Langflow session76586 startup complete, port7860, không chạy workflow.
+- Đã sửa hai lỗi cấu hình phát hiện bằng kiểm tra: Operations cần list object name/
+  icon, không list string; node.data.selected_output=structured_response để UI không
+  bỏ edge vào Parser. A2A tools_metadata runtime là DataFrame; checker dùng đúng kiểu.
+  GET danh sách flow loại starter examples bằng remove_example_flows (chỉ lọc, không xóa).
+- Import cuối session35056 exit0. Metadata checker data/check_ver2_metadata.py exit0:
+  Graph parse đủ39 node/35 edge, kiểu mọi cổng khớp, 3 A2A action schema chỉ input_value,
+  JSON sample qua Parser/Operations giữ nội dung, output table native validate, 3 agent
+  có trong A2A discovery. Hash JSON đầy đủ của Test co ban và workflow v1 không đổi.
+  Evidence ID/hash ở data/ver2-install.json (ignore), không chứa credential.
+- UI đã xem project đủ4 flow, main8 node/7 edge và model picker Luna, ML11 node/10 edge
+  với Structured Response, schema/top-k/giá/JSON/description chỉnh được. Ảnh ignored
+  data/ver2-project.png và data/ver2-main.png; tab mới giữ làm deliverable, tab v1 giữ nguyên.
+- Ruff lint/format 2 file mới và git diff --check đạt. VER2.md, README, CHANGELOG,
+  sdist includes cập nhật; export/sidecar tại flows/ver2. Không dependency, migration
+  hoặc DB nghiệp vụ mới. Không pytest, API nghiệp vụ, inference hoặc request OpenAI.
+- Hoàn tất phần code/cấu hình/UI theo yêu cầu. Chưa nghiệm thu hành vi LLM hoặc tích
+  hợp backend/auth. Native Agent không có hard cap tool/parallel/SDK retries qua input
+  hiện có; nhiều agent tăng số lượt model, không cam kết không gọi dư/sai. Chưa dùng
+  Validate/Enable model vì upstream có request xác minh. Khi user muốn test vẫn hỏi
+  trước mỗi OpenAI request trong chat. Không commit/push/deploy.
 
 ## 2026-10-18 — CODE-LANGFLOW-04: Hoàn tất cấu hình điều phối và hợp đồng input/output
 

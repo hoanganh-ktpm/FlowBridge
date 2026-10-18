@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $env:PYTHONPATH = "$PSScriptRoot/runtime;$projectRoot/backend;$env:PYTHONPATH"
 $env:LANGFLOW_COMPONENTS_PATH = Join-Path $PSScriptRoot 'components'
+$env:LANGFLOW_A2A_ENABLED = 'true'
 $env:FLOWBRIDGE_AGENT_ENV_FILE = Join-Path $PSScriptRoot 'data/agent.env'
 try {
     $running = Invoke-RestMethod -Uri 'http://127.0.0.1:7860/api/v1/version' -TimeoutSec 2
@@ -28,7 +29,13 @@ $env:DO_NOT_TRACK = 'true'
 New-Item -ItemType Directory -Path $env:LANGFLOW_CONFIG_DIR -Force | Out-Null
 Push-Location $PSScriptRoot
 try {
-    & $pythonPath -m langflow run --host 127.0.0.1 --port 7860 --open-browser --log-file "$PSScriptRoot/data/langflow.log"
+    $langflowArgs = @('-m', 'langflow', 'run', '--host', '127.0.0.1', '--port', '7860',
+        '--open-browser', '--log-file', "$PSScriptRoot/data/langflow.log")
+    $agentConfig = Join-Path $PSScriptRoot 'data/agent.env'
+    if (Test-Path -LiteralPath $agentConfig) {
+        $langflowArgs += @('--env-file', $agentConfig)
+    }
+    & $pythonPath @langflowArgs
 }
 finally {
     Pop-Location
