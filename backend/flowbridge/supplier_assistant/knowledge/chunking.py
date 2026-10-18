@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 from .models import ChunkRecord, DocumentReference, DocumentSpec
 from .sources import sha256
 
-CHUNKER_VERSION = "markdown-h123-offsets-v1-1000-100"
+CHUNKER_VERSION = "markdown-h123-star123-offsets-v2-1000-100"
 TOKENIZER_VERSION = "unicode-casefold-hyphen-v1"
 
 
@@ -32,7 +32,9 @@ def _sections(text: str) -> list[tuple[int, int, list[str]]]:
                 fence = token
             elif token[0] == fence[0] and len(token) >= len(fence):
                 fence = None
-        elif fence is None and (match := re.match(r"^ {0,3}(#{1,3})\s+(.+?)\s*$", line)):
+        elif fence is None and (
+            match := re.match(r"^ {0,3}(#{1,3}|\*{1,3})\s+(\S.*?)\s*$", line)
+        ):
             if offset > start and text[start:offset].strip():
                 result.append((start, offset, [title for _, title in headings]))
             level = len(match.group(1))

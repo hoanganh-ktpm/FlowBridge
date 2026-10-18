@@ -3278,6 +3278,138 @@
           "display_name": "Chuẩn hóa giao tiếp A2A",
           "description": "Chuẩn hóa task/JSON, giữ chứng cứ bằng runtime và đóng nhánh Data đã xong; không gọi model."
         }
+      },
+      {
+        "id": "FrontendResponse-ver2-central",
+        "type": "genericNode",
+        "position": {
+          "x": 1450,
+          "y": 720
+        },
+        "data": {
+          "id": "FrontendResponse-ver2-central",
+          "type": "FrontendResponse",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "agent_message": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "agent_message",
+                "value": "",
+                "display_name": "Message từ Agent trung tâm",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\nfrom flowbridge_agent.frontend_response_node import FrontendResponse as NativeComponent\n\n\nclass FrontendResponse(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "include_delivery_statistics": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "include_delivery_statistics",
+                "value": true,
+                "display_name": "Thống kê giao hàng từ database",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Bổ sung số liệu đã xác thực cho nhà cung cấp có bằng chứng RAG; không gọi model.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
+              }
+            },
+            "description": "Dựng dataset/bảng/biểu đồ từ kết quả công cụ thật của Agent; không gọi thêm model.",
+            "icon": "Braces",
+            "base_classes": [
+              "JSON"
+            ],
+            "display_name": "JSON cho frontend · ver2",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "response",
+                "display_name": "JSON chuẩn frontend",
+                "method": "build_response",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "agent_message",
+              "include_delivery_statistics"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.json_cho_frontend__ver2",
+              "code_hash": "05c6c011cc95",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "JSON cho frontend · ver2",
+          "description": "Dựng dataset/bảng/biểu đồ từ kết quả công cụ thật của Agent; không gọi thêm model."
+        }
       }
     ],
     "edges": [
@@ -3540,6 +3672,32 @@
             "fieldName": "tools",
             "inputTypes": [
               "Tool"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "Agent-v2-central-response-FrontendResponse-ver2-central-agent_message",
+        "source": "Agent-v2-central",
+        "target": "FrontendResponse-ver2-central",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œAgentœ,œidœ:œAgent-v2-centralœ,œnameœ:œresponseœ,œoutput_typesœ:[œMessageœ]}",
+        "targetHandle": "{œidœ:œFrontendResponse-ver2-centralœ,œfieldNameœ:œagent_messageœ,œinputTypesœ:[œMessageœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "Agent",
+            "id": "Agent-v2-central",
+            "name": "response",
+            "output_types": [
+              "Message"
+            ]
+          },
+          "targetHandle": {
+            "id": "FrontendResponse-ver2-central",
+            "fieldName": "agent_message",
+            "inputTypes": [
+              "Message"
             ],
             "type": "other"
           }

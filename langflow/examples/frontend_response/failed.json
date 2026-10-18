@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "status": "failed",
+  "run_id": null,
+  "answer": "Chưa lấy được báo giá.",
+  "datasets": [],
+  "tables": [],
+  "charts": [],
+  "sources": [],
+  "warnings": [
+    {
+      "code": "TOOL_FAILED",
+      "message": "Chưa lấy được kết quả: Báo giá nhà cung cấp.",
+      "dataset_id": null
+    },
+    {
+      "code": "BACKEND_UNAVAILABLE",
+      "message": "Mã lỗi công cụ: BACKEND_UNAVAILABLE.",
+      "dataset_id": null
+    }
+  ],
+  "questions": [],
+  "error": {
+    "code": "TOOL_FAILED",
+    "message": "Một hoặc nhiều công cụ chưa trả được kết quả.",
+    "retryable": false
+  }
+}

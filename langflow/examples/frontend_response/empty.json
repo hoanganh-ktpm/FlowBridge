@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "run_id": null,
+  "answer": "Chào bạn.",
+  "datasets": [],
+  "tables": [],
+  "charts": [],
+  "sources": [],
+  "warnings": [
+    {
+      "code": "NO_STRUCTURED_DATA",
+      "message": "Lượt này không có kết quả công cụ để dựng bảng hoặc biểu đồ.",
+      "dataset_id": null
+    }
+  ],
+  "questions": [],
+  "error": null
+}

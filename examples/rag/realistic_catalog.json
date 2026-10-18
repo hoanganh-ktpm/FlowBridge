@@ -1,0 +1,53 @@
+{
+  "version": "realistic-supplier-demo-v1",
+  "synthetic": true,
+  "price_basis": "Assumed VND unit prices before VAT for simulation; not verified historical transactions or current supplier quotations. Public references support product identity/specifications only.",
+  "history_policy": "Keep the six existing product UUIDs, quantities, delivery timelines, confirmations, A/B feature snapshots and labels. Add eighteen catalog items without fabricating purchase history for them.",
+  "sources": {
+    "double_a": "https://eu.doubleapaper.com/application/files/3717/1812/8629/Double_A_Catalogue_Eng_version__1_compressed_1.pdf",
+    "tl027": "https://thienlong.vn/products/but-bi-thien-long-tl-027",
+    "hl03": "https://thienlong.vn/products/but-da-quang-thien-long-hl-03",
+    "b100": "https://www.logitech.com/en-ca/products/mice/b100-usb-business-mouse.910-001439.html",
+    "k120": "https://www.logitech.com/en-ca/shop/p/k120-usb-standard-computer.920-002851",
+    "sg108": "https://www.tp-link.com/vn/home-networking/soho-switch/tl-sg108/",
+    "371_yellow": "https://www.3m.com/3M/en_US/p/dc/v000149526/",
+    "371_clear": "https://www.3m.com/3M/en_US/p/d/v000184855/",
+    "evaluation_template": "https://documentero.com/templates/operations-logistics/document/vendor-performance-evaluation/",
+    "performance_monitoring": "https://www.procurement.govt.nz/guides/guide-to-procurement/manage-the-contract/managing-performance-during-delivery/",
+    "public_po_reference": "https://catalog.data.gov/dataset/purchase-order-quantity-price-detail-for-commodity-goods-procurements"
+  },
+  "suppliers": [
+    {"code":"DEMO-S01","name":"Thương mại An Phú — NCC-01","city":"Hà Nội","address":"Khu thương mại AP-01, Hà Nội","focus":"Văn phòng phẩm và vật tư đóng gói"},
+    {"code":"DEMO-S02","name":"Phân phối Minh Khang — NCC-02","city":"Đà Nẵng","address":"Khu thương mại MK-02, Đà Nẵng","focus":"Thiết bị ngoại vi và vật tư văn phòng"},
+    {"code":"DEMO-S03","name":"Vật tư Nam Việt — NCC-03","city":"Thành phố Hồ Chí Minh","address":"Khu thương mại NV-03, Thành phố Hồ Chí Minh","focus":"Vật tư đóng gói và hàng tiêu hao"},
+    {"code":"DEMO-S04","name":"Thương mại Hòa Bình — NCC-04","city":"Hà Nội","address":"Khu thương mại HB-04, Hà Nội","focus":"Văn phòng phẩm và thiết bị ngoại vi"},
+    {"code":"DEMO-S05","name":"Phân phối Đông Thành — NCC-05","city":"Đà Nẵng","address":"Khu thương mại DT-05, Đà Nẵng","focus":"Thiết bị văn phòng và phụ kiện kết nối"},
+    {"code":"DEMO-S06","name":"Vật tư Phúc Lâm — NCC-06","city":"Thành phố Hồ Chí Minh","address":"Khu thương mại PL-06, Thành phố Hồ Chí Minh","focus":"Vật tư đóng gói và cung ứng tổng hợp"}
+  ],
+  "products": [
+    {"code":"DEMO-P01","name":"Giấy Double A A4 80 gsm, 500 tờ/ram","category":"office","unit":"ram","base_price":88000,"source":"double_a","spec":"Khổ A4 210 × 297 mm; 80 g/m²; 500 tờ/ram; 5 ram/thùng."},
+    {"code":"DEMO-P02","name":"Chuột Logitech B100 USB, màu đen","category":"electronics","unit":"cái","base_price":95000,"source":"b100","spec":"Chuột có dây, kết nối USB; đơn vị đặt mua là một chuột."},
+    {"code":"DEMO-P03","name":"Băng keo Scotch 371 vàng, 48 mm × 100 m","category":"materials","unit":"cuộn","base_price":45000,"source":"371_yellow","spec":"Băng keo đóng thùng; màu vàng; rộng 48 mm; dài 100 m/cuộn."},
+    {"code":"DEMO-P04","name":"Bút bi Thiên Long TL-027, 0,5 mm, mực xanh","category":"office","unit":"cây","base_price":4400,"source":"tl027","spec":"Bút bi bấm; ngòi 0,5 mm; mực xanh; 20 cây/hộp; giá tính theo cây."},
+    {"code":"DEMO-P05","name":"Bàn phím Logitech K120 USB, màu đen","category":"electronics","unit":"cái","base_price":180000,"source":"k120","spec":"Bàn phím có dây, kết nối USB; bố cục đầy đủ; giá tính theo bàn phím."},
+    {"code":"DEMO-P06","name":"Màng quấn pallet PE, 500 mm, 2,5 kg tịnh/cuộn","category":"materials","unit":"cuộn","base_price":105000,"source":null,"spec":"Quy cách mô phỏng: màng PE trong; rộng 500 mm; khối lượng màng 2,5 kg, không tính lõi."},
+    {"code":"DEMO-P07","name":"Giấy Double A A4 70 gsm, 500 tờ/ram","category":"office","unit":"ram","base_price":72000,"source":"double_a","spec":"Khổ A4 210 × 297 mm; 70 g/m²; 500 tờ/ram."},
+    {"code":"DEMO-P08","name":"Giấy Double A A3 80 gsm, 500 tờ/ram","category":"office","unit":"ram","base_price":175000,"source":"double_a","spec":"Khổ A3 420 × 297 mm; 80 g/m²; 500 tờ/ram."},
+    {"code":"DEMO-P09","name":"Bút bi Thiên Long TL-027, 0,5 mm, mực đen","category":"office","unit":"cây","base_price":4400,"source":"tl027","spec":"Bút bi bấm; ngòi 0,5 mm; mực đen; 20 cây/hộp."},
+    {"code":"DEMO-P10","name":"Bút bi Thiên Long TL-027, 0,5 mm, mực đỏ","category":"office","unit":"cây","base_price":4400,"source":"tl027","spec":"Bút bi bấm; ngòi 0,5 mm; mực đỏ; 20 cây/hộp."},
+    {"code":"DEMO-P11","name":"Bút dạ quang Thiên Long HL-03, màu vàng","category":"office","unit":"cây","base_price":8500,"source":"hl03","spec":"Bút đánh dấu HL-03; màu vàng; đơn vị mua là cây."},
+    {"code":"DEMO-P12","name":"Bìa hồ sơ A4 nhựa PP, gáy 5 cm, màu xanh","category":"office","unit":"cái","base_price":32000,"source":null,"spec":"Quy cách mô phỏng: bìa hồ sơ A4; vật liệu PP; gáy 5 cm; màu xanh."},
+    {"code":"DEMO-P13","name":"Switch TP-Link TL-SG108, 8 cổng Gigabit","category":"electronics","unit":"cái","base_price":650000,"source":"sg108","spec":"8 cổng RJ45 10/100/1000 Mbps; giá tính theo thiết bị."},
+    {"code":"DEMO-P14","name":"Cáp máy in USB 2.0 A–B, dài 1,8 m","category":"electronics","unit":"sợi","base_price":45000,"source":null,"spec":"Quy cách mô phỏng: USB 2.0; đầu USB-A sang USB-B; dài 1,8 m."},
+    {"code":"DEMO-P15","name":"Cáp HDMI, dài 2 m, đầu đực–đực","category":"electronics","unit":"sợi","base_price":75000,"source":null,"spec":"Quy cách mô phỏng: cáp HDMI dài 2 m; hai đầu đực; không gán chứng nhận chưa kiểm chứng."},
+    {"code":"DEMO-P16","name":"Dây mạng Cat6 UTP bấm sẵn, dài 3 m","category":"electronics","unit":"sợi","base_price":42000,"source":null,"spec":"Quy cách mô phỏng: cáp mạng Cat6 UTP; hai đầu RJ45; dài 3 m."},
+    {"code":"DEMO-P17","name":"Dây mạng Cat6 UTP bấm sẵn, dài 5 m","category":"electronics","unit":"sợi","base_price":58000,"source":null,"spec":"Quy cách mô phỏng: cáp mạng Cat6 UTP; hai đầu RJ45; dài 5 m."},
+    {"code":"DEMO-P18","name":"Ổ cắm điện 6 vị trí, dây dài 3 m","category":"electronics","unit":"cái","base_price":145000,"source":null,"spec":"Quy cách mô phỏng: ổ cắm 6 vị trí; dây 3 m; thông số an toàn cần đối chiếu trước mua thực tế."},
+    {"code":"DEMO-P19","name":"Băng keo Scotch 371 trong, 48 mm × 100 m","category":"materials","unit":"cuộn","base_price":45000,"source":"371_clear","spec":"Băng keo đóng thùng trong suốt; rộng 48 mm; dài 100 m/cuộn."},
+    {"code":"DEMO-P20","name":"Thùng carton 5 lớp, 40 × 30 × 30 cm","category":"materials","unit":"cái","base_price":18000,"source":null,"spec":"Quy cách mô phỏng: carton 5 lớp; kích thước danh nghĩa 40 × 30 × 30 cm; giao dạng gấp phẳng."},
+    {"code":"DEMO-P21","name":"Thùng carton 5 lớp, 60 × 40 × 40 cm","category":"materials","unit":"cái","base_price":32000,"source":null,"spec":"Quy cách mô phỏng: carton 5 lớp; kích thước danh nghĩa 60 × 40 × 40 cm; giao dạng gấp phẳng."},
+    {"code":"DEMO-P22","name":"Màng xốp hơi đóng gói, rộng 1 m × dài 100 m","category":"materials","unit":"cuộn","base_price":280000,"source":null,"spec":"Quy cách mô phỏng: màng xốp hơi; khổ rộng 1 m; dài 100 m/cuộn."},
+    {"code":"DEMO-P23","name":"Dây đai nhựa PP, rộng 12 mm, 10 kg/cuộn","category":"materials","unit":"cuộn","base_price":330000,"source":null,"spec":"Quy cách mô phỏng: dây đai PP rộng 12 mm; khối lượng 10 kg/cuộn; chưa gán tải trọng kéo."},
+    {"code":"DEMO-P24","name":"Tem nhãn nhiệt trực tiếp, 100 × 150 mm, 500 tem/cuộn","category":"materials","unit":"cuộn","base_price":85000,"source":null,"spec":"Quy cách mô phỏng: nhãn nhiệt trực tiếp; khổ 100 × 150 mm; 500 tem/cuộn."}
+  ]
+}

@@ -23,6 +23,9 @@
   Giữ migration knowledge0004 đã công bố từ nhánh minnhungdev_features để nối
   tiếp Supabase hiện có; không sửa revision bằng stamp hoặc chạy lại SQL0004.
 
+- Thêm trang quản lý Markdown RAG trong React hiện có cho ADMIN: tạo/sửa có lịch sử, job đồng bộ bền vững, xuất bản nguồn/vector trong cùng transaction, retry/reindex và xóa tài liệu chưa được báo cáo trích dẫn. Migration 0004 bổ sung bảng quản lý/guard; tính năng bật riêng bằng cấu hình, giữ retrieval Langflow theo cutoff và không đổi ML.
+
+- Thêm custom component và flow Langflow chỉ truy hồi RAG qua bearer Keycloak + JobContext; cấu hình service credential ở server, xuất đoạn trích/citation, môi trường Langflow riêng và helper kiểm thử. Không gọi ML hoặc LLM trong flow này.
 - Thêm hợp đồng thiết kế Agent Hub Web/App 1.0.0 trong contracts/: 12 operation,
   JSON Schema kết quả/sự kiện 1.0 theo mẫu người dùng, bảng và biểu đồ dùng chung
   dataset, cột chồng/100%, tiền decimal, SSE, idempotency/revision, ACL và mapping

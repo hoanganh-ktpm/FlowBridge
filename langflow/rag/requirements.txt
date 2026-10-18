@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FlowBridge; redistribution/modification under GNU GPL v3 or later.
+# Provided without warranty. See LICENSE.
+# Install in a separate environment; do not sync the backend/ML environment.
+langflow-base==1.12.5
+lfx==1.12.5

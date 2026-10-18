@@ -28,7 +28,8 @@ paths:
     get:
       operationId: getApplicationProfile
       summary: Hồ sơ UUID và grants hiệu lực
-      description: Kiểm tra active user/role, account_type, ownership/scope và lineage ở receiver. Quyền được kiểm tra từ user/role/grant active trong PostgreSQL.
+      description: Đọc hồ sơ và grants của chính tài khoản người dùng đang đăng nhập. Chấp nhận EMPLOYEE, APPROVER, WAREHOUSE hoặc ADMIN với grant hiệu lực trong PostgreSQL; không cấp quyền đọc dữ liệu mua hàng cho ADMIN và không chấp nhận tài khoản service.
+      x-allowed-read-roles: [EMPLOYEE, APPROVER, WAREHOUSE, ADMIN]
       tags:
       - Supplier Assistant / EMPLOYEE
       parameters: []

@@ -131,6 +131,25 @@ def test_large_sections_bounded_and_complete(corpus):
     assert covered == set(range(len(text)))
 
 
+def test_star_headings_keep_hierarchy_and_exact_source_without_parsing_bold_or_fences(corpus):
+    sources, *_ = corpus
+    spec = sources.catalog().documents[0]
+    text = (
+        "* Nhà cung cấp An Phú\n\nNgười nhận xét: Trần Minh An.\n\n"
+        "** Giao nhận\n\n*** PO-0212\nTrễ 3 ngày; **chưa đóng**.\n"
+        "- Còn 20 cuộn.\n\n```text\n*** Ví dụ trong khối mã\n```\n"
+    )
+    chunks = chunk_document("star", spec, text)
+    assert len(chunks) == 3
+    assert chunks[-1].heading_path == ["Nhà cung cấp An Phú", "Giao nhận", "PO-0212"]
+    detail = text[chunks[-1].start_char : chunks[-1].end_char]
+    assert "**chưa đóng**" in detail
+    assert "*** Ví dụ trong khối mã" in detail
+    for chunk in chunks:
+        quote = text[chunk.start_char : chunk.end_char]
+        assert sha256(quote) == chunk.text_sha256
+
+
 def test_unicode_tokens_keep_codes_and_negation():
     tokens = tokenize("DEMO-PO-00212: CHƯA có lỗi, không kết luận")
     assert "demo-po-00212" in tokens and "chưa" in tokens and "không" in tokens

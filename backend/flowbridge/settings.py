@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # Empty by default: direct clients cannot supply trusted forwarding metadata.
     trusted_proxy_ips: list[str] = Field(default_factory=list)
     rag_postgres_enabled: bool = False
+    rag_manager_enabled: bool = False
+    delivery_statistics_enabled: bool = False
+    rag_manager_max_bytes: int = Field(default=2_097_152, ge=1024, le=2_097_152)
     rag_postgres_model_cache_path: Path = Path(".cache/models")
     rag_dev_enabled: bool = False
     rag_dev_catalog_path: Path = Path("examples/rag/catalog.json")
@@ -263,6 +266,12 @@ class Settings(BaseSettings):
                 self, "database_url", SecretStr(url.render_as_string(hide_password=False))
             )
         # Chặn cấu hình production thiếu DSN dù development/test cho phép bỏ trống.
+        if self.rag_manager_enabled and not self.rag_postgres_enabled:
+            raise ValueError("rag_manager_enabled requires PostgreSQL RAG")
+        if self.delivery_statistics_enabled and self.database_url is None:
+            raise ValueError(
+                "delivery_statistics_enabled requires a configured PostgreSQL database"
+            )
         if self.rag_postgres_enabled:
             if self.database_url is None:
                 raise ValueError("rag_postgres_enabled requires a configured PostgreSQL database")

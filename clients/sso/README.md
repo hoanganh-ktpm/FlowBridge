@@ -32,6 +32,10 @@ Xem [hướng dẫn dev containers](../../docs/DEV-CONTAINERS.md); giữ IAM, AP
 
 ## Phạm vi
 
+- ADMIN: trang **Tài liệu RAG** tại `/#knowledge`, quản lý Markdown PostgreSQL,
+  lịch sử phiên bản, đồng bộ tự động và xóa tài liệu chưa được trích dẫn.
+  Cần bật manager và migration 0004 theo [hướng dẫn](../../docs/rag-markdown-manager.md).
+
 - Nhân viên: danh mục sản phẩm/NCC, yêu cầu phân trang và chi tiết, tạo PR nhiều
   dòng, sửa/gửi lại/hủy khi trạng thái và owner cho phép, xem PO và lịch giao.
   Tạo/sửa sẽ chuyển sang `analysing` theo backend, không có nút lưu nháp giả.

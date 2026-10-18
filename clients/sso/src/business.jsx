@@ -4,6 +4,7 @@ import {useEffect, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {createApi} from "./api.js";
 import {Chat} from "./chat.jsx";
+import {KnowledgeManager} from "./knowledge.jsx";
 
 const editable = new Set(["draft", "needs_review", "analysis_failed"]);
 const states = {
@@ -50,8 +51,11 @@ function OrderDetail({data}) {
 }
 
 function Business({apiUrl, keycloak}) {
-  const [view, setView] = useState(new URL(location.href).searchParams.has("chat_session") ? "chat" : "employee");
+  const [view, setView] = useState(location.hash === "#knowledge" ? "knowledge" :
+    new URL(location.href).searchParams.has("chat_session") ? "chat" : "employee");
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const profileRef = useRef(null);
   const [notice, setNotice] = useState({text: "", error: false});
   const [busy, setBusy] = useState(false);
@@ -81,14 +85,22 @@ function Business({apiUrl, keycloak}) {
     catch (error) { message(error.message, true); }
     finally { busyRef.current = false; setBusy(false); }
   }
-  useEffect(() => {
-    if (!keycloak.authenticated) return;
-    run(async () => {
+  async function loadProfile() {
+    if (!keycloak.authenticated || profileLoading) return;
+    setProfileLoading(true); setProfileError("");
+    try {
       const data = await api("/api/v1/me");
       profileRef.current = data; setProfile(data);
       if (data.roles.some((r) => r.role_code === "APPROVER") && !data.roles.some((r) => r.role_code === "EMPLOYEE")) setView("approver");
       message("Đã kết nối. Chọn thao tác để tải dữ liệu.");
-    });
+    } catch (error) {
+      setProfileError(`Chưa tải được hồ sơ và quyền: ${error.message}`);
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+  useEffect(() => {
+    loadProfile();
   }, []);
 
   async function list(kind, page = 1) {
@@ -186,12 +198,19 @@ function Business({apiUrl, keycloak}) {
   const requestColumns = [["Mã yêu cầu", "request_code"], ["Trạng thái", (r) => status(r.status)], ["Phiên bản", "input_revision"], ["Ghi chú", "notes"]];
   const orderColumns = [["Mã đơn", "po_number"], ["Trạng thái", (r) => status(r.status)], ["Tổng tiền", "total_amount"], ["Tiền tệ", "currency"]];
   return <div aria-busy={busy}>
-    <p id="business-profile">{profile ? `${profile.user.display_name} · ${profile.roles.map((r) => r.role_name).join(", ") || "Chưa được cấp vai trò"}` : "Đăng nhập để sử dụng nghiệp vụ nội bộ. Nhà cung cấp dùng token xác nhận riêng."}</p>
-    <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"], ["chat", "Trợ lý AI"]].map(([key, label]) =>
-      <button key={key} type="button" aria-pressed={view === key} disabled={busy || (key === "chat" && !has("EMPLOYEE"))} onClick={() => {setView(key); message("");}}>{label}</button>)}</nav>
+    <p id="business-profile">{profile ? `${profile.user.display_name} · ${profile.roles.map((r) => r.role_name).join(", ") || "Chưa được cấp vai trò"}` :
+      keycloak.authenticated ? (profileLoading ? "Đang tải hồ sơ và quyền…" : "Đã đăng nhập. Chưa tải được hồ sơ và quyền nghiệp vụ.") :
+        "Đăng nhập để sử dụng nghiệp vụ nội bộ. Nhà cung cấp dùng token xác nhận riêng."}</p>
+    {profileError && <p id="profile-error" role="alert">{profileError}</p>}
+    {keycloak.authenticated && !profile && <button type="button" disabled={profileLoading}
+      onClick={loadProfile}>Tải lại hồ sơ và quyền</button>}
+    <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"], ["chat", "Trợ lý AI"],
+      ...(has("ADMIN") ? [["knowledge", "Tài liệu RAG"]] : [])].map(([key, label]) =>
+      <button key={key} type="button" aria-pressed={view === key} disabled={busy || (key === "chat" && !has("EMPLOYEE"))} onClick={() => {setView(key); location.hash = key === "knowledge" ? "knowledge" : ""; message("");}}>{label}</button>)}</nav>
     <p id="business-message" role="status" aria-live="polite" data-error={notice.error}>{notice.text}</p>
     <div hidden={view !== "chat"}>{has("EMPLOYEE") && <Chat key={profile.user.user_id} api={api}/>}</div>
     <fieldset className="workspace-controls" disabled={busy}>
+    {view === "knowledge" && (has("ADMIN") ? <KnowledgeManager api={api}/> : <p>Chỉ quản trị viên được quản lý tài liệu RAG.</p>)}
     <section id="employee" aria-labelledby="employee-title" hidden={view !== "employee"}>
       <h2 id="employee-title">Yêu cầu mua hàng</h2>
       <p>Yêu cầu hiển thị theo quyền tài khoản. Tạo hoặc lưu thay đổi sẽ gửi yêu cầu sang trạng thái đang phân tích.</p>

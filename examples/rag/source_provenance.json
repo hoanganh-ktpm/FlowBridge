@@ -1,392 +1,138 @@
 {
-  "format_version": "supplier-review-export-v1",
-  "source_script_sha256": "8f006286a0c6bcfa73044352b8a2197d62d3382cc737a0bc8ef248fff23a8577",
-  "generation_parameters": {
-    "seed": 20261015,
-    "as_of": "2026-10-15T18:00:00+07:00",
-    "orders_requested": 1000
-  },
-  "document_generated_at_utc": "2026-10-15T16:09:51.385505+00:00",
+  "format_version": "supplier-review-export-v2",
   "synthetic_source": true,
-  "source_database_rows_reconstructed_exactly": true,
-  "reviewer_attribution": "Generated assignment of existing synthetic users; no claim that these reviews were already authored/stored in the seed database.",
-  "source_availability": "Set known_from from real publication/upload evidence. These final-state reports must not be used as context for earlier PR/PO predictions.",
+  "exported_from_database": true,
+  "exported_at": "2026-10-17T16:56:05.143484+00:00",
+  "report_asof": "2026-10-15T18:00:00+07:00",
+  "catalog_reference": "realistic_catalog.json",
+  "reviewer_attribution": "Synthetic assignment of existing warehouse identities; not a claim that a human has authored or signed these generated reviews.",
   "missing_source_fields": [
-    "product defect tests",
+    "quality tests",
     "rejected quantities",
-    "complaint records",
-    "quality-remediation closure"
+    "complaints",
+    "corrective-action closure",
+    "invoices",
+    "payments"
   ],
   "documents": [
     {
       "file_name": "DEMO-S01.md",
       "supplier_id": "3806e329-2ebe-5cfc-895d-1bd60894b348",
-      "supplier_code": "DEMO-S01",
-      "supplier_name": "Demo Supplier 1",
       "reviewer_user_id": "bc7cf79e-ccce-5dea-8ac6-097ddc2a1a53",
-      "reviewer_name": "demo-warehouse-0",
-      "reviewer_department_id": "582496af-ea85-5c46-8703-7fcc545db21a",
-      "reviewer_assignment": "Human warehouse user with most recorded receipt events for this supplier; tie-break display_name. Assignment is generated for these reports, not an existing database review record.",
-      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "d77b5985b41184c3b9da9b918bd1959ed2f2cf599cd81f3b9c743ac71c029964",
       "total_po": 172,
       "completed_po": 160,
       "late_completed_po": 83,
       "ontime_completed_po": 77,
       "open_po": 12,
       "overdue_open_po": 1,
-      "partial_open_po": 1,
       "confirmed_po": 153,
       "promise_revised_po": 57,
-      "source_evidence": [
-        {
-          "section": "3.2",
-          "purchase_order_id": "bbfae5b8-8c1c-5e72-a61d-6b4c83582789",
-          "po_number": "DEMO-PO-00212",
-          "po_item_id": "d22d121f-1cb5-5b2e-b4ac-4d5c5b0c805a",
-          "schedule_id": "237b5519-fed6-50b4-9c3d-605ff19c28a9",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [
-            "b56a4da7-ade4-5993-b3a0-e215ed14a426",
-            "ff2570f2-dcfd-5cdd-89e8-f6f4695a7cff"
-          ],
-          "confirmation_id": "48463aef-a5fc-57a5-95cd-7b7de8f860dd"
-        },
-        {
-          "section": "3.3",
-          "purchase_order_id": "39072ddb-7aab-558e-8514-5114a8ed9c77",
-          "po_number": "DEMO-PO-00950",
-          "po_item_id": "aa24a006-4f2a-5440-a13f-582c9260d90d",
-          "schedule_id": "35d80a89-78af-550c-a612-2b2a64377373",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [
-            "e47232f2-a5a7-5311-9168-edbe4d043961"
-          ],
-          "confirmation_id": "ddb179bf-f8a1-50d2-acad-8c8598495280"
-        },
-        {
-          "section": "3.4",
-          "purchase_order_id": "d42bfed8-5897-5e5b-a08e-f9b988aa8f44",
-          "po_number": "DEMO-PO-00940",
-          "po_item_id": "0985ca2f-a6a9-5eb0-8223-2c1239f9b283",
-          "schedule_id": "4fec6a21-a6c2-54d0-bcf1-117c6920f2e1",
-          "product_id": "cf9d5865-c71b-5bd7-8e62-fb4491b45273",
-          "receipt_ids": [],
-          "confirmation_id": "6ee57115-3eb5-5bc9-9774-e60b1fa4663d"
-        }
-      ],
-      "source_sha256": "d0e48264682fdc523e4f30e47d930700c5d1bddb69f30b168bedcd3817723785",
-      "source_file_id": null,
-      "source_file_id_note": "Assigned by the real source store on upload; not fabricated here.",
-      "source_acl_note": "Set and verify in the source service; author department is not a document ACL."
+      "case_po_numbers": [
+        "DEMO-PO-00212",
+        "DEMO-PO-00950",
+        "DEMO-PO-00940",
+        "DEMO-PO-00970"
+      ]
     },
     {
       "file_name": "DEMO-S02.md",
       "supplier_id": "9de0c226-1892-56b5-8413-5c77dab2efd0",
-      "supplier_code": "DEMO-S02",
-      "supplier_name": "Demo Supplier 2",
       "reviewer_user_id": "e2a6df0a-7a4d-513b-a086-249621f86042",
-      "reviewer_name": "demo-warehouse-2",
-      "reviewer_department_id": "86e0ff8c-8a11-5a43-b36c-ac6aee697faf",
-      "reviewer_assignment": "Human warehouse user with most recorded receipt events for this supplier; tie-break display_name. Assignment is generated for these reports, not an existing database review record.",
-      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "073fcb30678807180935451f49384830c125a716c810c7c65ed5893636f1dc4e",
       "total_po": 156,
       "completed_po": 144,
       "late_completed_po": 105,
       "ontime_completed_po": 39,
       "open_po": 12,
       "overdue_open_po": 5,
-      "partial_open_po": 2,
       "confirmed_po": 141,
       "promise_revised_po": 56,
-      "source_evidence": [
-        {
-          "section": "3.2",
-          "purchase_order_id": "bfaddce8-a10c-51c9-a1c2-672fa2318764",
-          "po_number": "DEMO-PO-00281",
-          "po_item_id": "6c447972-16a6-5c62-aaff-e7cf1cb9d717",
-          "schedule_id": "2ad09a5c-d9e1-5b40-9f7b-088eb4e910c9",
-          "product_id": "af03eb44-2840-5227-bda1-ea76d92a29da",
-          "receipt_ids": [
-            "fa1addf6-f87e-5fee-9362-3bea37de9f61"
-          ],
-          "confirmation_id": "9cf60630-906b-5408-a8b2-20aa79ecb4d5"
-        },
-        {
-          "section": "3.3",
-          "purchase_order_id": "2b4069a3-4616-570a-8e06-34130ea07d02",
-          "po_number": "DEMO-PO-00887",
-          "po_item_id": "9e5c27bc-d7ee-5f7e-9d7b-9c34408805ea",
-          "schedule_id": "f1ba9a70-0870-59eb-b01a-a454616809a3",
-          "product_id": "c923e17e-c88f-5d5b-bd65-d80dcbe68b2e",
-          "receipt_ids": [
-            "46ae1cc3-778f-54db-8fd0-e6eaf4d736ed",
-            "a2fb56c8-a78b-575c-9a30-8e77efc3270b"
-          ],
-          "confirmation_id": null
-        },
-        {
-          "section": "3.4",
-          "purchase_order_id": "ac96aa36-26ea-5a80-9218-a3597b5ff13f",
-          "po_number": "DEMO-PO-00877",
-          "po_item_id": "bfcf5ae2-b335-56e2-a701-5f1334c1b69f",
-          "schedule_id": "62b11b31-aca3-5abe-94e5-da958e1d2733",
-          "product_id": "79d8be8b-d081-51cc-8204-7355be8b3729",
-          "receipt_ids": [
-            "dbe72e4e-fdc6-5fab-8db2-3e33f1159b43"
-          ],
-          "confirmation_id": "08fe9bd2-3eff-5b8c-ab32-f512d58e6f7f"
-        }
-      ],
-      "source_sha256": "8c2d22d31b3762a39a4fe9529e4bc56a272cab241cdf9d0d1816ff6c2addfe0c",
-      "source_file_id": null,
-      "source_file_id_note": "Assigned by the real source store on upload; not fabricated here.",
-      "source_acl_note": "Set and verify in the source service; author department is not a document ACL."
+      "case_po_numbers": [
+        "DEMO-PO-00281",
+        "DEMO-PO-00887",
+        "DEMO-PO-00877",
+        "DEMO-PO-00964"
+      ]
     },
     {
       "file_name": "DEMO-S03.md",
       "supplier_id": "f503174a-a5b3-59e0-ad8b-16bf0ff56c49",
-      "supplier_code": "DEMO-S03",
-      "supplier_name": "Demo Supplier 3",
       "reviewer_user_id": "fc6936d6-1f3f-5b21-bd23-710350bec97f",
-      "reviewer_name": "demo-warehouse-1",
-      "reviewer_department_id": "e86b1f8f-d729-57b8-b1ca-61fe1cc10423",
-      "reviewer_assignment": "Human warehouse user with most recorded receipt events for this supplier; tie-break display_name. Assignment is generated for these reports, not an existing database review record.",
-      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "134a1d962b2a97a0d6168f093e51a3171817123ddd6bf265672606dc82f020c6",
       "total_po": 188,
       "completed_po": 181,
       "late_completed_po": 110,
       "ontime_completed_po": 71,
       "open_po": 7,
       "overdue_open_po": 4,
-      "partial_open_po": 3,
       "confirmed_po": 169,
       "promise_revised_po": 60,
-      "source_evidence": [
-        {
-          "section": "3.2",
-          "purchase_order_id": "5f9c2e5f-e923-56e5-bd3f-ea2613f540c1",
-          "po_number": "DEMO-PO-00203",
-          "po_item_id": "5a15f0cb-ca6a-5187-ae6d-fc2e0730732a",
-          "schedule_id": "5c598775-05ec-502d-a61f-071142fd9a2f",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [
-            "31f142ed-d839-53f0-ab1b-9825222bf5be",
-            "fb8dffd6-4b6e-55f9-9298-0acc18884024"
-          ],
-          "confirmation_id": "8324acb3-0820-5d43-860e-cfac34afed53"
-        },
-        {
-          "section": "3.3",
-          "purchase_order_id": "b1227a8e-0823-5b27-a24f-0317d48fdda9",
-          "po_number": "DEMO-PO-00948",
-          "po_item_id": "60096923-fdf9-5743-a018-30531a1fd28b",
-          "schedule_id": "fe59b480-2823-5398-92e3-fcf209faaef4",
-          "product_id": "cf9d5865-c71b-5bd7-8e62-fb4491b45273",
-          "receipt_ids": [
-            "dcbbe193-0059-5730-a9e4-10448a5aa780",
-            "bd90ffeb-039d-5713-b682-842ad87fe889"
-          ],
-          "confirmation_id": "6fa5d0d0-1670-5fe3-a4cb-e94894fdc227"
-        },
-        {
-          "section": "3.4",
-          "purchase_order_id": "c7ad1d1c-bc5c-5f46-b451-fc12f5c8417c",
-          "po_number": "DEMO-PO-00911",
-          "po_item_id": "ee5d996d-874c-5fc0-b784-a906ae047ce4",
-          "schedule_id": "ee201911-64ae-5144-b0a5-229a8557a673",
-          "product_id": "af03eb44-2840-5227-bda1-ea76d92a29da",
-          "receipt_ids": [
-            "6cc3a8e9-2d99-5a0a-bf9c-ba9fc096c84a"
-          ],
-          "confirmation_id": "5304984b-2652-59b9-80c2-f867e32e3428"
-        }
-      ],
-      "source_sha256": "6413e44c1e6dff1a53238594c19eac4a54b3ad0dc9158a615f03d640b89144d9",
-      "source_file_id": null,
-      "source_file_id_note": "Assigned by the real source store on upload; not fabricated here.",
-      "source_acl_note": "Set and verify in the source service; author department is not a document ACL."
+      "case_po_numbers": [
+        "DEMO-PO-00203",
+        "DEMO-PO-00948",
+        "DEMO-PO-00911",
+        "DEMO-PO-00986"
+      ]
     },
     {
       "file_name": "DEMO-S04.md",
       "supplier_id": "3c1f0266-f8ac-5e30-a24a-46764abb57ee",
-      "supplier_code": "DEMO-S04",
-      "supplier_name": "Demo Supplier 4",
       "reviewer_user_id": "bc7cf79e-ccce-5dea-8ac6-097ddc2a1a53",
-      "reviewer_name": "demo-warehouse-0",
-      "reviewer_department_id": "582496af-ea85-5c46-8703-7fcc545db21a",
-      "reviewer_assignment": "Human warehouse user with most recorded receipt events for this supplier; tie-break display_name. Assignment is generated for these reports, not an existing database review record.",
-      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "0b3ca051f038a7dd10b4fc3c17152e96fcc8162e5bedc2f98a6e77741e4d0def",
       "total_po": 188,
       "completed_po": 179,
       "late_completed_po": 73,
       "ontime_completed_po": 106,
       "open_po": 9,
       "overdue_open_po": 0,
-      "partial_open_po": 4,
       "confirmed_po": 173,
       "promise_revised_po": 44,
-      "source_evidence": [
-        {
-          "section": "3.2",
-          "purchase_order_id": "ac861c7d-d55e-5bc9-aa61-3634997f1bd8",
-          "po_number": "DEMO-PO-00487",
-          "po_item_id": "87452fbb-23fd-564e-8e97-bee7d90063c7",
-          "schedule_id": "b4e5b3df-2930-5276-8804-6646ea81f3e4",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [
-            "5e200820-bdce-5ba3-b65c-ada73a8288c4"
-          ],
-          "confirmation_id": "53d600c6-da62-5740-a33a-5928ca7081dd"
-        },
-        {
-          "section": "3.3",
-          "purchase_order_id": "a90b62ae-8594-5c6b-8434-8efd690825fa",
-          "po_number": "DEMO-PO-00955",
-          "po_item_id": "7ee521be-2063-5096-ab17-8189f7297c76",
-          "schedule_id": "274b7bec-01c2-5287-8b27-cf3009e2d5e7",
-          "product_id": "af03eb44-2840-5227-bda1-ea76d92a29da",
-          "receipt_ids": [
-            "9f43f634-f77f-56d4-acf5-0166b4eae990"
-          ],
-          "confirmation_id": "c17422c1-447c-5ac5-824b-c31b63bdd949"
-        },
-        {
-          "section": "3.4",
-          "purchase_order_id": "7701f5f4-7aad-5c8e-941f-fc1d5000aaa7",
-          "po_number": "DEMO-PO-00996",
-          "po_item_id": "e5ebdd57-0523-53f1-824b-d2ecbc951c50",
-          "schedule_id": "8f514937-58b4-5c5f-824a-d20a11c8adf3",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [],
-          "confirmation_id": null
-        }
-      ],
-      "source_sha256": "2a37fb08e339c99f543ae6188ab4d2155074a14e60aad203afd13d97ab160d89",
-      "source_file_id": null,
-      "source_file_id_note": "Assigned by the real source store on upload; not fabricated here.",
-      "source_acl_note": "Set and verify in the source service; author department is not a document ACL."
+      "case_po_numbers": [
+        "DEMO-PO-00487",
+        "DEMO-PO-00955",
+        "DEMO-PO-00977"
+      ]
     },
     {
       "file_name": "DEMO-S05.md",
       "supplier_id": "07e0fee3-729c-5935-b03a-c5af8fc574ee",
-      "supplier_code": "DEMO-S05",
-      "supplier_name": "Demo Supplier 5",
       "reviewer_user_id": "e2a6df0a-7a4d-513b-a086-249621f86042",
-      "reviewer_name": "demo-warehouse-2",
-      "reviewer_department_id": "86e0ff8c-8a11-5a43-b36c-ac6aee697faf",
-      "reviewer_assignment": "Human warehouse user with most recorded receipt events for this supplier; tie-break display_name. Assignment is generated for these reports, not an existing database review record.",
-      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "50c5f22ae9e8b33435702820d242ea224baf3af4406aedec51a401c9afb770cb",
       "total_po": 164,
       "completed_po": 156,
       "late_completed_po": 97,
       "ontime_completed_po": 59,
       "open_po": 8,
       "overdue_open_po": 1,
-      "partial_open_po": 1,
       "confirmed_po": 145,
       "promise_revised_po": 52,
-      "source_evidence": [
-        {
-          "section": "3.2",
-          "purchase_order_id": "015afea4-d1d9-5543-8460-9bef15f14f4f",
-          "po_number": "DEMO-PO-00569",
-          "po_item_id": "d50f97ba-f27f-55c8-9431-76980ebf86eb",
-          "schedule_id": "0df0d622-eca1-55ef-bc4b-2d2f0892833a",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [
-            "d41f9bf8-83d3-5145-b948-bde7de045028",
-            "d0e9df67-cbdd-5308-bddd-684f5f95fd47"
-          ],
-          "confirmation_id": "4f923db9-3f87-52d1-95da-31ebe4ed0eb3"
-        },
-        {
-          "section": "3.3",
-          "purchase_order_id": "ddf2ad57-63af-5ef8-9bda-b3b2686f7b91",
-          "po_number": "DEMO-PO-00957",
-          "po_item_id": "519c7e0e-0f17-53ef-9c5b-f0300e58514f",
-          "schedule_id": "f8842643-f828-5eb0-ab91-882eecf5f6b8",
-          "product_id": "458a78c8-2edb-59e2-af89-a74c0b7bc633",
-          "receipt_ids": [
-            "6331b097-4220-54c8-bb43-90c52e5673aa",
-            "4189ba46-6f2d-51e7-be3d-34dd824ff559"
-          ],
-          "confirmation_id": "6b749bb3-d0e9-5c59-a581-faf8715f29fd"
-        },
-        {
-          "section": "3.4",
-          "purchase_order_id": "5b6b6100-ee99-5c46-b1fa-6aa5a50a3765",
-          "po_number": "DEMO-PO-00926",
-          "po_item_id": "39c9ecff-a186-58c0-8215-1797ef082483",
-          "schedule_id": "dd984b55-86ed-5952-bd9e-fff2d0bda58d",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [],
-          "confirmation_id": null
-        }
-      ],
-      "source_sha256": "2171254e021105a549147256ba8307da2a6341a28c89242d30d0d1fc5022e3fe",
-      "source_file_id": null,
-      "source_file_id_note": "Assigned by the real source store on upload; not fabricated here.",
-      "source_acl_note": "Set and verify in the source service; author department is not a document ACL."
+      "case_po_numbers": [
+        "DEMO-PO-00569",
+        "DEMO-PO-00957",
+        "DEMO-PO-00926",
+        "DEMO-PO-00958"
+      ]
     },
     {
       "file_name": "DEMO-S06.md",
       "supplier_id": "6b803be4-eaa1-5bac-bb84-1b7334475e7c",
-      "supplier_code": "DEMO-S06",
-      "supplier_name": "Demo Supplier 6",
       "reviewer_user_id": "fdc1abf2-029b-5404-80a3-cec2ec18cae3",
-      "reviewer_name": "demo-warehouse-3",
-      "reviewer_department_id": "c870b65d-5511-565c-8861-07c4f15b229a",
-      "reviewer_assignment": "Human warehouse user with most recorded receipt events for this supplier; tie-break display_name. Assignment is generated for these reports, not an existing database review record.",
-      "report_asof": "2026-10-15T18:00:00+07:00",
+      "sha256": "51732e4d856425ff3865512142a37a3b339c60047a0aa5bab2c9b5fa8676d6fe",
       "total_po": 130,
       "completed_po": 128,
       "late_completed_po": 24,
       "ontime_completed_po": 104,
       "open_po": 2,
       "overdue_open_po": 1,
-      "partial_open_po": 1,
       "confirmed_po": 121,
       "promise_revised_po": 43,
-      "source_evidence": [
-        {
-          "section": "3.2",
-          "purchase_order_id": "d36a1cb5-8605-556a-b255-6cbd1f57b359",
-          "po_number": "DEMO-PO-00446",
-          "po_item_id": "882cb513-adc6-5e93-811e-07bd952bc1e5",
-          "schedule_id": "4b734299-48e4-5837-936d-a687090b5613",
-          "product_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
-          "receipt_ids": [
-            "7156e3b5-21af-5340-a6ea-3e5eca394eaa"
-          ],
-          "confirmation_id": "e4ee46d3-a0e7-503e-9cf6-ab3b0de6d478"
-        },
-        {
-          "section": "3.3",
-          "purchase_order_id": "e9de72b8-fe40-51b3-8ef6-b28edd1b8752",
-          "po_number": "DEMO-PO-00952",
-          "po_item_id": "ef1ef89f-d46d-5af1-9dc2-c1cf151c877e",
-          "schedule_id": "8b427984-9974-56a2-90bc-14e696d05685",
-          "product_id": "458a78c8-2edb-59e2-af89-a74c0b7bc633",
-          "receipt_ids": [
-            "2b32c726-69fa-5d22-99ed-521109527853"
-          ],
-          "confirmation_id": "eea8d1c3-4e99-5b3f-8e2b-8a30976f3bb0"
-        },
-        {
-          "section": "3.4",
-          "purchase_order_id": "0a5c953a-b82a-5370-b870-27ac6277bdfe",
-          "po_number": "DEMO-PO-00938",
-          "po_item_id": "e60aa1da-2d28-5363-9dad-f54b485530f6",
-          "schedule_id": "7077e151-50a3-5c89-a7d6-42b8ba0cc247",
-          "product_id": "af03eb44-2840-5227-bda1-ea76d92a29da",
-          "receipt_ids": [],
-          "confirmation_id": "ace30089-b655-5489-a8ec-ae5463d826a3"
-        }
-      ],
-      "source_sha256": "9a5c2f634ed8165882c4963cdd3380dd972fe57aae03d84dabe266887e78a799",
-      "source_file_id": null,
-      "source_file_id_note": "Assigned by the real source store on upload; not fabricated here.",
-      "source_acl_note": "Set and verify in the source service; author department is not a document ACL."
+      "case_po_numbers": [
+        "DEMO-PO-00446",
+        "DEMO-PO-00952",
+        "DEMO-PO-00938",
+        "DEMO-PO-00985"
+      ]
     }
   ]
 }

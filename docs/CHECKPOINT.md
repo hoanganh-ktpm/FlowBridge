@@ -1,5 +1,32 @@
 # Checkpoint FlowBridge
 
+## 2026-10-19 — GIT-PR-17-01: Giải quyết conflict với main (đã kiểm tra, chuẩn bị push)
+
+- User yêu cầu sửa conflict PR #17; nguồn huuhuandev_features dc6abfd, đích
+  main aa4fb76. Làm trong managed worktree fix-pr-17-conflicts, giữ checkout
+  hoanganhdev_features f53c536 sạch; không force-push hoặc merge PR vào main.
+- Merge có 5 conflict: CHANGELOG, README, migration knowledge0004, business.jsx
+  và business.spec.mjs. Giữ chat EMPLOYEE, trang Markdown ADMIN, profile retry,
+  hai nhóm UI test và nội dung tài liệu của cả hai nhánh. Hash #knowledge mở
+  trang quản lý ngay cả khi URL còn chat_session; chat vẫn khôi phục phiên.
+- Migration0004 khác duy nhất comment/docstring; giữ comment theo quy tắc repo,
+  không đổi SQL/revision. Migration0005 chat nối tiếp0004; không chạy migration,
+  DB, container, model hoặc thay dependency/credential trong lượt xử lý conflict.
+- Đã resolve 5 conflict, thêm UI regression cho user có ADMIN+EMPLOYEE khi URL
+  có cả #knowledge/chat_session. Không còn conflict marker; diff check/Ruff đạt.
+- Kiểm thử trên cây merge với PYTHONPATH trỏ backend/runtime của worktree:
+  pytest chat_backend/chat_migration/chat_stack/knowledge_manager:43passed4.38s;
+  pytest settings/knowledge_migration/knowledge_postgres_http/delivery_statistics:
+  53passed2.91s; Langflow sso_serving/ver2_knowledge_dependency/frontend_response/
+  frontend_delivery_statistics:63passed41.08s (8 warning dependency deprecated).
+  npm ci đúng lockfile; npm run test:ui trên Chrome:26passed37.5s, gồm cả test mới.
+  Tổng185passed; UI mock/serving offline, không nhận nghiệm thu model/DB thật.
+- Chưa commit/push tại thời điểm ghi; bước tiếp theo là commit merge và push
+  fast-forward vào huuhuandev_features, kiểm lại mergeable của PR #17 qua API.
+- PLAN-OPENCORE/PROJECT-RULES không tồn tại trong checkout; dùng AGENTS workspace
+  và mã/test thực tế. Bước tiếp theo: kiểm tra, commit merge, push nhánh PR và
+  đọc lại trạng thái mergeable trên GitHub.
+
 ## 2026-10-19 — GIT-SSO-CHAT-01: Commit, đồng bộ main và push (hoàn tất)
 
 - User yêu cầu push code và giải quyết conflict. Đã xác minh branch hiện tại
