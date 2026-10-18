@@ -52,6 +52,8 @@ function OrderDetail({data}) {
 function Business({apiUrl, keycloak}) {
   const [view, setView] = useState(location.hash === "#knowledge" ? "knowledge" : "employee");
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const profileRef = useRef(null);
   const [notice, setNotice] = useState({text: "", error: false});
   const [busy, setBusy] = useState(false);
@@ -81,14 +83,22 @@ function Business({apiUrl, keycloak}) {
     catch (error) { message(error.message, true); }
     finally { busyRef.current = false; setBusy(false); }
   }
-  useEffect(() => {
-    if (!keycloak.authenticated) return;
-    run(async () => {
+  async function loadProfile() {
+    if (!keycloak.authenticated || profileLoading) return;
+    setProfileLoading(true); setProfileError("");
+    try {
       const data = await api("/api/v1/me");
       profileRef.current = data; setProfile(data);
       if (data.roles.some((r) => r.role_code === "APPROVER") && !data.roles.some((r) => r.role_code === "EMPLOYEE")) setView("approver");
       message("Đã kết nối. Chọn thao tác để tải dữ liệu.");
-    });
+    } catch (error) {
+      setProfileError(`Chưa tải được hồ sơ và quyền: ${error.message}`);
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+  useEffect(() => {
+    loadProfile();
   }, []);
 
   async function list(kind, page = 1) {
@@ -186,7 +196,12 @@ function Business({apiUrl, keycloak}) {
   const requestColumns = [["Mã yêu cầu", "request_code"], ["Trạng thái", (r) => status(r.status)], ["Phiên bản", "input_revision"], ["Ghi chú", "notes"]];
   const orderColumns = [["Mã đơn", "po_number"], ["Trạng thái", (r) => status(r.status)], ["Tổng tiền", "total_amount"], ["Tiền tệ", "currency"]];
   return <div aria-busy={busy}>
-    <p id="business-profile">{profile ? `${profile.user.display_name} · ${profile.roles.map((r) => r.role_name).join(", ") || "Chưa được cấp vai trò"}` : "Đăng nhập để sử dụng nghiệp vụ nội bộ. Nhà cung cấp dùng token xác nhận riêng."}</p>
+    <p id="business-profile">{profile ? `${profile.user.display_name} · ${profile.roles.map((r) => r.role_name).join(", ") || "Chưa được cấp vai trò"}` :
+      keycloak.authenticated ? (profileLoading ? "Đang tải hồ sơ và quyền…" : "Đã đăng nhập. Chưa tải được hồ sơ và quyền nghiệp vụ.") :
+        "Đăng nhập để sử dụng nghiệp vụ nội bộ. Nhà cung cấp dùng token xác nhận riêng."}</p>
+    {profileError && <p id="profile-error" role="alert">{profileError}</p>}
+    {keycloak.authenticated && !profile && <button type="button" disabled={profileLoading}
+      onClick={loadProfile}>Tải lại hồ sơ và quyền</button>}
     <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"],
       ...(has("ADMIN") ? [["knowledge", "Tài liệu RAG"]] : [])].map(([key, label]) =>
       <button key={key} type="button" aria-pressed={view === key} disabled={busy} onClick={() => {setView(key); location.hash = key === "knowledge" ? "knowledge" : ""; message("");}}>{label}</button>)}</nav>

@@ -632,6 +632,12 @@ async def test_profile_admin_catalog_and_revoked_grant_replay(case: DatabaseCase
     created = await case.call("POST", "/api/v1/purchase-requests", body, key=key)
     assert created.status_code == 201
     case.as_role("ADMIN")
+    profile = await case.client.get("/api/v1/me")
+    assert profile.status_code == 200
+    assert profile.json()["user"]["user_id"] == str(case.data["users"]["ADMIN"]["user_id"])
+    assert {r["role_code"] for r in profile.json()["roles"]} == {"ADMIN"}
+    # Being able to discover one's ADMIN grant does not imply employee access.
+    assert (await case.client.get("/api/v1/purchase-requests")).status_code == 403
     for path in ("/admin/v1/users", "/admin/v1/roles"):
         response = await case.client.get(path)
         assert response.status_code == 200 and response.json()["total"] >= 6

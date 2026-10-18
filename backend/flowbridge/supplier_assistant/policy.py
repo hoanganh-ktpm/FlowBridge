@@ -63,6 +63,16 @@ class SupplierPolicy:
     def has(self, role: str) -> bool:
         return bool(self.grants.get(role))
 
+    def authorize_profile(self) -> None:
+        # Reading one's own grants must also work for an ADMIN-only account.
+        # This does not grant access to employee records or purchase operations.
+        allowed = {"EMPLOYEE", "APPROVER", "WAREHOUSE", "ADMIN"}
+        require(
+            self.user["account_type"] == "human" and any(self.has(code) for code in allowed),
+            ErrorCode.FORBIDDEN,
+        )
+        self.action_roles = allowed
+
     def authorize(self, role: str, *, read: bool = False) -> None:
         allowed = {role}
         if role == "EMPLOYEE" and read:

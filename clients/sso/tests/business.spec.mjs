@@ -14,7 +14,7 @@ const order = {purchase_order_id: id(5), po_number: "PO-UI-01", status: "waiting
   schedules: [{schedule_id: id(6), schedule_number: 1, scheduled_quantity: "2.0000", requested_delivery_date: "2026-12-20", status: "open"}]};
 const paged = (items, total = items.length, page = 1) => ({items, total, page, page_size: 20});
 
-async function setup(page, {role = "EMPLOYEE", authenticated = true, handle} = {}) {
+async function setup(page, {role = "EMPLOYEE", authenticated = true, profileReady = true, handle} = {}) {
   const calls = [];
   await page.route("**/keycloak.js", (route) => route.fulfill({contentType: "application/javascript", body: `
     export default class Keycloak {
@@ -46,9 +46,28 @@ async function setup(page, {role = "EMPLOYEE", authenticated = true, handle} = {
   });
   await page.goto("http://127.0.0.1:8781");
   await expect(page.locator("#status")).toHaveText(authenticated ? "Đã đăng nhập" : "Chưa đăng nhập");
-  if (authenticated) await expect(page.locator("#business-profile")).toContainText("Người dùng UI");
+  if (authenticated && profileReady) await expect(page.locator("#business-profile")).toContainText("Người dùng UI");
   return calls;
 }
+
+test("profile failure remains visible across tabs and ADMIN can retry without employee access", async ({page}) => {
+  let first = true;
+  await setup(page, {role: "ADMIN", profileReady: false, handle: async (request, route) => {
+    if (new URL(request.url()).pathname === "/api/v1/me" && first) {
+      first = false; await route.fulfill({status: 403, json: {code: "FORBIDDEN"}}); return true;
+    }
+  }});
+  await expect(page.locator("#business-profile")).toContainText("Đã đăng nhập");
+  await expect(page.locator("#profile-error")).toContainText("Chưa tải được hồ sơ và quyền");
+  await page.getByRole("button", {name: "Nhân viên", exact: true}).click();
+  await expect(page.locator("#profile-error")).toBeVisible();
+  await expect(page.getByRole("button", {name: "Tài liệu RAG", exact: true})).toHaveCount(0);
+  await page.getByRole("button", {name: "Tải lại hồ sơ và quyền", exact: true}).click();
+  await expect(page.locator("#business-profile")).toContainText("Người dùng UI · ADMIN");
+  await expect(page.locator("#profile-error")).toHaveCount(0);
+  await expect(page.getByRole("button", {name: "Tài liệu RAG", exact: true})).toBeVisible();
+  await expect(page.locator("#new-request")).toBeDisabled();
+});
 async function openSupplier(page) {
   await page.getByRole("button", {name: "Nhà cung cấp", exact: true}).click();
   await page.locator("#supplier-order").fill(id(5));
