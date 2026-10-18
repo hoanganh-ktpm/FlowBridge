@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Thêm hợp đồng thiết kế Agent Hub Web/App 1.0.0 trong contracts/: 12 operation,
+  JSON Schema kết quả/sự kiện 1.0 theo mẫu người dùng, bảng và biểu đồ dùng chung
+  dataset, cột chồng/100%, tiền decimal, SSE, idempotency/revision, ACL và mapping
+  Langflow tự gọi agent phụ thuộc. Có ví dụ và hướng dẫn; chưa triển khai endpoint,
+  không sửa workflow/runtime và không chạy kiểm thử theo yêu cầu người dùng.
+
 - Khoanh sửa dependency định danh ML→Data ở ver2: tách câu hỏi con khỏi mục tiêu
   tư vấn NCC; chỉ xác nhận lookup hoàn tất bằng receipt thật khi lỗi duy nhất là
   handoff ngoài phạm vi. Giữ các lỗi/quyền/nhập nhằng và các nhánh khác; user tự test.

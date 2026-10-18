@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FlowBridge Agent Hub Run Event 1.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "id", "sequence", "type", "run_id", "occurred_at", "data"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "id": {"$ref": "run-result.schema.json#/$defs/Id"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "type": {"enum": ["run.queued", "run.started", "agent.started", "agent.completed", "tool.started", "tool.completed", "answer.delta", "run.cancelling", "run.completed", "run.needs_input", "run.failed", "run.cancelled"]},
+    "run_id": {"$ref": "run-result.schema.json#/$defs/Id"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "data": {"type": "object"}
+  },
+  "allOf": [
+    {"if": {"properties": {"type": {"const": "run.queued"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "queued"}}}}}},
+    {"if": {"properties": {"type": {"const": "run.started"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "running"}}}}}},
+    {"if": {"properties": {"type": {"const": "run.cancelling"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "cancelling"}}}}}},
+    {"if": {"properties": {"type": {"const": "run.completed"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "completed"}}}}}},
+    {"if": {"properties": {"type": {"const": "run.needs_input"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "needs_input"}}}}}},
+    {"if": {"properties": {"type": {"const": "run.failed"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "failed"}}}}}},
+    {"if": {"properties": {"type": {"const": "run.cancelled"}}}, "then": {"properties": {"data": {"properties": {"status": {"const": "cancelled"}}}}}},
+    {
+      "if": {"properties": {"type": {"enum": ["run.queued", "run.started", "run.cancelling", "run.completed", "run.needs_input", "run.failed", "run.cancelled"]}}},
+      "then": {"properties": {"data": {
+        "type": "object", "additionalProperties": false, "required": ["status", "result_url"],
+        "properties": {
+          "status": {"enum": ["queued", "running", "cancelling", "completed", "needs_input", "failed", "cancelled"]},
+          "result_url": {"type": "string", "pattern": "^/api/v1/agent-hub/runs/[A-Za-z0-9._:-]+$"}
+        }
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["agent.started", "agent.completed"]}}},
+      "then": {"properties": {"data": {
+        "type": "object", "additionalProperties": false,
+        "required": ["span_id", "parent_span_id", "agent", "invoked_by", "role", "label"],
+        "properties": {
+          "span_id": {"$ref": "run-result.schema.json#/$defs/Id"},
+          "parent_span_id": {"oneOf": [{"type": "null"}, {"$ref": "run-result.schema.json#/$defs/Id"}]},
+          "agent": {"enum": ["central", "database", "prediction", "knowledge"]},
+          "invoked_by": {"enum": ["central", "database", "prediction", "knowledge", null]},
+          "role": {"enum": ["coordinator", "primary", "dependency"]},
+          "label": {"type": "string", "minLength": 1, "maxLength": 300},
+          "outcome": {"enum": ["success", "needs_input", "failed", "cancelled"]},
+          "duration_ms": {"type": "integer", "minimum": 0}
+        }
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["tool.started", "tool.completed"]}}},
+      "then": {"properties": {"data": {
+        "type": "object", "additionalProperties": false, "required": ["span_id", "parent_span_id", "agent", "tool", "label"],
+        "properties": {
+          "span_id": {"$ref": "run-result.schema.json#/$defs/Id"},
+          "parent_span_id": {"$ref": "run-result.schema.json#/$defs/Id"},
+          "agent": {"enum": ["database", "prediction", "knowledge"]},
+          "tool": {"type": "string", "minLength": 1, "maxLength": 128},
+          "label": {"type": "string", "minLength": 1, "maxLength": 300},
+          "outcome": {"enum": ["success", "needs_input", "failed", "cancelled"]},
+          "duration_ms": {"type": "integer", "minimum": 0}
+        }
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["agent.completed", "tool.completed"]}}},
+      "then": {"properties": {"data": {"required": ["outcome", "duration_ms"]}}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["agent.started", "tool.started"]}}},
+      "then": {"properties": {"data": {"not": {"anyOf": [{"required": ["outcome"]}, {"required": ["duration_ms"]}]}}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "answer.delta"}}},
+      "then": {"properties": {"data": {
+        "type": "object", "additionalProperties": false, "required": ["text"],
+        "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 8192}}
+      }}}
+    }
+  ]
+}
