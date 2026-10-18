@@ -187,3 +187,124 @@ test("mobile layout fits viewport and forbidden API is shown as a failure", asyn
   await expect(page.locator("#business-message")).toContainText("không có quyền");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+
+// Manager tests use controlled HTTP, never Supabase credentials or real document writes.
+async function knowledgeSetup(page, {cited = false, fail = false, immediate = false} = {}) {
+  const docs = new Map();
+  let serial = 1, failedOnce = fail;
+  const doc = (n, body = "* Nha cung cap\n\nALPHA-ONE") => ({document_id: id(100 + n),
+    supplier_id: id(2), supplier_name: "Nha cung cap A", filename: "existing.md", title: "Nhan xet",
+    revision: 1, version_id: id(200 + n), content_md: body, index_status: "ready", chunk_count: 2,
+    content_hash: "test", scope_type: "global", department_id: null, updated_at: "2026-10-18T00:00:00Z",
+    can_delete: !cited, has_citations: cited, job: null,
+    metadata: {reviewer_name_snapshot: "Nguoi nhan xet"},
+    versions: [{version_no: 1, known_from: "2026-10-18T00:00:00Z", created_by_subject: id(4)}]});
+  docs.set(id(101), doc(1));
+  const jobs = new Map();
+  const calls = await setup(page, {role: "ADMIN", handle: async (request, route) => {
+    const path = new URL(request.url()).pathname;
+    if (!path.startsWith("/api/admin/knowledge")) return false;
+    const root = "/api/admin/knowledge";
+    let result;
+    if (path === root + "/options") result = {suppliers: [supplier], reviewers: [{user_id: id(4), display_name: "Nguoi nhan xet"}], departments: []};
+    else if (path === root + "/documents" && request.method() === "GET") result = {items: [...docs.values()]};
+    else if (path.includes("/versions/")) result = {version_no: 1, content_md: "* Lich su\n\nALPHA-ONE"};
+    else if (path.includes("/jobs/") && request.method() === "GET") {
+      const j = jobs.get(path.split("/").at(-1));
+      if (j.fail) {result = {...j, status: "failed", stage: "failed", error_code: "MODEL_UNAVAILABLE"}; docs.get(j.document_id).job = result;}
+      else {
+        const current = docs.get(j.document_id);
+        const count = current.chunk_count;
+        if (j.kind === "delete") docs.delete(j.document_id);
+        else {current.job = null;}
+        if (j.payload) Object.assign(current, j.payload, {revision: current.revision + 1, index_status: "ready", chunk_count: 3, job: null});
+        result = {...j, status: "ready", stage: "complete", result: {old_chunk_count: count, new_chunk_count: j.kind === "delete" ? 0 : 3, revision: current.revision}};
+      }
+    } else if (request.method() !== "GET") {
+      const data = request.postDataJSON() ?? {};
+      let documentId = path.split("/")[5];
+      let kind = request.method() === "DELETE" ? "delete" : path.endsWith("reindex") ? "reindex" : "publish";
+      if (path.endsWith("retry")) {const previous = jobs.get(path.split("/").at(-2)); documentId = previous.document_id; kind = "reindex";}
+      if (request.method() === "POST" && path === root + "/documents") {
+        documentId = id(101 + serial++); docs.set(documentId, {...doc(serial), document_id: documentId, revision: 0, ...data});
+      }
+      result = {job_id: id(300 + serial++), document_id: documentId, kind, status: "pending", stage: "pending", payload: kind === "publish" ? data : null, fail: failedOnce};
+      if (immediate) result = {...result, status: "ready", stage: "complete", result: {old_chunk_count: 2, new_chunk_count: 2, revision: 1}};
+      failedOnce = false; jobs.set(result.job_id, result); docs.get(documentId).job = result;
+    } else result = docs.get(path.split("/").at(-1));
+    await route.fulfill({json: result}); return true;
+  }});
+  await page.getByRole("button", {name: "Tài liệu RAG", exact: true}).click();
+  await expect(page.locator("#knowledge-manager")).toBeVisible();
+  await expect(page.getByRole("button", {name: "existing.md", exact: true})).toBeVisible();
+  return calls;
+}
+
+test("admin edits existing Markdown, polls real API shape, keeps history, refreshes and deletes", async ({page}) => {
+  const calls = await knowledgeSetup(page);
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager).toContainText("ALPHA-ONE");
+  await manager.getByRole("button", {name: "Sửa tài liệu", exact: true}).click();
+  await manager.getByLabel("Nội dung Markdown").fill("* Nhan xet\n\n** Giao hang\nBETA-TWO <img src=x onerror=alert(1)>");
+  await manager.getByRole("button", {name: "Xem trước an toàn"}).click();
+  await expect(manager.locator("img")).toHaveCount(0);
+  await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG"}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  const write = calls.find((r) => r.method() === "PUT");
+  expect(write.postDataJSON().expected_revision).toBe(1);
+  expect(write.postDataJSON().content_md).toContain("BETA-TWO");
+  await manager.getByLabel("Lịch sử phiên bản").selectOption("1");
+  await expect(manager.locator(".knowledge-preview")).toContainText("ALPHA-ONE");
+  await page.reload();
+  await expect(page.locator("#business-profile")).toContainText("Người dùng UI");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager.locator(".knowledge-preview")).toContainText("BETA-TWO");
+  page.on("dialog", (dialog) => dialog.accept());
+  await manager.getByRole("button", {name: "Xóa tài liệu", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Đã xóa tài liệu");
+  await expect(manager.getByRole("button", {name: "existing.md", exact: true})).toHaveCount(0);
+});
+
+test("admin creates Markdown and resumes a failed indexing job", async ({page}) => {
+  const calls = await knowledgeSetup(page, {fail: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Đồng bộ lỗi");
+  await manager.getByRole("button", {name: "Thử lại tác vụ lỗi"}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  await manager.getByRole("button", {name: "Thêm tài liệu", exact: true}).click();
+  await manager.getByLabel("Tên file", {exact: true}).fill("new.md");
+  await manager.getByLabel("Tiêu đề", {exact: true}).fill("Nhan xet moi");
+  await manager.getByLabel("Nhà cung cấp", {exact: true}).selectOption(id(2));
+  await manager.getByLabel("Người nhận xét", {exact: true}).selectOption(id(4));
+  await manager.getByLabel("Nội dung Markdown", {exact: true}).fill("* Moi\n\nVERSION-C");
+  await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG"}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  expect(calls.some((r) => r.method() === "POST" && r.url().endsWith("/knowledge/documents"))).toBe(true);
+});
+
+test("cited documents cannot be permanently deleted and non-admin has no manager menu", async ({page}) => {
+  await knowledgeSetup(page, {cited: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager.getByRole("button", {name: "Xóa tài liệu", exact: true})).toBeDisabled();
+  await expect(manager).toContainText("đã được báo cáo trích dẫn");
+});
+
+test("employee cannot open the knowledge manager through the navigation", async ({page}) => {
+  await setup(page);
+  await expect(page.getByRole("button", {name: "Tài liệu RAG", exact: true})).toHaveCount(0);
+});
+
+
+test("admin handles an already completed idempotent response without waiting forever", async ({page}) => {
+  await knowledgeSetup(page, {immediate: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  await expect(manager.getByRole("button", {name: "Đồng bộ lại", exact: true})).toBeEnabled();
+});

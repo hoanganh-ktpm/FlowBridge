@@ -3,6 +3,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {createApi} from "./api.js";
+import {KnowledgeManager} from "./knowledge.jsx";
 
 const editable = new Set(["draft", "needs_review", "analysis_failed"]);
 const states = {
@@ -49,7 +50,7 @@ function OrderDetail({data}) {
 }
 
 function Business({apiUrl, keycloak}) {
-  const [view, setView] = useState("employee");
+  const [view, setView] = useState(location.hash === "#knowledge" ? "knowledge" : "employee");
   const [profile, setProfile] = useState(null);
   const profileRef = useRef(null);
   const [notice, setNotice] = useState({text: "", error: false});
@@ -186,10 +187,12 @@ function Business({apiUrl, keycloak}) {
   const orderColumns = [["Mã đơn", "po_number"], ["Trạng thái", (r) => status(r.status)], ["Tổng tiền", "total_amount"], ["Tiền tệ", "currency"]];
   return <div aria-busy={busy}>
     <p id="business-profile">{profile ? `${profile.user.display_name} · ${profile.roles.map((r) => r.role_name).join(", ") || "Chưa được cấp vai trò"}` : "Đăng nhập để sử dụng nghiệp vụ nội bộ. Nhà cung cấp dùng token xác nhận riêng."}</p>
-    <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"]].map(([key, label]) =>
-      <button key={key} type="button" aria-pressed={view === key} disabled={busy} onClick={() => {setView(key); message("");}}>{label}</button>)}</nav>
+    <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"],
+      ...(has("ADMIN") ? [["knowledge", "Tài liệu RAG"]] : [])].map(([key, label]) =>
+      <button key={key} type="button" aria-pressed={view === key} disabled={busy} onClick={() => {setView(key); location.hash = key === "knowledge" ? "knowledge" : ""; message("");}}>{label}</button>)}</nav>
     <p id="business-message" role="status" aria-live="polite" data-error={notice.error}>{notice.text}</p>
     <fieldset className="workspace-controls" disabled={busy}>
+    {view === "knowledge" && (has("ADMIN") ? <KnowledgeManager api={api}/> : <p>Chỉ quản trị viên được quản lý tài liệu RAG.</p>)}
     <section id="employee" aria-labelledby="employee-title" hidden={view !== "employee"}>
       <h2 id="employee-title">Yêu cầu mua hàng</h2>
       <p>Yêu cầu hiển thị theo quyền tài khoản. Tạo hoặc lưu thay đổi sẽ gửi yêu cầu sang trạng thái đang phân tích.</p>

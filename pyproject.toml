@@ -95,6 +95,7 @@ include = [
     "/clients/sso",
     "/docs/rag-postgres-pgvector-design.md",
     "/docs/rag-postgres-setup.md",
+    "/docs/rag-markdown-manager.md",
     "/scripts",
     "/alembic",
     "/alembic.ini",

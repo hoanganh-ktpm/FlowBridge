@@ -8,6 +8,8 @@
 
 # Application factory and bounded, app-owned runtime resources.
 
+import asyncio
+import contextlib
 import ssl
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -112,6 +114,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     )
                     stack.push_async_callback(run_in_threadpool, pg_service.close)
                     app.state.rag_postgres_service = pg_service
+                    if configuration.rag_manager_enabled:
+                        from flowbridge.supplier_assistant.knowledge.manager import KnowledgeManager
+
+                        manager = KnowledgeManager(
+                            sessions, pg_service, max_bytes=configuration.rag_manager_max_bytes
+                        )
+                        await manager.verify_schema()
+                        app.state.knowledge_manager = manager
+                        worker = asyncio.create_task(manager.run())
+
+                        async def stop_manager():
+                            worker.cancel()
+                            with contextlib.suppress(asyncio.CancelledError):
+                                await worker
+
+                        stack.push_async_callback(stop_manager)
                 yield
             finally:
                 # Gỡ tài nguyên khỏi state trước khi ExitStack thực sự đóng client/pool.
@@ -119,6 +137,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 app.state.rag_dev_service = None
                 app.state.ml_runtime = None
                 app.state.rag_postgres_service = None
+                app.state.knowledge_manager = None
 
     app = FastAPI(
         title="FlowBridge OpenCore",
@@ -133,6 +152,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.rag_dev_service = None
     app.state.ml_runtime = None
     app.state.rag_postgres_service = None
+    app.state.knowledge_manager = None
     register_exception_handlers(app)
     if configuration.cors_origins:
         app.add_middleware(
@@ -163,6 +183,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from flowbridge.supplier_assistant.knowledge.router import install_development_router
 
         install_development_router(app)
+    if configuration.rag_manager_enabled:
+        from flowbridge.supplier_assistant.knowledge.manager_router import install_manager_router
+
+        install_manager_router(app)
     install_openapi(app)
     return app
 

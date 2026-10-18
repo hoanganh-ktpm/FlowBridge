@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Thêm trang quản lý Markdown RAG trong React hiện có cho ADMIN: tạo/sửa có lịch sử, job đồng bộ bền vững, xuất bản nguồn/vector trong cùng transaction, retry/reindex và xóa tài liệu chưa được báo cáo trích dẫn. Migration 0004 bổ sung bảng quản lý/guard; tính năng bật riêng bằng cấu hình, giữ retrieval Langflow theo cutoff và không đổi ML.
+
 - Thêm custom component và flow Langflow chỉ truy hồi RAG qua bearer Keycloak + JobContext; cấu hình service credential ở server, xuất đoạn trích/citation, môi trường Langflow riêng và helper kiểm thử. Không gọi ML hoặc LLM trong flow này.
 
 - Đồng bộ đường dẫn Langflow với package `backend/flowbridge/` khi gộp main; giữ cấu hình và hợp đồng node hiện có.

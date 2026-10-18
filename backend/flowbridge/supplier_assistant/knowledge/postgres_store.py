@@ -187,6 +187,11 @@ class PgKnowledgeStore:
         profile: str,
         scope: PgScope,
     ) -> None:
+        async with self.sessions() as session, session.begin():
+            await self.commit_generation(session, version, chunks, vectors, profile, scope)
+
+    async def commit_generation(self, session, version, chunks, vectors, profile, scope) -> None:
+        # Also used by the manager: publication and vectors commit atomically.
         if not chunks or len(chunks) != len(vectors):
             raise KnowledgeError("INCOMPLETE_GENERATION: embedding count mismatch")
         parameters = []
@@ -207,59 +212,58 @@ class PgKnowledgeStore:
                     "generation": chunk.generation,
                 }
             )
-        async with self.sessions() as session, session.begin():
-            await session.execute(text("SET LOCAL lock_timeout = '5s'"))
-            await session.execute(
-                text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"),
-                {
-                    "key": f"knowledge:{version.version_id}:{chunks[0].generation}",
-                },
-            )
-            current = (
-                (
-                    await session.execute(
-                        text(SOURCE_SQL + " AND v.version_id=:version FOR SHARE OF d,v"),
-                        {
-                            **scope_parameters(scope),
-                            "version": version.version_id,
-                        },
-                    )
+        await session.execute(text("SET LOCAL lock_timeout = '5s'"))
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"),
+            {
+                "key": f"knowledge:{version.version_id}:{chunks[0].generation}",
+            },
+        )
+        current = (
+            (
+                await session.execute(
+                    text(SOURCE_SQL + " AND v.version_id=:version FOR SHARE OF d,v"),
+                    {
+                        **scope_parameters(scope),
+                        "version": version.version_id,
+                    },
                 )
-                .mappings()
-                .one_or_none()
             )
-            if current is None or source_row(current) != version or version.status != "published":
-                raise KnowledgeError("SOURCE_CHANGED: source no longer eligible")
-            # Atomic replacement of this deterministic generation only. Other generations
-            # remain available for persisted references. A failed batch rolls back entirely.
+            .mappings()
+            .one_or_none()
+        )
+        if current is None or source_row(current) != version or version.status != "published":
+            raise KnowledgeError("SOURCE_CHANGED: source no longer eligible")
+        # Atomic replacement of this deterministic generation only. Other generations
+        # remain available for persisted references. A failed batch rolls back entirely.
+        await session.execute(
+            text("""
+            DELETE FROM core.document_chunks WHERE version_id=:version
+              AND index_generation=:generation
+        """),
+            {"version": version.version_id, "generation": chunks[0].generation},
+        )
+        await session.execute(
+            text("""
+            INSERT INTO core.document_chunks(chunk_id,version_id,chunk_no,content,heading_path,
+              source_start_byte,source_end_byte,source_checksum,chunk_checksum,
+              embedding,embedding_profile,index_generation)
+            VALUES(:id,:version,:number,:content,:headings,:start,:end,:source,:checksum,
+              CAST(:embedding AS extensions.vector(1024)),:profile,:generation)
+        """),
+            parameters,
+        )
+        rows = (
             await session.execute(
                 text("""
-                DELETE FROM core.document_chunks WHERE version_id=:version
-                  AND index_generation=:generation
-            """),
+            SELECT * FROM core.document_chunks WHERE version_id=:version
+              AND index_generation=:generation ORDER BY chunk_no
+        """),
                 {"version": version.version_id, "generation": chunks[0].generation},
             )
-            await session.execute(
-                text("""
-                INSERT INTO core.document_chunks(chunk_id,version_id,chunk_no,content,heading_path,
-                  source_start_byte,source_end_byte,source_checksum,chunk_checksum,
-                  embedding,embedding_profile,index_generation)
-                VALUES(:id,:version,:number,:content,:headings,:start,:end,:source,:checksum,
-                  CAST(:embedding AS extensions.vector(1024)),:profile,:generation)
-            """),
-                parameters,
-            )
-            rows = (
-                await session.execute(
-                    text("""
-                SELECT * FROM core.document_chunks WHERE version_id=:version
-                  AND index_generation=:generation ORDER BY chunk_no
-            """),
-                    {"version": version.version_id, "generation": chunks[0].generation},
-                )
-            ).mappings()
-            if not validate_stored_chunks(chunks, [dict(row) for row in rows]):
-                raise KnowledgeError("INCOMPLETE_GENERATION: verification failed")
+        ).mappings()
+        if not validate_stored_chunks(chunks, [dict(row) for row in rows]):
+            raise KnowledgeError("INCOMPLETE_GENERATION: verification failed")
 
     async def import_document(
         self, spec, content: str, actor: str, department: UUID | None
