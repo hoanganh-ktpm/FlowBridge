@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "run_id": "run_empty_001",
+  "answer": "Nguồn dữ liệu xác nhận không có đơn đã nhận đủ trong khoảng thời gian yêu cầu. Không có mẫu số để tính tỷ lệ giao trễ.",
+  "datasets": [
+    {
+      "id": "delivery_empty",
+      "title": "Đơn đã nhận đủ",
+      "columns": [
+        {"field": "supplier_code", "label": "Mã nhà cung cấp", "type": "string"},
+        {"field": "received_orders", "label": "Đơn đã nhận đủ", "type": "integer", "unit": "đơn đặt hàng"},
+        {"field": "late_pct", "label": "Tỷ lệ trễ", "type": "number", "nullable": true, "unit": "%", "format": "percent"}
+      ],
+      "rows": [],
+      "context": {"as_of": "2026-10-19T03:00:00Z", "period_from": "2026-09-01", "period_to": "2026-09-30", "complete": true, "metric_definition": "Dữ liệu minh họa rỗng sau khi đã xác minh toàn bộ phạm vi.", "denominator_definition": "Tổng đơn đã nhận đủ, bằng 0 trong phạm vi này; tỷ lệ không xác định."},
+      "source_ids": ["delivery_source"]
+    }
+  ],
+  "tables": [{"id": "empty_table", "title": "Không có dữ liệu", "dataset_id": "delivery_empty", "fields": ["supplier_code", "received_orders", "late_pct"]}],
+  "charts": [],
+  "sources": [{"id": "delivery_source", "kind": "tool", "tool": "supplier_delivery_statistics"}],
+  "warnings": [{"code": "NO_DATA", "message": "Không có dữ liệu trong phạm vi; không thể suy ra tỷ lệ 0%.", "dataset_id": "delivery_empty"}],
+  "questions": [],
+  "error": null
+}

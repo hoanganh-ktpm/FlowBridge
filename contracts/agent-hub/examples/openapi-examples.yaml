@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FlowBridge; redistribution/modification under GNU GPL v3 or later.
+# Provided without warranty. See LICENSE in FlowBridge.
+delivery:
+  summary: Mẫu JSON gốc do người dùng cung cấp; số liệu không phải kết quả chạy mới
+  externalValue: ./delivery-result.json
+comparison:
+  summary: Dữ liệu tổng hợp minh họa cho bảng, cột thường, cột chồng, cột 100% và giá
+  externalValue: ./supplier-comparison.json
+clarification:
+  summary: Run terminal cần bổ sung thông tin, không phải lỗi dịch vụ
+  externalValue: ./needs-input.json
+failed:
+  summary: Lỗi phụ thuộc sau khi run đã được admission
+  externalValue: ./failed.json

@@ -1,5 +1,24 @@
 # Hợp đồng API FlowBridge
 
+## Agent Hub cho Web/App và Langflow ver2
+
+[Agent Hub OpenAPI 1.0.0](agent-hub-api.yaml) và [hướng dẫn tích hợp](agent-hub/README.md)
+mô tả 12 operation: thư viện ba agent, hội thoại/lựa chọn agent, chat bất đồng bộ,
+kết quả JSON, metadata, Activities SSE và hủy run. Langflow tự điều phối và gọi
+phụ thuộc; API truyền/lưu yêu cầu và kết quả theo quyền người dùng.
+
+[Schema kết quả 1.0](agent-hub/schemas/run-result.schema.json) giữ khung mẫu người
+dùng cung cấp, dùng chung dataset cho bảng và biểu đồ. Có quy tắc cột chồng/100%,
+tiền decimal, mẫu số tỷ lệ, provenance, lỗi, idempotency, revision và reconnect.
+Ví dụ nằm trong [agent-hub/examples](agent-hub/examples/PROVENANCE.md).
+
+Đây là **hợp đồng thiết kế mới, chưa triển khai endpoint/node**, không thay snapshot
+App/AI/Core hoặc manifest checksum hiện tại. Nguồn chuẩn Agent Hub nằm tại đây;
+không đưa vào script đồng bộ upstream của App/AI/Core. Khi phân phối giữ nguyên
+`agent-hub-api.yaml` và cây `agent-hub/` vì OpenAPI dùng external schema/reference.
+
+## Hợp đồng nghiệp vụ hiện có
+
 Runtime dùng `app-api.yaml` (40 operation) và `ai-tools-api.yaml` (6 operation)
 trong `backend/flowbridge/contracts/`, version 0.4.1. Hai snapshot có chung DTO;
 router/validator/Swagger và gateway mapping đọc cùng nguồn trong package.
