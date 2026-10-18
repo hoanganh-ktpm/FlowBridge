@@ -173,6 +173,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if configuration.database_url is not None:
         app.include_router(create_database_router())
         install_database_openapi(app)
+    if configuration.delivery_statistics_enabled:
+        from flowbridge.supplier_assistant.delivery_statistics_router import (
+            install_delivery_statistics_router,
+        )
+
+        install_delivery_statistics_router(app)
     if configuration.core_identity is not None:
         install_identity_router(app)
     if configuration.ml_enabled:

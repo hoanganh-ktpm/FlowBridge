@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import threading
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from starlette.concurrency import run_in_threadpool
 
@@ -24,10 +25,35 @@ ScopeResolver = Callable[[], Awaitable[PgScope]]
 
 
 class PgKnowledgeService:
+    SEARCH_WAIT_SECONDS = 15
+    MAX_SEARCH_REQUESTS = 4
+
     def __init__(self, store: PgKnowledgeStore, embedder):
         self.store, self.embedder = store, embedder
         self._gate = asyncio.Lock()
         self._model_lock = threading.Lock()
+        self._pending_searches = 0
+
+    @asynccontextmanager
+    async def search_slot(self):
+        # Manager polling briefly holds the same gate while claiming a DB job.
+        # Wait through that contention, with bounded time and queue size.
+        if self._pending_searches >= self.MAX_SEARCH_REQUESTS:
+            raise CoreError(ErrorCode.RATE_LIMITED, retry_after=1)
+        self._pending_searches += 1
+        acquired = False
+        try:
+            try:
+                async with asyncio.timeout(self.SEARCH_WAIT_SECONDS):
+                    await self._gate.acquire()
+                    acquired = True
+            except TimeoutError:
+                raise CoreError(ErrorCode.RATE_LIMITED, retry_after=1) from None
+            yield
+        finally:
+            if acquired:
+                self._gate.release()
+            self._pending_searches -= 1
 
     async def cpu(self, function, *args):
         def work():
@@ -43,9 +69,7 @@ class PgKnowledgeService:
                 self.embedder._model = None
 
     async def search(self, request: RetrievalRequest, resolve_scope: ScopeResolver) -> dict:
-        if self._gate.locked():
-            raise CoreError(ErrorCode.RATE_LIMITED, retry_after=1)
-        async with self._gate:
+        async with self.search_slot():
             scope = await resolve_scope()
             versions = await self.store.versions(scope)
             prepared = [(v, prepare_chunks(v, self.embedder.profile)) for v in versions]

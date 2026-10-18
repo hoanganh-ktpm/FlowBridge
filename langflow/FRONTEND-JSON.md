@@ -4,7 +4,9 @@
 
 Component mới **JSON cho frontend · ver2** nhận cổng `response` của Agent trung tâm,
 xuất `Data` ở cổng `response`. Không dùng cổng Structured Response của Agent để dựng
-số liệu, không thêm model, không chạy lại công cụ và không sửa node/prompt/ML cũ.
+số liệu, không thêm model, không chạy lại công cụ cũ và không sửa node/prompt/ML cũ.
+Khi RAG đã xác minh nhà cung cấp, node có thể đọc thêm thống kê giao hàng qua API
+đã xác thực; tùy chọn **Thống kê giao hàng từ database** mặc định bật trên node mới.
 
 Flow `flows/ver2/central.json` đã được bổ sung nhánh sau theo xác nhận:
 
@@ -22,6 +24,8 @@ Không cần thay đổi Supabase/migration.
 Langflow/lfx 1.12.6 giữ sự kiện `ToolContent.output` trong Message của Agent.
 Runtime điền trường này ở `on_tool_end`; adapter đọc Reply có tương quan run từ ba
 tool `hoi_du_lieu`, `hoi_du_doan`, `hoi_tri_thuc`, rồi lấy ToolResult trong `results`.
+Các sự kiện có thể nằm trong `ContentBlock(type=group)` lồng nhau; adapter duyệt
+nhóm native với giới hạn độ sâu/số block và không phân tích JSON trong đoạn văn.
 Không bóc giá, điểm hoặc tỷ lệ từ `Message.text`, TextContent, output_schema hoặc
 JSON do model viết trong câu trả lời. Không xuất raw trace/tool_input/prompt.
 
@@ -77,16 +81,48 @@ vượt giới hạn thành một phản hồi đầy đủ.
 - ML: bảng candidates và unscored, giữ thứ hạng API. Chỉ vẽ điểm khi các dòng đủ
   context để so sánh và score_status=success. Điểm chưa hiệu chuẩn, không phải % trễ.
 - RAG: bảng đoạn trích và nguồn chính xác. Không tính thống kê giao hàng từ đoạn trích.
+- Giao hàng: số đếm thật từ đơn đặt hàng/lịch giao/phiếu nhận; bảng trạng thái,
+  biểu đồ cột ngang và bảng mẫu số/tỷ lệ trễ riêng.
 
 Contract có `bar`, `line`, `pie`; bar hỗ trợ orientation vertical/horizontal và
-stacking none/normal/percent. Builder hiện chỉ tự dựng cột cho giá/điểm có dữ liệu
-phù hợp, chưa tự tạo biểu đồ đường/tròn/cột chồng từ dữ liệu không có.
+stacking none/normal/percent. Builder hiện tự dựng cột cho giá/điểm có dữ liệu
+phù hợp và thống kê giao hàng từ database; chưa tự tạo biểu đồ đường/tròn/cột chồng.
 
 Cột chồng % yêu cầu metric_definition, count_unit, denominator_definition, kỳ và
 cutoff; tổng các series mỗi nhóm phải bằng 100% (sai số làm tròn tối đa 0.01).
-API hiện chưa trả thống kê giao đúng/trễ đủ điều kiện: chưa tự sinh biểu đồ tỷ lệ
-giao trễ. Cần tool/analytics cung cấp mẫu số và chính sách đơn hủy/chưa giao/chưa
-đến hạn riêng; node định dạng không tạo số liệu còn thiếu.
+API `POST /internal/v1/tools/supplier-delivery-statistics` nhận `supplier_id` trong body,
+được bật bằng `FLOWBRIDGE_DELIVERY_STATISTICS_ENABLED=true` trên backend (mặc định tắt).
+Không cần migration; khi tắt vẫn giữ nguyên tập API/schema baseline của nhóm. API dùng bearer
+AI_SERVICE thật và `X-Job-Context`. Backend kiểm grant global đang hoạt động, task,
+revision yêu cầu và phòng ban; cutoff lấy từ `feature_asof` của task trong database.
+Đây là thống kê lịch sử nhà cung cấp trong hệ thống theo grant AI_SERVICE global,
+không phải chỉ các đơn do tài khoản employee local tạo. Caller không được chọn
+SQL, role, phòng ban hoặc cutoff tùy ý. Không cần bật ML và không ghi dữ liệu.
+
+Một transaction PostgreSQL repeatable/read-only đọc các bảng. Chỉ lấy đơn đã
+phát hành và tồn tại trước cutoff; lịch giao phải đã được tạo, biên nhận phải đã
+được ghi nhận và có ngày giao thực tế không sau cutoff (UTC+07:00). Mỗi lịch giao
+phải đạt đủ số lượng riêng; một đơn đúng hạn khi mọi lịch giao hoàn tất theo hạn
+gốc. Ngày cam kết mới không thay hạn gốc. Đơn đã nhận đủ trễ / tổng đơn đã nhận đủ
+là tỷ lệ trễ; mẫu số 0 trả null. Đơn mở quá hạn và phần còn lại chưa quá hạn là hai
+nhóm riêng; nhận một phần là tập con của đơn mở, không cộng như nhóm độc lập.
+
+Đơn thiếu/sai tổng lịch giao thuộc nhóm chưa phân loại, không đoán là đúng hạn.
+Đơn hiện có trạng thái hủy/từ chối bị loại. Schema chưa lưu lịch sử thời điểm hủy,
+nên response luôn cảnh báo `CANCELLATION_STATUS_IS_CURRENT_NOT_HISTORIZED`; không
+coi đây là tái dựng đầy đủ trạng thái hủy tại cutoff quá khứ. Giới hạn 5.000 đơn
+mỗi nhà cung cấp và 20.000 dòng mỗi bảng con; vượt giới hạn trả lỗi, không âm thầm
+lấy một phần làm tổng số. Node đọc tối đa ba nhà cung cấp từ receipts đã kiểm.
+
+Số liệu chart nằm trong dataset riêng cùng as_of, kỳ phát hành, đơn vị và định nghĩa
+mẫu số. Phần `answer` tách rõ số database với nhận xét từ tài liệu; hai nguồn có
+thể dùng mốc chốt khác nhau. Lỗi API thống kê chỉ tạo cảnh báo/partial, vẫn giữ
+bằng chứng RAG đã lấy được và không bóc số từ câu trả lời để thay thế.
+
+Truy vấn RAG chờ khóa xử lý tối đa 15 giây, tối đa bốn truy vấn đang chạy/chờ
+mỗi process. Điều này tránh trả 429 ngay khi worker chỉ đang kiểm tra hàng đợi.
+Khi hết thời gian chờ hoặc đầy hàng đợi, API vẫn trả 429 kèm Retry-After;
+không bỏ qua phân quyền hoặc dùng tài liệu của lượt trước để thay thế.
 
 ## Chuẩn bị graph và chạy kiểm thử
 

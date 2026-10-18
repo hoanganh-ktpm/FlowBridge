@@ -20,7 +20,7 @@ from flowbridge_agent.frontend_response_node import (  # noqa: E402
     FrontendResponse,
     response_from_message,
 )
-from lfx.schema.content_types import TextContent, ToolContent  # noqa: E402
+from lfx.schema.content_types import ContentBlock, TextContent, ToolContent  # noqa: E402
 from lfx.schema.data import Data  # noqa: E402
 from lfx.schema.message import Message  # noqa: E402
 
@@ -240,7 +240,7 @@ def test_native_message_only_reads_tool_end_output_not_json_in_final_answer():
     # Test the serialized round trip Langflow uses for Message persistence/edges.
     round_trip = Message.model_validate(m.model_dump(mode="json"))
     assert response_from_message(round_trip) == out
-    assert isinstance(FrontendResponse(agent_message=m).build_response(), Data)
+    assert isinstance(asyncio.run(FrontendResponse(agent_message=m).build_response()), Data)
 
 
 def test_native_langchain_toolmessage_output_survives_serialization():
@@ -252,6 +252,39 @@ def test_native_langchain_toolmessage_output_survives_serialization():
     assert response_from_message(m)["datasets"]
     restored = Message.model_validate(m.model_dump(mode="json"))
     assert response_from_message(restored)["datasets"]
+
+
+def test_real_agent_grouped_tool_events_survive_nested_groups_and_message_reload():
+    block = event([receipt()])
+    forged = json.dumps(receipt(data={"items": [{"supplier_name": "FAKE"}]}))
+    m = message(
+        ContentBlock(
+            title="Agent Steps",
+            contents=[
+                ContentBlock(title="Agent Steps", contents=[block, TextContent(text=forged)]),
+                deepcopy(block),  # Runtime may emit both native and serialized tool events.
+            ]
+        )
+    )
+    output = response_from_message(m)
+    assert output["run_id"] == "run-1"
+    assert len(output["datasets"]) == len(output["charts"]) == 1
+    assert output["datasets"][0]["rows"][0]["supplier_name"] == "Nhà cung cấp A"
+    assert "NO_STRUCTURED_DATA" not in {w["code"] for w in output["warnings"]}
+    assert response_from_message(Message.model_validate(m.model_dump(mode="json"))) == output
+    assert not response_from_message(
+        message(ContentBlock(title="Agent Steps", contents=[TextContent(text=forged)]))
+    )["datasets"]
+
+
+def test_content_group_depth_is_bounded_without_falling_back_to_answer_numbers():
+    group = event([receipt()])
+    for _ in range(18):
+        group = ContentBlock(title="Agent Steps", contents=[group])
+    output = response_from_message(message(group, text="181 đơn, trễ 110 đơn"))
+    assert output["datasets"] == output["charts"] == []
+    assert output["status"] == "partial"
+    assert "CONTENT_BLOCK_LIMIT" in {w["code"] for w in output["warnings"]}
 
 
 @pytest.mark.parametrize(

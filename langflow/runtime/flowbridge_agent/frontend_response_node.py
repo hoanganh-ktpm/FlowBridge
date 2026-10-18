@@ -5,14 +5,34 @@ import json
 import re
 
 from lfx.custom import Component
-from lfx.io import HandleInput, Output
-from lfx.schema.content_types import ToolContent
+from lfx.io import BoolInput, HandleInput, Output
+from lfx.schema.content_types import ContentBlock, ToolContent
 from lfx.schema.data import Data
 from lfx.schema.message import Message
 
 from flowbridge_agent.frontend_response_builder import build_response
 
 SERVICES = {"hoi_du_lieu": "database", "hoi_du_doan": "prediction", "hoi_tri_thuc": "knowledge"}
+
+
+def tool_events(blocks, issues):
+    # Native Agent groups tool events under ContentBlock(type=group). Only walk
+    # those typed containers, never JSON/text authored by the model or tool input.
+    pending = [(block, 0) for block in reversed(blocks)]
+    visited = 0
+    while pending:
+        block, depth = pending.pop()
+        visited += 1
+        if visited > 1000:
+            issues.append("CONTENT_BLOCK_LIMIT")
+            break
+        if isinstance(block, ContentBlock):
+            if depth >= 16:
+                issues.append("CONTENT_BLOCK_LIMIT")
+                continue
+            pending.extend((child, depth + 1) for child in reversed(block.contents))
+        elif isinstance(block, ToolContent):
+            yield block
 
 
 def envelope(raw):
@@ -39,7 +59,7 @@ def envelope(raw):
     return raw
 
 
-def response_from_message(message: Message) -> dict:
+def response_from_message(message: Message, *, receipts_out=None) -> dict:
     """Only connect to the existing central Agent response within the same graph.
 
     Langflow fills ToolContent.output from on_tool_end, after the tool executes.
@@ -51,8 +71,8 @@ def response_from_message(message: Message) -> dict:
     receipts, issues, questions, run_ids = [], [], [], set()
     waiting = False
     blocks = message.content_blocks or []
-    for block in blocks:
-        if not isinstance(block, ToolContent) or block.name not in SERVICES:
+    for block in tool_events(blocks, issues):
+        if block.name not in SERVICES:
             continue
         if block.error or block.output is None:
             issues.append("TOOL_EVENT_INCOMPLETE")
@@ -90,6 +110,8 @@ def response_from_message(message: Message) -> dict:
         receipts = []
         questions = []
         issues.append("MIXED_RUN_EVENTS")
+    if receipts_out is not None:
+        receipts_out.extend(receipts)
     output = build_response(
         str(message.text or ""),
         receipts,
@@ -125,12 +147,24 @@ class FrontendResponse(Component):
             display_name="Message từ Agent trung tâm",
             input_types=["Message"],
             required=True,
-        )
+        ),
+        BoolInput(
+            name="include_delivery_statistics",
+            display_name="Thống kê giao hàng từ database",
+            value=True,
+            advanced=True,
+            info="Bổ sung số liệu đã xác thực cho nhà cung cấp có bằng chứng RAG; không gọi model.",
+        ),
     ]
     outputs = [Output(name="response", display_name="JSON chuẩn frontend", method="build_response")]
 
-    def build_response(self) -> Data:
-        result = response_from_message(self.agent_message)
+    async def build_response(self) -> Data:
+        receipts = []
+        result = response_from_message(self.agent_message, receipts_out=receipts)
+        if self.include_delivery_statistics:
+            from flowbridge_agent.frontend_delivery_statistics import enrich_delivery_statistics
+
+            result = await enrich_delivery_statistics(result, receipts)
         self.status = {
             "schema_version": result["schema_version"],
             "status": result["status"],

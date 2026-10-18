@@ -3333,6 +3333,27 @@
                 "info": "",
                 "load_from_db": false,
                 "title_case": false
+              },
+              "include_delivery_statistics": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "include_delivery_statistics",
+                "value": true,
+                "display_name": "Thống kê giao hàng từ database",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Bổ sung số liệu đã xác thực cho nhà cung cấp có bằng chứng RAG; không gọi model.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
               }
             },
             "description": "Dựng dataset/bảng/biểu đồ từ kết quả công cụ thật của Agent; không gọi thêm model.",
@@ -3365,7 +3386,8 @@
               }
             ],
             "field_order": [
-              "agent_message"
+              "agent_message",
+              "include_delivery_statistics"
             ],
             "beta": false,
             "legacy": false,

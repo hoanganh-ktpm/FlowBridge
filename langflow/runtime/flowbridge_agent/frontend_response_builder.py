@@ -309,7 +309,8 @@ def build_response(
         if tool == "knowledge_search_supplier":
             warn(
                 "RETRIEVED_EXCERPTS_ONLY",
-                "Các đoạn trích không phải thống kê đầy đủ giao dịch.",
+                "Đoạn trích dùng làm bằng chứng; "
+                "chưa có số liệu cấu trúc để vẽ thống kê giao hàng.",
                 identifier,
             )
         if tool == "catalog_read_offers":
