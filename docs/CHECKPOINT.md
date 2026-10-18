@@ -1,6 +1,6 @@
 # Checkpoint FlowBridge
 
-## 2026-10-19 — GIT-PR-17-01: Giải quyết conflict với main (đã kiểm tra, chuẩn bị push)
+## 2026-10-19 — GIT-PR-17-01: Giải quyết conflict với main (hoàn tất)
 
 - User yêu cầu sửa conflict PR #17; nguồn huuhuandev_features dc6abfd, đích
   main aa4fb76. Làm trong managed worktree fix-pr-17-conflicts, giữ checkout
@@ -21,11 +21,14 @@
   frontend_delivery_statistics:63passed41.08s (8 warning dependency deprecated).
   npm ci đúng lockfile; npm run test:ui trên Chrome:26passed37.5s, gồm cả test mới.
   Tổng185passed; UI mock/serving offline, không nhận nghiệm thu model/DB thật.
-- Chưa commit/push tại thời điểm ghi; bước tiếp theo là commit merge và push
-  fast-forward vào huuhuandev_features, kiểm lại mergeable của PR #17 qua API.
+- Đã commit merge57764b4 (parents dc6abfd/aa4fb76), push fast-forward vào
+  huuhuandev_features và ls-remote xác nhận đúng SHA. GitHub API xác nhận head
+  57764b4, mergeable=true; PR vẫn open. Không merge PR vào main.
+- Checkout gốc vẫn hoanganhdev_features, sạch. Đã hoàn tất yêu cầu sửa conflict;
+  bản ghi kết quả này được lưu bằng commit tài liệu kế tiếp trên cùng nhánh PR.
 - PLAN-OPENCORE/PROJECT-RULES không tồn tại trong checkout; dùng AGENTS workspace
-  và mã/test thực tế. Bước tiếp theo: kiểm tra, commit merge, push nhánh PR và
-  đọc lại trạng thái mergeable trên GitHub.
+  và mã/test thực tế. Không còn việc sửa conflict; nghiệm thu model/DB thật
+  hoặc quyết định merge PR thuộc bước tiếp theo riêng.
 
 ## 2026-10-19 — GIT-SSO-CHAT-01: Commit, đồng bộ main và push (hoàn tất)
 
