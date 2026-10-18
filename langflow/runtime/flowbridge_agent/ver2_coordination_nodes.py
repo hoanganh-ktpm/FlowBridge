@@ -24,6 +24,8 @@ from flowbridge_agent.ver2_coordination import (
     finish_reply,
     invocation,
     loads,
+    service_error,
+    stamp,
     stopped,
 )
 from flowbridge_agent.ver2_structured import StructuredServiceAgent
@@ -136,7 +138,12 @@ class BoundedA2AAgent(A2AAgentComponent):
                 "UNCORRELATED_SERVICE_REPLY",
             }:
                 reply["status"] = "error"
-            return Message(text=json.dumps(reply, ensure_ascii=False))
+            return Message(
+                text=json.dumps(
+                    stamp(Reply.model_validate(reply), scope) if scope else reply,
+                    ensure_ascii=False,
+                )
+            )
 
         if self.mode != "Internal" or scope is None or scope.role != self.caller_service:
             return fail("INVALID_AGENT_ROUTE")
@@ -181,11 +188,12 @@ class BoundedA2AAgent(A2AAgentComponent):
             try:
                 result = await super().send_to_agent()
             except Exception as exc:
-                # Keep diagnostics useful without leaking provider text or secrets.
-                scope.run.events.append(
-                    {"target": target, "stage": "execute", "error_type": type(exc).__name__}
+                return Message(
+                    text=json.dumps(
+                        service_error(target, "SERVICE_EXECUTION_FAILED", scope, exc),
+                        ensure_ascii=False,
+                    )
                 )
-                return fail("SERVICE_EXECUTION_FAILED")
             try:
                 reply = Reply.model_validate(loads(result.text))
             except (ValueError, TypeError):

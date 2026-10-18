@@ -316,6 +316,134 @@ async def test_bad_handoff_is_an_argument_error_not_service_unavailability():
     native.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("quantity,deadline", [(None, None), ("100", None), (None, "2026-10-20")])
+async def test_incomplete_ranking_requests_catalog_before_spending_ml_calls(quantity, deadline):
+    request = {
+        **CAPTURED_REQUEST,
+        "known": {
+            **CAPTURED_REQUEST["known"],
+            "quantity": quantity,
+            "requested_delivery_date": deadline,
+        },
+    }
+    handler = AsyncMock()
+    with invocation("central") as scope:
+        result = loads(
+            (
+                await CoordinationMiddleware().awrap_tool_call(
+                    call("hoi_du_doan", {"input_value": json.dumps(request)}), handler
+                )
+            ).content
+        )
+        assert result["status"] == "needs_service"
+        assert result["handoffs"][0]["service"] == "database"
+        assert result["handoffs"][0]["task"] == "resolve_entities"
+        assert result["missing"] == [
+            key for key in ("quantity", "requested_delivery_date") if request["known"][key] is None
+        ]
+        assert not result["warnings"] and not result["results"]
+        assert scope.run.a2a_calls == scope.run.model_calls == scope.calls == 0
+    handler.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_preflight_uses_new_catalog_evidence_and_then_allows_complete_ranking():
+    request = json.loads(payload("rank_suppliers", product="DEMO-P03"))
+    middleware = CoordinationMiddleware()
+    handler = AsyncMock(
+        return_value=ToolMessage(
+            content=json.dumps(
+                Reply(service="prediction", status="partial").model_dump(mode="json")
+            ),
+            tool_call_id="call-hoi_du_doan",
+        )
+    )
+    with invocation("central") as scope:
+        first = loads(
+            (
+                await middleware.awrap_tool_call(
+                    call("hoi_du_doan", {"input_value": json.dumps(request)}), handler
+                )
+            ).content
+        )
+        assert first["status"] == "needs_service"
+        collect(scope, ENTITY)
+        second = loads(
+            (
+                await middleware.awrap_tool_call(
+                    call("hoi_du_doan", {"input_value": json.dumps(request)}), handler
+                )
+            ).content
+        )
+        assert second["status"] == "needs_input"
+        assert second["resolved"]["product_id"] == PRODUCT
+        assert second["results"] == [ENTITY]
+        assert second["missing"] == ["quantity", "requested_delivery_date"]
+        assert not second["handoffs"] and "UUID" not in second["questions"][0]
+        handler.assert_not_awaited()
+        request["known"].update(quantity="100", requested_delivery_date="2026-10-21")
+        await middleware.awrap_tool_call(
+            call("hoi_du_doan", {"input_value": json.dumps(request)}), handler
+        )
+        handler.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_unrelated_catalog_receipt_cannot_skip_product_lookup():
+    handler = AsyncMock()
+    with invocation("central") as scope:
+        collect(scope, ENTITY)
+        result = loads(
+            (
+                await CoordinationMiddleware().awrap_tool_call(
+                    call(
+                        "hoi_du_doan",
+                        {"input_value": payload("rank_suppliers", product="DEMO-P19")},
+                    ),
+                    handler,
+                )
+            ).content
+        )
+        assert result["status"] == "needs_service" and not result["resolved"]
+    handler.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "reply,error,expected",
+    [
+        (None, RuntimeError("hidden-credential"), "SERVICE_EXECUTION_FAILED"),
+        (
+            None,
+            RuntimeError("APPROVED_LIVE_TEST_BUDGET_EXHAUSTED"),
+            "APPROVED_LIVE_TEST_BUDGET_EXHAUSTED",
+        ),
+        ("hidden-credential", None, "INVALID_SERVICE_REPLY"),
+        (json.dumps({"service": "database", "status": "success"}), None, "SERVICE_MISMATCH"),
+    ],
+)
+async def test_a2a_errors_keep_specific_codes_and_trace_without_provider_text(
+    reply, error, expected
+):
+    handler = AsyncMock(
+        side_effect=error,
+        return_value=ToolMessage(content=reply or "", tool_call_id="call-hoi_du_doan"),
+    )
+    with invocation("central") as scope:
+        result = loads(
+            (
+                await CoordinationMiddleware().awrap_tool_call(
+                    call("hoi_du_doan", {"input_value": json.dumps(CAPTURED_REQUEST)}), handler
+                )
+            ).content
+        )
+        assert result["status"] == "error" and result["warnings"] == [expected]
+        assert result["trace"]["request_id"] == scope.run.identifier
+        assert scope.run.events[-1]["code"] == expected
+        assert "hidden-credential" not in json.dumps(result)
+
+
 def test_output_recovers_missing_uuid_from_actual_receipts_and_rejects_invented_predictions():
     with invocation("database") as scope:
         collect(scope, ENTITY)

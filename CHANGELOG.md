@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Sửa định danh RuntimeA2A ver3: tên/ID riêng và source khớp component đăng ký,
+  tránh editor nhận nhầm thành A2AAgent native làm mất route. Controller nhận ba
+  dịch vụ qua ba cổng riêng, bỏ tìm tên/metadata trong list tool chung; repair giữ cấu hình và
+  backup trước khi đổi. Không chạy hội thoại/test OpenAI theo yêu cầu người dùng.
+
+- Thêm FlowBridge ver3: clone bốn flow ver2 hiện tại, lưu bản clone nguyên trạng
+  trước khi phân tầng; giữ nguyên API tool/preset/credential và ver2. Cổng chat có
+  schema, state theo user/flow/session với CAS/TTL, controller hữu hạn và ba nhánh
+  ServiceBridge không LLM; runtime giữ evidence/UUID, renderer dùng ToolResult.
+  Kiểm hồi quy offline và engine native A2A/ML không OpenAI; dữ liệu ML demo vẫn
+  có thể insufficient_data. Thêm export, verifier và khôi phục có guard.
+
 - Bật RAG Supabase/pgvector trên backend Langflow test: token local ánh xạ vào
   AI_SERVICE và JobContext thật, giữ policy/cutoff và toàn bộ session read-only.
   Thêm chuẩn bị profile, nối/khôi phục riêng tool RAG và tự nối lại qua launcher;

@@ -1,5 +1,87 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-14: Tách cổng controller theo dịch vụ (đã áp dụng, user tự test)
+
+- User vẫn báo lỗi cũ; giữ yêu cầu chỉ sửa, user tự test. Không chạy hội thoại,
+  pytest/model/API nghiệp vụ. Read live thấy3RuntimeA2A mới vẫn đúng class/ID/target,
+  không bị revert về native; bước sửa CODE-LANGFLOW-13 chưa đủ. Main có UI changes,
+  ba flow con giữ hash nguyên. Không đổ nguyên nhân lần này cho định danh node.
+- Loại bỏ tìm service trong list Tool bằng name hoặc custom metadata. Controller
+  có3input riêng database_tools/prediction_tools/knowledge_tools, canvas nối trực
+  tiếp theo vai trò. Bound request/ToolResult/correlation/ACL native vẫn kiểm.
+- Đã sửa runtime, builder và repair có backup/guard; repair giữ preset/model/key,
+  cập nhật frontend controller/cạnh và kiểm đủ3cổng duy nhất trước PATCH. Ruff đạt.
+- Đọc trace build cũ qua API read-only để đối chiếu, không chạy graph. Các record
+  build trả về vẫn là greeting18:54 nên không dùng làm bằng chứng lỗi request mới.
+- repair_ver3_routes.py exit0, backup ignored trước thay ở
+  data/ver3-before-route-fix-20261018-191329.json. Main/export/manifest cập nhật;
+  hash các flow khác/preset/model/key giữ nguyên. Static wiring đúng: database
+  →database_tools, prediction→prediction_tools, knowledge→knowledge_tools.
+- Đã restart Langflow để nạp controller schema mới; chỉ đọc endpoint version
+  xác nhận startup, không chạy graph/hội thoại/pytest/model. Ruff/diff check đạt.
+  User F5 ver3 và tự test. Không sửa ver2/dependency/migration hoặc commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-13: Sửa SERVICE_NOT_CONNECTED khi mở canvas ver3 (đã áp dụng, user tự test)
+
+- User báo 'tôi muốn đặt băng keo' lỗi SERVICE_NOT_CONNECTED. Branch/HEAD vẫn
+  test-langflow-ver2-optimize/affb198; giữ toàn bộ thay đổi CODE-LANGFLOW-12.
+- Read live:3flowcon nguyên hash; main đổi3A2A về native A2AAgent, code upstream,
+  mất target_service và cả3tool tên send_to_agent. Canvas vẫn9edge nên controller
+  không tìm tên hoi_du_lieu. RuntimeA2A đã kế thừa name=A2AAgent và ID prefix cũ,
+  editor nhận nhầm canonical component. Test API trước chưa bao phủ mở/lưu canvas.
+- User chỉ yêu cầu sửa, sẽ tự test; dừng kế hoạch kiểm thử/UI round-trip, không
+  chạy pytest, hội thoại hay OpenAI. Đã đưa tab Home để tránh autosave bản cũ.
+- Sửa RuntimeA2A.name và node ID riêng; source wrapper dùng đúng file đăng ký.
+  Controller định tuyến metadata flowbridge_service/protocol thay tên action.
+  Thu hẹp mô tả khả năng chỉ đọc/tư vấn chuẩn bị mua, không hứa tạo/gửi đơn.
+- repair_ver3_routes.py exit0: chỉ sửa3A2A/edge và4wrapper source trung tâm,
+  giữ input/model/key/preset, API tools và hash mọi flow khác. Backup ignored
+  data/ver3-before-route-fix-20261018-190519.json; export/manifest ver3 cập nhật.
+  Ruff format/check đạt; không dependency/migration/credential mới.
+- Đã khởi động lại Langflow để nạp runtime/library mới; bàn giao user F5 và tự
+  test. Chỉ đọc endpoint version để xác nhận startup; không chạy graph, pytest
+  hoặc OpenAI. Giữ ver2 nguyên và không commit/push.
+
+## 2026-10-18 — CODE-LANGFLOW-12: Clone ver2 sang ver3 và phân tầng (hoàn tất)
+
+- User yêu cầu clone đầy đủ ver2 hiện tại sang project ver3 rồi mới chỉnh theo đặc
+  tả đính kèm; giữ ver2 nguyên. Branch test-langflow-ver2-optimize, HEAD affb198,
+  đầu vào sạch. Không commit/push hoặc chạy request OpenAI trả phí.
+- Đã đọc ../AGENTS.md, checkpoint và runtime/setup ver2. PROJECT-RULES.md và
+  PLAN-OPENCORE.md không tồn tại trong checkout. Kế thừa API adapter/preset/kết nối,
+  native Chat/Date/A2A và giữ snapshot trước biến đổi để khôi phục.
+- Đã thêm ver3_contracts/state/workflow/nodes, setup_ver3 và test_ver3. Dựng metadata
+  offline thành công; 23 test đạt (5.79s): schema strict, 0-call greeting, 1 mocked
+  extraction+usage, ambiguity/followup, UUID invalidation, unit/date, PR multi-line,
+  supplier scenario, evidence/lease/CAS/isolation, giữ nguyên API adapters/cổng nối.
+- Langflow7860 ban đầu tắt; đã khởi động riêng bằng runtime/config hiện có, không
+  chạy model. Read live đủ4ver2 (5/4/1API tools); kiểm metadata bị sandbox10013,
+  chạy ngoài sandbox được cho phép. Builder lần đầu sửa alias NativeComponent và
+  input_types JSON/Data theo upstream; không sửa dependency.
+- setup_ver3 --install exit0: project ver3, main0209570f-7578-4c73-82f4-14e2e5742519;
+  backup ignored data/ver3-clone-20261018-184113. Đủ4flow, 29node/25edge;10API
+  adapter giữ nguyên byteJSON. Hash6flow cũ đều nguyên; verifier kiểm lại4ver2.
+- Native engine greeting smoke đạt0model/0service. Service integration trên flow
+  tạm đã xóa: DEMO-P07 resolve success → rank insufficient_data,2service/0model.
+  Phát hiện/sửa Message kế thừa Data phải đọc text trước data; có regression test.
+  Runtime/API thật không còn lỗi handoff/evidence. Không dùng OpenAI thật.
+- Cuối suite107passed26.48s; Ruff/diff check đạt. Thêm VER3/README/CHANGELOG và
+  source packaging; không dependency/migration backend. Planner khó kế thừa model
+  ver2, cổng4o-mini,0/1/tối đa2request; token/trace trong session_metadata native.
+- Runtime cuối đã nạp. Verifier cuối exit0: Graph parse29node/25edge,4ver2hash
+  nguyên,10APInode giữ nguyênJSON, native greeting0model/0service. Export4JSON
+  và sidecar không literal secret; Ruff/diff check đạt.
+- RAG thật exit0: NCC-06 resolve success → retrieve success,2service/0model,
+  3chunk nguồn thật từ PostgreSQL+embedder local. Flow kiểm tạm đã xóa; report
+  ignored data/ver3-rag-smoke.json. Không import/reindex hoặc viết DB nghiệp vụ.
+- Rank smoke bản cuối exit0,2service/0model;6NCC đều thiếuq_ref, renderer trả
+  bảng ứng viên chưa chấm và nêu đúngq_ref. Report data/ver3-service-smoke.json.
+- Đã hoàn tất source/export/docs, yêu cầu mở main ver3 trong panel (tool queued).
+  Còn giới hạn: chưa
+  gọi OpenAI thật để nghiệm thu ngôn ngữ/model availability; dữ liệu ML demo còn
+  insufficient_data, không bịa điểm. Có --restore-clone guard và ver2 nguyên để
+  quay lại. Langflow7860/backendtest8001 đang chạy. Không commit/push.
+
 ## 2026-10-18 — CODE-LANGFLOW-11: RAG Supabase trên backend test (hoàn tất)
 
 - User yêu cầu bật RAG test và xác nhận Markdown/chunk đã có trên Supabase.

@@ -1,5 +1,9 @@
 # Langflow cho FlowBridge
 
+**FlowBridge - ver3** clone đầy đủ từ ver2 rồi thay phần điều phối bằng cổng chat,
+state/controller và service bridge không LLM; giữ API tool/preset/kết nối ver2.
+Xem [sơ đồ, ngân sách, kiểm thử và khôi phục ver3](VER3.md).
+
 Thử riêng **ver2** khi chưa cấu hình SSO: mở Langflow bằng `start.cmd`, sau đó nhấp
 đúp [start-test-backend.cmd](start-test-backend.cmd). Backend test chạy riêng tại
 `http://127.0.0.1:8001`; các node Dữ liệu/ML của ver2 dùng credential local tự tạo.

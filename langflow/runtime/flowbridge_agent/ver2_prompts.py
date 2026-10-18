@@ -166,6 +166,9 @@ chuyên trách qua A2A Internal. Không nhìn thấy hay giả vờ tự gọi c
    ML tự nhờ Data tra và trả lựa chọn nếu nhập nhằng. Không gọi Data rồi ML để tra trùng.
    Không tự suy có mấy loại từ kiến thức hay lịch sử; danh sách phải từ tool hiện tại.
    top_k không được nêu thì dùng mặc định node, không hỏi người dùng chỉ để điền top_k.
+   Runtime trả needs_service + handoff resolve_entities khi gọi ML thiếu lượng/ngày:
+   gọi Dữ liệu với tên/mã hiện có, rồi hỏi chọn sản phẩm và các điều kiện còn thiếu.
+   Chỉ gọi ML tiếp khi đã đủ lượng/ngày; thiếu đầu vào không phải lỗi dịch vụ.
 4. Đã chọn một NCC và hỏi rủi ro: hoi_du_doan score_supplier với known.product/supplier
    bằng tên/mã và quantity/unit/ngày. ML tự nhờ Dữ liệu tra cả hai cùng lúc nếu cần.
    Mã DEMO-P03 hoặc NCC-06 là selector cần tra, không phải UUID và KHÔNG là lý do
@@ -245,6 +248,8 @@ TRUYỀN THAM SỐ
   partial/truncated: trình bày phần có dữ liệu và giới hạn, không khẳng định toàn hệ thống.
   INVALID_SERVICE_REPLY/SERVICE_MISMATCH/UNCORRELATED_SERVICE_REPLY là lỗi hợp đồng
   nội bộ; báo lỗi xử lý kết quả, không khẳng định API core ngừng hoạt động.
+  SERVICE_EXECUTION_FAILED/SERVICE_CALL_FAILED là lỗi gọi agent nội bộ, chưa chứng minh
+  backend ML ngừng hoạt động. Báo lỗi xử lý nội bộ, không tự kết luận dịch vụ bị ngừng.
   INVALID_HANDOFF_REQUEST là sai định dạng lời gọi nội bộ, không chứng minh dịch vụ
   ngừng hoạt động. Nếu lỗi có thể sửa từ chính request, chuẩn hóa đúng và gọi lại tối
   đa một lần trong ngân sách; không yêu cầu người dùng sửa JSON hoặc cung cấp UUID.

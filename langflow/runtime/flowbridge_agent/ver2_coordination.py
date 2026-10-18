@@ -229,6 +229,78 @@ def resolved_from(receipts: list[dict]) -> dict:
     return resolved
 
 
+def prediction_preflight(request: Request, scope: Invocation) -> dict | None:
+    if request.task not in {"rank_suppliers", "score_supplier"}:
+        return None
+    missing = [
+        key
+        for key in ("quantity", "requested_delivery_date")
+        if request.known.get(key) is None or str(request.known[key]).strip() == ""
+    ]
+    if not missing:
+        return None
+    product = request.known.get("product_id") or request.known.get("product")
+    receipt = None
+    for result in reversed(scope.receipts):
+        if result["tool"] not in {"catalog_resolve_entities", "catalog_read_offers"}:
+            continue
+        resolved = resolved_from([result])
+        selectors = [result["input"].get("product")]
+        selectors.extend(
+            resolved.get(key) for key in ("product_id", "product_code", "product_name")
+        )
+        if (
+            resolved.get("product_id")
+            and product
+            and any(
+                str(product).strip().casefold() == str(value).strip().casefold()
+                for value in selectors
+                if value is not None
+            )
+        ):
+            receipt = result
+            break
+    reply = Reply(service="prediction", status="needs_input", missing=missing)
+    if product and receipt is None:
+        reply.status = "needs_service"
+        reply.handoffs = [
+            Handoff(
+                service="database",
+                task="resolve_entities",
+                reason="Tra sản phẩm bằng tên/mã đã có trước khi hỏi số lượng/ngày nhận. "
+                "Giữ nguyên điều kiện đã biết; chưa gọi ML khi còn thiếu thông tin.",
+            )
+        ]
+    else:
+        if receipt:
+            reply.resolved = resolved_from([receipt])
+            reply.results = [ToolResult.model_validate(receipt)]
+        else:
+            reply.missing.insert(0, "product")
+        labels = {
+            "product": "tên hoặc mã sản phẩm",
+            "quantity": "số lượng cần mua",
+            "requested_delivery_date": "ngày cần nhận hàng",
+        }
+        reply.questions = [
+            "Bạn cho biết " + ", ".join(labels[key] for key in reply.missing) + " nhé?"
+        ]
+    return stamp(reply, scope)
+
+
+def service_error(service: Service, code: str, scope: Invocation, exc: Exception) -> dict:
+    # Only expose known codes and exception types, never provider text or credentials.
+    if str(exc) in {
+        "MODEL_BUDGET_EXHAUSTED",
+        "A2A_BUDGET_EXHAUSTED",
+        "APPROVED_LIVE_TEST_BUDGET_EXHAUSTED",
+        "SERVICE_MISMATCH",
+    }:
+        code = str(exc)
+    scope.run.events.append({"target": service, "code": code, "error_type": type(exc).__name__})
+    return stamp(Reply(service=service, status="error", warnings=[code]), scope)
+
+
 def finish_reply(raw: dict, scope: Invocation) -> dict:
     # The LLM can select tools and explain missing inputs; actual evidence comes from handlers.
     try:
@@ -342,6 +414,14 @@ class CoordinationMiddleware(AgentMiddleware):
         ):
             scope.blocked.append("TOOL_OUTSIDE_SERVICE")
             return response(tool_result(name, {}, failure("TOOL_OUTSIDE_SERVICE")))
+        if target == "prediction":
+            try:
+                handoff = Request.model_validate(loads(call["args"].get("input_value")))
+            except (ValueError, TypeError) as exc:
+                return response(service_error(target, "INVALID_HANDOFF_REQUEST", scope, exc))
+            preflight = prediction_preflight(handoff, scope)
+            if preflight is not None:
+                return response(preflight)
         if key in scope.run.tools:
             payload = deepcopy(scope.run.tools[key])
         else:
@@ -360,24 +440,31 @@ class CoordinationMiddleware(AgentMiddleware):
                 scope.api_calls += 1
             try:
                 message = await handler(request)
-                payload = loads(message.content)
-                if target:
-                    parsed = Reply.model_validate(payload)
-                    if parsed.service != target:
-                        raise ValueError("SERVICE_MISMATCH")
-                    payload = parsed.model_dump(mode="json")
-                else:
-                    parsed = ToolResult.model_validate(payload)
-                    if parsed.tool != action:
-                        raise ValueError("TOOL_RESULT_MISMATCH")
-                    payload = parsed.model_dump(mode="json")
-            except Exception:
-                # Do not surface native exceptions, credentials or arbitrary provider text.
+            except Exception as exc:
                 payload = (
-                    stopped(target, "SERVICE_CALL_FAILED")
+                    service_error(target, "SERVICE_EXECUTION_FAILED", scope, exc)
                     if target
                     else tool_result(action, {}, failure("TOOL_CALL_FAILED"))
                 )
+            else:
+                try:
+                    payload = loads(message.content)
+                    if target:
+                        parsed = Reply.model_validate(payload)
+                        if parsed.service != target:
+                            raise ValueError("SERVICE_MISMATCH")
+                        payload = parsed.model_dump(mode="json")
+                    else:
+                        parsed = ToolResult.model_validate(payload)
+                        if parsed.tool != action:
+                            raise ValueError("TOOL_RESULT_MISMATCH")
+                        payload = parsed.model_dump(mode="json")
+                except (ValueError, TypeError) as exc:
+                    payload = (
+                        service_error(target, "INVALID_SERVICE_REPLY", scope, exc)
+                        if target
+                        else tool_result(action, {}, failure("TOOL_CALL_FAILED"))
+                    )
             scope.run.tools[key] = deepcopy(payload)
         if target:
             scope.child_replies.append(payload)
