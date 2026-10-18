@@ -1,13 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+import asyncio
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import httpx
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 from flowbridge.main import create_app
 from flowbridge.settings import Settings
+from flowbridge.supplier_assistant.knowledge import manager as manager_module
+from flowbridge.supplier_assistant.knowledge.manager import KnowledgeManager
 from flowbridge.supplier_assistant.knowledge.manager_models import Create, Edit, filename
 
 
@@ -87,3 +93,47 @@ async def test_manager_does_not_accept_unauthenticated_browser_calls():
         for path in ["/documents", "/options", f"/documents/{uuid4()}", f"/jobs/{uuid4()}"]:
             response = await c.get("/api/admin/knowledge" + path)
             assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure", [TimeoutError, PoolTimeoutError, ConnectionResetError, RuntimeError]
+)
+async def test_worker_recovers_from_poll_failure_without_logging_secrets(
+    monkeypatch, caplog, failure
+):
+    manager = KnowledgeManager(None, None)
+    manager.run_once = AsyncMock(
+        side_effect=[failure("secret-password"), True, asyncio.CancelledError()]
+    )
+    sleep = AsyncMock()
+    monkeypatch.setattr(manager_module.asyncio, "sleep", sleep)
+    with pytest.raises(asyncio.CancelledError):
+        await manager.run()
+    assert manager.run_once.await_count == 3
+    assert [call.args[0] for call in sleep.await_args_list] == [2, 0.1]
+    assert "stage=worker_retry" in caplog.text
+    assert "secret-password" not in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_failed_heartbeat_does_not_kill_worker_or_hide_shutdown(caplog, cancel):
+    manager = KnowledgeManager(None, SimpleNamespace(_gate=asyncio.Lock()))
+    manager.claim = AsyncMock(return_value={"job_id": uuid4()})
+    manager.heartbeat = AsyncMock(side_effect=TimeoutError("secret-password"))
+
+    async def process(job):
+        await asyncio.sleep(0)  # Let the heartbeat task fail before process exits.
+        if cancel:
+            raise asyncio.CancelledError
+
+    manager.process = process
+    if cancel:
+        with pytest.raises(asyncio.CancelledError):
+            await manager.run_once()
+    else:
+        assert await manager.run_once() is True
+    assert not manager.service._gate.locked()
+    assert "stage=heartbeat_unavailable" in caplog.text
+    assert "secret-password" not in caplog.text

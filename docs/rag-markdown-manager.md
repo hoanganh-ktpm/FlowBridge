@@ -27,6 +27,8 @@ token và heartbeat trong DB cho phép lấy lại tác vụ sau crash. Không d
 BackgroundTasks hoặc state trên browser làm hàng đợi. Khởi động backend với manager
 được bật là đủ để xử lý tác vụ tồn đọng; không cần chạy script ingest thủ công.
 Retry lỗi được yêu cầu rõ ràng; không lặp vô hạn khi model/config sai.
+Vòng polling phục hồi sau lỗi kết nối/pool timeout và ghi loại lỗi an toàn vào log;
+lỗi heartbeat không làm dừng worker hoặc che mất tín hiệu hủy khi tắt ứng dụng.
 
 Sau khi API tiếp nhận, giao diện đóng form đã gửi và cho thêm tài liệu khác ngay.
 Khung **Hàng đợi đồng bộ RAG** theo dõi riêng các tác vụ chờ, đang xử lý, hoàn tất

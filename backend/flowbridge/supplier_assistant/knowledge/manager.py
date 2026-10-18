@@ -2,7 +2,6 @@
 """Durable, per-document operations on the existing Core Markdown/pgvector store."""
 
 import asyncio
-import contextlib
 import hashlib
 import json
 import logging
@@ -666,8 +665,18 @@ class KnowledgeManager:
                 log.warning("knowledge_manager job_id=%s stage=failed code=%s", j["job_id"], code)
             finally:
                 heartbeat.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
+                try:
                     await heartbeat
+                except asyncio.CancelledError:
+                    pass
+                except Exception as exc:
+                    # A failed heartbeat must not replace a shutdown cancellation
+                    # or kill the polling loop after a successful publication.
+                    log.warning(
+                        "knowledge_manager job_id=%s stage=heartbeat_unavailable error_type=%s",
+                        j["job_id"],
+                        type(exc).__name__,
+                    )
             return True
 
     async def run(self):
@@ -676,5 +685,13 @@ class KnowledgeManager:
                 worked = await self.run_once()
             except DBAPIError:
                 log.warning("knowledge_manager stage=database_unavailable")
+                worked = False
+            except Exception as exc:
+                # Pool/connect timeouts and socket failures are not necessarily
+                # DBAPIError. Keep polling durable jobs after the connection recovers.
+                # Log only the exception type; driver messages can contain secrets.
+                log.warning(
+                    "knowledge_manager stage=worker_retry error_type=%s", type(exc).__name__
+                )
                 worked = False
             await asyncio.sleep(0.1 if worked else 2)
