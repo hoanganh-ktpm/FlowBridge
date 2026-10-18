@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Add the durable Markdown manager without rewriting published evidence."""
+# Add the durable Markdown manager without rewriting published evidence.
 
 from pathlib import Path
 

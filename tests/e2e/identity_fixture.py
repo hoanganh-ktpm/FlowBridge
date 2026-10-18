@@ -42,6 +42,26 @@ async def run(state: Path, cleanup: bool) -> None:
                 table("purchase_requests").c.requested_by.in_(user_ids)
             )
             async with sessions() as session, session.begin():
+                running = await session.scalar(
+                    sa.select(
+                        sa.exists().where(
+                            table("chat_turns").c.owner_id.in_(user_ids),
+                            table("chat_turns").c.state == "running",
+                        )
+                    )
+                )
+                if running:
+                    raise RuntimeError("Chat execution unresolved; preserve fixture for recovery")
+                await session.execute(
+                    sa.delete(table("chat_turns")).where(
+                        table("chat_turns").c.owner_id.in_(user_ids)
+                    )
+                )
+                await session.execute(
+                    sa.delete(table("chat_sessions")).where(
+                        table("chat_sessions").c.owner_id.in_(user_ids)
+                    )
+                )
                 await session.execute(
                     sa.delete(table("api_idempotency")).where(
                         sa.or_(

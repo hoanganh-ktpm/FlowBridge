@@ -1,5 +1,10 @@
 # Langflow cho FlowBridge
 
+API chat sau đăng nhập Keycloak dùng profile riêng
+[backend ↔ Langflow SSO](../docs/LANGFLOW-SSO.md) và `start-sso.cmd`.
+Không dùng `start-test-backend.cmd` cho đường này. Profile mới giữ flow hiện có,
+truyền caller theo request và kiểm quyền tại API chuẩn.
+
 **FlowBridge - ver3** clone đầy đủ từ ver2 rồi thay phần điều phối bằng cổng chat,
 state/controller và service bridge không LLM; giữ API tool/preset/kết nối ver2.
 Xem [sơ đồ, ngân sách, kiểm thử và khôi phục ver3](VER3.md).

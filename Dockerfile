@@ -29,6 +29,18 @@ USER 10001:0
 EXPOSE 18082
 CMD ["python", "scripts/container_dev.py", "serve"]
 
+FROM dependencies AS chat-dependencies
+ARG CHAT_WITH_ML=false
+ARG CHAT_WITH_RAG=false
+RUN set -eu; set --; \
+    if [ "$CHAT_WITH_ML" = true ]; then set -- "$@" --extra ml; fi; \
+    if [ "$CHAT_WITH_RAG" = true ]; then set -- "$@" --extra rag; fi; \
+    uv sync --locked --no-dev --no-editable "$@"
+
+FROM runtime AS chat-runtime
+COPY --from=chat-dependencies /app/.venv /app/.venv
+CMD ["python", "scripts/container_chat.py", "serve"]
+
 FROM dependencies AS tooling
 RUN uv sync --locked --no-editable --group dev
 COPY scripts ./scripts

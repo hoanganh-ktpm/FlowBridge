@@ -49,7 +49,16 @@ Xem [hướng dẫn dev containers](../../docs/DEV-CONTAINERS.md); giữ IAM, AP
 - Các thao tác ghi có idempotency key; retry nội dung không đổi sau lỗi mạng dùng
   lại key trong phiên trang hiện tại. Không tự retry ngầm. Sau reload mất key;
   khi kết quả chưa rõ nên tải lại dữ liệu để đối soát trước khi tạo yêu cầu mới.
-- Chưa có chat, tự động chạy phân tích, workflow approval, PDF/email hoặc E2E
+- Trợ lý AI: đăng nhập bằng user có EMPLOYEE rồi chọn tab Trợ lý AI. Gửi tin qua
+  API chat backend bằng bearer SSO, không cần tài khoản editor Langflow. Hỗ trợ
+  ngữ cảnh PR tùy chọn, lịch sử phân trang/reload, nguồn/cảnh báo và hội thoại mới.
+  URL giữ session ID, backend vẫn kiểm ownership; không lưu token/nội dung vào
+  browser storage. Chỉ UUID hội thoại được giữ tạm qua callback SSO cố định rồi
+  xóa sau callback. Check-sso khôi phục phiên sau reload qua IdP, không lưu bearer.
+  Nếu kết quả gửi chưa rõ, kiểm lại dùng cùng key/body; không tự gọi model lại.
+  Chat chờ tối đa240s, các API khác giữ25s. Mỗi câu hỏi cần nêu đủ ngữ cảnh vì
+  backend hiện không đưa lịch sử lượt trước vào model.
+- Chưa có tự động chạy phân tích, workflow approval, PDF/email hoặc E2E
   toàn bộ quy trình mua hàng. Tiền/số lượng giữ chuỗi decimal từ backend.
 
 ## Kiểm thử

@@ -3,6 +3,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {createApi} from "./api.js";
+import {Chat} from "./chat.jsx";
 import {KnowledgeManager} from "./knowledge.jsx";
 
 const editable = new Set(["draft", "needs_review", "analysis_failed"]);
@@ -50,7 +51,8 @@ function OrderDetail({data}) {
 }
 
 function Business({apiUrl, keycloak}) {
-  const [view, setView] = useState(location.hash === "#knowledge" ? "knowledge" : "employee");
+  const [view, setView] = useState(location.hash === "#knowledge" ? "knowledge" :
+    new URL(location.href).searchParams.has("chat_session") ? "chat" : "employee");
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -202,10 +204,11 @@ function Business({apiUrl, keycloak}) {
     {profileError && <p id="profile-error" role="alert">{profileError}</p>}
     {keycloak.authenticated && !profile && <button type="button" disabled={profileLoading}
       onClick={loadProfile}>Tải lại hồ sơ và quyền</button>}
-    <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"],
+    <nav aria-label="Khu vực nghiệp vụ">{[["employee", "Nhân viên"], ["approver", "Người duyệt"], ["supplier", "Nhà cung cấp"], ["chat", "Trợ lý AI"],
       ...(has("ADMIN") ? [["knowledge", "Tài liệu RAG"]] : [])].map(([key, label]) =>
-      <button key={key} type="button" aria-pressed={view === key} disabled={busy} onClick={() => {setView(key); location.hash = key === "knowledge" ? "knowledge" : ""; message("");}}>{label}</button>)}</nav>
+      <button key={key} type="button" aria-pressed={view === key} disabled={busy || (key === "chat" && !has("EMPLOYEE"))} onClick={() => {setView(key); location.hash = key === "knowledge" ? "knowledge" : ""; message("");}}>{label}</button>)}</nav>
     <p id="business-message" role="status" aria-live="polite" data-error={notice.error}>{notice.text}</p>
+    <div hidden={view !== "chat"}>{has("EMPLOYEE") && <Chat key={profile.user.user_id} api={api}/>}</div>
     <fieldset className="workspace-controls" disabled={busy}>
     {view === "knowledge" && (has("ADMIN") ? <KnowledgeManager api={api}/> : <p>Chỉ quản trị viên được quản lý tài liệu RAG.</p>)}
     <section id="employee" aria-labelledby="employee-title" hidden={view !== "employee"}>

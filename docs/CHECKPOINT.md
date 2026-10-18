@@ -1,5 +1,395 @@
 # Checkpoint FlowBridge
 
+## 2026-10-19 — GIT-PR-17-01: Giải quyết conflict với main (hoàn tất)
+
+- User yêu cầu sửa conflict PR #17; nguồn huuhuandev_features dc6abfd, đích
+  main aa4fb76. Làm trong managed worktree fix-pr-17-conflicts, giữ checkout
+  hoanganhdev_features f53c536 sạch; không force-push hoặc merge PR vào main.
+- Merge có 5 conflict: CHANGELOG, README, migration knowledge0004, business.jsx
+  và business.spec.mjs. Giữ chat EMPLOYEE, trang Markdown ADMIN, profile retry,
+  hai nhóm UI test và nội dung tài liệu của cả hai nhánh. Hash #knowledge mở
+  trang quản lý ngay cả khi URL còn chat_session; chat vẫn khôi phục phiên.
+- Migration0004 khác duy nhất comment/docstring; giữ comment theo quy tắc repo,
+  không đổi SQL/revision. Migration0005 chat nối tiếp0004; không chạy migration,
+  DB, container, model hoặc thay dependency/credential trong lượt xử lý conflict.
+- Đã resolve 5 conflict, thêm UI regression cho user có ADMIN+EMPLOYEE khi URL
+  có cả #knowledge/chat_session. Không còn conflict marker; diff check/Ruff đạt.
+- Kiểm thử trên cây merge với PYTHONPATH trỏ backend/runtime của worktree:
+  pytest chat_backend/chat_migration/chat_stack/knowledge_manager:43passed4.38s;
+  pytest settings/knowledge_migration/knowledge_postgres_http/delivery_statistics:
+  53passed2.91s; Langflow sso_serving/ver2_knowledge_dependency/frontend_response/
+  frontend_delivery_statistics:63passed41.08s (8 warning dependency deprecated).
+  npm ci đúng lockfile; npm run test:ui trên Chrome:26passed37.5s, gồm cả test mới.
+  Tổng185passed; UI mock/serving offline, không nhận nghiệm thu model/DB thật.
+- Đã commit merge57764b4 (parents dc6abfd/aa4fb76), push fast-forward vào
+  huuhuandev_features và ls-remote xác nhận đúng SHA. GitHub API xác nhận head
+  57764b4, mergeable=true; PR vẫn open. Không merge PR vào main.
+- Checkout gốc vẫn hoanganhdev_features, sạch. Đã hoàn tất yêu cầu sửa conflict;
+  bản ghi kết quả này được lưu bằng commit tài liệu kế tiếp trên cùng nhánh PR.
+- PLAN-OPENCORE/PROJECT-RULES không tồn tại trong checkout; dùng AGENTS workspace
+  và mã/test thực tế. Không còn việc sửa conflict; nghiệm thu model/DB thật
+  hoặc quyết định merge PR thuộc bước tiếp theo riêng.
+
+## 2026-10-19 — GIT-SSO-CHAT-01: Commit, đồng bộ main và push (hoàn tất)
+
+- User yêu cầu push code và giải quyết conflict. Đã xác minh branch hiện tại
+  huuhuandev_features HEAD2464997, giữ toàn bộ phần tích hợp/doc trước đó.
+- Fetch origin đạt: target origin/huuhuandev_features vẫn657b45e (local trước14),
+  origin/main mới f53c536 gồm2commit Agent Hub contract. Thay đổi main là docs/
+  contracts, CHANGELOG và CHECKPOINT. Sẽ commit phần local rồi merge main mới,
+  giữ cả nội dung contract upstream và chat/SSO hiện có, không force-push.
+- Rà staged52file text bằng index bytes: không .env/private local state/cache/
+  binary hoặc literal khớp provider/GitHub token/JWT/privatekey. Không có file
+  tracked trong .env, langflow/data, .cache, .tools, .venv. Credential và snapshot
+  vẫn ignored. Thêm *.jsx eol=lf để source chat giữ LF khi checkout trên Windows.
+- Ruff các file Python thay đổi và staged diff check đạt. Bộ hồi quy42passed4.41s
+  (chat/Docker/dev/migration). Langflow runner đang session8237; không gọi model
+  hoặc DB nghiệp vụ. UI13passed6.5s và liveUIE2E1passed24.5s từ task05 là bằng
+  chứng trước đó trên source này, chưa chạy lại model trong task push.
+- Chỉnh comment .env.example yêu cầu migration0005 và guide Python3.12 khớp
+  manifest. Không thay dependency/migration/runtime logic trong lượt push.
+### Kết quả cuối GIT-SSO-CHAT-01
+
+- Merge origin/main f53c536 (PR#15, 2commit Agent Hub contract) vào local: conflict
+  duy nhất ở CHANGELOG.md và docs/CHECKPOINT.md; giữ cả hai phía theo chủ đích,
+  không marker sót, git diff --check đạt. Commit merge bb9ab93 chỉ gồm phần chat/
+  SSO + contract upstream; không sửa code/test/dependency/migration trong lượt này.
+- Push fast-forward 657b45e..bb9ab93 đạt; fetch lại và rev-parse xác nhận
+  origin/huuhuandev_features = bb9ab93 = HEAD, branch in sync. Không force-push.
+- Không chạy lại suite/model trong lượt push vì thay đổi chỉ ở tài liệu; bằng chứng
+  test giữ từ task trước (42 hồi quy chat/Docker, 13 UI, 1 E2E live, Langflow 142).
+  Việc còn lại tùy user: nghiệm thu ML/RAG hoặc tính năng tiếp theo.
+
+## 2026-10-19 — DOC-RUN-01: Hướng dẫn chạy tổng hợp đã tạo
+
+- User yêu cầu tạo file hướng dẫn chạy. Đọc checkpoint, kiểm Git: repo
+  huuhuandev_features HEAD2464997, giữ toàn bộ thay đổi chưa commit. Không có
+  PLAN-OPENCORE/task/rules được tham chiếu trong checkout; không tự tick CP.
+- Thêm HUONG-DAN-CHAY.md tại root, README link ngay đầu và sửa mô tả chat chưa
+  nối đã lỗi thời. Hướng dẫn chạy nhanh máy hiện tại, account/OTP/editor riêng,
+  nơi lưu password (chỉ path, không secret), chat/PR/history/retry, lifecycle,
+  đầu vào khi chuyển máy, migration có chủ đích, ML/RAG optional và xử lý lỗi.
+- Phân biệt checkout hiện tại có dữ liệu/cấu hình local với clone trắng; source
+  còn uncommitted, DB Langflow+secret_key/agent.env/.env không có trong Git.
+  Không hướng dẫn seed/reset/cleanup tài khoản user đang sử dụng. Link canonical
+  SSO/ML/RAG/Docker thay tạo thêm config hoặc thao tác provisioning tự động.
+- Thêm sdist include /HUONG-DAN-CHAY.md trong pyproject; không dependency/schema.
+  Đối chiếu argparse, launcher, template env và docs trước viết. Đã chạy .cmd
+  --help, up --dry-run, config exit0; xác minh local links/fenced blocks và diff
+  check đạt. Hatchling sdist đạt tại .cache/run-guide-build; guide có trong archive.
+- Chỉ thay tài liệu/đóng gói tài liệu, không build/restart container, migration,
+  test engine, model call, export credential hay commit/push. Kết quả13UI/1E2E
+  trong hướng dẫn là bằng chứng task trước, không nhận đã chạy lại trong lượt này.
+
+## 2026-10-19 — CODE-DOCKER-CHAT-05: Khung chat UI và mật khẩu editor đã bàn giao
+
+- User yêu cầu khung chat8761 và kiểm các nhánh về password/auto-login. Repo
+  huuhuandev_features HEAD2464997; không đổi branch/ghi đè thay đổi chưa commit.
+  Plan mục14/rules/task vẫn không tồn tại. Dùng CodeGraph trước đọc UI/API.
+- Fetch origin đạt. Các remote có langflow/start.ps1 (main, hoanganhdev_features,
+  minnhungdev_features, test-langflow-no-SSO, test-langflow-ver2-optimize) đều bật
+  AUTO_LOGIN=true, không set SUPERUSER_PASSWORD; một số nhánh không có launcher.
+  Docker tắt auto-login và giữ DB native nên cần login editor. Thử đúng1default
+  upstream không được chấp nhận, không brute-force. Password DB chỉ có hash.
+- User đã trả lời rõ chọn reset riêng Docker. Dùng API quản trị native đổi password
+  owner langflow, không tool credentials/model/flow/keycloak/native source. Verify
+  POST login200 có access token đạt; password chỉ nằm file600 trong Langflow volume
+  editor-login.json và file host ignored .cache/chat-stack/flowbridge-chat/
+  langflow-editor-login.json. Không in password/token hoặc đính vào source/checkpoint.
+- Thêm clients/sso/src/chat.jsx, sửa business.jsx/api.js/business.css. TabTrợ lýAI
+  chỉ EMPLOYEE active, dùng api client SSO; không Langflow key/URL trong browser.
+  Chat text an toàn (không HTML), pending key/body giữ khi retry, timeout240s,
+  messages/history phân trang, URLchat_session để reload (không token/content trong
+  browserstorage), contextPR tùy chọn, warning/source, hội thoại mới có confirm
+  nếu lượt cũ chưa rõ. History failure không biến successful send thành fresh turn.
+- UI mock suite13passed6.0s gồm3testchat: payload/auth/reload/XSS, uncertain retry
+  cùng key/body, grant gating/mobile. Browser/client build đạt. Recreate riêng
+  client-a đã chạy source mới; IAM/API/Langflow/volumes giữ. Không dependency/schema.
+- E2E opt-in chat.spec nay gửi từ UI và reload kiểm history, vẫn verify products/
+  replay/anon. Đang chạy session29770: xem tool session thực trước
+  retry; dùng lại fixture giữ cho user, không tạo/cleanup tài khoản lần này.
+- Bước tiếp theo: xác nhận outcome E2E, QA hình ảnh mock không chứa credential,
+  cập nhật docs/CHANGELOG + credential note riêng, kiểm cuối và checkpoint.
+
+### Kết quả cuối CODE-DOCKER-CHAT-05
+
+- E2E đầu session29770 gửi chat từUI đạt nhưng reload mất phiên vì SDK trước đó
+  không check-sso. Thêm check-sso; lần session79399 vẫn thất bại vì redirectURI
+  tự động mang chat_session, không khớp allowlist. Diagnostic browser anonymous
+  xác nhận invalidRedirect=true, không nhập credential/model để debug.
+- Sửa app.js callback luôn origin+`/`; chỉ UUID hợp lệ được lưu tạm dưới
+  flowbridge.chat.return trong sessionStorage qua redirect, rồi xóa và phục hồiURL.
+  Không bearer/content trong storage, không wildcardallowlist. Explicit login cũng
+  giữ UUID theo cùng cơ chế. Diagnostic sau sửa invalidRedirect=false/app visible.
+- Session70604 cuối exit0:13UItests passed6.5s và1E2E passed24.5s. Test thật thao
+  tác clickUI→POST chat200→đúng mã/tên2sản phẩm→reloadSSO vẫn login→historykhớp,
+  replay200 cùngresult/chỉ1turn, anonymous401; temporary UUID đã xóa saucallback.
+  Test riêng mock assert SDK fixedcallback/check-sso, XSSsafe, stable key/body và
+  mobile. Không nới assertion để che lỗi; 2lần trước là bằng chứng fail đã sửa.
+- Recreate riêng client-a bằng source cuối (app.js/check-sso/fixedcallback/CSS);
+  không restart IAM/API/Langflow hoặc resetvolume. QA desktop/mobile synthetic
+  đã xem; sửa nút Hội thoại mới không bị co chữ theo dòng, bỏ statusbar rỗng.
+  Ảnh ignored .cache/flowbridge-chat-desktop.png/mobile.png, không auth thật.
+- Unit helper sau sửa credential note11passed1.03s, Ruff/diff check đạt. Note của
+  credentials.json ignored đã cập nhật chỉ dành Keycloak, password editor file
+  riêng verified=true. Không in token/password hoặc đưa file ra source/archive.
+- Cập nhật clients/sso/README, DOCKER-CHAT/LANGFLOW-SSO/DOCKER-CHAT-LIVE và
+  CHANGELOG, README-TEST ignored. No dependency/migration/schema. Không broadtest
+  lại các engine không đổi, không gọi ML/RAG. Lịch sử fixture user yêu cầu giữ
+  không cleanup; có thêm các lượt chat nghiệm thu của đúng usertest.
+- Tất cả session tool đã có outcome. Repo vẫn huuhuandev_features HEAD2464997,
+  chưa commit/push. Bàn giao8761 tabTrợ lýAI bằng EMPLOYEE; editor7861 userlangflow
+  với passwordfile riêng. Native source/password/flows/models/toolcredentials
+  giữ nguyên. Phạm vi task hoàn tất; ML/RAG vẫn cần nghiệm thu riêng nếu user yêu cầu.
+
+## 2026-10-19 — CODE-DOCKER-CHAT-04: Duyệt đăng ký Langflow huan
+
+- User báo signup/login editor có Waiting for approval. Đọc checkpoint, xác minh
+  branch huuhuandev_features HEAD2464997; giữ mọi thay đổi chưa commit.
+- Docker Langflow DB chỉ có owner langflow active/superuser và user mới huan
+  inactive/ordinary. Đọc route users upstream tại venv để dùng API chính thức.
+- Đã dùng API key nội bộ trong container, xác minh whoami là admin rồi PATCH
+  /api/v1/users/{id} chỉ is_active=true cho huan. Response200 và assert active,
+  ordinary đạt. Không sửa password, không nâng superuser, không bật auto-approval,
+  tắt auth/SSO/OTP, chia sẻ project/flow hay đụng Keycloak/Supabase.
+- Script tác vụ ignored .cache/approve_langflow_user.py, không token/password
+  trong output; credential chỉ đọc/tiêu thụ bên trong container. API verify đạt;
+  xác minh DB read-only sau PATCH: huan active=true/superuser=false đạt.
+- Bàn giao: user đăng nhập editor7861 bằng huan + password đã tự đăng ký.
+  Đây là tài khoản editor riêng, không có thay đổi grant ứng dụng hoặc ownership
+  flow hiện tại. Không chạy model, migration, build, commit/push hay test suite
+  không liên quan cho thao tác tài khoản runtime.
+
+## CODE-DOCKER-CHAT-03: Tài khoản test dùng thủ công đã chuẩn bị
+
+- User hỏi nơi lưu username/password và yêu cầu vài tài khoản test để đăng nhập.
+  Đây là authorization mới cho export credential; bước credentials từng bị từ chối
+  ở task trước vì khi đó chưa có yêu cầu này. Không retry khi chưa có yêu cầu.
+- Giữ repo huuhuandev_features HEAD2464997, các thay đổi chưa commit. Đọc checkpoint,
+  CodeGraph fixture/bootstrap, kiểm Git trước thực hiện. Không sửa app/dependency/schema.
+- chat_stack credentials exit0 lưu riêng ignored
+  .cache/chat-stack/flowbridge-chat/credentials.json; chỉ in path, không password.
+  File chứa3user local của Keycloak và operator admin, không service secret.
+- Dùng tools fixture chuẩn để link lại3human/2service test thực của chính profile;
+  directory/introspection xác minh trước khi tạo DB records riêng. Session59911
+  exit0. Không tạo thêm identity trùng tên, reset password/OTP hay sửa user hiện có.
+  Theo yêu cầu giữ các grant test để dùng thủ công, không cleanup lần này; manifest
+  trên identity-state để quản lý lifecycle. Không chạy suite tạo fixture lại khi
+  manifest còn, hoặc cleanup nếu user đang dùng dữ liệu test.
+- Read-only verify Supabase đạt:3human có expected active grants:
+  flowbridge-admin ADMIN, flowbridge-employee/flowbridge-other EMPLOYEE.
+  Git check-ignore credentials.json đạt. Không gọi model hoặc export OTP seed.
+- Thêm README-TEST.md ignored cùng thư mục: ưu tiên flowbridge-other cho lần đầu
+  vì chưa enrollOTP; flowbridge-admin cũng chưa enroll. flowbridge-employee đã có
+  OTP do E2E, dành cho automation; không reset hoặc chia sẻ seed để đơn giản login.
+  User tự scanQR bằng Authenticator khi IdP yêu cầu. MFA/SSO giữ bật.
+- Bàn giao đường dẫn file credentials + URL8761; file keycloak_admin dùng IAMadmin,
+  khác application ADMIN. Langflow native password giữ nguyên. Không commit/push.
+
+## 2026-10-18 — CODE-DOCKER-CHAT-02: Build/start và login→chat→Data thật đạt
+
+- User yêu cầu build/start và login→chat thật; cho phép tìm các nhánh khi thiếu
+  migration. Giữ checkout huuhuandev_features HEAD2464997 và thay đổi chưa commit.
+- Doctor ngoài sandbox đạt Linux Engine/Compose. Prepare build đạt nhưng lần đầu
+  SQLite WAL backup mount Docker secret read-only gây OperationalError; seed_owner
+  nay dùng mode=ro&immutable=1 cho backup cố định (không áp vào DB native đang chạy).
+  Prepare rerun đạt; thêm regression không sinh sidecar khi đọc WAL backup.
+- Build thật prepare/check-db/langflow/client-a/api đạt. Keycloak và Langflow
+  healthy, client-a đã bật độc lập để kiểm login; API chưa bật do DB revision guard.
+  Dữ liệu native giữ nguyên; snapshot và secret được import vào volume riêng.
+- DB đọc thật kết nối đạt, revision0004_knowledge_manager. Fetch origin/main vẫn
+  HEAD2464997; fetch origin tìm được migration ở origin/minnhungdev_features,
+  commit5e96b38. Đưa đúng SQL core_0004.sql và migration wrapper vào checkout;
+  wrapper chỉ đổi mô tả docstring thành comment theo quy tắc. Không merge toàn
+  feature RAG/frontend từ nhánh khác, không đổi checksum SQL đã công bố.
+- Migration chat chưa áp đổi thành20261018_0005_chat_projection.py/revision0005,
+  down_revision0004_knowledge_manager. Cập nhật contract/test/docs và thêm test
+  SQL offline chứng minh chỉ tạo chat khi nâng từ0004, không chạy lại knowledge.
+- Suite chat/dev/migration42passed8.31s, rerun sau sửa startup42passed4.59s.
+  Migrate Docker session83029 exit0: chỉ0004_knowledge_manager→0005_chat_projection.
+  Up session94343 exit0, DB head guard đạt; IAM/API/Langflow healthy, client-a running.
+- Đã tạo fixture cô lập bằng tools chuẩn, xác minh IdP thật trước link/grant test;
+  manifest trên identity-state, chưa cleanup. Thêm chat.spec.mjs + config opt-in
+  (không nằm default SSO suite). LoginPKCE/OTP→chat200→replay200/history200/anon401
+  đạt1test12.6s, nhưng đối chiếu DB thấy answer chỉ báo thiếu task, không có sản phẩm.
+  Đây mới chứng minh transport/model/history, chưa nghiệm thu Data nghiệp vụ.
+- Snapshot native là ver2 cũ: OpenAICompatibleAgent/native A2A, FindProducts cũ,
+  tool description thiếu list_catalog; chưa có coordination/protocol. Đang thêm
+  upgrade_chat_flows.py dùng graph migration functions có sẵn qua API metadata với
+  API key nội bộ (không auto-login). Backup trong Langflow volume, PATCH rollback
+  khi lỗi, giữ credential/model/preset/layout. Chỉ nâng bản Docker, nguồn native giữ.
+  chat_stack up nay chạy metadata upgrade sau startup; image thêm helper source.
+- Session47938 đang up/recreate và chờ health, chưa biết metadata upgrade outcome.
+  E2E mới assert mã/tên2sản phẩm từ API thật, chưa chạy phiên bản assertion này.
+  Fixture cleanup đã thêm chat deletion scoped owner + từ chối turn running;
+  phải chờ turn hoàn tất rồi cleanup, không xóa manifest trước đối soát.
+- Auto-review từ chối bước phụ chat_stack credentials vì xuất mật khẩu chưa được
+  user yêu cầu; không thực thi, không workaround hoặc xin xuất lại. Task chính vẫn
+  tiếp tục không cần export. Aggregate log không có accesslog nên không làm evidence.
+- Bước tiếp theo: kiểm session47938; chạy E2E assert dữ liệu thật, cleanup fixture,
+  xác minh head/health/metadata idempotence và cập nhật docs bằng kết quả thực tế.
+
+### Kết quả cuối CODE-DOCKER-CHAT-02
+
+- Session47938 exit0: upgrade graph metadata đạt; restart giữ volume/keys. Rerun
+  helper session91226 exit0 báo already current; không PATCH/model. Đối chiếu riêng
+  bên trong container24trường preset4agent với backup đều giữ nguyên. Không export key.
+- E2E trung gian session93886 xác minh sản phẩm thật đạt nhưng assertion JSON string
+  lỗi newline escaping; sửa so content của assistant trực tiếp, total2/1assistant.
+  E2E cuối session52162 exit0:1passed38.0s, login PKCE/OTP→me200→chat200,
+  đúng mã/tên2sản phẩm từ API thật; replay200 cùng result, history200 đúng1turn,
+  anonymous401 và không có bearer trong history. Ba root executions cả các lần
+  kiểm trung gian, không retry ngầm hoặc gọi ML/RAG. Model dùng config có sẵn.
+- Cleanup fixture bằng tools/container_dev cleanup exit0, xác minh không còn DB
+  fixture; đã dọn chat/user/grant/department test riêng. Không giữ grant test làm
+  tài khoản sử dụng lâu dài. IdP local/state, provider config và native nguồn giữ.
+- Kiểm cuối ngoài sandbox: identity/API/Langflow running healthy; client-a running
+  (không có healthcheck riêng). Client8761/config.json200; API18082/openapi.json200,
+  x-database-migration0005_chat_projection. Stack giữ chạy cho user.
+- README/docs DOCKER-CHAT/LANGFLOW-SSO/CHANGELOG cập nhật; thêm DOCKER-CHAT-LIVE,
+  E2E config opt-in và pyproject sdist entry. Ruff/diff đạt; source tar.gz mới tại
+  .cache/chat-docker-live-build, rà đủ helper/migration/test/docs và không local
+  state/cache/secret/binary. Extract .cache/chat-docker-live-clean-68b3 rồi chạy
+  config từ cwd khác đạt. Không phát hành artifact hay coi image license audit đạt.
+- Repo vẫn huuhuandev_features HEAD2464997, không commit/push hoặc merge cả feature
+  minnhungdev_features. Published SQL0004 byte-identical commit5e96b38; wrapper chỉ
+  đổi comment theo quy tắc. Không stamp/reset/downgrade DB hoặc sửa flow native.
+- Hoàn tất phạm vi build/start + login/chat/Data thật. ML/RAG extras chưa bật và
+  chưa nghiệm thu; frontend chưa có tab chat, dùng Swagger/client API. Tài khoản
+  dùng lâu dài cần link/grant có chủ đích theo SSO.md; grant fixture đã cleanup.
+  Không còn process tool chưa rõ outcome. Công việc tiếp theo tùy yêu cầu user:
+  liên kết tài khoản thường dùng hoặc nghiệm thu riêng ML/RAG với artifact/job thật.
+
+## 2026-10-18 — CODE-DOCKER-CHAT-01: Setup đã kiểm offline, runtime chờ Docker Engine
+
+- User yêu cầu setup Docker cho dễ chạy. Repo huuhuandev_features, HEAD2464997;
+  giữ toàn bộ code CODE-SSO-CHAT-01 chưa commit. Không có plan/task/rules tham
+  chiếu trong checkout; ID bàn giao cục bộ, chưa tick CP hoặc nghiệm thu runtime.
+- Đã đọc Compose/Dockerfile/dev_stack/container_dev và CodeGraph. Chọn overlay
+  infra/chat trên compose.yaml chuẩn, reuse IAM/profile generator và lifecycle.
+  Project mặc định flowbridge-chat; Langflow7861 tránh process native7860;
+  API18082/IAM19444/client8761. Supabase ngoài stack, không seed/reset user/grant.
+- Đã thêm ChatStack, container_chat, Langflow.Dockerfile, overlay/images.env và
+  chat-docker.cmd. Snapshot SQLite bằng backup API + giữ encryption key vào cache
+  ignored, chỉ import lần đầu sang volume; không mount .venv/data vào image.
+  Secret native API/bridge sinh riêng và giữ qua restart, backend/Langflow volumes
+  riêng; auto-login tắt. Migration có action riêng, up kiểm head không tự migrate.
+- Optional ML/RAG dùng dependency extras chuẩn và cache model read-only, không
+  tự tải weights. Chưa build/run image hoặc gọi model/API nghiệp vụ.
+- Docker CLI29.8.2/Compose5.6.0 đã có tại LOCALAPPDATA/Programs/DockerDesktop.
+  Docker Desktop có process Session1 nhưng MainWindowHandle0; user không thấy UI.
+  Session73084 đã exit0 báo already running, không chứng minh Engine sẵn sàng.
+  WSL đọc ngoài sandbox: docker-desktop Stopped, version2; docker info exit1 do
+  thiếu pipe Linux Engine. Thử docker desktop restart --timeout30 (session46232)
+  không phản hồi dù quá thời hạn, đã CtrlC exit1; kiểm lại info vẫn exit1.
+  Không reset/reinstall/xóa WSL, kill process hoặc thay trust/licensing hệ thống.
+- Registry inspect image upstream Langflow1.12.6 exit0; manifest digest
+  a0396e089eb97fa471ef8affc492b8c56abb3758040a5ddaa80814b0abad15bf,
+  có linux/amd64 và arm64. Langflow MIT, backend mã nhóm GPL3+; image audit tổng
+  thể chưa làm. Không phát hành kèm dependency/source/binary hoặc chọn license mới.
+- Đã chạy27test tests/unit/test_chat_stack.py + test_dev_stack.py đạt1.66s ngoài
+  sandbox, basetemp .cache/pytest-chat-docker-final-647a; lần sandbox cũ lỗi quyền
+  tmpdir, không phải assertion. Test seed/restart/partial state, secret isolation,
+  model path/allowlist, bootstrap nạp DB+dry-run và engine timeout/unavailable.
+- Compose config mặc định và --ml --rag đạt, dùng --profile '*' để kiểm cả tools;
+  assert trên JSON merge xác nhận đủ DB/IAM mounts/secrets/build args/depends_on.
+  Lần inspect đầu thiếu profile nên KeyError prepare; đã sửa lệnh và rerun đạt.
+  Ruff lint/format3file và diff --check đạt. Doctor thất bại đúng Engine chưa chạy.
+- Snapshot local thật tại .cache/chat-stack/flowbridge-chat/seed đã tạo bằng SQLite
+  backup, integrity/4ver2 flows/1active owner/key gốc đạt; không sửa nguồn native.
+  Chưa tạo container/volume hoặc chạy model. Credentials dùng Docker cp vào file
+  ignored rồi chỉ giữ tài khoản local; không ghi mật khẩu qua stdout/log.
+- Cập nhật README/CHANGELOG/LANGFLOW-SSO/DOCKER-CHAT và pyproject sdist allowlist.
+  Hatchling sdist đạt; rà một thư mục gốc, đủ Docker/adapter, không local state,
+  secret, cache/binary. Extract .cache/chat-docker-clean-647a: launcher dry-run và
+  all-profile config đạt từ cwd khác. Lần lệnh đầu sai relative path test, rerun
+  bằng absolute path đạt. Chưa chứng minh clean image build vì Engine unavailable.
+- Không thêm dependency/migration trong task Docker; migration0004 của task SSO
+  vẫn chưa apply. Không seed/cấp grant, sửa env/live metadata, commit/push/release.
+- Bước tiếp theo: mở Desktop bằng Win+R đường dẫn trên, chờ Linux Engine rồi chạy
+  chat-docker.cmd doctor; kiểm Supabase, migrate có chủ đích, up (hoặc --ml --rag).
+  Build image/import smoke và login→chat→Data/ML/RAG thật còn chưa nghiệm thu.
+
+## 2026-10-18 — CODE-SSO-CHAT-01: Hoàn tất code, chưa bật/nghiệm thu runtime thật
+
+- User đã yêu cầu triển khai sau khi chuyển nhánh. Repo huuhuandev_features,
+  HEAD2464997; giữ2file tài liệu review chưa commit. Plan/task API/rules tham chiếu
+  vẫn không tồn tại; ID này là ID bàn giao cục bộ, không tự tick plan/CP.
+- Đã thêm chat service/adapter và context ASGI trên Langflow. API chat/history
+  giữ DTO0.4.1; backend chọn flow cố định, preflight xác nhận serving adapter;
+  bearer chỉ ở contextvar/header đã strip, override tool origin/token cả A2A con.
+- Migration0004_chat_projection thêm2bảng operational chat; chưa áp dụng DB.
+  Reserve turn trước external call, không giữ transaction lúc chạy model; retry
+  pending/failed không chạy lại; lịch sử/replay kiểm owner/grant/resource hiện tại.
+- RAG giữ API service+JobContext chuẩn: backend chọn task thuộc request caller,
+  không bịa task. Không có task/AI credentials thì tool RAG không đăng ký.
+- File chính: backend settings/models/chat/supplier_assistant/chat/router/contract;
+  migration0004; langflow caller/serving/tools/nodes/ver2_agent/ver2_data, start-sso;
+  tests/unit/test_chat_backend.py, langflow/tests/test_sso_serving.py. Đã cập nhật
+  .env.example, agent.env.example, docs/LANGFLOW-SSO.md, README/CHANGELOG/packaging.
+- Chống reuse graph/tool khác execution; context PR được backend kiểm rồi truyền
+  riêng; tắt native memory/send_message và ChatInput/Output store trong serving.
+  Receipt API ghi lineage PR/PO, kể cả prediction lịch sử không có po_number;
+  replay/history kiểm lại lineage và reference RAG, không dùng citation do model bịa.
+- Bản cuối:11test backend mới đạt3.13s; suite backend liên quan104passed/1failed
+  trong5.61s. Fail tại test_contract_snapshots_match_checksums_and_available_upstream:
+  ai-tools-api.yaml lệch ../ho-so-olp/03-api/contracts. Đã so byte với git show HEAD:
+  hai snapshot đều nguyên; HEAD đã lệch sibling. Không sửa snapshot/loại assertion.
+- Suite Langflow native/A2A/tools/ver2/ver3 bản cuối142passed20.75s, gồm7test
+  serving mới. Venv Langflow thiếu pytest-asyncio, đã load plugin sẵn có từ venv
+  backend bằng runner ignored .cache/run_langflow_sso_tests.py; không cài/sửa env.
+  Các lần đầu bị sandbox Windows socketpair kẹt đã dừng; rerun ngoài sandbox đạt.
+  Collection lỗi thiếu/trùng plugin ban đầu đã xử lý bằng explicit plugin/autoload off.
+- Ruff lint/format13file và git diff --check đạt. Alembic offline range
+  0003_core_knowledge:head --sql đạt, SQL ignored .cache/chat-0004.sql; chưa apply.
+- Bổ sung xác minh ngoài sandbox:7860/8001mở,8000/8761/8762/18443/18082/19444đóng;
+  Docker Linux engine không chạy. Kết luận TCP từ review trong sandbox không đại
+  diện host. .env chưa có OIDC hoặc chat/bridge key. Tìm thấy các profile native
+  cũ identity-core-verification(IAM19444/API18082), identity-final(18443/18080),
+  không đọc/in secret hoặc reset profile. User không rõ khái niệm profile; đã giải
+  thích dịch vụ đăng nhập và tự kiểm cấu hình có sẵn, không yêu cầu gửi secret.
+- Đọc DB read-only để kiểm revision/issuer liên kết bị TimeoutError ở connect/DNS;
+  chưa đọc được catalog hoặc ghi DB. Không áp migration, sửa .env/agent.env/live
+  metadata, khởi động/dừng dịch vụ, chạy model, commit/push hoặc cấp user/grant.
+- Bước tiếp theo cụ thể: khôi phục kết nối Supabase; dùng lại profile IAM thật,
+  áp migration0004 rồi cấu hình native Langflow API key/bridge secret, chạy
+  start-sso và API SSO. Kiểm login thật→chat→Data/ML/RAG và PostgreSQL concurrency.
+  Không tick CP/claim nghiệm thu E2E từ test offline; task runtime còn mở.
+
+## 2026-10-18 — Chuyển nhánh và cập nhật main trước tích hợp SSO
+
+- Theo yêu cầu user, chuyển từ main sang huuhuandev_features và fetch main thật
+  từ origin. Fetch trong sandbox lỗi DNS; lần chạy có quyền mạng exit0.
+- Merge FETCH_HEAD fast-forward từ657b45e lên2464997, không conflict hoặc merge
+  commit mới. Nhánh local hiện trước origin/huuhuandev_features14commit.
+- Đã stash tạm đúng2file review SSO, sau merge pop thành công và xóa stash tạm;
+  giữ docs/LANGFLOW-SSO-REVIEW.md và phần checkpoint chưa commit.
+- Không push, không cài dependency hoặc migration; chưa triển khai kết nối SSO.
+  Chỉ kiểm Git/diff vì lượt này là đồng bộ nhánh, không nghiệm thu runtime.
+- Trạng thái bàn giao: repo FlowBridge, branch huuhuandev_features, HEAD2464997;
+  bước tiếp theo là tiếp tục phần nối backend/Langflow theo phạm vi user giao.
+
+## 2026-10-18 — Review kết nối backend/Langflow/SSO
+
+- Yêu cầu: kiểm tra các luồng hiện tại và cách dùng Langflow sau đăng nhập.
+  Repo main, HEAD 2464997; Git sạch trước review. Không tự gán CODE/CP vì plan,
+  task API và project rules được tham chiếu vẫn thiếu trong checkout.
+- Hoàn tất review source và metadata SQLite read-only. 9tool Data/ML ver2 dùng
+  origin8001 + credential cố định; RAG thiếu token/context cả node lẫn fallback.
+  Frontend có Keycloak bearer cho API nhưng chưa có chat; backend chat/history
+  còn UNAVAILABLE. Editor auto-login độc lập với quyền API/tool.
+- RAG chuẩn cần AI_SERVICE + analysis task thật; handler từ chối X-User-Context.
+  Thiếu request-scoped caller xuyên A2A và adapter chat backend→Langflow.
+- TCP local7860/8000/8001/8761/8762/18443/18082/19444 không kết nối được từ phiên
+  này; Docker Linux engine không truy cập được. Không khởi động dịch vụ hoặc
+  chạy model/API nghiệp vụ/pytest/migration; chưa có bằng chứng E2E hiện tại.
+- Thêm docs/LANGFLOW-SSO-REVIEW.md ghi bằng chứng, phương án nối và kiểm thử cần
+  làm. Chỉ sửa tài liệu/checkpoint; không dependency/migration/credential,
+  không commit/publish. SQLite console lỗi encoding ban đầu đã đọc lại UTF-8 đạt.
+- Bước tiếp theo: triển khai adapter cho operation chat hiện có, context caller
+  theo request xuyên flow con, UI chat và ACL RAG phù hợp; nghiệm thu login thật,
+   401/403, isolation A/B và expiry khi runtime sẵn sàng.
+
 ## 2026-10-19 — CODE-LANGFLOW-18: Hợp đồng Agent Hub cho Web/App
 
 - User xác nhận ver2 đã chạy ổn, yêu cầu viết hợp đồng kỹ trong thư mục contract

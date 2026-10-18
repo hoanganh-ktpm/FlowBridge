@@ -54,12 +54,17 @@ def install_database_openapi(app: FastAPI) -> None:
     register_fragment(
         app,
         "database",
-        lambda: database_document(rag_postgres_enabled=app.state.settings.rag_postgres_enabled),
+        lambda: database_document(
+            rag_postgres_enabled=app.state.settings.rag_postgres_enabled,
+            chat_enabled=app.state.settings.chat_enabled,
+        ),
         base=True,
     )
 
 
-def database_document(*, rag_postgres_enabled: bool = False) -> dict[str, Any]:
+def database_document(
+    *, rag_postgres_enabled: bool = False, chat_enabled: bool = False
+) -> dict[str, Any]:
     application, tools = application_documents()
     merge_document(application, tools)
     application["info"]["title"] = "FlowBridge Supplier Assistant — PostgreSQL API"
@@ -79,8 +84,30 @@ def database_document(*, rag_postgres_enabled: bool = False) -> dict[str, Any]:
             "verified AI_SERVICE and database-backed X-Job-Context. UserContext-only "
             "knowledge calls are not supported by this implementation."
         )
+    if chat_enabled:
+        application["info"]["description"] += (
+            " Chat uses the configured Langflow caller bridge; its operational projection "
+            "requires migration 0005_chat_projection. RAG in chat requires an authorized "
+            "analysis job and real AI service credentials. Native chat memory is disabled."
+        )
+        application["paths"]["/api/v1/chat/messages"]["post"]["description"] = (
+            "Execute one Langflow turn as the verified EMPLOYEE. Session ownership and "
+            "request access are checked before execution and on replay. Idempotency-Key "
+            "is reserved durably before execution; interrupted/failed turns never auto-retry. "
+            "Chat history lives in operational projection tables outside the supplier baseline."
+        )
+        history = application["paths"]["/api/v1/chat/sessions/{session_id}/messages"]["get"]
+        history["summary"] = "Lịch sử chat thuộc caller"
+        history["description"] = (
+            "Read completed turns after checking active EMPLOYEE, session ownership, bound "
+            "request and observed resource/source permissions. No Langflow history is exposed."
+        )
     application["x-database-migration"] = (
-        "0003_core_knowledge" if rag_postgres_enabled else "0002_api_idempotency"
+        "0005_chat_projection"
+        if chat_enabled
+        else "0003_core_knowledge"
+        if rag_postgres_enabled
+        else "0002_api_idempotency"
     )
     return application
 

@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Thêm khung chat Trợ lý AI vào client SSO: EMPLOYEE gửi qua backend, xem lịch sử,
+  chọn PR, khôi phục phiên bằng check-sso sau reload. Retry dùng đúng key/body,
+  không tự chạy model lại hoặc đưa Langflow credential xuống browser. Kiểm UI
+  desktop/mobile, quyền, literal text và lỗi mạng bằng Playwright.
+
+- Thêm overlay Docker chat trên stack dev chuẩn: lệnh chat-docker.cmd quản lý
+  Keycloak/API/Langflow/client; sao lưu SQLite bằng backup API, giữ encryption key
+  và named volumes. Tự tạo secret bridge/native API, không đưa user token vào config;
+  migration chạy bằng action riêng, optional ML/RAG dùng cache model read-only.
+  Startup nâng metadata ver2 cũ bằng graph migration có sẵn qua API key nội bộ,
+  backup/rollback và giữ cấu hình model. Nghiệm thu PKCE/OTP→chat→Data/history thật
+  có config opt-in riêng; fixture cleanup chặn lượt chạy chưa rõ kết quả.
+
+- Nối API chat/history hiện có tới Langflow ver2 bằng adapter phía backend và
+  caller context riêng xuyên native Internal A2A. Thêm migration0005 cho lịch sử,
+  ownership và chống thực thi trùng; kiểm lại grant/tài nguyên/nguồn khi replay.
+  Profile start-sso giữ credential ngoài prompt/metadata, bỏ memory native và
+  override kết nối test8001 theo request. RAG cần task thật và AI_SERVICE.
+  Giữ migration knowledge0004 đã công bố từ nhánh minnhungdev_features để nối
+  tiếp Supabase hiện có; không sửa revision bằng stamp hoặc chạy lại SQL0004.
+
 - Thêm trang quản lý Markdown RAG trong React hiện có cho ADMIN: tạo/sửa có lịch sử, job đồng bộ bền vững, xuất bản nguồn/vector trong cùng transaction, retry/reindex và xóa tài liệu chưa được báo cáo trích dẫn. Migration 0004 bổ sung bảng quản lý/guard; tính năng bật riêng bằng cấu hình, giữ retrieval Langflow theo cutoff và không đổi ML.
 
 - Thêm custom component và flow Langflow chỉ truy hồi RAG qua bearer Keycloak + JobContext; cấu hình service credential ở server, xuất đoạn trích/citation, môi trường Langflow riêng và helper kiểm thử. Không gọi ML hoặc LLM trong flow này.

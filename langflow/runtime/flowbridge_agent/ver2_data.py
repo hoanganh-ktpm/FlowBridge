@@ -196,6 +196,11 @@ class DataBackend(BackendTools):
         self.catalogs = {}
 
     async def catalog(self, resource: str):
+        from flowbridge_agent.caller import CALLER
+
+        caller = CALLER.get()
+        if (caller.execution_id if caller else None) != self.caller_execution:
+            return [], False, failure("TOOL_CONTEXT_EXPIRED")
         if resource not in self.catalogs:
             rows, truncated, error = await self.pages("/api/v1/" + resource)
             if error is None and not valid_identities(rows, resource):
@@ -420,6 +425,11 @@ class DataBackend(BackendTools):
         return result
 
     async def execute(self, name: str, values: dict) -> dict:
+        from flowbridge_agent.caller import CALLER
+
+        caller = CALLER.get()
+        if (caller.execution_id if caller else None) != self.caller_execution:
+            return failure("TOOL_CONTEXT_EXPIRED")
         try:
             schema = DATA_SPECS[name][0]
             args = schema.model_validate(values).model_dump(mode="json")
