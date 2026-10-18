@@ -16,7 +16,12 @@ ROOT = Path(__file__).resolve().parent
 sys.path[:0] = [str(ROOT), str(ROOT / "runtime"), str(ROOT.parent / "backend")]
 
 from flowbridge_agent.config import local_values  # noqa: E402
-from flowbridge_agent.ver2_agent import OpenAICompatibleAgent  # noqa: E402
+from flowbridge_agent.ver2_agent import OpenAICompatibleAgent  # noqa: E402, F401
+from flowbridge_agent.ver2_coordination_nodes import (  # noqa: E402
+    BoundedA2AAgent,
+    CoordinatedCentralAgent,
+    CoordinatedServiceAgent,
+)
 from flowbridge_agent.ver2_prompts import (  # noqa: E402
     CENTRAL_PROMPT,
     INPUT_TEMPLATE,
@@ -24,11 +29,10 @@ from flowbridge_agent.ver2_prompts import (  # noqa: E402
     output_table,
     specialist_prompt,
 )
+from flowbridge_agent.ver2_structured import StructuredServiceAgent  # noqa: E402, F401
 from lfx.components.input_output.chat import ChatInput  # noqa: E402
 from lfx.components.input_output.chat_output import ChatOutput  # noqa: E402
-from lfx.components.models_and_agents.a2a_agent import A2AAgentComponent  # noqa: E402
 from lfx.components.models_and_agents.prompt import PromptComponent  # noqa: E402
-from lfx.components.processing.operations import OperationsComponent  # noqa: E402
 from lfx.components.processing.parser import ParserComponent  # noqa: E402
 from lfx.components.utilities.current_date import CurrentDateComponent  # noqa: E402
 from setup_agent import NOTICE, connect, custom_class, node  # noqa: E402
@@ -44,11 +48,11 @@ NAMES = {
 ENDPOINTS = {key: "flowbridge-ver2-" + key for key in NAMES}
 TOOLS = {
     "database": [
-        ("find_products.py", "FlowBridgeFindProducts"),
-        ("find_suppliers.py", "FlowBridgeFindSuppliers"),
-        ("supplier_offers.py", "FlowBridgeSupplierOffers"),
-        ("purchase_request.py", "FlowBridgePurchaseRequest"),
-        ("purchase_order.py", "FlowBridgePurchaseOrder"),
+        ("resolve_entities.py", "FlowBridgeResolveEntities"),
+        ("browse_catalog.py", "FlowBridgeBrowseCatalog"),
+        ("read_offers.py", "FlowBridgeReadOffers"),
+        ("find_purchase_request.py", "FlowBridgeFindPurchaseRequest"),
+        ("find_purchase_order.py", "FlowBridgeFindPurchaseOrder"),
     ],
     "prediction": [
         ("rank_suppliers.py", "FlowBridgeRankSuppliers"),
@@ -76,7 +80,6 @@ def native(cls, module: str, kind: str, suffix: str, label: str, x: int, y: int)
         "CurrentDate": "Lấy ngày giờ theo múi giờ đã chọn, không gọi model.",
         "Prompt": "Ghép ngày giờ nghiệp vụ với câu hỏi hoặc JSON A2A, không gọi model.",
         "Parser": "Chuyển JSON từ Structured Response thành thông điệp để trả qua A2A.",
-        "Operations": "Chỉ bỏ khung Markdown bên ngoài; giữ nội dung JSON, không sửa dữ liệu.",
     }
     if kind in descriptions:
         item["data"]["description"] = descriptions[kind]
@@ -129,8 +132,8 @@ def base_flow(service: str) -> tuple[dict, dict]:
         70,
     )
     agent = native(
-        OpenAICompatibleAgent,
-        "flowbridge_agent.ver2_agent",
+        CoordinatedCentralAgent if central else CoordinatedServiceAgent,
+        "flowbridge_agent.ver2_coordination_nodes",
         "Agent",
         service,
         agent_label,
@@ -175,14 +178,16 @@ def base_flow(service: str) -> tuple[dict, dict]:
     set_field(
         agent,
         "max_iterations",
-        4 if service in {"central", "database"} else 2,
+        4 if service in {"central", "database"} else 3,
         "Giới hạn lượt model",
         advanced=False,
     )
     set_field(
         agent, "max_tokens", 6000 if not central else 1600, "Giới hạn output token", advanced=False
     )
-    set_field(agent, "n_messages", 6 if central else 0, "Số tin nhắn lịch sử", advanced=False)
+    set_field(agent, "n_messages", 12 if central else 0, "Số tin nhắn lịch sử", advanced=False)
+    if not central:
+        set_field(agent, "coordination_role", service)
     for field in [
         "add_current_date_tool",
         "add_calculator_tool",
@@ -209,7 +214,7 @@ def base_flow(service: str) -> tuple[dict, dict]:
         set_field(
             agent,
             "format_instructions",
-            "Trả đúng một record service trong objects. Giữ nguyên ToolResult trong results; "
+            "Trả đúng một record service trong objects. results=[]; runtime tự đính kèm chứng cứ. "
             "không thêm markdown, không dựng kết quả, mọi list trống là [].",
         )
         parser = native(
@@ -224,27 +229,12 @@ def base_flow(service: str) -> tuple[dict, dict]:
         set_field(parser, "mode", "Stringify", "Chế độ")
         set_field(parser, "pattern", "", advanced=True)
         parser["data"]["node"]["template"]["pattern"].update(show=False, required=False)
-        cleaner = native(
-            OperationsComponent,
-            "lfx.components.processing.operations",
-            "Operations",
-            service,
-            "Bỏ khung Markdown, giữ JSON",
-            1690,
-            70,
-        )
-        set_field(cleaner, "input_type", "Text", "Loại input")
-        set_field(cleaner, "operation", [{"name": "Text Replace", "icon": "replace"}], "Phép xử lý")
-        set_field(cleaner, "use_regex", True, "Dùng regex")
-        set_field(cleaner, "search_pattern", r"\A```json\s*\n|\n```\s*\Z", "Chỉ bỏ khung ngoài")
-        set_field(cleaner, "replacement_text", "", "Thay bằng")
-        for name in ["use_regex", "search_pattern", "replacement_text"]:
-            cleaner["data"]["node"]["template"][name]["show"] = True
-        nodes += [parser, cleaner]
+        # Parser is native and returns fenced JSON. The A2A protocol boundary
+        # decodes that wrapper; no dynamically reset Text Replace node is needed.
+        nodes.append(parser)
         edges += [
             connect(agent, "structured_response", parser, "input_data"),
-            connect(parser, "parsed_text", cleaner, "text_input"),
-            connect(cleaner, "message_output", outgoing, "input_value"),
+            connect(parser, "parsed_text", outgoing, "input_value"),
         ]
     flow = {
         "name": NAMES[service],
@@ -282,35 +272,49 @@ def specialist_flow(service: str) -> dict:
     return flow
 
 
+async def a2a_node(service: str, child: dict, caller: str, index: int = 0) -> dict:
+    item = native(
+        BoundedA2AAgent,
+        "flowbridge_agent.ver2_coordination_nodes",
+        "A2AAgent",
+        service if caller == "central" else caller + "-" + service,
+        "A2A · " + NAMES[service].split(" - ")[-1],
+        410 * index,
+        1000,
+    )
+    set_field(item, "mode", "Internal", "Kiểu kết nối")
+    set_field(item, "caller_service", caller)
+    set_field(item, "target_service", service)
+    set_field(item, "agent_name_selected", child["name"], "Agent chuyên trách")
+    pick = item["data"]["node"]["template"]["agent_name_selected"]
+    pick.update(show=True, options=[child["name"]], options_metadata=[{"id": child["id"]}])
+    for name in ["agent_url", "api_key", "timeout", "agent_card"]:
+        item["data"]["node"]["template"][name].update(show=False, required=False)
+    set_field(item, "input_value", "", "JSON yêu cầu (agent tự điền)")
+    item["data"]["description"] = SERVICE_DESCRIPTIONS[service]
+    item["data"]["node"]["description"] = SERVICE_DESCRIPTIONS[service]
+    component = BoundedA2AAgent(_code=item["data"]["node"]["template"]["code"]["value"])
+    frontend = await component.run_and_validate_update_outputs(
+        item["data"]["node"], "tool_mode", True
+    )
+    action = frontend["template"]["tools_metadata"]["value"][0]
+    action.update(name=SLUGS[service], description=SERVICE_DESCRIPTIONS[service])
+    frontend["template"]["tools_metadata"]["display_name"] = "Tên và mô tả công cụ A2A"
+    item["data"]["node"] = frontend
+    return item
+
+
+async def add_data_dependency(flow: dict, service: str, data_flow: dict) -> None:
+    agent = next(n for n in flow["data"]["nodes"] if n["data"]["type"] == "Agent")
+    item = await a2a_node("database", data_flow, service, len(TOOLS[service]))
+    flow["data"]["nodes"].append(item)
+    flow["data"]["edges"].append(connect(item, "component_as_tool", agent, "tools"))
+
+
 async def central_flow(children: dict[str, dict]) -> dict:
     flow, agent = base_flow("central")
     for index, (service, child) in enumerate(children.items()):
-        item = native(
-            A2AAgentComponent,
-            "lfx.components.models_and_agents.a2a_agent",
-            "A2AAgent",
-            service,
-            "A2A · " + NAMES[service].split(" - ")[-1],
-            410 * index,
-            1000,
-        )
-        set_field(item, "mode", "Internal", "Kiểu kết nối")
-        set_field(item, "agent_name_selected", child["name"], "Agent chuyên trách")
-        pick = item["data"]["node"]["template"]["agent_name_selected"]
-        pick.update(show=True, options=[child["name"]], options_metadata=[{"id": child["id"]}])
-        for name in ["agent_url", "api_key", "timeout", "agent_card"]:
-            item["data"]["node"]["template"][name].update(show=False, required=False)
-        set_field(item, "input_value", "", "JSON yêu cầu (agent tự điền)")
-        item["data"]["description"] = SERVICE_DESCRIPTIONS[service]
-        item["data"]["node"]["description"] = SERVICE_DESCRIPTIONS[service]
-        component = A2AAgentComponent(_code=item["data"]["node"]["template"]["code"]["value"])
-        frontend = await component.run_and_validate_update_outputs(
-            item["data"]["node"], "tool_mode", True
-        )
-        action = frontend["template"]["tools_metadata"]["value"][0]
-        action.update(name=SLUGS[service], description=SERVICE_DESCRIPTIONS[service])
-        frontend["template"]["tools_metadata"]["display_name"] = "Tên và mô tả công cụ A2A"
-        item["data"]["node"] = frontend
+        item = await a2a_node(service, child, "central", index)
         flow["data"]["nodes"].append(item)
         flow["data"]["edges"].append(connect(item, "component_as_tool", agent, "tools"))
     return flow
@@ -405,6 +409,8 @@ async def build(install: bool, origin: str) -> None:
                     },
                 )
         for service, flow in children.items():
+            if service in {"prediction", "knowledge"}:
+                await add_data_dependency(flow, service, children["database"])
             children[service] = api.install(flow, project["id"], existing)
     else:
         # Placeholder ids are export-only: --install resolves actual IDs before building central.
@@ -414,6 +420,8 @@ async def build(install: bool, origin: str) -> None:
             key: {**value, "id": str(uuid5(NAMESPACE_URL, ENDPOINTS[key]))}
             for key, value in children.items()
         }
+        for service in ("prediction", "knowledge"):
+            await add_data_dependency(children[service], service, children["database"])
     main_flow = await central_flow(children)
     if api:
         main_flow = api.install(main_flow, project["id"], existing)

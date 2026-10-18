@@ -74,8 +74,8 @@ def connect(origin: str, *, disconnect: bool = False) -> None:
             credential,
             restore=before_state["flows"][flow["id"]] if disconnect else None,
         )
-        expected = 5 if flow["endpoint_name"] == ENDPOINTS["database"] else 4
-        if not disconnect and len(original) != expected:
+        expected = {3, 5} if flow["endpoint_name"] == ENDPOINTS["database"] else {4}
+        if not disconnect and len(original) not in expected:
             raise ValueError("Unexpected ver2 API tool count")
         originals[flow["id"]] = original
         plans.append((flow, data))

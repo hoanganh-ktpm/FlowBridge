@@ -1,5 +1,82 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-11: RAG Supabase trên backend test (hoàn tất)
+
+- User yêu cầu bật RAG test và xác nhận Markdown/chunk đã có trên Supabase.
+  Branch test-langflow-no-SSO HEAD2de18f1; không commit/push, không gọi OpenAI.
+  Giữ thay đổi CODE-LANGFLOW-10 và data/coordination ngoài lượt; không ghi đè các
+  node/prompt/export đang được sửa đồng thời. Docs PROJECT-RULES/PLAN-OPENCORE không
+  tồn tại trong checkout hiện tại; tuân theo ../AGENTS.md và code/contract đang có.
+- Audit read-only thấy6documents/24versions/633chunks, profile Qwen đúng; thiếu bật
+  backend PostgreSQL RAG, service identity/JobContext và local query embedder.
+  Bỏ kế hoạch fixture/Chroma; dùng PgKnowledgeService/PgKnowledgeStore/job_scope có
+  sẵn. Không import, reindex, tạo job/role, sửa DB/schema/migrate hoặc giả context.
+- uv sync --locked --extra ml --extra rag --group dev --group build exit0 (97533),
+  không đổi dependency/lock. Tải public Qwen0.6B revision
+  97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3 vào cache ignore (24837exit0), không gửi
+  tài liệu ra ngoài. Embedder local1024/cosine/normalized/cpu-fp32/seq2048 đúng index.
+- scripts/prepare_langflow_rag.py chọn active AI_SERVICE và task thật qua policy/
+  job_scope, kiểm chunk/version nhìn thấy đúng profile. Lưu ignored local-test.json,
+  không ghi DB. Sáu tài liệu truy cập được; cutoff17/10/2026 21:19VN (feature_asof).
+  Scope vẫn theo task/PR revision/phòng ban/trạng thái và publication cutoff.
+- scripts/langflow_test_backend.py bật PostgreSQL RAG qua --rag hoặc saved profile;
+  auth local map RAG vào AI account thật, data/ML vào human thật, role live vẫn kiểm.
+  Chỉ mở POST retrieve-knowledge, không mở index/admin/write. Tất cả session engine
+  readonly (kể cả factory RAG), warm query embedder trước ready; SSO thường/v1 giữ.
+- langflow/connect_local_rag.py chỉ patch4field connection của tool knowledge ver2,
+  backup before/applied trong ignored local-rag-connection.json, restore có guard.
+  Đã nối8001/Credential local/JobContext thật/enabled; các flow khác hash giữ nguyên.
+  Launcher tự nối lại; connect_local_test chấp nhận3hoặc5data tools để tương thích
+  bản data đang được nâng cấp, ML vẫn4; không chạy reconnect data/ML trong lượt này.
+- Backend hiện chạy session19706 PID28032 port8001, startup ML/Qwen sẵn sàng.
+  Cố kiểm server cũ thấy port không listen nên không kill process nào. Langflow7860
+  giữ nguyên; user F5 để nhận connection. Không restart hoặc chạy Playground.
+- Unit local_backend + rag_backend + knowledge_postgres_http:23passed2.39s (gồm
+  model warm/readonly lifecycle), không dùng OpenAI. Real HTTP/SQL smoke66875exit0:
+  retrieve200,3chunk đúng supplier Phúc Lâm, nguồn core-document; thiếu token401,
+  thiếu context422, job không tồn tại404, index404/405; catalog/ML readiness200.
+  SQL trước/sau không đổi (6documents,24versions,633chunks,6idempotency).
+  Evidence đầy đủ trong ignored data/pg-rag-test-result.json; không chép text/token.
+- Cập nhật README/VER2/CHANGELOG và source packaging connector mới. Ruff check,
+  format5file và git diff --check đạt; không thay manifest dependencies. Giới hạn:
+  xác thực test local chưa
+  phải SSO/OIDC; chưa nghiệm thu hội thoại OpenAI hoặc độ chính xác tổng hợp model.
+
+## 2026-10-18 — CODE-LANGFLOW-10: Sửa Structured Response object động (hoàn tất)
+
+- User báo OpenAI400 additionalProperties ở resolved khi A2A RAG. Repo branch
+  test-langflow-no-SSO HEAD2de18f1, đầu vào sạch; không reset/commit/push/gọi OpenAI.
+- Đọc OpenAI Docs structured outputs và source lfx1.12.6: output_schema dict sinh
+  dict[str,Any]/additionalProperties=true. Agent có tools dùng prompt fallback;
+  Agent không tools dùng native with_structured_output mặc định json_schema strict.
+  Tool RAG không đăng ký khi thiếu credential/context nên lộ lỗi native này.
+- Phương án: subclass riêng3agentcon, giữ orchestration/schema/Parser/JSON công khai;
+  chỉ nhánh native OpenAI với schema chứa object động dùng function_calling,
+  strict=False qua API LangChain chuẩn, Pydantic vẫn kiểm kết quả. Không đặt false
+  vào dict rỗng làm mất resolved/ToolResult. Không retry hoặc thêm model call.
+- Thêm ver2_structured.py: StructuredServiceAgent kế thừa lớp model; json_response
+  upstream được giữ, scope chỉ bọc model native OpenAI khi không có tool. Luồng
+  agent/tool không nhận proxy. Pydantic vẫn kiểm outer types; provider không strict
+  nên không claim provider-enforced schema hoặc độ chính xác nghiệp vụ.
+- Test_ver2_structured.py6case + test model3case **9 passed1.268s**, hoàn toàn mock
+  ChatOpenAI.ainvoke hoặc chỉ serialize SDK với placeholder. Chứng minh arbitrary
+  dict có trong schema nonstrict, JSON/chunk/reference/escape roundtrip nguyên;
+  output sai bị reject, không fallback/retry, đúng1 mockedcall và reset scope.
+  Lượt đầu8test đạt5.457s; đã bổ sung case chạy json_response upstream đầy đủ.
+- repair_ver2_structured.py đã chạy exit0: vá3flowcon, backup ignored trước thay,
+  mọi preset/prompt/schema/edge/connection giữ nguyên, hash3flow ngoài phạm vi nguyên.
+  Không restart Langflow: wrapper import module lớp mới chưa có ở process trước.
+- setup_ver2.py dựng mặc định đúng subtype cho3agentcon; sinh export offline exit0,
+  đủ39node/35edge, không --install đè live. repair_ver2_model.py giữ subtype này để
+  không mất sửa structured khi sửa cấu hình model sau này. Tài liệu/changelog/sdist
+  include cập nhật; không dependency/migration/DB writes/credential/backend/SSO mới.
+- Không có tab IAB đang mở khi kiểm inventory nên không sửa UI draft. User F5 và
+  thử lại. Chưa nghiệm thu OpenAI thật, Codex vẫn hỏi trước mỗi request trả phí;
+  RAG vẫn cần tool/token/JobContext/backend thật. Không commit/push.
+- Rà cuối Ruff5file/format/diff check đạt. Source export3flowcon chỉ đổi code và
+  metadata subtype, không đổi schema/edge. Phát hiện ver2_data.py untracked xuất
+  hiện từ thao tác ngoài lượt; không tạo/sửa/xóa hoặc gộp file đó vào thay đổi này.
+
 ## 2026-10-18 — CODE-LANGFLOW-09: Khôi phục reasoning none cho Agent trung tâm
 
 - User báo ValueError guard Luna/Chat trước request. Repo hoanganhdev_features

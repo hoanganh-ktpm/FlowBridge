@@ -13,8 +13,11 @@ from lfx.components.models_and_agents.agent import AgentComponent
 from setup_ver2 import (
     ENDPOINTS,
     ROOT,
+    CoordinatedCentralAgent,
+    CoordinatedServiceAgent,
     LangflowAPI,
     OpenAICompatibleAgent,
+    StructuredServiceAgent,
     digest,
     native,
 )
@@ -45,9 +48,15 @@ def repair(origin: str) -> None:
         stock_match = code.strip() == stock_code.strip()
         if not stock_match and ("as NativeComponent" not in code or "pass" not in code):
             raise ValueError("Agent code was customized; preserve it and inspect before repairing")
+        central = flow.get("endpoint_name") == ENDPOINTS["central"]
+        coordinated = "flowbridge_agent.ver2_coordination_nodes" in code
         replacement = native(
-            OpenAICompatibleAgent,
-            "flowbridge_agent.ver2_agent",
+            (CoordinatedCentralAgent if central else CoordinatedServiceAgent)
+            if coordinated
+            else (OpenAICompatibleAgent if central else StructuredServiceAgent),
+            "flowbridge_agent.ver2_coordination_nodes"
+            if coordinated
+            else ("flowbridge_agent.ver2_agent" if central else "flowbridge_agent.ver2_structured"),
             "Agent",
             "repair",
             frontend["display_name"],

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Bật RAG Supabase/pgvector trên backend Langflow test: token local ánh xạ vào
+  AI_SERVICE và JobContext thật, giữ policy/cutoff và toàn bộ session read-only.
+  Thêm chuẩn bị profile, nối/khôi phục riêng tool RAG và tự nối lại qua launcher;
+  dùng chunk có sẵn, không import/reindex. 23 unit tests đạt; truy hồi thật200 với
+  3chunk đúng NCC, guards token/context đạt và DB không đổi. Không gọi OpenAI.
+
+- Sửa OpenAI400 additionalProperties ở Structured Response ver2 khi Agent con không
+  có tool: object động dùng function_calling không strict và Pydantic local; giữ
+  ToolResult/JSON lồng nhau, schema/prompt/preset/kết nối. Thêm repair riêng3Agent,
+  cập nhật installer/export;9 kiểm thử offline đạt, không gọi OpenAI để test.
+
 - Thêm launcher backend test riêng tại127.0.0.1:8001 cho Langflow ver2: token local,
   reuse active human/grant thật, API allowlist và PostgreSQL read-only; giữ SSO backend
   thường/v1. Nối9 node Dữ liệu/ML qua Credential riêng, backup/khôi phục connection.

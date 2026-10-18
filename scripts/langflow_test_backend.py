@@ -10,6 +10,7 @@ import json
 import secrets
 import sys
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
@@ -68,6 +69,8 @@ HEALTH_PATHS = frozenset({"/_ops/live", "/_ops/ready", "/_ops/ml/ready"})
 class LocalProfile:
     user_id: UUID
     token: str = field(repr=False)
+    ai_user_id: UUID | None = None
+    job_context: UUID | None = None
 
     def __post_init__(self) -> None:
         if len(self.token) < 32 or not self.token.isascii() or not self.token.isprintable():
@@ -78,10 +81,15 @@ class LocalProfile:
         value = json.loads(path.read_text(encoding="utf-8"))
         if value.get("version") != 1 or value.get("origin") != ORIGIN:
             raise ValueError("Invalid local test profile")
-        return cls(UUID(value["user_id"]), value["token"])
+        return cls(
+            UUID(value["user_id"]),
+            value["token"],
+            UUID(value["ai_user_id"]) if value.get("ai_user_id") else None,
+            UUID(value["job_context"]) if value.get("job_context") else None,
+        )
 
 
-def local_settings() -> Settings:
+def local_settings(*, rag: bool = False) -> Settings:
     return Settings(
         _env_file=ROOT / ".env",
         host="127.0.0.1",
@@ -90,7 +98,7 @@ def local_settings() -> Settings:
         ml_enabled=True,
         core_identity=None,
         rag_dev_enabled=False,
-        rag_postgres_enabled=False,
+        rag_postgres_enabled=rag,
         http_access_log_enabled=False,
         trusted_proxy_ips=[],
         cors_origins=[],
@@ -102,12 +110,8 @@ def check_settings(settings: Settings) -> None:
         raise ValueError("Local test requires development environment and configured database")
     if settings.host != "127.0.0.1" or settings.port != 8001:
         raise ValueError("Local test is restricted to 127.0.0.1:8001")
-    if (
-        settings.core_identity is not None
-        or settings.rag_dev_enabled
-        or settings.rag_postgres_enabled
-    ):
-        raise ValueError("Identity core and RAG are excluded from local test")
+    if settings.core_identity is not None or settings.rag_dev_enabled:
+        raise ValueError("Identity core and fixture RAG are excluded from local test")
 
 
 async def prepare_profile(settings: Settings, path: Path = PROFILE) -> LocalProfile:
@@ -186,7 +190,9 @@ async def read_only_session(request: Request) -> AsyncIterator[AsyncSession]:
             yield session
 
 
-def route_allowed(route: APIRoute) -> bool:
+def route_allowed(route: APIRoute, *, rag: bool = False) -> bool:
+    if rag and route.operation_id == "retrieveSupplierKnowledge":
+        return route.path == "/internal/v1/tools/retrieve-knowledge" and route.methods == {"POST"}
     if route.path in HEALTH_PATHS:
         return route.methods == {"GET"}
     if route.operation_id in READ_OPERATIONS:
@@ -208,16 +214,34 @@ def rejected(code: str, status: int) -> JSONResponse:
 
 def create_test_app(settings: Settings, profile: LocalProfile) -> FastAPI:
     check_settings(settings)
+    if settings.rag_postgres_enabled and not (profile.ai_user_id and profile.job_context):
+        raise ValueError("Prepare a real AI account and JobContext for local PostgreSQL RAG first")
     app = create_app(settings)
+    normal_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def read_only_lifespan(application: FastAPI):
+        async with normal_lifespan(application):
+            # Also covers PostgreSQL RAG's internal session factory, not only get_session.
+            application.state.resources.engine.update_execution_options(postgresql_readonly=True)
+            if settings.rag_postgres_enabled:
+                service = application.state.rag_postgres_service
+                # Warm the pinned local model once, before the server reports ready.
+                await service.cpu(service.embedder.query, "RAG readiness")
+            yield
+
+    app.router.lifespan_context = read_only_lifespan
     # Build the restricted router before inclusion (FastAPI may defer router expansion).
     safe_router = APIRouter()
     candidates = [*operations_router.routes, *create_database_router().routes]
     if settings.ml_enabled:
         candidates.extend(prediction_router.routes)
     safe_router.routes.extend(
-        route for route in candidates if isinstance(route, APIRoute) and route_allowed(route)
+        route
+        for route in candidates
+        if isinstance(route, APIRoute) and route_allowed(route, rag=settings.rag_postgres_enabled)
     )
-    # Drop administration, writes, internal ML persistence, RAG and documentation routes.
+    # Drop administration, writes, internal ML persistence, indexing and documentation routes.
     app.router.routes.clear()
     app.include_router(safe_router)
     if settings.ml_enabled:
@@ -225,19 +249,32 @@ def create_test_app(settings: Settings, profile: LocalProfile) -> FastAPI:
     app.dependency_overrides[get_session] = read_only_session
 
     async def local_identity(
+        request: Request,
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> VerifiedIdentity:
+        rag = request.url.path == "/internal/v1/tools/retrieve-knowledge"
+        identifier = profile.ai_user_id if rag else profile.user_id
+        account_type = "service" if rag else "human"
+        if identifier is None:
+            raise CoreError(ErrorCode.FORBIDDEN)
         async with session.begin():
-            user = await SupplierRepository(session).get("users", profile.user_id)
-            if user["status"] != "active" or user["account_type"] != "human":
+            user = await SupplierRepository(session).get("users", identifier)
+            if user["status"] != "active" or user["account_type"] != account_type:
                 raise CoreError(ErrorCode.FORBIDDEN)
-            return VerifiedIdentity(user["external_issuer"], user["external_subject"])
+            return VerifiedIdentity(
+                user["external_issuer"], user["external_subject"], account_type=account_type
+            )
 
     app.dependency_overrides[authenticated_identity] = local_identity
 
     @app.get("/_ops/local-test", include_in_schema=False)
     async def local_status() -> dict:
-        return {"status": "ready", "mode": "langflow-local-test", "read_only": True}
+        return {
+            "status": "ready",
+            "mode": "langflow-local-test",
+            "read_only": True,
+            "rag_source": "postgres" if settings.rag_postgres_enabled else "disabled",
+        }
 
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
@@ -265,9 +302,14 @@ def main() -> int:
     parser.add_argument(
         "--prepare", action="store_true", help="Prepare/reuse ignored local profile"
     )
+    parser.add_argument(
+        "--rag", action="store_true", help="Enable existing PostgreSQL RAG retrieval"
+    )
     args = parser.parse_args()
     try:
-        settings = local_settings()
+        previous = LocalProfile.load() if PROFILE.exists() else None
+        enabled_rag = args.rag or bool(previous and previous.ai_user_id and previous.job_context)
+        settings = local_settings(rag=enabled_rag)
         profile = asyncio.run(prepare_profile(settings))
     except Exception as exc:
         # Do not reflect upstream/validation values that may contain credentials.
