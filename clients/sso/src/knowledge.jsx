@@ -14,7 +14,7 @@ const date = (value) => value ? new Date(value).toLocaleString("vi-VN") : "—";
 // React escapes text. Raw HTML, scripts, images and Markdown links are never executed.
 // Asterisk headings are the same hierarchy supported by the existing RAG splitter.
 function Preview({text}) {
-  return <div className="knowledge-preview">{text.split("\n").map((line, i) => {
+  return <div className="knowledge-preview">{text.split(/\r\n|\n|\r/).map((line, i) => {
     const match = /^(#{1,3}|\*{1,3})\s+(.+)$/.exec(line);
     if (match) {const Tag = `h${Math.min(match[1].length + 1, 4)}`; return <Tag key={i}>{match[2]}</Tag>;}
     return <p key={i}>{line || "\u00a0"}</p>;
@@ -185,6 +185,23 @@ export function KnowledgeManager({api}) {
     await run(() => accept(`${base}/documents/${selected.document_id}${kind === "delete" ? "" : `/${kind}`}`,
       kind === "delete" ? "DELETE" : "POST", {expected_revision: selected.revision}));
   }
+  async function download() {
+    const revision = history?.version_no ?? selected.revision;
+    const stem = selected.filename.replace(/\.md$/i, "").replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_");
+    const filename = `${stem}${history ? `.v${revision}` : ""}.md`;
+    // Recheck ADMIN access and fetch the exact version on screen, even if a newer
+    // publication completes while the download request is in flight.
+    const source = await api(`${base}/documents/${selected.document_id}/versions/${revision}`);
+    if (source.version_no !== revision || typeof source.content_md !== "string") {
+      throw new Error("Không tải được đúng phiên bản tài liệu. Tải lại rồi thử lại.");
+    }
+    const url = URL.createObjectURL(new Blob([source.content_md], {type: "text/markdown;charset=utf-8"}));
+    const link = document.createElement("a");
+    link.href = url; link.download = filename;
+    try {document.body.append(link); link.click();}
+    finally {link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);}
+    message(`Đã tạo file ${filename} để tải xuống (phiên bản ${revision}).`);
+  }
   async function upload(file) {
     if (!file) return;
     await run(async () => {
@@ -245,6 +262,7 @@ export function KnowledgeManager({api}) {
           <p>Cập nhật: {date(selected.updated_at)} · Phạm vi: {selected.scope_type === "global" ? "Toàn hệ thống" : "Phòng ban"}</p>
           <p>Người nhận xét: {selected.metadata?.reviewer_name_snapshot ?? "—"}</p>
           {!form && <div className="toolbar">
+            <button type="button" disabled={busy || !selected.revision} onClick={() => run(download)}>Tải tài liệu</button>
             <button type="button" disabled={busy || processing || selected.index_status === "withdrawn"} onClick={() => {setForm({...selected}); setHistory(null);}}>Sửa tài liệu</button>
             <button type="button" disabled={busy || processing || !selected.revision || selected.index_status === "withdrawn"} onClick={() => command("reindex")}>Đồng bộ lại</button>
             <button type="button" disabled={busy || processing || !selected.can_delete || selected.index_status === "withdrawn"} onClick={() => command("delete")}>Xóa tài liệu</button>

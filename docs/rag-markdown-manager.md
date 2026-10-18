@@ -40,6 +40,11 @@ quản trị viên chọn nhà cung cấp, người nhận xét, mốc dữ li�
 hoặc phòng ban. Người thao tác thật được ghi riêng trong job và phiên bản.
 Không suy ra quyền ghi từ tên người nhận xét hay từ phòng ban trên giao diện.
 
+Nút **Tải tài liệu** xuất Markdown UTF-8 nguyên văn của phiên bản đang xem, giữ dấu
+sao và xuống dòng. Mỗi lần tải đọc lại đúng phiên bản qua API ADMIN hiện có; không
+xuất HTML xem trước hoặc nội dung nháp chưa lưu. Bản hiện tại giữ tên file, bản được
+chọn trong lịch sử có thêm `.v<version_no>` trước `.md` để dễ phân biệt.
+
 Sửa giữ `document_id`, tăng phiên bản. Chỉ sau khi chunk/vector được kiểm chứng trong
 cùng transaction thì bản mới có `published_at/known_from` thực tế. Không backdate.
 Không xóa vector của các phiên bản trước: chúng phục vụ truy vết và các tác vụ có

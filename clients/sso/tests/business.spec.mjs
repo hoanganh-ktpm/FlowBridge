@@ -2,6 +2,7 @@
 // FlowBridge; GNU GPL v3 or later, without warranty. See LICENSE.
 // Browser behavior with mocked HTTP/SDK; not evidence of IAM/database integration.
 import {test, expect} from "@playwright/test";
+import {readFile} from "node:fs/promises";
 
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const token = "ui-fixture-confirmation-token";
@@ -209,16 +210,18 @@ test("mobile layout fits viewport and forbidden API is shown as a failure", asyn
 
 
 // Manager tests use controlled HTTP, never Supabase credentials or real document writes.
-async function knowledgeSetup(page, {cited = false, fail = false, immediate = false, hold = false, pollFailure = false} = {}) {
+async function knowledgeSetup(page, {cited = false, fail = false, immediate = false, hold = false, pollFailure = false,
+  revision = 1, contentMd = "* Nha cung cap\n\nALPHA-ONE", previousMd = "* Lich su\n\nALPHA-ONE"} = {}) {
   const docs = new Map();
   let serial = 1, failedOnce = fail;
-  const doc = (n, body = "* Nha cung cap\n\nALPHA-ONE") => ({document_id: id(100 + n),
+  const doc = (n, body = contentMd) => ({document_id: id(100 + n),
     supplier_id: id(2), supplier_name: "Nha cung cap A", filename: "existing.md", title: "Nhan xet",
-    revision: 1, version_id: id(200 + n), content_md: body, index_status: "ready", chunk_count: 2,
+    revision, version_id: id(200 + n), content_md: body, index_status: "ready", chunk_count: 2,
     content_hash: "test", scope_type: "global", department_id: null, updated_at: "2026-10-18T00:00:00Z",
     can_delete: !cited, has_citations: cited, job: null,
     metadata: {reviewer_name_snapshot: "Nguoi nhan xet"},
-    versions: [{version_no: 1, known_from: "2026-10-18T00:00:00Z", created_by_subject: id(4)}]});
+    versions: Array.from({length: revision}, (_, i) => ({version_no: revision - i,
+      known_from: "2026-10-18T00:00:00Z", created_by_subject: id(4)}))});
   docs.set(id(101), doc(1));
   const jobs = new Map();
   const calls = await setup(page, {role: "ADMIN", handle: async (request, route) => {
@@ -231,7 +234,11 @@ async function knowledgeSetup(page, {cited = false, fail = false, immediate = fa
       {...supplier, supplier_id: id(23), supplier_code: "NCC-C", supplier_name: "Nha cung cap C"}],
       reviewers: [{user_id: id(4), display_name: "Nguoi nhan xet"}], departments: []};
     else if (path === root + "/documents" && request.method() === "GET") result = {items: [...docs.values()]};
-    else if (path.includes("/versions/")) result = {version_no: 1, content_md: "* Lich su\n\nALPHA-ONE"};
+    else if (path.includes("/versions/")) {
+      const requested = Number(path.split("/").at(-1));
+      const current = docs.get(path.split("/")[5]);
+      result = {version_no: requested, content_md: requested === current.revision ? current.content_md : previousMd};
+    }
     else if (path.includes("/jobs/") && request.method() === "GET") {
       const j = jobs.get(path.split("/").at(-1));
       if (pollFailure) {pollFailure = false; await route.abort("failed"); return true;}
@@ -413,4 +420,44 @@ test("retrying a failed queued job keeps another document's unsaved draft", asyn
   await expect(manager.getByLabel("Tên file", {exact: true})).toHaveValue("second.md");
   await expect(queue).toContainText("Đã đồng bộ");
   await expect(manager.getByLabel("Nội dung Markdown", {exact: true})).toHaveValue("* Ban nhap\n\nKEEP-MY-DRAFT");
+});
+
+test("Markdown downloads preserve UTF-8, asterisk headings and the exact selected version", async ({page}) => {
+  const contentMd = "* Đánh giá NCC-02\r\n\r\n** Tiến độ\r\nĐã nhận đủ 20 cuộn.\r\n\r\n*** Nhận xét\r\nGiữ nguyên **quy cách**.\r\n";
+  const previousMd = "* Đánh giá NCC-02\n\n** Tiến độ\nCòn chờ 5 cuộn.\n";
+  const calls = await knowledgeSetup(page, {revision: 2, contentMd, previousMd});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager.getByRole("heading", {name: "Đánh giá NCC-02", exact: true})).toBeVisible();
+  let pending = page.waitForEvent("download");
+  await manager.getByRole("button", {name: "Tải tài liệu", exact: true}).click();
+  let file = await pending;
+  expect(file.suggestedFilename()).toBe("existing.md");
+  expect(await readFile(await file.path(), "utf8")).toBe(contentMd);
+  await page.screenshot({path: test.info().outputPath("download-ui.png"), fullPage: true});
+
+  await manager.getByLabel("Lịch sử phiên bản").selectOption("1");
+  await expect(manager.locator(".knowledge-preview")).toContainText("Còn chờ 5 cuộn.");
+  pending = page.waitForEvent("download");
+  await manager.getByRole("button", {name: "Tải tài liệu", exact: true}).click();
+  file = await pending;
+  expect(file.suggestedFilename()).toBe("existing.v1.md");
+  expect(await readFile(await file.path(), "utf8")).toBe(previousMd);
+  const historyCalls = calls.filter((r) => r.url().endsWith("/versions/1"));
+  expect(historyCalls).toHaveLength(2); // Viewing and downloading each check access.
+  expect(historyCalls.every((r) => r.headers().authorization === "Bearer ui-test-access-token")).toBe(true);
+  expect(calls.every((r) => r.method() === "GET")).toBe(true);
+});
+
+test("download rechecks access after the document was opened and denies a revoked admin", async ({page}) => {
+  await knowledgeSetup(page);
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  let downloads = 0;
+  page.on("download", () => downloads++);
+  await page.route(`https://api.example.test/api/admin/knowledge/documents/${id(101)}/versions/1`,
+    (route) => route.fulfill({status: 403, json: {code: "FORBIDDEN"}}));
+  await manager.getByRole("button", {name: "Tải tài liệu", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("không có quyền");
+  expect(downloads).toBe(0);
 });
