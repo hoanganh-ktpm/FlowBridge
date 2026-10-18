@@ -209,7 +209,7 @@ test("mobile layout fits viewport and forbidden API is shown as a failure", asyn
 
 
 // Manager tests use controlled HTTP, never Supabase credentials or real document writes.
-async function knowledgeSetup(page, {cited = false, fail = false, immediate = false} = {}) {
+async function knowledgeSetup(page, {cited = false, fail = false, immediate = false, hold = false, pollFailure = false} = {}) {
   const docs = new Map();
   let serial = 1, failedOnce = fail;
   const doc = (n, body = "* Nha cung cap\n\nALPHA-ONE") => ({document_id: id(100 + n),
@@ -226,19 +226,26 @@ async function knowledgeSetup(page, {cited = false, fail = false, immediate = fa
     if (!path.startsWith("/api/admin/knowledge")) return false;
     const root = "/api/admin/knowledge";
     let result;
-    if (path === root + "/options") result = {suppliers: [supplier], reviewers: [{user_id: id(4), display_name: "Nguoi nhan xet"}], departments: []};
+    if (path === root + "/options") result = {suppliers: [supplier,
+      {...supplier, supplier_id: id(22), supplier_code: "NCC-B", supplier_name: "Nha cung cap B"},
+      {...supplier, supplier_id: id(23), supplier_code: "NCC-C", supplier_name: "Nha cung cap C"}],
+      reviewers: [{user_id: id(4), display_name: "Nguoi nhan xet"}], departments: []};
     else if (path === root + "/documents" && request.method() === "GET") result = {items: [...docs.values()]};
     else if (path.includes("/versions/")) result = {version_no: 1, content_md: "* Lich su\n\nALPHA-ONE"};
     else if (path.includes("/jobs/") && request.method() === "GET") {
       const j = jobs.get(path.split("/").at(-1));
-      if (j.fail) {result = {...j, status: "failed", stage: "failed", error_code: "MODEL_UNAVAILABLE"}; docs.get(j.document_id).job = result;}
+      if (pollFailure) {pollFailure = false; await route.abort("failed"); return true;}
+      if (j.status === "ready" || j.status === "failed") result = j;
+      else if (j.hold) result = j;
+      else if (j.fail) {result = {...j, status: "failed", stage: "failed", error_code: "MODEL_UNAVAILABLE"}; Object.assign(docs.get(j.document_id), {job: result, index_status: "failed"}); jobs.set(j.job_id, result);}
       else {
         const current = docs.get(j.document_id);
         const count = current.chunk_count;
         if (j.kind === "delete") docs.delete(j.document_id);
-        else {current.job = null;}
+        else {current.job = null; current.index_status = "ready";}
         if (j.payload) Object.assign(current, j.payload, {revision: current.revision + 1, index_status: "ready", chunk_count: 3, job: null});
-        result = {...j, status: "ready", stage: "complete", result: {old_chunk_count: count, new_chunk_count: j.kind === "delete" ? 0 : 3, revision: current.revision}};
+        result = {...j, status: "ready", stage: "complete", result: {old_chunk_count: count, new_chunk_count: j.kind === "delete" ? 0 : current.chunk_count, revision: current.revision}};
+        jobs.set(j.job_id, result);
       }
     } else if (request.method() !== "GET") {
       const data = request.postDataJSON() ?? {};
@@ -246,17 +253,20 @@ async function knowledgeSetup(page, {cited = false, fail = false, immediate = fa
       let kind = request.method() === "DELETE" ? "delete" : path.endsWith("reindex") ? "reindex" : "publish";
       if (path.endsWith("retry")) {const previous = jobs.get(path.split("/").at(-2)); documentId = previous.document_id; kind = "reindex";}
       if (request.method() === "POST" && path === root + "/documents") {
-        documentId = id(101 + serial++); docs.set(documentId, {...doc(serial), document_id: documentId, revision: 0, ...data});
+        documentId = id(101 + serial++); docs.set(documentId, {...doc(serial), document_id: documentId, revision: 0, chunk_count: 0, versions: [], ...data});
       }
-      result = {job_id: id(300 + serial++), document_id: documentId, kind, status: "pending", stage: "pending", payload: kind === "publish" ? data : null, fail: failedOnce};
+      result = {job_id: id(300 + serial++), document_id: documentId, kind, status: "pending", stage: "pending", payload: kind === "publish" ? data : null, fail: failedOnce, hold};
       if (immediate) result = {...result, status: "ready", stage: "complete", result: {old_chunk_count: 2, new_chunk_count: 2, revision: 1}};
-      failedOnce = false; jobs.set(result.job_id, result); docs.get(documentId).job = result;
+      failedOnce = false; jobs.set(result.job_id, result); Object.assign(docs.get(documentId), {job: result, index_status: result.status});
     } else result = docs.get(path.split("/").at(-1));
+    if (path === root + "/options") result.suppliers = result.suppliers.map((s) => ({...s,
+      has_document: [...docs.values()].some((d) => d.supplier_id === s.supplier_id)}));
     await route.fulfill({json: result}); return true;
   }});
   await page.getByRole("button", {name: "Tài liệu RAG", exact: true}).click();
   await expect(page.locator("#knowledge-manager")).toBeVisible();
   await expect(page.getByRole("button", {name: "existing.md", exact: true})).toBeVisible();
+  calls.releaseJobs = () => {for (const j of jobs.values()) j.hold = false;};
   return calls;
 }
 
@@ -297,7 +307,7 @@ test("admin creates Markdown and resumes a failed indexing job", async ({page}) 
   await manager.getByRole("button", {name: "Thêm tài liệu", exact: true}).click();
   await manager.getByLabel("Tên file", {exact: true}).fill("new.md");
   await manager.getByLabel("Tiêu đề", {exact: true}).fill("Nhan xet moi");
-  await manager.getByLabel("Nhà cung cấp", {exact: true}).selectOption(id(2));
+  await manager.getByLabel("Nhà cung cấp", {exact: true}).selectOption(id(22));
   await manager.getByLabel("Người nhận xét", {exact: true}).selectOption(id(4));
   await manager.getByLabel("Nội dung Markdown", {exact: true}).fill("* Moi\n\nVERSION-C");
   await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG"}).click();
@@ -326,4 +336,81 @@ test("admin handles an already completed idempotent response without waiting for
   await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
   await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
   await expect(manager.getByRole("button", {name: "Đồng bộ lại", exact: true})).toBeEnabled();
+});
+
+async function newKnowledgeDraft(manager, filename = "second.md", supplierId = id(22)) {
+  await manager.getByRole("button", {name: "Thêm tài liệu", exact: true}).click();
+  await manager.getByLabel("Tên file", {exact: true}).fill(filename);
+  await manager.getByLabel("Tiêu đề", {exact: true}).fill("Nhan xet dang soan");
+  await manager.getByLabel("Nhà cung cấp", {exact: true}).selectOption(supplierId);
+  await manager.getByLabel("Người nhận xét", {exact: true}).selectOption(id(4));
+  await manager.getByLabel("Nội dung Markdown", {exact: true}).fill("* Ban nhap\n\nKEEP-MY-DRAFT");
+}
+
+test("independent documents queue without locking uploads and resume tracking after reload", async ({page}) => {
+  const calls = await knowledgeSetup(page, {hold: true});
+  const manager = page.locator("#knowledge-manager");
+  const queue = manager.getByRole("region", {name: "Hàng đợi đồng bộ RAG"});
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(queue).toContainText("existing.md");
+  await expect(manager.getByRole("button", {name: "Sửa tài liệu", exact: true})).toBeDisabled();
+  await newKnowledgeDraft(manager);
+  await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG", exact: true}).click();
+  await expect(queue).toContainText("second.md");
+  await expect(manager.getByRole("button", {name: "Thêm tài liệu", exact: true})).toBeEnabled();
+  expect(calls.filter((r) => r.method() === "POST" && r.url().endsWith("/knowledge/documents"))).toHaveLength(1);
+  await page.reload();
+  await expect(queue).toContainText("existing.md");
+  await expect(queue).toContainText("second.md");
+  await expect(queue).toContainText("2 đang chờ");
+  await newKnowledgeDraft(manager, "third.md", id(23));
+  calls.releaseJobs();
+  await expect(queue.getByRole("listitem").filter({hasText: "existing.md"})).toContainText("Đã đồng bộ");
+  await expect(queue.getByRole("listitem").filter({hasText: "second.md"})).toContainText("Đã đồng bộ");
+  await expect(manager.getByLabel("Tên file", {exact: true})).toHaveValue("third.md");
+  await expect(manager.getByLabel("Nội dung Markdown", {exact: true})).toHaveValue("* Ban nhap\n\nKEEP-MY-DRAFT");
+});
+
+test("another job completing preserves an open editor and preview", async ({page}) => {
+  const calls = await knowledgeSetup(page, {hold: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await newKnowledgeDraft(manager);
+  await manager.getByRole("button", {name: "Xem trước an toàn", exact: true}).click();
+  await expect(manager.locator(".knowledge-preview")).toContainText("KEEP-MY-DRAFT");
+  await page.screenshot({path: test.info().outputPath("queue-ui.png"), fullPage: true});
+  calls.releaseJobs();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  await expect(manager.getByLabel("Tiêu đề", {exact: true})).toHaveValue("Nhan xet dang soan");
+  await expect(manager.locator(".knowledge-preview")).toContainText("KEEP-MY-DRAFT");
+  await expect(manager.getByRole("button", {name: "Lưu & Đồng bộ RAG", exact: true})).toBeEnabled();
+});
+
+test("temporary polling failure keeps the durable job tracked and automatically recovers", async ({page}) => {
+  const calls = await knowledgeSetup(page, {hold: true, pollFailure: true});
+  const manager = page.locator("#knowledge-manager");
+  const queue = manager.getByRole("region", {name: "Hàng đợi đồng bộ RAG"});
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(queue).toContainText("sẽ tự thử lại");
+  await expect(manager.getByRole("button", {name: "Thêm tài liệu", exact: true})).toBeEnabled();
+  calls.releaseJobs();
+  await expect(queue).toContainText("Đã đồng bộ");
+  await expect(queue).not.toContainText("sẽ tự thử lại");
+});
+
+test("retrying a failed queued job keeps another document's unsaved draft", async ({page}) => {
+  await knowledgeSetup(page, {fail: true});
+  const manager = page.locator("#knowledge-manager");
+  const queue = manager.getByRole("region", {name: "Hàng đợi đồng bộ RAG"});
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(queue).toContainText("Đồng bộ lỗi");
+  await newKnowledgeDraft(manager);
+  await queue.getByRole("button", {name: "Thử lại existing.md", exact: true}).click();
+  await expect(manager.getByLabel("Tên file", {exact: true})).toHaveValue("second.md");
+  await expect(queue).toContainText("Đã đồng bộ");
+  await expect(manager.getByLabel("Nội dung Markdown", {exact: true})).toHaveValue("* Ban nhap\n\nKEEP-MY-DRAFT");
 });

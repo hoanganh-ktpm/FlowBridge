@@ -37,4 +37,8 @@ nav { display: flex; flex-wrap: wrap; gap: 6px; }
 .knowledge-content textarea { width: 100%; box-sizing: border-box; font-family: monospace; }
 .knowledge-preview { overflow-wrap: anywhere; white-space: pre-wrap; border: 1px solid #ddd; padding: 1rem; max-height: 70vh; overflow: auto; }
 #knowledge-message[data-error="true"] { color: #a31a1a; }
+.knowledge-queue { margin: 16px 0; padding: 12px 16px; border: 1px solid #d5dadd; border-radius: 4px; background: #f4f7f8; overflow-wrap: anywhere; }
+.knowledge-queue h3 { margin-top: 0; }
+.knowledge-queue ul { max-height: 260px; overflow: auto; padding-left: 22px; }
+.knowledge-queue li { padding: 5px 0; }
 @media (max-width: 760px) { .knowledge-layout { grid-template-columns: 1fr; } .knowledge-layout aside { border-right: 0; } }

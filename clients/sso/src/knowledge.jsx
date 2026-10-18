@@ -28,7 +28,7 @@ export function KnowledgeManager({api}) {
   const [form, setForm] = useState(null);
   const [preview, setPreview] = useState(false);
   const [history, setHistory] = useState(null);
-  const [job, setJob] = useState(null);
+  const [jobs, setJobs] = useState({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState(false);
@@ -36,7 +36,27 @@ export function KnowledgeManager({api}) {
   const [filter, setFilter] = useState("");
   const alive = useRef(true);
   const gate = useRef(false);
+  const jobsRef = useRef({});
+  const viewRef = useRef({selected: null, form: null});
+  const navigation = useRef(0);
+  const refreshSerial = useRef(0);
+  viewRef.current = {selected, form};
   function message(text, failed = false) {setNotice(text); setError(failed);}
+  function track(entries, fromList = false) {
+    const next = {...jobsRef.current};
+    for (const entry of entries) {
+      if (!entry?.job_id) continue;
+      const previous = next[entry.job_id];
+      // The poller handles completion notifications and refreshes the open document.
+      if (fromList && active(previous) && !active(entry)) continue;
+      // An older list/detail response must not put a completed job back in the queue.
+      if (previous && !active(previous) && active(entry)) continue;
+      if (previous?.updated_at && entry.updated_at && previous.updated_at > entry.updated_at) continue;
+      next[entry.job_id] = {...previous, ...entry, poll_error: entry.poll_error ?? ""};
+    }
+    jobsRef.current = next;
+    setJobs(next);
+  }
   async function run(work) {
     if (gate.current) return;
     gate.current = true; setBusy(true);
@@ -45,67 +65,107 @@ export function KnowledgeManager({api}) {
     finally {gate.current = false; if (alive.current) setBusy(false);}
   }
   async function refresh() {
+    const serial = ++refreshSerial.current;
     const [result, opts] = await Promise.all([api(`${base}/documents`), api(`${base}/options`)]);
-    if (alive.current) {setItems(result.items); setOptions(opts);}
+    if (alive.current && serial === refreshSerial.current) {
+      setItems(result.items); setOptions(opts);
+      track(result.items.filter((d) => d.job).map((d) => ({...d.job, filename: d.filename})), true);
+    }
   }
   async function open(id) {
+    const serial = ++navigation.current;
     const result = await api(`${base}/documents/${id}`);
-    if (!alive.current) return;
+    if (!alive.current || serial !== navigation.current) return;
     setSelected(result); setForm(null); setHistory(null); setPreview(false);
-    setJob(active(result.job) ? result.job : null);
+    if (result.job) track([{...result.job, filename: result.filename}]);
   }
-  async function settled(next) {
+  function settled(next) {
     if (next.status === "ready") {
       const r = next.result;
-      message(`Hoàn tất: ${r.old_chunk_count} → ${r.new_chunk_count} đoạn. ` +
+      message(`Hoàn tất ${next.filename ?? "tài liệu"}: ${r.old_chunk_count} → ${r.new_chunk_count} đoạn. ` +
         (next.kind === "delete" ? "Đã xóa tài liệu và các phiên bản/vector." :
           next.kind === "withdraw" ? "Đã ngừng sử dụng tài liệu." : `Phiên bản ${r.revision}.`));
-      setForm(null); setHistory(null); setJob(null);
-      if (next.kind === "delete") setSelected(null);
-      else await open(next.document_id);
     } else {
-      message(`Đồng bộ lỗi (${next.error_code}). Bản đã xuất bản được giữ nguyên. Có thể thử lại.`, true);
-      await open(next.document_id);
+      message(`Đồng bộ lỗi ${next.filename ?? "tài liệu"} (${next.error_code}). Bản đã xuất bản được giữ nguyên. Có thể thử lại.`, true);
     }
-    await refresh();
+  }
+  async function reconcile(completed = []) {
+    const serial = navigation.current;
+    const current = viewRef.current;
+    const changed = completed.find((j) => j.document_id === current.selected?.document_id);
+    if (changed && !current.form) {
+      if (changed.status === "ready" && changed.kind === "delete") {
+        setSelected(null); setHistory(null);
+      } else {
+        try {
+          const detail = await api(`${base}/documents/${changed.document_id}`);
+          if (alive.current && serial === navigation.current && !viewRef.current.form) {
+            setSelected(detail); setHistory(null);
+          }
+        } catch (e) {
+          if (alive.current) message(`${e.message} Bấm Tải lại tài liệu để cập nhật.`, true);
+        }
+      }
+    }
+    try {await refresh();}
+    catch (e) {
+      if (alive.current) message(`${e.message} Tác vụ đã được lưu; bấm Tải lại tài liệu để cập nhật.`, true);
+    }
   }
   useEffect(() => {
     alive.current = true;
     run(async () => {
-      const [list, opts] = await Promise.all([api(`${base}/documents`), api(`${base}/options`)]);
-      if (alive.current) {setItems(list.items); setOptions(opts); message("Đã tải tài liệu từ PostgreSQL.");}
+      await refresh();
+      if (alive.current) message("Đã tải tài liệu từ PostgreSQL.");
     });
     return () => {alive.current = false;};
   }, []);
 
   useEffect(() => {
-    if (!active(job)) return;
     let disposed = false;
-    const timer = setTimeout(async () => {
-      try {
-        const next = await api(`${base}/jobs/${job.job_id}`);
+    let timer;
+    async function poll() {
+      const pending = Object.values(jobsRef.current).filter(active);
+      if (pending.length) {
+        const results = await Promise.allSettled(pending.map(async (j) => ({
+          ...await api(`${base}/jobs/${j.job_id}`), filename: j.filename,
+        })));
         if (disposed || !alive.current) return;
-        setJob(next);
-        if (!active(next)) await settled(next);
-      } catch (e) {
-        if (!disposed) {message(`${e.message} Bấm Tải lại để xem trạng thái tác vụ đã lưu.`, true); setJob(null);}
+        const completed = [];
+        const updates = results.map((result, i) => {
+          if (result.status === "rejected") return {...pending[i], poll_error: "Chưa lấy được trạng thái; sẽ tự thử lại."};
+          if (!active(result.value)) completed.push(result.value);
+          return result.value;
+        });
+        track(updates);
+        for (const next of completed) settled(next);
+        if (completed.length) await reconcile(completed);
       }
-    }, 1800);
+      if (!disposed) timer = setTimeout(poll, 1800);
+    }
+    timer = setTimeout(poll, 1800);
     return () => {disposed = true; clearTimeout(timer);};
-  }, [job]);
+  }, [api]);
 
-  const processing = active(job);
-  async function accept(path, method, body) {
-    const result = await api(path, {method, body});
+  const queued = Object.values(jobs).sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  const processing = selected && queued.some((j) => j.document_id === selected.document_id && active(j));
+  async function accept(path, method, body, filename = form?.filename ?? selected?.filename, preserveEditor = false) {
+    const result = {...await api(path, {method, body}), filename};
+    if (!alive.current) return;
     if (result.status === "unchanged") {
       message("Không có thay đổi nội dung; không tạo thêm embedding.");
       setForm(null); await open(result.document_id); await refresh(); return;
     }
-    if (!active(result)) {await settled(result); return;}
-    setJob(result);
-    setSelected((current) => current ? {...current, index_status: result.status, job: result} : null);
-    await refresh();
-    message("Đã tiếp nhận. Chỉ hiện Đã đồng bộ khi dữ liệu và vector được xác minh.");
+    track([result]);
+    if (!preserveEditor) {setForm(null); setPreview(false); setHistory(null);}
+    setSelected((current) => current?.document_id === result.document_id ? {...current, index_status: result.status, job: result} : current);
+    if (body?.supplier_id) setOptions((current) => ({...current,
+      suppliers: current.suppliers.map((s) => s.supplier_id === body.supplier_id ? {...s, has_document: true} : s)}));
+    if (active(result)) message(`Đã đưa ${filename ?? "tài liệu"} vào hàng đợi. Bạn có thể thêm tài liệu khác ngay.`);
+    else settled(result);
+    // Refresh independently: accepting a queued operation must not wait for indexing
+    // or replace another document's editor when an older job finishes.
+    void reconcile(active(result) ? [] : [result]);
   }
   async function save(e) {
     e.preventDefault();
@@ -138,15 +198,34 @@ export function KnowledgeManager({api}) {
   const bind = (name) => ({value: form?.[name] ?? "", onChange: (e) => setForm({...form, [name]: e.target.value})});
   const visible = items.filter((d) => `${d.filename} ${d.title} ${d.supplier_name}`.toLocaleLowerCase("vi")
     .includes(search.toLocaleLowerCase("vi")) && (!filter || d.index_status === filter));
-  return <section id="knowledge-manager" aria-labelledby="knowledge-title" aria-busy={busy || processing}>
+  return <section id="knowledge-manager" aria-labelledby="knowledge-title" aria-busy={busy}>
     <h2 id="knowledge-title">Quản lý tài liệu RAG</h2>
     <p>Mỗi nhà cung cấp có một tài liệu. Sửa tạo phiên bản mới; các tác vụ phân tích cũ giữ mốc dữ liệu ban đầu.</p>
     <p id="knowledge-message" role="status" aria-live="polite" data-error={error}>{notice}</p>
     <div className="toolbar">
-      <button type="button" disabled={busy || processing} onClick={() => {setSelected(null); setForm(empty()); setHistory(null); setJob(null);}}>Thêm tài liệu</button>
-      <button type="button" disabled={busy || processing} onClick={() => run(async () => {await refresh(); if (selected) await open(selected.document_id);})}>Tải lại tài liệu</button>
+      <button type="button" disabled={busy} onClick={() => {navigation.current++; setSelected(null); setForm(empty()); setHistory(null); setPreview(false);}}>Thêm tài liệu</button>
+      <button type="button" disabled={busy} onClick={() => run(async () => {await refresh(); if (selected && !form) await open(selected.document_id);})}>Tải lại tài liệu</button>
     </div>
-    {active(job) && <p role="status">{stages[job.stage] ?? labels[job.status]}… Có thể đóng trang; tác vụ được lưu trên server.</p>}
+    {queued.length > 0 && <section aria-label="Hàng đợi đồng bộ RAG" className="knowledge-queue">
+      <h3>Hàng đợi đồng bộ RAG</h3>
+      <p>{queued.filter((j) => j.status === "pending").length} đang chờ · {queued.filter((j) => j.status === "processing").length} đang xử lý.
+        {" "}Bạn có thể thêm tài liệu khác hoặc đóng trang; tác vụ vẫn được lưu trên server.</p>
+      <ul>{queued.map((j) => <li key={j.job_id}>
+        <strong>{j.filename ?? "Tài liệu"}</strong>{" · "}
+        {active(j) ? (stages[j.stage] ?? labels[j.status]) : j.status === "ready" && j.kind === "delete" ? "Đã xóa" :
+          j.status === "ready" && j.kind === "withdraw" ? "Đã ngừng sử dụng" : labels[j.status]}
+        {j.status === "ready" && j.kind !== "delete" && j.kind !== "withdraw" && j.result &&
+          <span> · Phiên bản {j.result.revision} · {j.result.new_chunk_count} đoạn</span>}
+        {j.poll_error && <span role="status"> · {j.poll_error}</span>}
+        {j.status === "failed" && <>
+          <span> · {j.error_code}. Bản đã xuất bản được giữ nguyên.</span>{" "}
+          <button type="button" disabled={busy || (form && selected?.document_id === j.document_id) ||
+            queued.some((other) => other.document_id === j.document_id && active(other))}
+            onClick={() => run(() => accept(`${base}/jobs/${j.job_id}/retry`, "POST", undefined, j.filename, true))}>
+            Thử lại {j.filename ?? "tài liệu"}</button>
+        </>}
+      </li>)}</ul>
+    </section>}
     <div className="knowledge-layout">
       <aside aria-label="Danh sách tài liệu">
         <label>Tìm tài liệu<input value={search} onChange={(e) => setSearch(e.target.value)}/></label>
@@ -154,7 +233,7 @@ export function KnowledgeManager({api}) {
           <option value="">Tất cả</option>{Object.entries(labels).map(([k, v]) => <option value={k} key={k}>{v}</option>)}
         </select></label>
         <ul>{visible.map((d) => <li key={d.document_id}>
-          <button type="button" disabled={busy || processing} aria-pressed={selected?.document_id === d.document_id}
+          <button type="button" disabled={busy} aria-pressed={selected?.document_id === d.document_id}
             onClick={() => run(() => open(d.document_id))}>{d.filename}</button>
           <small>{d.supplier_name} · {labels[d.index_status]} · {d.chunk_count} đoạn</small>
         </li>)}</ul>{!visible.length && <p>Không có tài liệu phù hợp.</p>}
@@ -172,7 +251,7 @@ export function KnowledgeManager({api}) {
             {selected.has_citations && <button type="button" disabled={busy || processing || selected.index_status === "withdrawn"} onClick={() => command("withdraw")}>Ngừng sử dụng</button>}
           </div>}
           {selected.has_citations && <p>Tài liệu đã được báo cáo trích dẫn nên không thể xóa vĩnh viễn.</p>}
-          {selected.job?.status === "failed" && <button type="button" disabled={busy || processing}
+          {selected.job?.status === "failed" && <button type="button" disabled={busy || processing || !!form}
             onClick={() => run(() => accept(`${base}/jobs/${selected.job.job_id}/retry`, "POST"))}>Thử lại tác vụ lỗi</button>}
           {!form && <label>Lịch sử phiên bản<select value={history?.version_no ?? ""} disabled={busy || processing}
             onChange={(e) => {const v = e.target.value; if (!v) setHistory(null); else run(async () => setHistory(await api(`${base}/documents/${selected.document_id}/versions/${v}`)));}}>
@@ -198,7 +277,8 @@ export function KnowledgeManager({api}) {
                 {options.departments.map((d) => <option key={d.department_id} value={d.department_id}>{d.department_name}</option>)}
               </select></label>
             </>}
-            <label>Nội dung Markdown<textarea rows={18} required maxLength={2097152} {...bind("content_md")}/></label>
+            <label htmlFor="knowledge-content-md">Nội dung Markdown</label>
+            <textarea id="knowledge-content-md" rows={18} required maxLength={2097152} {...bind("content_md")}/>
             <button type="button" onClick={() => setPreview(!preview)}>{preview ? "Ẩn xem trước" : "Xem trước an toàn"}</button>
             {preview && <Preview text={form.content_md}/>}
             <div className="toolbar"><button type="submit">Lưu &amp; Đồng bộ RAG</button>

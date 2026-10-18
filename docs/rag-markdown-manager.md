@@ -28,6 +28,13 @@ BackgroundTasks hoặc state trên browser làm hàng đợi. Khởi động bac
 được bật là đủ để xử lý tác vụ tồn đọng; không cần chạy script ingest thủ công.
 Retry lỗi được yêu cầu rõ ràng; không lặp vô hạn khi model/config sai.
 
+Sau khi API tiếp nhận, giao diện đóng form đã gửi và cho thêm tài liệu khác ngay.
+Khung **Hàng đợi đồng bộ RAG** theo dõi riêng các tác vụ chờ, đang xử lý, hoàn tất
+và lỗi. Worker hiện xử lý lần lượt; chỉ khóa sửa/xóa/đồng bộ tiếp trên đúng tài liệu
+đang có tác vụ. Tác vụ hoàn tất không đóng hoặc ghi đè form tài liệu khác đang soạn.
+Reload trang sẽ lấy lại tác vụ từ DB; lỗi đọc trạng thái tạm thời được tự thử lại,
+không tự gửi lại thao tác ghi và không tự chạy lại một tác vụ đồng bộ đã thất bại.
+
 Mỗi nhà cung cấp có một tài liệu đang dùng theo unique index Core hiện có. Khi tạo,
 quản trị viên chọn nhà cung cấp, người nhận xét, mốc dữ liệu và phạm vi toàn hệ thống
 hoặc phòng ban. Người thao tác thật được ghi riêng trong job và phiên bản.
