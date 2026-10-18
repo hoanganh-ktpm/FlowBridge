@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "run_id": "example-run",
+  "answer": "Ví dụ hợp đồng, số liệu minh họa; không phải kết quả truy vấn hệ thống.",
+  "datasets": [
+    {
+      "id": "dataset_1",
+      "title": "Báo giá nhà cung cấp",
+      "columns": [
+        {
+          "field": "product_id",
+          "label": "Mã định danh sản phẩm",
+          "type": "string",
+          "unit": null,
+          "nullable": true
+        },
+        {
+          "field": "supplier_id",
+          "label": "Mã định danh nhà cung cấp",
+          "type": "string",
+          "unit": null,
+          "nullable": true
+        },
+        {
+          "field": "supplier_name",
+          "label": "Nhà cung cấp",
+          "type": "string",
+          "unit": null,
+          "nullable": true
+        },
+        {
+          "field": "unit",
+          "label": "Đơn vị",
+          "type": "string",
+          "unit": null,
+          "nullable": true
+        },
+        {
+          "field": "currency",
+          "label": "Tiền tệ",
+          "type": "string",
+          "unit": null,
+          "nullable": true
+        },
+        {
+          "field": "current_unit_price",
+          "label": "Đơn giá",
+          "type": "decimal",
+          "unit": "VND/cuộn",
+          "nullable": true
+        }
+      ],
+      "rows": [
+        {
+          "product_id": "91fcd2be-acf6-5b51-948f-b3a7f537ed55",
+          "supplier_id": "00000002-0002-4002-8002-000000000002",
+          "supplier_name": "Nhà cung cấp A",
+          "unit": "cuộn",
+          "currency": "VND",
+          "current_unit_price": "25000.0000"
+        },
+        {
+          "product_id": "91fcd2be-acf6-5b51-948f-b3a7f537ed55",
+          "supplier_id": "00000002-0002-4002-8002-000000000003",
+          "supplier_name": "Nhà cung cấp B",
+          "unit": "cuộn",
+          "currency": "VND",
+          "current_unit_price": "27000.0000"
+        }
+      ],
+      "context": {
+        "product_id": "91fcd2be-acf6-5b51-948f-b3a7f537ed55",
+        "unit": "cuộn",
+        "currency": "VND",
+        "period_from": null,
+        "period_to": null,
+        "as_of": null,
+        "complete": true,
+        "metric_definition": null,
+        "count_unit": null,
+        "denominator_definition": null
+      },
+      "source_ids": [
+        "source_1"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "id": "table_dataset_1",
+      "title": "Báo giá nhà cung cấp",
+      "dataset_id": "dataset_1",
+      "fields": [
+        "product_id",
+        "supplier_id",
+        "supplier_name",
+        "unit",
+        "currency",
+        "current_unit_price"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "chart_dataset_1_current_unit_price",
+      "title": "So sánh đơn giá",
+      "dataset_id": "dataset_1",
+      "type": "bar",
+      "orientation": "vertical",
+      "stacking": "none",
+      "x_field": "supplier_name",
+      "x_label": "Nhà cung cấp",
+      "y_label": "So sánh đơn giá",
+      "y_unit": "VND/cuộn",
+      "series": [
+        {
+          "field": "current_unit_price",
+          "label": "So sánh đơn giá"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "source_1",
+      "kind": "tool",
+      "tool": "catalog_read_offers",
+      "document_id": null,
+      "document_version": null,
+      "chunk_id": null,
+      "source_uri": null,
+      "checksum": null
+    }
+  ],
+  "warnings": [
+    {
+      "code": "QUOTE_NOT_STOCK",
+      "message": "Báo giá không xác nhận lượng tồn kho thực tế.",
+      "dataset_id": "dataset_1"
+    }
+  ],
+  "questions": [],
+  "error": null
+}
