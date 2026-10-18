@@ -4128,6 +4128,509 @@
           "display_name": "A2A · Dữ liệu",
           "description": "Hỏi agent Dữ liệu để duyệt danh mục, tự xác định sản phẩm/NCC bằng tên,\nmã hoặc mô tả ngắn; đọc báo giá/MOQ/lead time, PR/PO. Không yêu cầu người dùng biết UUID.\ntask=resolve_entities: gửi known.product và known.supplier bằng tên/mã, resolve cả hai\ntrong một tool. task=list_catalog: known.resource=products/suppliers, query tùy chọn,\npage/page_size. task=offers: gửi product, supplier tùy chọn, tool tự resolve và đọc giá.\ntask=request/order: known.identifier là mã đầy đủ/một phần, từ khóa ghi chú/ngày/trạng\nthái hoặc UUID; null để lấy lựa chọn trong phạm vi quyền. Nếu đã đủ UUID ML bỏ tra cứu.\ninput_value phải là chuỗi JSON {task,question,business_date,known,evidence}; giữ nguyên\nđiều kiện và những UUID đã xác minh. Output JSON {service,status,resolved,results,missing,\nquestions,warnings}; resolved có product_id/supplier_id/order_id khi xác minh được;\nresults chứa ToolResult; chép data.resolved của tool vào resolved, không bỏ UUID khi\nđã có mã. Ambiguous: đưa các lựa chọn bằng mã/tên/quy cách. Không trả điểm ML."
         }
+      },
+      {
+        "id": "A2AProtocolAdapter-ver2-prediction-database",
+        "type": "genericNode",
+        "position": {
+          "x": 0,
+          "y": 1600
+        },
+        "data": {
+          "id": "A2AProtocolAdapter-ver2-prediction-database",
+          "type": "A2AProtocolAdapter",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "source_tools": {
+                "trace_as_metadata": true,
+                "list": true,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "source_tools",
+                "value": "",
+                "display_name": "A2A hiện có",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Tool"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "caller_service": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "central",
+                  "prediction",
+                  "knowledge"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "caller_service",
+                "value": "prediction",
+                "display_name": "Bên gọi",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver2_protocol_nodes import A2AProtocolAdapter as NativeComponent\n\n\nclass A2AProtocolAdapter(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "target_service": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "database",
+                  "prediction",
+                  "knowledge"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "target_service",
+                "value": "database",
+                "display_name": "Bên nhận",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              }
+            },
+            "description": "Chuẩn hóa task/JSON, giữ chứng cứ bằng runtime và đóng nhánh Data đã xong; không gọi model.",
+            "icon": "Braces",
+            "base_classes": [
+              "Tool"
+            ],
+            "display_name": "Chuẩn hóa A2A · prediction → database",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Tool"
+                ],
+                "selected": "Tool",
+                "name": "tools",
+                "display_name": "Công cụ đã chuẩn hóa",
+                "method": "build_tools",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "source_tools",
+              "caller_service",
+              "target_service"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.chun_ha_giao_tip_a2a",
+              "code_hash": "e13c4aef8fda",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "Chuẩn hóa giao tiếp A2A",
+          "description": "Chuẩn hóa task/JSON, giữ chứng cứ bằng runtime và đóng nhánh Data đã xong; không gọi model."
+        }
+      },
+      {
+        "id": "A2AReplyEnvelope-ver2-prediction",
+        "type": "genericNode",
+        "position": {
+          "x": 0,
+          "y": 2020
+        },
+        "data": {
+          "id": "A2AReplyEnvelope-ver2-prediction",
+          "type": "A2AReplyEnvelope",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Phản hồi từ Parser cũ",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message",
+                  "Data"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver2_protocol_nodes import A2AReplyEnvelope as NativeComponent\n\n\nclass A2AReplyEnvelope(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "service": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "database",
+                  "prediction",
+                  "knowledge"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "service",
+                "value": "prediction",
+                "display_name": "Service",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              }
+            },
+            "description": "Bỏ khung JSON, kiểm schema/service/handoff, giữ nguyên lỗi và chứng cứ; không gọi model.",
+            "icon": "ShieldCheck",
+            "base_classes": [
+              "JSON"
+            ],
+            "display_name": "Kiểm tra JSON trả về A2A",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "envelope",
+                "display_name": "JSON đã kiểm tra",
+                "method": "validate_reply",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_value",
+              "service"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.kim_tra_json_tr_v_a2a",
+              "code_hash": "ed7da94eabc5",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "Kiểm tra JSON trả về A2A",
+          "description": "Bỏ khung JSON, kiểm schema/service/handoff, giữ nguyên lỗi và chứng cứ; không gọi model."
+        }
+      },
+      {
+        "id": "TypeConverterComponent-v2-protocol-prediction",
+        "type": "genericNode",
+        "position": {
+          "x": 460,
+          "y": 2020
+        },
+        "data": {
+          "id": "TypeConverterComponent-v2-protocol-prediction",
+          "type": "TypeConverterComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_data": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_data",
+                "value": "",
+                "display_name": "Input",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message",
+                  "Data",
+                  "JSON",
+                  "DataFrame",
+                  "Table"
+                ],
+                "dynamic": false,
+                "info": "Accept Message, JSON or Table as input",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "auto_parse": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "auto_parse",
+                "value": false,
+                "display_name": "Auto Parse",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Detect and convert JSON/CSV strings automatically.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\nfrom lfx.components.processing.converter import TypeConverterComponent as NativeComponent\nclass TypeConverterComponent(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "output_type": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Message",
+                  "JSON",
+                  "Table"
+                ],
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "output_type",
+                "value": "Message",
+                "display_name": "Output Type",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Select the desired output data type",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "tab",
+                "_input_type": "TabInput"
+              }
+            },
+            "description": "Convert between different types (Message, JSON, Table)",
+            "icon": "repeat",
+            "base_classes": [
+              "JSON",
+              "Message",
+              "Table"
+            ],
+            "display_name": "Type Convert · JSON A2A → Message",
+            "documentation": "https://docs.langflow.org/type-convert",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Message"
+                ],
+                "selected": "Message",
+                "name": "message_output",
+                "display_name": "Message Output",
+                "method": "convert_to_message",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              },
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "data_output",
+                "display_name": "JSON Output",
+                "method": "convert_to_data",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              },
+              {
+                "types": [
+                  "Table"
+                ],
+                "selected": "Table",
+                "name": "dataframe_output",
+                "display_name": "Table Output",
+                "method": "convert_to_dataframe",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_data",
+              "auto_parse",
+              "output_type"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.type_convert",
+              "code_hash": "46cd0c50ba22",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "lfx",
+                    "version": "1.12.6"
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "Type Convert · JSON A2A → Message",
+          "description": "Convert between different types (Message, JSON, Table)"
+        }
       }
     ],
     "edges": [
@@ -4344,17 +4847,43 @@
         }
       },
       {
-        "id": "A2AAgent-v2-prediction-database-component_as_tool-Agent-v2-prediction-tools",
+        "id": "A2AAgent-v2-prediction-database-component_as_tool-A2AProtocolAdapter-ver2-prediction-database-source_tools",
         "source": "A2AAgent-v2-prediction-database",
-        "target": "Agent-v2-prediction",
+        "target": "A2AProtocolAdapter-ver2-prediction-database",
         "animated": false,
         "sourceHandle": "{œdataTypeœ:œA2AAgentœ,œidœ:œA2AAgent-v2-prediction-databaseœ,œnameœ:œcomponent_as_toolœ,œoutput_typesœ:[œToolœ]}",
-        "targetHandle": "{œidœ:œAgent-v2-predictionœ,œfieldNameœ:œtoolsœ,œinputTypesœ:[œToolœ],œtypeœ:œotherœ}",
+        "targetHandle": "{œidœ:œA2AProtocolAdapter-ver2-prediction-databaseœ,œfieldNameœ:œsource_toolsœ,œinputTypesœ:[œToolœ],œtypeœ:œotherœ}",
         "data": {
           "sourceHandle": {
             "dataType": "A2AAgent",
             "id": "A2AAgent-v2-prediction-database",
             "name": "component_as_tool",
+            "output_types": [
+              "Tool"
+            ]
+          },
+          "targetHandle": {
+            "id": "A2AProtocolAdapter-ver2-prediction-database",
+            "fieldName": "source_tools",
+            "inputTypes": [
+              "Tool"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "A2AProtocolAdapter-ver2-prediction-database-tools-Agent-v2-prediction-tools",
+        "source": "A2AProtocolAdapter-ver2-prediction-database",
+        "target": "Agent-v2-prediction",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œA2AProtocolAdapterœ,œidœ:œA2AProtocolAdapter-ver2-prediction-databaseœ,œnameœ:œtoolsœ,œoutput_typesœ:[œToolœ]}",
+        "targetHandle": "{œidœ:œAgent-v2-predictionœ,œfieldNameœ:œtoolsœ,œinputTypesœ:[œToolœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "A2AProtocolAdapter",
+            "id": "A2AProtocolAdapter-ver2-prediction-database",
+            "name": "tools",
             "output_types": [
               "Tool"
             ]
@@ -4370,17 +4899,74 @@
         }
       },
       {
-        "id": "Parser-v2-prediction-parsed_text-ChatOutput-v2-prediction-input_value",
+        "id": "Parser-v2-prediction-parsed_text-A2AReplyEnvelope-ver2-prediction-input_value",
         "source": "Parser-v2-prediction",
-        "target": "ChatOutput-v2-prediction",
+        "target": "A2AReplyEnvelope-ver2-prediction",
         "animated": false,
         "sourceHandle": "{œdataTypeœ:œParserœ,œidœ:œParser-v2-predictionœ,œnameœ:œparsed_textœ,œoutput_typesœ:[œMessageœ]}",
-        "targetHandle": "{œidœ:œChatOutput-v2-predictionœ,œfieldNameœ:œinput_valueœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "targetHandle": "{œidœ:œA2AReplyEnvelope-ver2-predictionœ,œfieldNameœ:œinput_valueœ,œinputTypesœ:[œMessageœ,œDataœ],œtypeœ:œotherœ}",
         "data": {
           "sourceHandle": {
             "dataType": "Parser",
             "id": "Parser-v2-prediction",
             "name": "parsed_text",
+            "output_types": [
+              "Message"
+            ]
+          },
+          "targetHandle": {
+            "id": "A2AReplyEnvelope-ver2-prediction",
+            "fieldName": "input_value",
+            "inputTypes": [
+              "Message",
+              "Data"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "A2AReplyEnvelope-ver2-prediction-envelope-TypeConverterComponent-v2-protocol-prediction-input_data",
+        "source": "A2AReplyEnvelope-ver2-prediction",
+        "target": "TypeConverterComponent-v2-protocol-prediction",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œA2AReplyEnvelopeœ,œidœ:œA2AReplyEnvelope-ver2-predictionœ,œnameœ:œenvelopeœ,œoutput_typesœ:[œJSONœ]}",
+        "targetHandle": "{œidœ:œTypeConverterComponent-v2-protocol-predictionœ,œfieldNameœ:œinput_dataœ,œinputTypesœ:[œMessageœ,œDataœ,œJSONœ,œDataFrameœ,œTableœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "A2AReplyEnvelope",
+            "id": "A2AReplyEnvelope-ver2-prediction",
+            "name": "envelope",
+            "output_types": [
+              "JSON"
+            ]
+          },
+          "targetHandle": {
+            "id": "TypeConverterComponent-v2-protocol-prediction",
+            "fieldName": "input_data",
+            "inputTypes": [
+              "Message",
+              "Data",
+              "JSON",
+              "DataFrame",
+              "Table"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "TypeConverterComponent-v2-protocol-prediction-message_output-ChatOutput-v2-prediction-input_value",
+        "source": "TypeConverterComponent-v2-protocol-prediction",
+        "target": "ChatOutput-v2-prediction",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œTypeConverterComponentœ,œidœ:œTypeConverterComponent-v2-protocol-predictionœ,œnameœ:œmessage_outputœ,œoutput_typesœ:[œMessageœ]}",
+        "targetHandle": "{œidœ:œChatOutput-v2-predictionœ,œfieldNameœ:œinput_valueœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "TypeConverterComponent",
+            "id": "TypeConverterComponent-v2-protocol-prediction",
+            "name": "message_output",
             "output_types": [
               "Message"
             ]

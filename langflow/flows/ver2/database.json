@@ -3707,6 +3707,339 @@
           "display_name": "Dữ liệu · Tìm và đọc đơn đặt hàng (PO)",
           "description": "Tìm PO theo mã đầy đủ/một phần hoặc ngày/trạng thái; identifier=null để xem lựa chọn. Chỉ đọc phạm vi người dùng có quyền. Nhiều khớp trả items và questions để chọn; một khớp đọc chi tiết purchase_order_id, po_number, items, schedules. Không cần UUID. Tra mô tả không có trong danh sách: hỏi mã/ngày để thu hẹp, không khẳng định không có đơn. Không tạo/sửa đơn và không tự dự đoán."
         }
+      },
+      {
+        "id": "A2AReplyEnvelope-ver2-database",
+        "type": "genericNode",
+        "position": {
+          "x": 0,
+          "y": 2020
+        },
+        "data": {
+          "id": "A2AReplyEnvelope-ver2-database",
+          "type": "A2AReplyEnvelope",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_value",
+                "value": "",
+                "display_name": "Phản hồi từ Parser cũ",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message",
+                  "Data"
+                ],
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\n\nfrom flowbridge_agent.ver2_protocol_nodes import A2AReplyEnvelope as NativeComponent\n\n\nclass A2AReplyEnvelope(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "service": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "database",
+                  "prediction",
+                  "knowledge"
+                ],
+                "options_metadata": [],
+                "combobox": false,
+                "dialog_inputs": {},
+                "toggle": false,
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "service",
+                "value": "database",
+                "display_name": "Service",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "external_options": {},
+                "type": "str",
+                "_input_type": "DropdownInput"
+              }
+            },
+            "description": "Bỏ khung JSON, kiểm schema/service/handoff, giữ nguyên lỗi và chứng cứ; không gọi model.",
+            "icon": "ShieldCheck",
+            "base_classes": [
+              "JSON"
+            ],
+            "display_name": "Kiểm tra JSON trả về A2A",
+            "documentation": "",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "envelope",
+                "display_name": "JSON đã kiểm tra",
+                "method": "validate_reply",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_value",
+              "service"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.kim_tra_json_tr_v_a2a",
+              "code_hash": "ed7da94eabc5",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "flowbridge_agent",
+                    "version": null
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "Kiểm tra JSON trả về A2A",
+          "description": "Bỏ khung JSON, kiểm schema/service/handoff, giữ nguyên lỗi và chứng cứ; không gọi model."
+        }
+      },
+      {
+        "id": "TypeConverterComponent-v2-protocol-database",
+        "type": "genericNode",
+        "position": {
+          "x": 460,
+          "y": 2020
+        },
+        "data": {
+          "id": "TypeConverterComponent-v2-protocol-database",
+          "type": "TypeConverterComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_data": {
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": true,
+                "placeholder": "",
+                "show": true,
+                "name": "input_data",
+                "value": "",
+                "display_name": "Input",
+                "advanced": false,
+                "api_editable": false,
+                "input_types": [
+                  "Message",
+                  "Data",
+                  "JSON",
+                  "DataFrame",
+                  "Table"
+                ],
+                "dynamic": false,
+                "info": "Accept Message, JSON or Table as input",
+                "title_case": false,
+                "track_in_telemetry": false,
+                "type": "other",
+                "_input_type": "HandleInput"
+              },
+              "auto_parse": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "list": false,
+                "list_add_label": "Add More",
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "auto_parse",
+                "value": false,
+                "display_name": "Auto Parse",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Detect and convert JSON/CSV strings automatically.",
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "bool",
+                "_input_type": "BoolInput"
+              },
+              "code": {
+                "type": "code",
+                "required": true,
+                "placeholder": "",
+                "list": false,
+                "show": true,
+                "multiline": true,
+                "value": "# SPDX-License-Identifier: GPL-3.0-or-later\n# FlowBridge; see LICENSE.\nfrom lfx.components.processing.converter import TypeConverterComponent as NativeComponent\nclass TypeConverterComponent(NativeComponent):\n    pass\n",
+                "fileTypes": [],
+                "file_path": "",
+                "password": false,
+                "name": "code",
+                "advanced": true,
+                "api_editable": false,
+                "dynamic": true,
+                "info": "",
+                "load_from_db": false,
+                "title_case": false
+              },
+              "output_type": {
+                "tool_mode": false,
+                "trace_as_metadata": true,
+                "options": [
+                  "Message",
+                  "JSON",
+                  "Table"
+                ],
+                "override_skip": false,
+                "required": false,
+                "placeholder": "",
+                "show": true,
+                "name": "output_type",
+                "value": "Message",
+                "display_name": "Output Type",
+                "advanced": false,
+                "api_editable": false,
+                "dynamic": false,
+                "info": "Select the desired output data type",
+                "real_time_refresh": true,
+                "title_case": false,
+                "track_in_telemetry": true,
+                "type": "tab",
+                "_input_type": "TabInput"
+              }
+            },
+            "description": "Convert between different types (Message, JSON, Table)",
+            "icon": "repeat",
+            "base_classes": [
+              "JSON",
+              "Message",
+              "Table"
+            ],
+            "display_name": "Type Convert · JSON A2A → Message",
+            "documentation": "https://docs.langflow.org/type-convert",
+            "minimized": false,
+            "custom_fields": {},
+            "output_types": [],
+            "pinned": false,
+            "conditional_paths": [],
+            "frozen": false,
+            "outputs": [
+              {
+                "types": [
+                  "Message"
+                ],
+                "selected": "Message",
+                "name": "message_output",
+                "display_name": "Message Output",
+                "method": "convert_to_message",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              },
+              {
+                "types": [
+                  "JSON"
+                ],
+                "selected": "JSON",
+                "name": "data_output",
+                "display_name": "JSON Output",
+                "method": "convert_to_data",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              },
+              {
+                "types": [
+                  "Table"
+                ],
+                "selected": "Table",
+                "name": "dataframe_output",
+                "display_name": "Table Output",
+                "method": "convert_to_dataframe",
+                "value": "__UNDEFINED__",
+                "cache": true,
+                "allows_loop": false,
+                "group_outputs": false,
+                "tool_mode": true
+              }
+            ],
+            "field_order": [
+              "input_data",
+              "auto_parse",
+              "output_type"
+            ],
+            "beta": false,
+            "legacy": false,
+            "edited": false,
+            "metadata": {
+              "module": "custom_components.type_convert",
+              "code_hash": "46cd0c50ba22",
+              "dependencies": {
+                "total_dependencies": 1,
+                "dependencies": [
+                  {
+                    "name": "lfx",
+                    "version": "1.12.6"
+                  }
+                ]
+              }
+            },
+            "tool_mode": false
+          },
+          "display_name": "Type Convert · JSON A2A → Message",
+          "description": "Convert between different types (Message, JSON, Table)"
+        }
       }
     ],
     "edges": [
@@ -3949,17 +4282,74 @@
         }
       },
       {
-        "id": "Parser-v2-database-parsed_text-ChatOutput-v2-database-input_value",
+        "id": "Parser-v2-database-parsed_text-A2AReplyEnvelope-ver2-database-input_value",
         "source": "Parser-v2-database",
-        "target": "ChatOutput-v2-database",
+        "target": "A2AReplyEnvelope-ver2-database",
         "animated": false,
         "sourceHandle": "{œdataTypeœ:œParserœ,œidœ:œParser-v2-databaseœ,œnameœ:œparsed_textœ,œoutput_typesœ:[œMessageœ]}",
-        "targetHandle": "{œidœ:œChatOutput-v2-databaseœ,œfieldNameœ:œinput_valueœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "targetHandle": "{œidœ:œA2AReplyEnvelope-ver2-databaseœ,œfieldNameœ:œinput_valueœ,œinputTypesœ:[œMessageœ,œDataœ],œtypeœ:œotherœ}",
         "data": {
           "sourceHandle": {
             "dataType": "Parser",
             "id": "Parser-v2-database",
             "name": "parsed_text",
+            "output_types": [
+              "Message"
+            ]
+          },
+          "targetHandle": {
+            "id": "A2AReplyEnvelope-ver2-database",
+            "fieldName": "input_value",
+            "inputTypes": [
+              "Message",
+              "Data"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "A2AReplyEnvelope-ver2-database-envelope-TypeConverterComponent-v2-protocol-database-input_data",
+        "source": "A2AReplyEnvelope-ver2-database",
+        "target": "TypeConverterComponent-v2-protocol-database",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œA2AReplyEnvelopeœ,œidœ:œA2AReplyEnvelope-ver2-databaseœ,œnameœ:œenvelopeœ,œoutput_typesœ:[œJSONœ]}",
+        "targetHandle": "{œidœ:œTypeConverterComponent-v2-protocol-databaseœ,œfieldNameœ:œinput_dataœ,œinputTypesœ:[œMessageœ,œDataœ,œJSONœ,œDataFrameœ,œTableœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "A2AReplyEnvelope",
+            "id": "A2AReplyEnvelope-ver2-database",
+            "name": "envelope",
+            "output_types": [
+              "JSON"
+            ]
+          },
+          "targetHandle": {
+            "id": "TypeConverterComponent-v2-protocol-database",
+            "fieldName": "input_data",
+            "inputTypes": [
+              "Message",
+              "Data",
+              "JSON",
+              "DataFrame",
+              "Table"
+            ],
+            "type": "other"
+          }
+        }
+      },
+      {
+        "id": "TypeConverterComponent-v2-protocol-database-message_output-ChatOutput-v2-database-input_value",
+        "source": "TypeConverterComponent-v2-protocol-database",
+        "target": "ChatOutput-v2-database",
+        "animated": false,
+        "sourceHandle": "{œdataTypeœ:œTypeConverterComponentœ,œidœ:œTypeConverterComponent-v2-protocol-databaseœ,œnameœ:œmessage_outputœ,œoutput_typesœ:[œMessageœ]}",
+        "targetHandle": "{œidœ:œChatOutput-v2-databaseœ,œfieldNameœ:œinput_valueœ,œinputTypesœ:[œDataœ,œJSONœ,œDataFrameœ,œTableœ,œMessageœ],œtypeœ:œotherœ}",
+        "data": {
+          "sourceHandle": {
+            "dataType": "TypeConverterComponent",
+            "id": "TypeConverterComponent-v2-protocol-database",
+            "name": "message_output",
             "output_types": [
               "Message"
             ]

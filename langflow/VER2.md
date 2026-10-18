@@ -92,6 +92,13 @@ dependency Langflow. Middleware và context theo lần chạy bổ sung các b�
   Mới tra được UUID mà chưa gọi API ML/RAG không được coi là hoàn thành nhiệm vụ.
 - Nhập nhằng/thiếu quy cách: giữ danh sách lựa chọn/câu hỏi từ Dữ liệu và trả về trung
   tâm. UUID thiếu nhưng có tên/mã phải tự resolve, không yêu cầu UUID từ người dùng.
+- Thiếu quantity/ngày nhận trong rank_suppliers hoặc score_supplier: middleware
+  chặn trước khi chạy ML. Chưa xác minh sản phẩm thì trả needs_service để trung tâm
+  tra Dữ liệu; đã có receipt đúng sản phẩm thì needs_input, giữ tên/mã và hỏi phần
+  còn thiếu. Không dùng receipt của sản phẩm khác hoặc cache phản hồi thiếu đầu vào.
+- Lỗi chạy agent trả SERVICE_EXECUTION_FAILED; reply sai định dạng trả
+  INVALID_SERVICE_REPLY, sai service giữ SERVICE_MISMATCH. Các lỗi này có trace,
+  status=error và không chứng minh backend ML ngừng hoạt động; không lộ exception text.
 - `handoffs=[{service,task,reason}]`, status=needs_service cho dependency cần trung tâm
   điều phối tiếp; trung tâm chỉ làm việc cần cho yêu cầu gốc, trong ngân sách còn lại.
   Không cần gửi các thông báo trung gian ra chat người dùng.

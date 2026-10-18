@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Khoanh sửa dependency định danh ML→Data ở ver2: tách câu hỏi con khỏi mục tiêu
+  tư vấn NCC; chỉ xác nhận lookup hoàn tất bằng receipt thật khi lỗi duy nhất là
+  handoff ngoài phạm vi. Giữ các lỗi/quyền/nhập nhằng và các nhánh khác; user tự test.
+
+- Thêm 11 node xử lý giao tiếp ver2, chỉ nối lại dây và giữ nguyên mọi node cũ:
+  adapter A2A chuẩn hóa task, gắn receipt thật và đóng dependency đã xong; kiểm
+  reply + Type Convert native. Không thêm model định dạng hoặc nới ngân sách.
+
+- Sửa ver2 gọi ML khi thiếu lượng/ngày: runtime yêu cầu tra sản phẩm hoặc hỏi bổ sung
+  trước khi xếp hạng. Tách lỗi chạy agent và lỗi reply, giữ trace và mã lỗi cụ thể;
+  không diễn giải thiếu đầu vào/lỗi A2A thành backend ML ngừng hoạt động.
+
 - Sửa định danh RuntimeA2A ver3: tên/ID riêng và source khớp component đăng ký,
   tránh editor nhận nhầm thành A2AAgent native làm mất route. Controller nhận ba
   dịch vụ qua ba cổng riêng, bỏ tìm tên/metadata trong list tool chung; repair giữ cấu hình và

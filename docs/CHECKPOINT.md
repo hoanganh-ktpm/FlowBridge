@@ -1,5 +1,62 @@
 # Checkpoint FlowBridge
 
+## 2026-10-18 — CODE-LANGFLOW-17: Khoanh lỗi handoff ngoài nhiệm vụ resolve của ML
+
+- User yêu cầu xử lý lỗi triệt để trong phạm vi hẹp rồi dặn không kiểm thử, user
+  tự test. Không chạy pytest, model, workflow hoặc API nghiệp vụ trong lần sửa này.
+- Thêm ver2_entity_dependency.py; adapter chỉ gọi helper khi prediction rank/score
+  nhờ database resolve_entities. Thu hẹp question/known vào selector định danh;
+  điều kiện quantity/date/pricing nằm nguyên ở request ML cha.
+- Reply lỗi duy nhất INVALID_DEPENDENCY chỉ được xác nhận hoàn thành khi mọi
+  receipt là catalog_resolve_entities thật, thuộc run hiện tại, trả success,
+  không truncated/missing/questions/warnings; từng entity có đúng1item, UUID,
+  mã/tên/đơn vị khớp resolved và selector. Score cần cả product+supplier. Warning
+  cũ chuyển vào trace/audit; các lỗi khác hoặc thiếu proof giữ nguyên.
+- Không sửa finish_reply/middleware chung, không bỏ kiểm handoff toàn ver2; không
+  đổi config/graph/model/key/preset/giới hạn hoặc các nhánh Data trực tiếp, offers,
+  danh mục, PR/PO, RAG, stored_result. Không commit/push. Không nghiệm thu hành vi
+  model thật; user tự kiểm tra sau khi Langflow nạp lại runtime.
+- Đã khởi động lại Langflow để nạp helper; log ignored
+  ver2-entity-fix-20261018-204201. Không PATCH metadata/graph, không gọi endpoint
+  health hoặc chạy kiểm thử theo yêu cầu user.
+
+## 2026-10-18 — CODE-LANGFLOW-16: Thêm node chuẩn hóa A2A ver2, giữ node cũ
+
+- User yêu cầu phân tích lỗi DEMO-P03 và chỉ thêm node/nối dây, cực ưu tiên native.
+  Read trace959fed03: Data resolve thành công; ML gọi Data với task rank_suppliers/
+  offers và evidence bị model chép sai. Không gọi prediction_rank_suppliers;
+  tổng4A2A/12model, cảnh báo INVALID_HANDOFF_REQUEST/INVALID_DEPENDENCY/output invalid.
+- Chỉ thêm runtime/component mới: 5A2AProtocolAdapter bọc Tool cũ, giữ request cha,
+  task đúng vai trò, evidence lấy từ receipt runtime theo đối tượng; thu gọn reply
+  thành công cho model. action động ngừng đưa Data vào Tools sau dependency.
+  Thêm3ReplyEnvelope +3Type Convert native ở output; reuse Parser cũ. Không sửa
+  source/runtime/metadata/prompt/model/key/preset/position của bất kỳ node cũ nào.
+- Installer có backup, concurrency check, rollback, kiểm toàn object từng node cũ,
+  hash flow ngoài ver2. Đã áp dụng11node vào4flow, export cập nhật cùng phép thêm.
+  Backup ignored data/ver2-before-protocol-nodes-20261018-195338, preservation.json
+  ghi hash node cũ. Lần apply đầu405 do thiếu PATCH đã rollback trước khi áp dụng lại.
+- 54tests coordination/protocol offline đạt7.81s, gồm native create_agent/A2A giả lập
+  Data→ML API và không hiện Data ở model call sau. 4graph from_payload/topological
+  đạt, không chạy workflow thật/model/OpenAI/API nghiệp vụ. Thiết kế và giới hạn ở
+  langflow/VER2-PROTOCOL.md. Không commit/push hoặc sửa ver3.
+- Đã restart Langflow, startup/version1.12.6 đạt; đọc lại4flow xác nhận38node cũ
+  nguyên object và11node mới có đủ dây. Log ignored ver2-protocol-20261018-195544.
+
+## 2026-10-18 — CODE-LANGFLOW-15: Chặn ML thiếu đầu vào ở ver2
+
+- User yêu cầu sửa gọn ca băng keo thiếu lượng/ngày gọi rank_suppliers rồi báo
+  SERVICE_CALL_FAILED. Thêm preflight trong CoordinationMiddleware trước handler:
+  cần tra sản phẩm thì needs_service/database.resolve_entities; có receipt đúng sản
+  phẩm thì needs_input. Không gọi ML, dùng nhầm receipt hoặc cache trạng thái thiếu.
+- Tách lỗi execution/reply, giữ SERVICE_MISMATCH và mã budget đã biết, thêm trace;
+  lỗi nội bộ trả error thay vì khẳng định backend unavailable. Không lộ provider text.
+- Bổ sung prompt trong source/export và flow trung tâm đang lưu, giữ nguyên mọi
+  field khác và hash các flow khác. Backup ignored
+  data/ver2-before-preflight-20261018-193348.json. Restart Langflow để nạp runtime;
+  log ignored ver2-preflight-20261018-193414. Không đổi cấu hình giới hạn lượt.
+- 40 kiểm thử coordination offline đạt (13.84s), Ruff đạt; không chạy hội thoại,
+  workflow thật hoặc OpenAI. Không sửa ver3, dependency, credential; không commit/push.
+
 ## 2026-10-18 — CODE-LANGFLOW-14: Tách cổng controller theo dịch vụ (đã áp dụng, user tự test)
 
 - User vẫn báo lỗi cũ; giữ yêu cầu chỉ sửa, user tự test. Không chạy hội thoại,
