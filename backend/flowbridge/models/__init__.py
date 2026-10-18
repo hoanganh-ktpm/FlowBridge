@@ -6,6 +6,7 @@
 
 from flowbridge.models.api_idempotency import ApiIdempotency
 from flowbridge.models.base import Base
+from flowbridge.models.chat import ChatSession, ChatTurn
 from flowbridge.models.supplier_assistant import (
     AnalysisSupplierCandidate,
     AnalysisTask,
@@ -37,6 +38,8 @@ from flowbridge.models.supplier_assistant import (
 )
 
 __all__ = [
+    "ChatSession",
+    "ChatTurn",
     "ApiIdempotency",
     "Base",
     "AnalysisSupplierCandidate",

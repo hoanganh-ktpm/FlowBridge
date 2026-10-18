@@ -96,6 +96,50 @@ class Settings(BaseSettings):
     oidc_admin_client_secret: SecretStr | None = None
     cors_origins: list[str] = Field(default_factory=list)
     core_identity: IdentityBinding | None = None
+    chat_enabled: bool = False
+    langflow_url: str = "http://127.0.0.1:7860"
+    langflow_flow_id: str = Field(default="flowbridge-ver2-central", pattern=r"^[A-Za-z0-9_-]+$")
+    langflow_api_key: SecretStr | None = None
+    langflow_bridge_secret: SecretStr | None = None
+    langflow_timeout_seconds: float = Field(default=180, gt=0, le=600)
+    langflow_ai_client_id: str | None = None
+    langflow_ai_client_secret: SecretStr | None = None
+
+    @field_validator("langflow_url")
+    @classmethod
+    def validate_langflow_url(cls, value: str) -> str:
+        parts = urlsplit(value)
+        if (
+            parts.scheme not in {"http", "https"}
+            or not parts.hostname
+            or parts.username
+            or parts.password
+            or parts.path not in {"", "/"}
+            or parts.query
+            or parts.fragment
+        ):
+            raise ValueError("langflow_url must be a fixed HTTP origin")
+        return value.rstrip("/")
+
+    def validate_chat(self) -> Self:
+        if self.chat_enabled and not all(
+            (
+                self.database_url,
+                self.oidc_issuer,
+                self.oidc_audience,
+                self.oidc_introspection_url,
+                self.oidc_client_id,
+                self.oidc_client_secret,
+                self.langflow_api_key,
+                self.langflow_bridge_secret,
+            )
+        ):
+            raise ValueError("chat requires database, OIDC, Langflow API key and bridge secret")
+        if self.langflow_bridge_secret and len(self.langflow_bridge_secret.get_secret_value()) < 32:
+            raise ValueError("langflow_bridge_secret must contain at least 32 characters")
+        if bool(self.langflow_ai_client_id) != bool(self.langflow_ai_client_secret):
+            raise ValueError("Configure both Langflow AI client credentials or neither")
+        return self
 
     @field_validator("trusted_proxy_ips")
     @classmethod
@@ -263,4 +307,4 @@ class Settings(BaseSettings):
             raise ValueError("database_url is required in production")
         if self.ml_enabled and self.database_url is None:
             raise ValueError("ml_enabled requires the application database")
-        return self
+        return self.validate_chat()

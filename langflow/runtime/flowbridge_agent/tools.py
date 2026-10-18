@@ -107,7 +107,11 @@ def failure(code: str, *, http_status: int | None = None) -> dict:
 class BackendTools:
     # A toolset instance/cache belongs to one graph build, never a global user cache.
     def __init__(self, config: BackendConfig, transport: httpx.AsyncBaseTransport | None = None):
+        from flowbridge_agent.caller import CALLER
+
         self.config = config
+        caller = CALLER.get()
+        self.caller_execution = caller.execution_id if caller else None
         self.transport = transport
         self.cache: dict[str, dict] = {}
         self.ranked_scores: dict[tuple[str, str, str, str], dict] = {}
@@ -122,14 +126,26 @@ class BackendTools:
         params: dict | None = None,
         knowledge: bool = False,
     ) -> dict:
-        token = self.config.ai_token if knowledge else self.config.user_token
+        from flowbridge_agent.caller import CALLER, observe
+
+        caller = CALLER.get()
+        # A cached graph/tool must never carry a previous caller's results into a new run.
+        if (caller.execution_id if caller else None) != self.caller_execution:
+            return failure("TOOL_CONTEXT_EXPIRED")
+        token = (
+            (caller.ai_token if knowledge else caller.user_token)
+            if caller
+            else (self.config.ai_token if knowledge else self.config.user_token)
+        )
+        origin = caller.api_origin if caller else self.config.origin
+        job_context = caller.job_context if caller else self.config.job_context
         if not token:
             return failure("BACKEND_CREDENTIALS_MISSING")
         headers = {"Authorization": "Bearer " + token}
         if knowledge:
-            if not self.config.job_context:
+            if not job_context:
                 return failure("JOB_CONTEXT_REQUIRED")
-            headers["X-Job-Context"] = self.config.job_context
+            headers["X-Job-Context"] = job_context
             headers["Idempotency-Key"] = (
                 "rag-" + hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
             )
@@ -142,17 +158,20 @@ class BackendTools:
             ) as http:
                 response = await http.request(
                     method,
-                    self.config.origin.rstrip("/") + path,
+                    origin.rstrip("/") + path,
                     headers=headers,
                     json=body,
                     params=params,
                 )
             if not response.is_success:
                 # Never reflect arbitrary upstream text, request data or credentials.
-                return failure("BACKEND_REQUEST_FAILED", http_status=response.status_code)
+                result = failure("BACKEND_REQUEST_FAILED", http_status=response.status_code)
+                observe(path, result)
+                return result
             value = response.json()
             if not isinstance(value, dict):
                 return failure("INVALID_BACKEND_RESPONSE")
+            observe(path, value)
             return value
         except httpx.TimeoutException:
             return failure("BACKEND_TIMEOUT")
@@ -249,6 +268,11 @@ class BackendTools:
         return await self.request("GET", path + "/" + identifier)
 
     async def execute(self, name: str, values: dict) -> dict:
+        from flowbridge_agent.caller import CALLER
+
+        caller = CALLER.get()
+        if (caller.execution_id if caller else None) != self.caller_execution:
+            return failure("TOOL_CONTEXT_EXPIRED")
         try:
             args = validate_arguments(name, values)
         except (KeyError, ValidationError, ValueError):
@@ -343,11 +367,13 @@ TOOL_SPECS: dict[str, tuple[type[BaseModel], str, str]] = {
 
 
 def build_tools(group: str, client: BackendTools) -> list[BaseTool]:
+    from flowbridge_agent.caller import knowledge_available
+
     tools = []
     for name, (_schema, category, description) in TOOL_SPECS.items():
         if category != group:
             continue
-        if category == "knowledge" and not (client.config.ai_token and client.config.job_context):
+        if category == "knowledge" and not knowledge_available(client.config):
             continue
 
         tools.append(configured_tool(name, client, name=name, description=description, values={}))

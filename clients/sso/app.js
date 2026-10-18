@@ -11,6 +11,21 @@ const keycloak = new Keycloak({
   clientId: config.clientId,
 });
 const element = (id) => document.getElementById(id);
+const chatReturnKey = "flowbridge.chat.return";
+const validChatId = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value ?? "");
+function saveChatLocation() {
+  const identifier = new URL(location.href).searchParams.get("chat_session");
+  if (validChatId(identifier)) sessionStorage.setItem(chatReturnKey, identifier);
+}
+function restoreChatLocation() {
+  const identifier = sessionStorage.getItem(chatReturnKey);
+  sessionStorage.removeItem(chatReturnKey);
+  if (validChatId(identifier)) {
+    const url = new URL(location.href);
+    url.searchParams.set("chat_session", identifier);
+    history.replaceState(null, "", url);
+  }
+}
 element("client").textContent = `Ứng dụng ${config.client}`;
 function render() {
   element("status").textContent = keycloak.authenticated ? "Đã đăng nhập" : "Chưa đăng nhập";
@@ -25,9 +40,16 @@ async function action(work) {
   render();
 }
 await action(async () => {
-  await keycloak.init({pkceMethod: "S256", checkLoginIframe: false});
+  // Only a session UUID crosses the fixed callback via temporary storage, never a bearer/message.
+  saveChatLocation();
+  await keycloak.init({onLoad: "check-sso", pkceMethod: "S256", checkLoginIframe: false,
+    redirectUri: location.origin + "/"});
+  restoreChatLocation();
 });
-element("login").onclick = () => action(() => keycloak.login({redirectUri: location.origin + "/"}));
+element("login").onclick = () => action(() => {
+  saveChatLocation();
+  return keycloak.login({redirectUri: location.origin + "/"});
+});
 element("logout").onclick = () => action(() => keycloak.logout({redirectUri: location.origin + "/"}));
 element("refresh").onclick = () => action(async () => {
   await keycloak.updateToken(-1);

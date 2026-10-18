@@ -14,7 +14,7 @@ const errors = {
 
 export function createApi({apiUrl, keycloak, getActor}) {
   const retryKeys = new Map();
-  async function request(path, {method = "GET", body, confirmationToken} = {}) {
+  async function request(path, {method = "GET", body, confirmationToken, timeoutMs = 25000, idempotencyKey} = {}) {
     const headers = {};
     const supplier = confirmationToken !== undefined;
     if (supplier) headers["X-Confirmation-Token"] = confirmationToken;
@@ -29,13 +29,13 @@ export function createApi({apiUrl, keycloak, getActor}) {
       supplier ? confirmationToken : getActor()]);
     if (method !== "GET") {
       if (!retryKeys.has(fingerprint)) retryKeys.set(fingerprint, crypto.randomUUID());
-      headers["Idempotency-Key"] = retryKeys.get(fingerprint);
+      headers["Idempotency-Key"] = idempotencyKey ?? retryKeys.get(fingerprint);
       headers["Content-Type"] = "application/json";
     }
     let response;
     try {
       response = await fetch(apiUrl.replace(/\/$/, "") + path, {
-        method, headers, body: serialized, signal: AbortSignal.timeout(25000), credentials: "omit",
+        method, headers, body: serialized, signal: AbortSignal.timeout(timeoutMs), credentials: "omit",
         redirect: "error", cache: "no-store",
       });
     } catch {

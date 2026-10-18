@@ -10,6 +10,20 @@ from lfx.io import DropdownInput, IntInput
 
 
 class OpenAICompatibleAgent(AgentComponent):
+    async def get_memory_data(self) -> list:
+        from flowbridge_agent.caller import CALLER
+
+        if CALLER.get() is not None:
+            return []
+        return await super().get_memory_data()
+
+    async def send_message(self, message: Any, *args: Any, **kwargs: Any) -> Any:
+        from flowbridge_agent.caller import CALLER
+
+        if CALLER.get() is not None:
+            return message
+        return await super().send_message(message, *args, **kwargs)
+
     # Preserve Langflow orchestration/memory/structured output; configure its model factory.
     inputs = [
         *deepcopy(AgentComponent.inputs),

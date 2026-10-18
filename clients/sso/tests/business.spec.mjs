@@ -19,7 +19,7 @@ async function setup(page, {role = "EMPLOYEE", authenticated = true, handle} = {
   await page.route("**/keycloak.js", (route) => route.fulfill({contentType: "application/javascript", body: `
     export default class Keycloak {
       authenticated = ${authenticated}; token = "ui-test-access-token";
-      async init() {} async updateToken() {} async login() {} async logout() {}
+      async init(options) { window.__identityOptions = options; } async updateToken() {} async login() {} async logout() {}
     }`}));
   await page.route("https://api.example.test/**", async (route) => {
     const request = route.request();
@@ -185,5 +185,76 @@ test("mobile layout fits viewport and forbidden API is shown as a failure", asyn
   }});
   await page.locator("#load-requests").click();
   await expect(page.locator("#business-message")).toContainText("không có quyền");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("chat uses SSO backend, renders safe text and restores history after reload", async ({page}) => {
+  const answer = "Sản phẩm SP-A\n<img src=x onerror=alert(1)>";
+  const session = id(71);
+  const messages = [{message_id: id(72), role: "user", content: "Tra cứu sản phẩm"},
+    {message_id: id(73), role: "assistant", content: answer}];
+  const calls = await setup(page, {handle: async (request, route) => {
+    if (request.url().includes("/chat/messages")) {
+      await route.fulfill({json: {session_id: session, answer, warnings: [], sources: []}}); return true;
+    }
+    if (request.url().includes("/chat/sessions/")) {
+      await route.fulfill({json: paged(messages)}); return true;
+    }
+  }});
+  await page.getByRole("button", {name: "Trợ lý AI", exact: true}).click();
+  await page.locator("#chat-input").fill("Tra cứu sản phẩm");
+  await page.locator("#chat-send").click();
+  await expect(page.locator(".chat-assistant")).toContainText(answer);
+  expect(await page.locator("#chat-panel img").count()).toBe(0);
+  const sent = calls.find(r => r.method() === "POST");
+  expect(sent.url()).toBe("https://api.example.test/api/v1/chat/messages");
+  expect(sent.headers().authorization).toBe("Bearer ui-test-access-token");
+  expect(sent.headers()["idempotency-key"]).toBeTruthy();
+  expect(sent.postDataJSON()).toEqual({message: "Tra cứu sản phẩm"});
+  await expect(page).toHaveURL(new RegExp("chat_session=" + session));
+  await page.reload();
+  await expect(page.locator(".chat-assistant")).toContainText(answer);
+  expect(await page.evaluate(() => window.__identityOptions.onLoad)).toBe("check-sso");
+  expect(await page.evaluate(() => window.__identityOptions.redirectUri)).toBe("http://127.0.0.1:8781/");
+  expect(calls.filter(r => r.method() === "POST")).toHaveLength(1);
+  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+});
+
+test("chat uncertain retry preserves the exact key and body without duplicate messages", async ({page}) => {
+  let attempt = 0;
+  const calls = await setup(page, {handle: async (request, route) => {
+    if (request.url().includes("/chat/messages")) {
+      if (++attempt === 1) await route.abort("failed");
+      else await route.fulfill({json: {session_id: id(71), answer: "Đã tra cứu", warnings: [], sources: []}});
+      return true;
+    }
+    if (request.url().includes("/chat/sessions/")) {
+      await route.fulfill({json: paged([{message_id:id(72), role:"user",content:"Tra cứu"},
+        {message_id:id(73), role:"assistant",content:"Đã tra cứu"}])}); return true;
+    }
+  }});
+  await page.getByRole("button", {name: "Trợ lý AI", exact: true}).click();
+  await page.locator("#chat-input").fill("Tra cứu");
+  await page.locator("#chat-send").click();
+  await expect(page.locator("#chat-panel [role=alert]")).toContainText("Chưa xác định");
+  await expect(page.locator("#chat-input")).toBeDisabled();
+  await page.getByRole("button", {name: "Kiểm tra lại lượt gửi"}).click();
+  await expect(page.locator(".chat-assistant")).toContainText("Đã tra cứu");
+  const posts = calls.filter(r => r.method() === "POST");
+  expect(posts).toHaveLength(2);
+  expect(posts[0].headers()["idempotency-key"]).toBe(posts[1].headers()["idempotency-key"]);
+  expect(posts[0].postData()).toBe(posts[1].postData());
+  await expect(page.locator(".chat-user")).toHaveCount(1);
+});
+
+test("chat requires employee grant and fits a mobile screen", async ({page}) => {
+  await setup(page, {authenticated:false});
+  await expect(page.getByRole("button", {name:"Trợ lý AI",exact:true})).toBeDisabled();
+  await setup(page, {role:"ADMIN"});
+  await expect(page.getByRole("button", {name:"Trợ lý AI",exact:true})).toBeDisabled();
+  await page.setViewportSize({width:390,height:844});
+  await setup(page);
+  await page.getByRole("button", {name:"Trợ lý AI",exact:true}).click();
+  await expect(page.locator("#chat-input")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

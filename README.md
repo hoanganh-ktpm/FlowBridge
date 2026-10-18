@@ -1,5 +1,8 @@
 # FlowBridge
 
+**Bắt đầu tại [Hướng dẫn chạy dự án](HUONG-DAN-CHAY.md)**: bật Docker, đăng nhập,
+dùng khung chat và Langflow editor, xem tài khoản/mật khẩu local và xử lý lỗi.
+
 Giao diện nghiệp vụ React đơn giản cho nhân viên/người duyệt/nhà cung cấp nằm tại
 [clients/sso](clients/sso/README.md), dùng SSO và API hiện có. Người duyệt hiện xem
 đề xuất; quyết định phê duyệt còn chờ workflow. Hướng dẫn chạy và test ở README client.
@@ -14,12 +17,15 @@ FlowBridge kết hợp **LLM, Machine Learning và RAG** để hỗ trợ doanh 
 
 Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằng ngôn ngữ tự nhiên. Theo schema v0.4.1, AI_SERVICE phân tích và tự tạo/gửi proposal; người có APPROVER trong phạm vi phòng ban và đúng workflow quyết định phê duyệt. PO_SERVICE phát đơn sau duyệt; nhà cung cấp xác nhận hoặc từ chối qua liên kết email. Open-Core cung cấp các năng lực nền tảng dùng chung.
 
-> **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO dùng Keycloak, xem [hướng dẫn SSO](docs/SSO.md); hai API Identity core bật bằng binding tenant/application theo [Identity core](docs/IDENTITY-CORE.md); workflow approval, email worker, chat/model và kho tài liệu chưa được nối. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
+> **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO dùng Keycloak, xem [hướng dẫn SSO](docs/SSO.md); hai API Identity core bật bằng binding tenant/application theo [Identity core](docs/IDENTITY-CORE.md). Chat qua Langflow và khung chat SSO đã có; workflow approval và email worker còn chờ kết nối. ML/RAG cần cấu hình và nghiệm thu riêng. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
 
-RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md); Langflow chưa được nối.
+RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md). RAG trong chat Langflow cần service grant và analysis job hợp lệ theo [hợp đồng chat](docs/LANGFLOW-SSO.md).
 
 ML đã có API riêng để chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO bằng TabICLv2.
 Flow agent và custom node cho Langflow: [cấu hình Langflow](langflow/README.md).
+API chat sau đăng nhập: [kết nối backend với Langflow](docs/LANGFLOW-SSO.md).
+Chạy Keycloak, API, Langflow và client bằng `chat-docker.cmd up`:
+[Docker cho chat](docs/DOCKER-CHAT.md).
 Rủi ro đại diện PO lấy điểm cao nhất của các món còn phải giao, kèm món/deadline quyết định.
 Bật bằng `FLOWBRIDGE_ML_ENABLED=true` sau khi cài extra `ml`, chuẩn bị checkpoint/context
 và cấu hình Identity. Xem [hướng dẫn ML và custom node Langflow](docs/ML-SERVICE.md).

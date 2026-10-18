@@ -324,12 +324,14 @@ class ActionNodeBase(Component):
         )
 
     def get_tools(self) -> list[Tool]:
+        from flowbridge_agent.caller import knowledge_available
+
         if not self.enabled:
             self.status = "Disabled"
             return []
         tool = self.make_tool()
-        if TOOL_SPECS[self.action][1] == "knowledge" and not (
-            tool.client.config.ai_token and tool.client.config.job_context
+        if TOOL_SPECS[self.action][1] == "knowledge" and not knowledge_available(
+            tool.client.config
         ):
             self.status = "Chưa đăng ký RAG: cần AI service token và JobContext thật"
             return []

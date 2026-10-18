@@ -98,6 +98,13 @@ def database_endpoint(
         payload, query = await parse_request(request, spec)
         success = next(code for code in spec["responses"] if code.startswith("2"))
         schema = spec["responses"][success]["content"]["application/json"]["schema"]
+        if spec["operationId"] in {"sendChatMessage", "getChatHistory"}:
+            from flowbridge.supplier_assistant.chat import handle_chat
+
+            try:
+                return await handle_chat(request, identity, spec["operationId"], payload, query)
+            except DBAPIError:
+                raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE) from None
         if request.app.state.settings.rag_postgres_enabled and spec["operationId"] in {
             "retrieveSupplierKnowledge",
             "indexPreparedMarkdown",
