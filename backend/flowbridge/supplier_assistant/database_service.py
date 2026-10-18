@@ -90,7 +90,10 @@ class SupplierDatabaseService:
         if role != "SUPPLIER_TOKEN":
             require(identity is not None, ErrorCode.UNAUTHENTICATED)
             await self.policy.authenticate(identity)
-            self.policy.authorize(role, read=read)
+            if operation == "getApplicationProfile" and read:
+                self.policy.authorize_profile()
+            else:
+                self.policy.authorize(role, read=read)
             await self.authorize_resource(path, payload)
             actor_key = str(self.policy.user["user_id"])
         else:

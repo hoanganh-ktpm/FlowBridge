@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Regressions for UTF-8 citations, temporal leakage, atomic readiness and live revocation."""
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -176,6 +177,69 @@ class Store:
     async def write_generation(self, version, chunks, vectors, profile, scope):
         self.rows = stored(chunks)
         self.writes += 1
+
+
+@pytest.mark.asyncio
+async def test_search_waits_for_manager_gate_then_revalidates_scope():
+    service = PgKnowledgeService(Store(version()), Embedder())
+    await service._gate.acquire()
+    calls = 0
+
+    async def scope():
+        nonlocal calls
+        calls += 1
+        return PgScope(TIME)
+
+    task = asyncio.create_task(service.search(RetrievalRequest(query="giao trễ"), scope))
+    await asyncio.sleep(0)
+    assert not task.done()
+    assert calls == 0
+    service._gate.release()
+    result = await task
+    assert result["chunks"]
+    assert calls == 2
+    assert service._pending_searches == 0
+    assert not service._gate.locked()
+
+
+@pytest.mark.asyncio
+async def test_search_queue_timeout_does_not_release_another_workloads_gate():
+    service = PgKnowledgeService(Store(version()), Embedder())
+    service.SEARCH_WAIT_SECONDS = 0.01
+    await service._gate.acquire()
+    with pytest.raises(CoreError) as caught:
+        async with service.search_slot():
+            pytest.fail("Busy slot must not execute")
+    assert caught.value.code == ErrorCode.RATE_LIMITED
+    assert service._gate.locked()
+    assert service._pending_searches == 0
+    service._gate.release()
+
+
+@pytest.mark.asyncio
+async def test_search_queue_is_bounded_and_cancellation_cleans_waiters():
+    service = PgKnowledgeService(Store(version()), Embedder())
+    await service._gate.acquire()
+
+    async def wait():
+        async with service.search_slot():
+            pytest.fail("Gate has not been released")
+
+    tasks = [asyncio.create_task(wait()) for _ in range(service.MAX_SEARCH_REQUESTS)]
+    await asyncio.sleep(0)
+    with pytest.raises(CoreError) as caught:
+        async with service.search_slot():
+            pytest.fail("Queue is full")
+    assert caught.value.code == ErrorCode.RATE_LIMITED
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    assert service._pending_searches == 0
+    assert service._gate.locked()
+    service._gate.release()
+    async with service.search_slot():
+        assert service._gate.locked()
+    assert not service._gate.locked()
 
 
 @pytest.mark.asyncio

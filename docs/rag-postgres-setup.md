@@ -48,7 +48,7 @@ Quét index lại sau mỗi publication/correction. Chưa có daemon tự nhận
 ## Thử truy hồi bằng CLI
 
 ```powershell
-.\.venv\Scripts\python.exe -m flowbridge.supplier_assistant.knowledge.postgres_cli --supplier 3806e329-2ebe-5cfc-895d-1bd60894b348 search "PO DEMO-PO-00212 giao trễ như thế nào?" --top-k 3
+.\.venv\Scripts\python.exe -m flowbridge.supplier_assistant.knowledge.postgres_cli --supplier 3806e329-2ebe-5cfc-895d-1bd60894b348 search "Đơn đặt hàng DEMO-PO-00212 giao trễ như thế nào?" --top-k 3
 ```
 
 CLI là operator đã có credential database, không phải chứng minh phân quyền HTTP. Replay có thể thêm `--as-of "2026-10-16T12:00:00+07:00"` trước subcommand nếu mốc đó sau publication và không ở tương lai. `references` xuất refs chuẩn bị cho HTTP index; `inspect <reference.json>` nhận một JSON DocumentReference gồm sáu field để resolve quote cũ còn được phép đọc.
@@ -84,7 +84,7 @@ Content-Type: application/json
 ```
 
 ```json
-{"query":"PO DEMO-PO-00212 giao trễ như thế nào?","supplier_id":"3806e329-2ebe-5cfc-895d-1bd60894b348","top_k":3}
+{"query":"Đơn đặt hàng DEMO-PO-00212 giao trễ như thế nào?","supplier_id":"3806e329-2ebe-5cfc-895d-1bd60894b348","top_k":3}
 ```
 
 JobContext chỉ nhận task UUID, không nhận JSON user/role/cutoff. Receiver lấy feature_asof và phòng ban từ database, kiểm tra PR/revision/trạng thái. Không gửi X-User-Context kèm theo. `POST /internal/v1/tools/index-knowledge` dùng cùng headers, body `{"documents":[<DocumentReference chuẩn bị>]}` và trả 200 sau khi xử lý. Để index nhiều nguồn ban đầu, nên dùng CLI tránh giới hạn HTTP timeout.

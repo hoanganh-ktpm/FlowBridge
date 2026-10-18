@@ -2,6 +2,7 @@
 // FlowBridge; GNU GPL v3 or later, without warranty. See LICENSE.
 // Browser behavior with mocked HTTP/SDK; not evidence of IAM/database integration.
 import {test, expect} from "@playwright/test";
+import {readFile} from "node:fs/promises";
 
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const token = "ui-fixture-confirmation-token";
@@ -14,7 +15,7 @@ const order = {purchase_order_id: id(5), po_number: "PO-UI-01", status: "waiting
   schedules: [{schedule_id: id(6), schedule_number: 1, scheduled_quantity: "2.0000", requested_delivery_date: "2026-12-20", status: "open"}]};
 const paged = (items, total = items.length, page = 1) => ({items, total, page, page_size: 20});
 
-async function setup(page, {role = "EMPLOYEE", authenticated = true, handle} = {}) {
+async function setup(page, {role = "EMPLOYEE", authenticated = true, profileReady = true, handle} = {}) {
   const calls = [];
   await page.route("**/keycloak.js", (route) => route.fulfill({contentType: "application/javascript", body: `
     export default class Keycloak {
@@ -46,9 +47,28 @@ async function setup(page, {role = "EMPLOYEE", authenticated = true, handle} = {
   });
   await page.goto("http://127.0.0.1:8781");
   await expect(page.locator("#status")).toHaveText(authenticated ? "Đã đăng nhập" : "Chưa đăng nhập");
-  if (authenticated) await expect(page.locator("#business-profile")).toContainText("Người dùng UI");
+  if (authenticated && profileReady) await expect(page.locator("#business-profile")).toContainText("Người dùng UI");
   return calls;
 }
+
+test("profile failure remains visible across tabs and ADMIN can retry without employee access", async ({page}) => {
+  let first = true;
+  await setup(page, {role: "ADMIN", profileReady: false, handle: async (request, route) => {
+    if (new URL(request.url()).pathname === "/api/v1/me" && first) {
+      first = false; await route.fulfill({status: 403, json: {code: "FORBIDDEN"}}); return true;
+    }
+  }});
+  await expect(page.locator("#business-profile")).toContainText("Đã đăng nhập");
+  await expect(page.locator("#profile-error")).toContainText("Chưa tải được hồ sơ và quyền");
+  await page.getByRole("button", {name: "Nhân viên", exact: true}).click();
+  await expect(page.locator("#profile-error")).toBeVisible();
+  await expect(page.getByRole("button", {name: "Tài liệu RAG", exact: true})).toHaveCount(0);
+  await page.getByRole("button", {name: "Tải lại hồ sơ và quyền", exact: true}).click();
+  await expect(page.locator("#business-profile")).toContainText("Người dùng UI · ADMIN");
+  await expect(page.locator("#profile-error")).toHaveCount(0);
+  await expect(page.getByRole("button", {name: "Tài liệu RAG", exact: true})).toBeVisible();
+  await expect(page.locator("#new-request")).toBeDisabled();
+});
 async function openSupplier(page) {
   await page.getByRole("button", {name: "Nhà cung cấp", exact: true}).click();
   await page.locator("#supplier-order").fill(id(5));
@@ -186,4 +206,258 @@ test("mobile layout fits viewport and forbidden API is shown as a failure", asyn
   await page.locator("#load-requests").click();
   await expect(page.locator("#business-message")).toContainText("không có quyền");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+
+// Manager tests use controlled HTTP, never Supabase credentials or real document writes.
+async function knowledgeSetup(page, {cited = false, fail = false, immediate = false, hold = false, pollFailure = false,
+  revision = 1, contentMd = "* Nha cung cap\n\nALPHA-ONE", previousMd = "* Lich su\n\nALPHA-ONE"} = {}) {
+  const docs = new Map();
+  let serial = 1, failedOnce = fail;
+  const doc = (n, body = contentMd) => ({document_id: id(100 + n),
+    supplier_id: id(2), supplier_name: "Nha cung cap A", filename: "existing.md", title: "Nhan xet",
+    revision, version_id: id(200 + n), content_md: body, index_status: "ready", chunk_count: 2,
+    content_hash: "test", scope_type: "global", department_id: null, updated_at: "2026-10-18T00:00:00Z",
+    can_delete: !cited, has_citations: cited, job: null,
+    metadata: {reviewer_name_snapshot: "Nguoi nhan xet"},
+    versions: Array.from({length: revision}, (_, i) => ({version_no: revision - i,
+      known_from: "2026-10-18T00:00:00Z", created_by_subject: id(4)}))});
+  docs.set(id(101), doc(1));
+  const jobs = new Map();
+  const calls = await setup(page, {role: "ADMIN", handle: async (request, route) => {
+    const path = new URL(request.url()).pathname;
+    if (!path.startsWith("/api/admin/knowledge")) return false;
+    const root = "/api/admin/knowledge";
+    let result;
+    if (path === root + "/options") result = {suppliers: [supplier,
+      {...supplier, supplier_id: id(22), supplier_code: "NCC-B", supplier_name: "Nha cung cap B"},
+      {...supplier, supplier_id: id(23), supplier_code: "NCC-C", supplier_name: "Nha cung cap C"}],
+      reviewers: [{user_id: id(4), display_name: "Nguoi nhan xet"}], departments: []};
+    else if (path === root + "/documents" && request.method() === "GET") result = {items: [...docs.values()]};
+    else if (path.includes("/versions/")) {
+      const requested = Number(path.split("/").at(-1));
+      const current = docs.get(path.split("/")[5]);
+      result = {version_no: requested, content_md: requested === current.revision ? current.content_md : previousMd};
+    }
+    else if (path.includes("/jobs/") && request.method() === "GET") {
+      const j = jobs.get(path.split("/").at(-1));
+      if (pollFailure) {pollFailure = false; await route.abort("failed"); return true;}
+      if (j.status === "ready" || j.status === "failed") result = j;
+      else if (j.hold) result = j;
+      else if (j.fail) {result = {...j, status: "failed", stage: "failed", error_code: "MODEL_UNAVAILABLE"}; Object.assign(docs.get(j.document_id), {job: result, index_status: "failed"}); jobs.set(j.job_id, result);}
+      else {
+        const current = docs.get(j.document_id);
+        const count = current.chunk_count;
+        if (j.kind === "delete") docs.delete(j.document_id);
+        else {current.job = null; current.index_status = "ready";}
+        if (j.payload) Object.assign(current, j.payload, {revision: current.revision + 1, index_status: "ready", chunk_count: 3, job: null});
+        result = {...j, status: "ready", stage: "complete", result: {old_chunk_count: count, new_chunk_count: j.kind === "delete" ? 0 : current.chunk_count, revision: current.revision}};
+        jobs.set(j.job_id, result);
+      }
+    } else if (request.method() !== "GET") {
+      const data = request.postDataJSON() ?? {};
+      let documentId = path.split("/")[5];
+      let kind = request.method() === "DELETE" ? "delete" : path.endsWith("reindex") ? "reindex" : "publish";
+      if (path.endsWith("retry")) {const previous = jobs.get(path.split("/").at(-2)); documentId = previous.document_id; kind = "reindex";}
+      if (request.method() === "POST" && path === root + "/documents") {
+        documentId = id(101 + serial++); docs.set(documentId, {...doc(serial), document_id: documentId, revision: 0, chunk_count: 0, versions: [], ...data});
+      }
+      result = {job_id: id(300 + serial++), document_id: documentId, kind, status: "pending", stage: "pending", payload: kind === "publish" ? data : null, fail: failedOnce, hold};
+      if (immediate) result = {...result, status: "ready", stage: "complete", result: {old_chunk_count: 2, new_chunk_count: 2, revision: 1}};
+      failedOnce = false; jobs.set(result.job_id, result); Object.assign(docs.get(documentId), {job: result, index_status: result.status});
+    } else result = docs.get(path.split("/").at(-1));
+    if (path === root + "/options") result.suppliers = result.suppliers.map((s) => ({...s,
+      has_document: [...docs.values()].some((d) => d.supplier_id === s.supplier_id)}));
+    await route.fulfill({json: result}); return true;
+  }});
+  await page.getByRole("button", {name: "Tài liệu RAG", exact: true}).click();
+  await expect(page.locator("#knowledge-manager")).toBeVisible();
+  await expect(page.getByRole("button", {name: "existing.md", exact: true})).toBeVisible();
+  calls.releaseJobs = () => {for (const j of jobs.values()) j.hold = false;};
+  return calls;
+}
+
+test("admin edits existing Markdown, polls real API shape, keeps history, refreshes and deletes", async ({page}) => {
+  const calls = await knowledgeSetup(page);
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager).toContainText("ALPHA-ONE");
+  await manager.getByRole("button", {name: "Sửa tài liệu", exact: true}).click();
+  await manager.getByLabel("Nội dung Markdown").fill("* Nhan xet\n\n** Giao hang\nBETA-TWO <img src=x onerror=alert(1)>");
+  await manager.getByRole("button", {name: "Xem trước an toàn"}).click();
+  await expect(manager.locator("img")).toHaveCount(0);
+  await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG"}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  const write = calls.find((r) => r.method() === "PUT");
+  expect(write.postDataJSON().expected_revision).toBe(1);
+  expect(write.postDataJSON().content_md).toContain("BETA-TWO");
+  await manager.getByLabel("Lịch sử phiên bản").selectOption("1");
+  await expect(manager.locator(".knowledge-preview")).toContainText("ALPHA-ONE");
+  await page.reload();
+  await expect(page.locator("#business-profile")).toContainText("Người dùng UI");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager.locator(".knowledge-preview")).toContainText("BETA-TWO");
+  page.on("dialog", (dialog) => dialog.accept());
+  await manager.getByRole("button", {name: "Xóa tài liệu", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Đã xóa tài liệu");
+  await expect(manager.getByRole("button", {name: "existing.md", exact: true})).toHaveCount(0);
+});
+
+test("admin creates Markdown and resumes a failed indexing job", async ({page}) => {
+  const calls = await knowledgeSetup(page, {fail: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Đồng bộ lỗi");
+  await manager.getByRole("button", {name: "Thử lại tác vụ lỗi"}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  await manager.getByRole("button", {name: "Thêm tài liệu", exact: true}).click();
+  await manager.getByLabel("Tên file", {exact: true}).fill("new.md");
+  await manager.getByLabel("Tiêu đề", {exact: true}).fill("Nhan xet moi");
+  await manager.getByLabel("Nhà cung cấp", {exact: true}).selectOption(id(22));
+  await manager.getByLabel("Người nhận xét", {exact: true}).selectOption(id(4));
+  await manager.getByLabel("Nội dung Markdown", {exact: true}).fill("* Moi\n\nVERSION-C");
+  await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG"}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  expect(calls.some((r) => r.method() === "POST" && r.url().endsWith("/knowledge/documents"))).toBe(true);
+});
+
+test("cited documents cannot be permanently deleted and non-admin has no manager menu", async ({page}) => {
+  await knowledgeSetup(page, {cited: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager.getByRole("button", {name: "Xóa tài liệu", exact: true})).toBeDisabled();
+  await expect(manager).toContainText("đã được báo cáo trích dẫn");
+});
+
+test("employee cannot open the knowledge manager through the navigation", async ({page}) => {
+  await setup(page);
+  await expect(page.getByRole("button", {name: "Tài liệu RAG", exact: true})).toHaveCount(0);
+});
+
+
+test("admin handles an already completed idempotent response without waiting forever", async ({page}) => {
+  await knowledgeSetup(page, {immediate: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  await expect(manager.getByRole("button", {name: "Đồng bộ lại", exact: true})).toBeEnabled();
+});
+
+async function newKnowledgeDraft(manager, filename = "second.md", supplierId = id(22)) {
+  await manager.getByRole("button", {name: "Thêm tài liệu", exact: true}).click();
+  await manager.getByLabel("Tên file", {exact: true}).fill(filename);
+  await manager.getByLabel("Tiêu đề", {exact: true}).fill("Nhan xet dang soan");
+  await manager.getByLabel("Nhà cung cấp", {exact: true}).selectOption(supplierId);
+  await manager.getByLabel("Người nhận xét", {exact: true}).selectOption(id(4));
+  await manager.getByLabel("Nội dung Markdown", {exact: true}).fill("* Ban nhap\n\nKEEP-MY-DRAFT");
+}
+
+test("independent documents queue without locking uploads and resume tracking after reload", async ({page}) => {
+  const calls = await knowledgeSetup(page, {hold: true});
+  const manager = page.locator("#knowledge-manager");
+  const queue = manager.getByRole("region", {name: "Hàng đợi đồng bộ RAG"});
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(queue).toContainText("existing.md");
+  await expect(manager.getByRole("button", {name: "Sửa tài liệu", exact: true})).toBeDisabled();
+  await newKnowledgeDraft(manager);
+  await manager.getByRole("button", {name: "Lưu & Đồng bộ RAG", exact: true}).click();
+  await expect(queue).toContainText("second.md");
+  await expect(manager.getByRole("button", {name: "Thêm tài liệu", exact: true})).toBeEnabled();
+  expect(calls.filter((r) => r.method() === "POST" && r.url().endsWith("/knowledge/documents"))).toHaveLength(1);
+  await page.reload();
+  await expect(queue).toContainText("existing.md");
+  await expect(queue).toContainText("second.md");
+  await expect(queue).toContainText("2 đang chờ");
+  await newKnowledgeDraft(manager, "third.md", id(23));
+  calls.releaseJobs();
+  await expect(queue.getByRole("listitem").filter({hasText: "existing.md"})).toContainText("Đã đồng bộ");
+  await expect(queue.getByRole("listitem").filter({hasText: "second.md"})).toContainText("Đã đồng bộ");
+  await expect(manager.getByLabel("Tên file", {exact: true})).toHaveValue("third.md");
+  await expect(manager.getByLabel("Nội dung Markdown", {exact: true})).toHaveValue("* Ban nhap\n\nKEEP-MY-DRAFT");
+});
+
+test("another job completing preserves an open editor and preview", async ({page}) => {
+  const calls = await knowledgeSetup(page, {hold: true});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await newKnowledgeDraft(manager);
+  await manager.getByRole("button", {name: "Xem trước an toàn", exact: true}).click();
+  await expect(manager.locator(".knowledge-preview")).toContainText("KEEP-MY-DRAFT");
+  await page.screenshot({path: test.info().outputPath("queue-ui.png"), fullPage: true});
+  calls.releaseJobs();
+  await expect(manager.locator("#knowledge-message")).toContainText("Hoàn tất");
+  await expect(manager.getByLabel("Tiêu đề", {exact: true})).toHaveValue("Nhan xet dang soan");
+  await expect(manager.locator(".knowledge-preview")).toContainText("KEEP-MY-DRAFT");
+  await expect(manager.getByRole("button", {name: "Lưu & Đồng bộ RAG", exact: true})).toBeEnabled();
+});
+
+test("temporary polling failure keeps the durable job tracked and automatically recovers", async ({page}) => {
+  const calls = await knowledgeSetup(page, {hold: true, pollFailure: true});
+  const manager = page.locator("#knowledge-manager");
+  const queue = manager.getByRole("region", {name: "Hàng đợi đồng bộ RAG"});
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(queue).toContainText("sẽ tự thử lại");
+  await expect(manager.getByRole("button", {name: "Thêm tài liệu", exact: true})).toBeEnabled();
+  calls.releaseJobs();
+  await expect(queue).toContainText("Đã đồng bộ");
+  await expect(queue).not.toContainText("sẽ tự thử lại");
+});
+
+test("retrying a failed queued job keeps another document's unsaved draft", async ({page}) => {
+  await knowledgeSetup(page, {fail: true});
+  const manager = page.locator("#knowledge-manager");
+  const queue = manager.getByRole("region", {name: "Hàng đợi đồng bộ RAG"});
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await manager.getByRole("button", {name: "Đồng bộ lại", exact: true}).click();
+  await expect(queue).toContainText("Đồng bộ lỗi");
+  await newKnowledgeDraft(manager);
+  await queue.getByRole("button", {name: "Thử lại existing.md", exact: true}).click();
+  await expect(manager.getByLabel("Tên file", {exact: true})).toHaveValue("second.md");
+  await expect(queue).toContainText("Đã đồng bộ");
+  await expect(manager.getByLabel("Nội dung Markdown", {exact: true})).toHaveValue("* Ban nhap\n\nKEEP-MY-DRAFT");
+});
+
+test("Markdown downloads preserve UTF-8, asterisk headings and the exact selected version", async ({page}) => {
+  const contentMd = "* Đánh giá NCC-02\r\n\r\n** Tiến độ\r\nĐã nhận đủ 20 cuộn.\r\n\r\n*** Nhận xét\r\nGiữ nguyên **quy cách**.\r\n";
+  const previousMd = "* Đánh giá NCC-02\n\n** Tiến độ\nCòn chờ 5 cuộn.\n";
+  const calls = await knowledgeSetup(page, {revision: 2, contentMd, previousMd});
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  await expect(manager.getByRole("heading", {name: "Đánh giá NCC-02", exact: true})).toBeVisible();
+  let pending = page.waitForEvent("download");
+  await manager.getByRole("button", {name: "Tải tài liệu", exact: true}).click();
+  let file = await pending;
+  expect(file.suggestedFilename()).toBe("existing.md");
+  expect(await readFile(await file.path(), "utf8")).toBe(contentMd);
+  await page.screenshot({path: test.info().outputPath("download-ui.png"), fullPage: true});
+
+  await manager.getByLabel("Lịch sử phiên bản").selectOption("1");
+  await expect(manager.locator(".knowledge-preview")).toContainText("Còn chờ 5 cuộn.");
+  pending = page.waitForEvent("download");
+  await manager.getByRole("button", {name: "Tải tài liệu", exact: true}).click();
+  file = await pending;
+  expect(file.suggestedFilename()).toBe("existing.v1.md");
+  expect(await readFile(await file.path(), "utf8")).toBe(previousMd);
+  const historyCalls = calls.filter((r) => r.url().endsWith("/versions/1"));
+  expect(historyCalls).toHaveLength(2); // Viewing and downloading each check access.
+  expect(historyCalls.every((r) => r.headers().authorization === "Bearer ui-test-access-token")).toBe(true);
+  expect(calls.every((r) => r.method() === "GET")).toBe(true);
+});
+
+test("download rechecks access after the document was opened and denies a revoked admin", async ({page}) => {
+  await knowledgeSetup(page);
+  const manager = page.locator("#knowledge-manager");
+  await manager.getByRole("button", {name: "existing.md", exact: true}).click();
+  let downloads = 0;
+  page.on("download", () => downloads++);
+  await page.route(`https://api.example.test/api/admin/knowledge/documents/${id(101)}/versions/1`,
+    (route) => route.fulfill({status: 403, json: {code: "FORBIDDEN"}}));
+  await manager.getByRole("button", {name: "Tải tài liệu", exact: true}).click();
+  await expect(manager.locator("#knowledge-message")).toContainText("không có quyền");
+  expect(downloads).toBe(0);
 });

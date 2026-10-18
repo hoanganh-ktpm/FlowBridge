@@ -1,91 +1,183 @@
-# Đánh giá nhà cung cấp DEMO-S05 — Demo Supplier 5
+* Đánh giá nhà cung cấp Phân phối Đông Thành — NCC-05
 
-## Thông tin nhà cung cấp và người nhận xét — DEMO-S05
+Mã nhà cung cấp: DEMO-S05
+Người nhận xét: Lê Thị Ngọc — Nhân viên kho
+Bộ phận: Vận hành kho
+Ngày lập: 17/10/2026
+Mốc dữ liệu giao nhận: 15/10/2026, 18:00 (UTC+07:00)
+Phạm vi: 164 đơn đặt hàng phát hành từ 26/04/2025 đến 15/10/2026.
 
-- **Nhà cung cấp:** Demo Supplier 5.
-- **Mã nhà cung cấp:** DEMO-S05.
-- **Supplier ID:** `07e0fee3-729c-5935-b03a-c5af8fc574ee`.
-- **Người nhận xét được phân công:** demo-warehouse-2.
-- **User ID người nhận xét:** `e2a6df0a-7a4d-513b-a086-249621f86042`.
-- **Vai trò trong hệ thống:** WAREHOUSE.
-- **Bộ phận:** Demo department 3 (DEMO-D3).
-- **Ngày lập báo cáo:** 15/10/2026.
-- **Mốc dữ liệu:** 15/10/2026 18:00 (UTC+07:00).
-- **Phạm vi hồ sơ:** các PO phát hành từ 26/04/2025 đến mốc dữ liệu nêu trên.
+Cách gọi trong hồ sơ: Phiếu yêu cầu mua hàng là phiếu nhân viên lập để đề nghị mua sắm. Đơn đặt hàng là chứng từ gửi nhà cung cấp sau khi phương án mua được duyệt.
+Mã đơn đặt hàng được giữ nguyên để đối chiếu chứng từ; ví dụ DEMO-PO-00006.
 
-## 1. Chất lượng sản phẩm — DEMO-S05
+** 1. Nhận xét chung
 
-### 1.1. Phạm vi ghi nhận nghiệm thu — DEMO-S05
+Phân phối Đông Thành — NCC-05 tham gia cung ứng các nhóm hàng văn phòng, thiết bị ngoại vi và vật tư đóng gói. Danh mục giới thiệu hiện tập trung vào thiết bị văn phòng và phụ kiện kết nối.
 
-Nhận xét của demo-warehouse-2 về DEMO-S05: hồ sơ có 246 lần ghi nhận nhận hàng đạt yêu cầu, liên quan 157 PO. Có 156 PO đã được ghi nhận đủ số lượng tại mốc báo cáo.
+Bộ phận kho đã rà soát các lần nhận hàng với hạn giao trên đơn đặt hàng. Nhận xét dưới đây tập trung vào kết quả đã ghi nhận, cùng các đơn còn cần theo dõi.
 
-Hồ sơ nhận hàng chỉ thể hiện số lượng đã được tiếp nhận. Chưa có dữ liệu kiểm tra lỗi sản phẩm, số lượng bị từ chối, nguyên nhân lỗi hoặc kết quả thử nghiệm chất lượng. Vì vậy, không thể tính tỷ lệ lỗi hay kết luận toàn bộ sản phẩm của nhà cung cấp không có lỗi từ các phiếu nhận hàng này.
+Trong 156 đơn đặt hàng đã nhận đủ, có 97 đơn hoàn tất sau hạn gốc (62,18%). Ngoài ra còn 1 đơn đã qua hạn nhưng chưa có đủ phiếu nhận. Bộ phận mua hàng nên rà soát các đơn còn thiếu trước khi chốt thêm nhu cầu gấp.
 
-### 1.2. Nhóm sản phẩm trong danh mục — DEMO-S05
+** 2. Mặt hàng và điều kiện mua
 
-Các sản phẩm đang được ghi nhận là sẵn có trong danh mục của DEMO-S05:
+*** 2.1. Những mặt hàng đã có giao dịch
 
-| Mã sản phẩm | Tên sản phẩm | Nhóm sản phẩm |
+Các mặt hàng dưới đây đã xuất hiện trong đơn đặt hàng của kỳ theo dõi. Số lượng được tính riêng theo đơn vị mua; không cộng ram giấy với cuộn băng keo hoặc thiết bị.
+
+| Mặt hàng | Mã | Đơn vị | Số đơn đặt hàng |
+|---|---|---|---|
+| Giấy Double A A4 80 gsm, 500 tờ/ram | DEMO-P01 | ram | 28 |
+| Chuột Logitech B100 USB, màu đen | DEMO-P02 | cái | 25 |
+| Băng keo Scotch 371 vàng, 48 mm × 100 m | DEMO-P03 | cuộn | 28 |
+| Bút bi Thiên Long TL-027, 0,5 mm, mực xanh | DEMO-P04 | cây | 33 |
+| Bàn phím Logitech K120 USB, màu đen | DEMO-P05 | cái | 22 |
+| Màng quấn pallet PE, 500 mm, 2,5 kg tịnh/cuộn | DEMO-P06 | cuộn | 28 |
+
+*** 2.2. Danh mục chào hàng mở rộng
+
+Danh mục được cập nhật ngày 17/10/2026 có 24 mặt hàng. Trong đó 18 mặt hàng mới chưa có đơn đặt hàng trong phạm vi lịch sử này. Chưa dùng kết quả của mặt hàng cũ để khẳng định khả năng giao hàng hay chất lượng của các mặt hàng mới.
+
+| Mặt hàng bổ sung | Mã | Đơn vị mua |
 |---|---|---|
-| DEMO-P01 | Demo Product 1 | office |
-| DEMO-P02 | Demo Product 2 | electronics |
-| DEMO-P03 | Demo Product 3 | materials |
-| DEMO-P04 | Demo Product 4 | office |
-| DEMO-P05 | Demo Product 5 | electronics |
-| DEMO-P06 | Demo Product 6 | materials |
+| Giấy Double A A4 70 gsm, 500 tờ/ram | DEMO-P07 | ram |
+| Giấy Double A A3 80 gsm, 500 tờ/ram | DEMO-P08 | ram |
+| Bút bi Thiên Long TL-027, 0,5 mm, mực đen | DEMO-P09 | cây |
+| Bút bi Thiên Long TL-027, 0,5 mm, mực đỏ | DEMO-P10 | cây |
+| Bút dạ quang Thiên Long HL-03, màu vàng | DEMO-P11 | cây |
+| Bìa hồ sơ A4 nhựa PP, gáy 5 cm, màu xanh | DEMO-P12 | cái |
+| Switch TP-Link TL-SG108, 8 cổng Gigabit | DEMO-P13 | cái |
+| Cáp máy in USB 2.0 A–B, dài 1,8 m | DEMO-P14 | sợi |
+| Cáp HDMI, dài 2 m, đầu đực–đực | DEMO-P15 | sợi |
+| Dây mạng Cat6 UTP bấm sẵn, dài 3 m | DEMO-P16 | sợi |
+| Dây mạng Cat6 UTP bấm sẵn, dài 5 m | DEMO-P17 | sợi |
+| Ổ cắm điện 6 vị trí, dây dài 3 m | DEMO-P18 | cái |
+| Băng keo Scotch 371 trong, 48 mm × 100 m | DEMO-P19 | cuộn |
+| Thùng carton 5 lớp, 40 × 30 × 30 cm | DEMO-P20 | cái |
+| Thùng carton 5 lớp, 60 × 40 × 40 cm | DEMO-P21 | cái |
+| Màng xốp hơi đóng gói, rộng 1 m × dài 100 m | DEMO-P22 | cuộn |
+| Dây đai nhựa PP, rộng 12 mm, 10 kg/cuộn | DEMO-P23 | cuộn |
+| Tem nhãn nhiệt trực tiếp, 100 × 150 mm, 500 tem/cuộn | DEMO-P24 | cuộn |
 
-## 2. Phản hồi xác nhận và xử lý phát sinh — DEMO-S05
+Khi đặt mua cần ghi đầy đủ mã, quy cách và đơn vị. Với giấy, giá tính theo ram; với bút, theo cây; với băng keo và màng quấn, theo cuộn. Quy cách đóng hộp không tự thay đổi đơn vị đã thống nhất trên đơn đặt hàng.
 
-### 2.1. Phản hồi xác nhận PO — DEMO-S05
+** 3. Tiến độ và hồ sơ đáng chú ý
 
-Nhận xét của demo-warehouse-2 về DEMO-S05: có 145/164 PO có phản hồi xác nhận của nhà cung cấp được ghi nhận trước mốc báo cáo. 19 PO còn lại chưa có bản ghi xác nhận trong hồ sơ, không đồng nghĩa các PO đó đều chưa giao hàng.
+*** 3.1. Tổng hợp tại mốc dữ liệu
 
-Trong các PO đã có xác nhận, trung vị thời gian từ phát hành đến phản hồi là 1.41 ngày. Có 52 PO có nhiều hơn một bản ghi ngày hứa giao. Thay đổi ngày hứa không làm thay đổi hạn giao gốc khi đánh giá giao trễ.
+- Đã nhận đủ: 156 đơn đặt hàng.
+- Nhận đủ đúng hoặc trước hạn ban đầu: 59 đơn đặt hàng.
+- Nhận đủ sau hạn: 97 đơn đặt hàng, chiếm 62,18% trong nhóm đã hoàn tất.
+- Chưa nhận đủ: 8 đơn đặt hàng; 1 đơn đã nhận một phần.
+- Đã quá hạn nhưng chưa nhận đủ: 1 đơn đặt hàng.
+- Chưa nhận đủ và chưa đến hạn: 7 đơn đặt hàng.
 
-### 2.2. Giới hạn nhận xét về xử lý khiếu nại — DEMO-S05
+Tỷ lệ giao trễ ở trên chỉ tính trên các đơn đã nhận đủ. Các đơn còn mở được theo dõi riêng, chưa gán là giao đúng hạn.
 
-Hồ sơ của DEMO-S05 hiện có phản hồi xác nhận đơn và các lần cập nhật ngày hứa giao; chưa có biên bản khiếu nại chất lượng, đổi trả, phân tích nguyên nhân hoặc nghiệm thu biện pháp khắc phục. Không dùng tốc độ phản hồi xác nhận PO làm kết luận về tốc độ giải quyết khiếu nại.
+*** 3.2. Đơn đặt hàng DEMO-PO-00569 — Đơn hoàn tất muộn
 
-## 3. Thực hiện giao nhận và hồ sơ cần lưu ý — DEMO-S05
+Đơn đặt hàng mã DEMO-PO-00569, gồm 114 cuộn Băng keo Scotch 371 vàng, 48 mm × 100 m (DEMO-P03), phát hành ngày 28/02/2026, hạn nhận đủ ban đầu là 27/03/2026.
 
-### 3.1. Tổng hợp tại mốc báo cáo — DEMO-S05
+- Đợt 1: nhận 74 cuộn ngày 24/04/2026; phiếu nhận d41f9bf8.
+- Đợt 2: nhận 40 cuộn ngày 10/06/2026; phiếu nhận d0e9df67.
 
-Nhận xét của demo-warehouse-2 về DEMO-S05 dựa trên 164 PO:
+Kho đã nhận đủ ngày 10/06/2026. Tính theo hạn gốc, đơn hoàn tất trễ 75 ngày. Việc nhận một phần trước đó chưa thay thế yêu cầu nhận đủ số lượng.
 
-- Đã ghi nhận nhận đủ: **156 PO**.
-- Nhận đủ đúng hoặc trước hạn gốc: **59 PO**.
-- Nhận đủ sau hạn gốc: **97 PO**, chiếm **62,18%** trong các PO đã nhận đủ.
-- Chưa ghi nhận nhận đủ: **8 PO**, trong đó **1 PO** đã ghi nhận nhận một phần.
-- Đã qua hạn gốc nhưng chưa ghi nhận nhận đủ: **1 PO**.
+Cam kết mới nhất trong hồ sơ là ngày 10/06/2026, được ghi nhận ngày 06/03/2026. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
 
-Tỷ lệ trên là thống kê của các PO đã hoàn tất trong phạm vi báo cáo, không phải điểm dự đoán của TabICLv2. Các PO còn mở không được gán là giao đúng hạn.
+Đơn giá trên đơn đặt hàng: 47.881 đồng/cuộn; giá trị dòng hàng: 5.458.434 đồng, chưa bao gồm VAT.
 
-### 3.2. PO đã nhận đủ sau hạn gốc: DEMO-PO-00569 — DEMO-S05
+*** 3.3. Đơn đặt hàng DEMO-PO-00957 — Đơn đáp ứng hạn giao
 
-Nhận xét của demo-warehouse-2 về DEMO-S05: PO **DEMO-PO-00569** đặt **114 unit Demo Product 3 (DEMO-P03)**, phát hành ngày **28/02/2026**, hạn giao gốc **27/03/2026**.
-Hồ sơ đã ghi nhận đủ **114 unit**. Ngày giao của đợt hoàn tất là **10/06/2026**; thời điểm hệ thống ghi nhận đủ là **10/06/2026 16:00 (UTC+07:00)**. PO hoàn tất sau hạn gốc **75 ngày**.
-Ngày hứa giao mới nhất đã được ghi nhận là **10/06/2026**, ghi nhận lúc **06/03/2026 13:24 (UTC+07:00)**. Đây là mốc cam kết; kết quả giao thực tế được đối chiếu theo phiếu nhận hàng.
+Đơn đặt hàng mã DEMO-PO-00957, gồm 30 ram Giấy Double A A4 80 gsm, 500 tờ/ram (DEMO-P01), phát hành ngày 26/09/2026, hạn nhận đủ ban đầu là 21/10/2026.
 
-### 3.3. PO đã nhận đủ đúng hạn: DEMO-PO-00957 — DEMO-S05
+- Đợt 1: nhận 19 ram ngày 06/10/2026; phiếu nhận 6331b097.
+- Đợt 2: nhận 11 ram ngày 14/10/2026; phiếu nhận 4189ba46.
 
-Nhận xét của demo-warehouse-2 về DEMO-S05: PO **DEMO-PO-00957** đặt **30 unit Demo Product 1 (DEMO-P01)**, phát hành ngày **26/09/2026**, hạn giao gốc **21/10/2026**.
-Hồ sơ đã ghi nhận đủ **30 unit**. Ngày giao của đợt hoàn tất là **14/10/2026**; thời điểm hệ thống ghi nhận đủ là **14/10/2026 16:00 (UTC+07:00)**. PO hoàn tất đúng hoặc trước hạn gốc.
-Ngày hứa giao mới nhất đã được ghi nhận là **13/10/2026**, ghi nhận lúc **01/10/2026 14:57 (UTC+07:00)**. Đây là mốc cam kết; kết quả giao thực tế được đối chiếu theo phiếu nhận hàng.
+Kho đã nhận đủ ngày 14/10/2026, đáp ứng hạn giao ban đầu. Đây là kết quả của đơn cụ thể này.
 
-### 3.4. PO còn cần theo dõi: DEMO-PO-00926 — DEMO-S05
+Cam kết mới nhất trong hồ sơ là ngày 13/10/2026, được ghi nhận ngày 01/10/2026. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
 
-Nhận xét của demo-warehouse-2 về DEMO-S05: PO **DEMO-PO-00926** đặt **99 unit Demo Product 3 (DEMO-P03)**, phát hành ngày **12/09/2026**, hạn giao gốc **03/10/2026**.
-Tại mốc báo cáo, hồ sơ mới ghi nhận **0 unit**; còn **99 unit** chưa được ghi nhận nhận đủ. Hạn giao gốc đã qua **12 ngày**. Cần đối chiếu thực nhận và kế hoạch giao phần còn lại; chưa có kết quả hoàn tất cuối cùng.
-Chưa có ngày hứa giao từ phản hồi xác nhận trong hồ sơ của PO này.
+Đơn giá trên đơn đặt hàng: 95.996 đồng/ram; giá trị dòng hàng: 2.879.880 đồng, chưa bao gồm VAT.
 
-## 4. Cảnh báo và khuyến nghị hợp tác — DEMO-S05
+*** 3.4. Đơn đặt hàng DEMO-PO-00926 — Đơn quá hạn còn thiếu hàng
 
-### 4.1. Việc cần theo dõi — DEMO-S05
+Đơn đặt hàng mã DEMO-PO-00926, gồm 99 cuộn Băng keo Scotch 371 vàng, 48 mm × 100 m (DEMO-P03), phát hành ngày 12/09/2026, hạn nhận đủ ban đầu là 03/10/2026.
 
-Nhận xét của demo-warehouse-2 về DEMO-S05: ưu tiên rà soát **1 PO đã qua hạn gốc nhưng chưa ghi nhận nhận đủ**. Cần kiểm tra có chậm cập nhật phiếu nhận hay thực tế còn thiếu hàng, đồng thời đối chiếu phản hồi của nhà cung cấp cho từng PO.
+Đến mốc dữ liệu, kho chưa có phiếu ghi nhận nhận hàng cho đơn này.
 
-### 4.2. Điều kiện sử dụng nhận xét — DEMO-S05
+Còn 99 cuộn chưa được ghi nhận nhận đủ. Đơn đang quá hạn 12 ngày tại mốc dữ liệu.
 
-Trạng thái hồ sơ nhà cung cấp DEMO-S05 trong dữ liệu nguồn là **active**. Báo cáo không tự thay đổi trạng thái này. Khi lập phương án mua tiếp, cần kết hợp điều kiện mua hiện hành, kết quả dự đoán phù hợp và đánh giá chất lượng bổ sung nếu nghiệp vụ yêu cầu.
+Hồ sơ chưa có bản ghi xác nhận lịch giao của nhà cung cấp. Cần kiểm tra lại đầu mối phụ trách trước khi coi lịch giao là đã được xác nhận.
 
-Không dùng giao trễ để suy ra hàng bị lỗi, không coi xác nhận PO là đã giao đủ và không coi một PO nhận đủ là bằng chứng đã đóng khiếu nại chất lượng. Chưa đủ dữ liệu để đưa ra kết luận về xử lý đổi trả hoặc chất lượng toàn bộ sản phẩm.
+Đơn giá trên đơn đặt hàng: 47.881 đồng/cuộn; giá trị dòng hàng: 4.740.219 đồng, chưa bao gồm VAT.
+
+*** 3.5. Đơn đặt hàng DEMO-PO-00958 — Đơn chưa đến hạn cần tiếp tục theo dõi
+
+Đơn đặt hàng mã DEMO-PO-00958, gồm 33 cây Bút bi Thiên Long TL-027, 0,5 mm, mực xanh (DEMO-P04), phát hành ngày 27/09/2026, hạn nhận đủ ban đầu là 22/10/2026.
+
+- Đợt 1: nhận 5 cây ngày 07/10/2026; phiếu nhận ed79e29f.
+
+Còn 28 cây chưa được ghi nhận nhận đủ. Đơn chưa đến hạn tại mốc dữ liệu.
+
+Cam kết mới nhất trong hồ sơ là ngày 16/10/2026, được ghi nhận ngày 01/10/2026. Mốc này dùng để theo dõi phản hồi; đánh giá giao trễ vẫn đối chiếu với hạn ban đầu trên đơn.
+
+Đơn giá trên đơn đặt hàng: 4.464 đồng/cây; giá trị dòng hàng: 147.312 đồng, chưa bao gồm VAT.
+
+** 4. Chất lượng hàng hóa và tiếp nhận
+
+*** 4.1. Phạm vi đã đối chiếu
+
+Kho có 246 phiếu ghi nhận tiếp nhận hàng liên quan các đơn đặt hàng trong báo cáo. Các phiếu này dùng để đối chiếu số lượng đã nhận và thời điểm hoàn tất từng đơn.
+
+Phiếu nhận chưa có trường ghi kết quả thử nghiệm, số lượng kiểm mẫu hoặc số lượng bị loại. Vì vậy, việc đã nhận đủ không đồng nghĩa toàn bộ hàng đã qua kiểm tra chất lượng chi tiết.
+
+*** 4.2. Bao bì và phản ánh từ bộ phận sử dụng
+
+Tập hồ sơ được đối chiếu lần này chưa có biên bản riêng về bao bì hư hỏng, ảnh kiểm tra hay phiếu phản ánh chất lượng. Chưa đủ căn cứ nhận xét về độ nguyên vẹn của bao bì, độ bám dính của băng keo hoặc độ bền thiết bị.
+
+Nếu bộ phận sử dụng ghi nhận vấn đề, cần bổ sung mã đơn đặt hàng, mặt hàng, số lượng bị ảnh hưởng, ngày phát hiện và người kiểm tra để có thể theo dõi xử lý.
+
+** 5. Phản hồi và phối hợp
+
+*** 5.1. Xác nhận đơn và cập nhật cam kết
+
+Có 145/164 đơn đặt hàng có bản ghi xác nhận lịch giao; 19 đơn đặt hàng chưa có bản ghi xác nhận tại mốc dữ liệu.
+
+Trung vị thời gian từ phát hành đơn đặt hàng đến bản ghi xác nhận đầu tiên là 1.41 ngày. Có 52 đơn đặt hàng ghi nhận thay đổi cam kết qua nhiều phiên bản. Cần đọc thời điểm từng lần cập nhật khi đánh giá nhà cung cấp có báo sớm hay chỉ thay đổi lịch sau hạn.
+
+Hồ sơ xác nhận chưa lưu đầy đủ nội dung trao đổi về nguyên nhân thiếu hàng. Do đó chưa quy nguyên nhân giao trễ cho tồn kho, vận chuyển hay bộ phận mua hàng nếu không có căn cứ bổ sung.
+
+*** 5.2. Xử lý khiếu nại và khắc phục
+
+Chưa có hồ sơ khiếu nại, biên bản đổi trả hoặc xác nhận đóng sự cố trong tập dữ liệu này. Tốc độ xác nhận đơn đặt hàng không được dùng thay cho thời gian giải quyết khiếu nại. Nếu có cam kết khắc phục, cần theo dõi đến khi có kết quả kiểm tra.
+
+** 6. Giá và chứng từ
+
+*** 6.1. Giá trên các đơn đã đặt
+
+Đơn giá được lưu theo từng dòng đơn đặt hàng, tính bằng VND theo đơn vị mua và chưa bao gồm VAT. Giá trị dòng bằng đơn giá nhân số lượng; tổng đơn đặt hàng bằng tổng các dòng hàng. Không so trực tiếp tổng tiền của hai đơn khác quy cách hoặc khác khối lượng mua.
+
+Các mức giá thuộc bộ dữ liệu mô phỏng, không phải báo giá giao dịch thực tế. Chưa có hóa đơn để kết luận mức giá đã thanh toán hay mức độ cạnh tranh so với thị trường.
+
+*** 6.2. Chứng từ cần đối chiếu thêm
+
+Đã có đơn đặt hàng, lịch giao, bản ghi xác nhận và phiếu nhận theo từng đợt. Chưa có hóa đơn VAT, chứng từ thanh toán hoặc hồ sơ bảo hành trong phạm vi đánh giá. Cần bổ sung các chứng từ này khi kiểm tra thanh toán hoặc bảo hành; không coi email phát hành đơn đặt hàng là bằng chứng hàng đã được nhận.
+
+** 7. Đề xuất hợp tác và việc cần theo dõi
+
+*** 7.1. Điều kiện xem xét đơn mua tiếp
+
+Trước khi chọn Phân phối Đông Thành — NCC-05 cho đơn mới, bộ phận mua hàng nên yêu cầu xác nhận hàng sẵn có và thời điểm giao đủ. Với đơn cần nhận tập trung hoặc thời hạn gấp, nên đối chiếu thêm phương án cung ứng khác.
+
+Nếu thống nhất giao nhiều đợt, cần ghi rõ số lượng và lịch của từng đợt. Việc đồng ý nhận từng phần không tự xóa kết quả trễ so với hạn ban đầu. Báo cáo này không tự thay đổi trạng thái hợp tác hay phê duyệt mua hàng.
+
+*** 7.2. Danh sách theo dõi
+
+- Bộ phận mua hàng: rà soát đơn đặt hàng DEMO-PO-00926, xác nhận lại kế hoạch cho 99 cuộn chưa ghi nhận nhận đủ. Kiểm tra cả khả năng chậm cập nhật phiếu nhận.
+- Bộ phận mua hàng: theo dõi đơn đặt hàng DEMO-PO-00958 theo hạn 22/10/2026; lưu lại mọi thay đổi cam kết.
+- Lê Thị Ngọc: cập nhật phiếu nhận khi hàng về và đối chiếu số lượng còn thiếu trước khi ghi nhận hoàn tất.
+- Bộ phận sử dụng: bổ sung phản ánh có mã đơn đặt hàng và kết quả kiểm tra nếu phát sinh vấn đề chất lượng; chưa đánh dấu đóng khi mới chỉ có lời hứa xử lý.
+
+*** 7.3. Mốc rà soát tiếp theo
+
+Rà soát ngay khi có đợt giao mới hoặc có phản hồi thay đổi lịch giao. Các kết quả phát sinh sau 15/10/2026 chưa nằm trong thống kê trên; cần cập nhật bằng phiếu nhận và bản ghi phản hồi thực tế trước khi kết luận.

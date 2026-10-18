@@ -27,3 +27,18 @@ nav { display: flex; flex-wrap: wrap; gap: 6px; }
 #business-message[data-error="true"] { background: #fff0ed; color: #8b2418; }
 [hidden] { display: none !important; }
 @media (max-width: 700px) { main { margin: 0; padding: 16px; } .line-fields { grid-template-columns: 1fr; } }
+/* Knowledge manager stays within the existing business layout. */
+.knowledge-layout { display: grid; grid-template-columns: minmax(210px, 28%) minmax(0, 1fr); gap: 1.2rem; margin-top: 1rem; }
+.knowledge-layout aside { min-width: 0; border-right: 1px solid #ddd; padding-right: 1rem; }
+.knowledge-layout aside ul { padding: 0; list-style: none; }
+.knowledge-layout aside li { margin: .7rem 0; overflow-wrap: anywhere; }
+.knowledge-layout small { display: block; margin-top: .25rem; }
+.knowledge-content { min-width: 0; }
+.knowledge-content textarea { width: 100%; box-sizing: border-box; font-family: monospace; }
+.knowledge-preview { overflow-wrap: anywhere; white-space: pre-wrap; border: 1px solid #ddd; padding: 1rem; max-height: 70vh; overflow: auto; }
+#knowledge-message[data-error="true"] { color: #a31a1a; }
+.knowledge-queue { margin: 16px 0; padding: 12px 16px; border: 1px solid #d5dadd; border-radius: 4px; background: #f4f7f8; overflow-wrap: anywhere; }
+.knowledge-queue h3 { margin-top: 0; }
+.knowledge-queue ul { max-height: 260px; overflow: auto; padding-left: 22px; }
+.knowledge-queue li { padding: 5px 0; }
+@media (max-width: 760px) { .knowledge-layout { grid-template-columns: 1fr; } .knowledge-layout aside { border-right: 0; } }

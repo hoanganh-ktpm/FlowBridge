@@ -16,7 +16,7 @@ Nhân viên lập PR cá nhân nhiều dòng và có thể hỏi trợ lý bằn
 
 > **Đang phát triển:** API nghiệp vụ có chế độ PostgreSQL/Supabase thật theo contract **v0.4.1**: đọc/ghi PR, analysis, proposal, PO, receipt, supplier confirmation và phân quyền ứng dụng. Xem [hướng dẫn API database](docs/SUPABASE-API.md). Identity/SSO dùng Keycloak, xem [hướng dẫn SSO](docs/SSO.md); hai API Identity core bật bằng binding tenant/application theo [Identity core](docs/IDENTITY-CORE.md); workflow approval, email worker, chat/model và kho tài liệu chưa được nối. Backend chỉ phục vụ API PostgreSQL/Supabase; nhánh API sample đã được loại bỏ.
 
-RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md); Langflow chưa được nối.
+RAG dùng Qwen3 + pgvector/BM25/RRF với kho Markdown PostgreSQL. Xem [hướng dẫn setup và API](docs/rag-postgres-setup.md). Chế độ Chroma trên fixture vẫn có [CLI và HTTP development riêng](examples/rag/README.md). Có [flow Langflow chỉ truy hồi RAG](langflow/rag/README.md), dùng token Keycloak và JobContext; chưa có bước LLM tổng hợp hoặc ghép ML trong flow này.
 
 ML đã có API riêng để chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO bằng TabICLv2.
 Flow agent và custom node cho Langflow: [cấu hình Langflow](langflow/README.md).

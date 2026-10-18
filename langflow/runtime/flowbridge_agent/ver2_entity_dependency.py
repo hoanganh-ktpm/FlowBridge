@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # FlowBridge; see LICENSE.
 
-"""Finish only rank/score identity dependencies from verified tool receipts."""
+"""Finish ML/RAG identity dependencies only from verified catalog receipts."""
 
 import json
+import re
 from uuid import UUID
 
 from flowbridge_agent.ver2_coordination import Invocation, Reply, Request
@@ -18,7 +19,32 @@ def is_ml_entity_dependency(request: Request, scope: Invocation) -> bool:
     )
 
 
+def is_knowledge_entity_dependency(request: Request, scope: Invocation) -> bool:
+    return (
+        scope.role == "knowledge"
+        and scope.request is not None
+        and scope.request.task == "retrieve"
+        and request.task == "resolve_entities"
+    )
+
+
 def scope_entity_request(request: Request, target: str, scope: Invocation) -> None:
+    if target == "database" and is_knowledge_entity_dependency(request, scope):
+        # Data resolves identity; the original retrieval question stays with RAG.
+        request.known = {
+            key: value
+            for key, value in request.known.items()
+            if key in {"supplier", "supplier_id"} and value is not None
+        }
+        request.question = (
+            "Nhiệm vụ con duy nhất: xác minh nhà cung cấp trong known bằng "
+            "catalog_resolve_entities. Trả UUID, mã và tên từ kết quả tra cứu; "
+            "nếu nhập nhằng thì trả các lựa chọn thực. Xác minh xong là hoàn tất "
+            "nhiệm vụ này, handoffs=[]. Không đánh giá giao hàng, đọc đơn hàng, "
+            "tìm tài liệu hoặc đề xuất bước tiếp theo. Dữ liệu để tra cứu: "
+            + json.dumps(request.known, ensure_ascii=False)
+        )
+        return
     if target != "database" or not is_ml_entity_dependency(request, scope):
         return
     # The parent invocation keeps quantity/date/pricing conditions for the ML API.
@@ -39,12 +65,22 @@ def scope_entity_request(request: Request, target: str, scope: Invocation) -> No
 
 
 def complete_entity_dependency(reply: Reply, request: Request, scope: Invocation) -> Reply:
-    # Do not reinterpret API/auth/schema failures or other Data/RAG/PO tasks.
+    knowledge = is_knowledge_entity_dependency(request, scope)
+    warnings = set(reply.warnings)
+    valid_warnings = warnings == {"INVALID_DEPENDENCY"}
+    if knowledge:
+        # Data may add narrative about the parent's out-of-scope retrieval goal.
+        # Preserve that narrative in trace, but never clear other runtime codes.
+        valid_warnings = "INVALID_DEPENDENCY" in warnings and not any(
+            re.fullmatch(r"[A-Z][A-Z0-9_]+", warning) and warning != "INVALID_DEPENDENCY"
+            for warning in warnings
+        )
+    # Do not reinterpret API/auth/schema failures or standalone Data/RAG/PO tasks.
     if (
-        not is_ml_entity_dependency(request, scope)
+        not (is_ml_entity_dependency(request, scope) or knowledge)
         or reply.service != "database"
         or reply.status != "error"
-        or set(reply.warnings) != {"INVALID_DEPENDENCY"}
+        or not valid_warnings
         or reply.missing
         or reply.questions
         or reply.handoffs
@@ -52,7 +88,7 @@ def complete_entity_dependency(reply: Reply, request: Request, scope: Invocation
         or reply.trace.get("path") != [*scope.path, "database"]
     ):
         return reply
-    required = {"product"}
+    required = {"supplier"} if knowledge else {"product"}
     if scope.request.task == "score_supplier":
         required.add("supplier")
     required.update(
@@ -143,7 +179,7 @@ def complete_entity_dependency(reply: Reply, request: Request, scope: Invocation
     completed.trace["ignored_out_of_scope_warnings"] = reply.warnings.copy()
     scope.run.events.append(
         {
-            "source": "prediction",
+            "source": scope.role,
             "target": "database",
             "task": "resolve_entities",
             "code": "ENTITY_DEPENDENCY_COMPLETED_FROM_RECEIPTS",
