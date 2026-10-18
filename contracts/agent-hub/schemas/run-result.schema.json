@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FlowBridge Agent Hub Run Result 1.0",
+  "description": "Canonical public result for web/mobile. Field layout follows the user-provided template (1).json. Structural validation must be followed by the semantic rules in ../README.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "run_id", "answer", "datasets", "tables", "charts", "sources", "warnings", "questions", "error"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "status": {"enum": ["queued", "running", "cancelling", "completed", "needs_input", "failed", "cancelled"]},
+    "run_id": {"$ref": "#/$defs/Id"},
+    "answer": {"type": "string", "maxLength": 100000},
+    "datasets": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/Dataset"}},
+    "tables": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/Table"}},
+    "charts": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/Chart"}},
+    "sources": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Source"}},
+    "warnings": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Warning"}},
+    "questions": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/Question"}},
+    "error": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Error"}]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"enum": ["queued", "running", "cancelling"]}}},
+      "then": {"properties": {"answer": {"const": ""}, "datasets": {"maxItems": 0}, "tables": {"maxItems": 0}, "charts": {"maxItems": 0}, "sources": {"maxItems": 0}, "warnings": {"maxItems": 0}, "questions": {"maxItems": 0}, "error": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "completed"}}},
+      "then": {
+        "properties": {"questions": {"maxItems": 0}, "error": {"type": "null"}},
+        "anyOf": [{"properties": {"answer": {"pattern": "\\S"}}}, {"properties": {"datasets": {"minItems": 1}}}]
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "needs_input"}}},
+      "then": {"properties": {"questions": {"minItems": 1}, "error": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "failed"}}},
+      "then": {"properties": {"datasets": {"maxItems": 0}, "tables": {"maxItems": 0}, "charts": {"maxItems": 0}, "sources": {"maxItems": 0}, "questions": {"maxItems": 0}, "error": {"$ref": "#/$defs/Error"}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "cancelled"}}},
+      "then": {"properties": {"datasets": {"maxItems": 0}, "tables": {"maxItems": 0}, "charts": {"maxItems": 0}, "sources": {"maxItems": 0}, "questions": {"maxItems": 0}, "error": {"type": "null"}}}
+    }
+  ],
+  "$defs": {
+    "Id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "Field": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$"},
+    "Scalar": {"type": ["string", "number", "boolean", "null"]},
+    "Column": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field", "label", "type"],
+      "properties": {
+        "field": {"$ref": "#/$defs/Field"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 200},
+        "type": {"enum": ["string", "integer", "number", "decimal", "boolean", "date", "datetime"]},
+        "nullable": {"type": "boolean", "default": false},
+        "unit": {"type": "string", "minLength": 1, "maxLength": 80},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "scale": {"type": "integer", "minimum": 0, "maximum": 12},
+        "format": {"enum": ["text", "number", "currency", "percent", "date", "datetime"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "decimal"}}}, "then": {"required": ["scale"]}},
+        {"if": {"required": ["format"], "properties": {"format": {"const": "currency"}}}, "then": {"required": ["currency", "scale"], "properties": {"type": {"const": "decimal"}}}},
+        {"if": {"required": ["format"], "properties": {"format": {"const": "percent"}}}, "then": {"required": ["unit"], "properties": {"type": {"const": "number"}, "unit": {"const": "%"}}}}
+      ]
+    },
+    "DatasetContext": {
+      "type": "object", "additionalProperties": false,
+      "required": ["as_of", "complete"],
+      "properties": {
+        "as_of": {"type": "string", "format": "date-time"},
+        "period_from": {"type": "string", "format": "date"},
+        "period_to": {"type": "string", "format": "date"},
+        "timezone": {"type": "string", "minLength": 1, "maxLength": 100},
+        "complete": {"type": "boolean"},
+        "count_unit": {"type": "string", "minLength": 1, "maxLength": 80},
+        "metric_definition": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "denominator_definition": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "filters": {"type": "object", "maxProperties": 20, "additionalProperties": {"$ref": "#/$defs/Scalar"}}
+      },
+      "dependentRequired": {"period_from": ["period_to"], "period_to": ["period_from"]}
+    },
+    "Dataset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "columns", "rows", "context", "source_ids"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 300},
+        "columns": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/Column"}},
+        "rows": {"type": "array", "maxItems": 2000, "items": {"type": "object", "minProperties": 1, "maxProperties": 64, "propertyNames": {"$ref": "#/$defs/Field"}, "additionalProperties": {"$ref": "#/$defs/Scalar"}}},
+        "context": {"$ref": "#/$defs/DatasetContext"},
+        "source_ids": {"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}}
+      }
+    },
+    "Table": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "dataset_id", "fields"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 300},
+        "dataset_id": {"$ref": "#/$defs/Id"},
+        "fields": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/Field"}}
+      }
+    },
+    "Series": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field", "label"],
+      "properties": {
+        "field": {"$ref": "#/$defs/Field"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 200}
+      }
+    },
+    "Chart": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "dataset_id", "type", "orientation", "stacking", "x_field", "x_label", "y_label", "y_unit", "series"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 300},
+        "dataset_id": {"$ref": "#/$defs/Id"},
+        "type": {"enum": ["bar", "line", "pie", "donut"]},
+        "orientation": {"enum": ["vertical", "horizontal"]},
+        "stacking": {"enum": ["none", "normal", "percent"]},
+        "x_field": {"$ref": "#/$defs/Field"},
+        "x_label": {"type": "string", "minLength": 1, "maxLength": 200},
+        "y_label": {"type": "string", "minLength": 1, "maxLength": 200},
+        "y_unit": {"type": "string", "minLength": 1, "maxLength": 80},
+        "series": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"$ref": "#/$defs/Series"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "line"}}}, "then": {"properties": {"orientation": {"const": "vertical"}, "stacking": {"const": "none"}}}},
+        {"if": {"properties": {"type": {"enum": ["pie", "donut"]}}}, "then": {"properties": {"orientation": {"const": "vertical"}, "stacking": {"const": "none"}, "series": {"maxItems": 1}}}},
+        {"if": {"properties": {"stacking": {"const": "normal"}}}, "then": {"properties": {"type": {"const": "bar"}, "series": {"minItems": 2}}}},
+        {"if": {"properties": {"stacking": {"const": "percent"}}}, "then": {"properties": {"type": {"const": "bar"}, "y_unit": {"const": "%"}, "series": {"minItems": 2}}}}
+      ]
+    },
+    "Source": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "kind", "tool"],
+          "properties": {
+            "id": {"$ref": "#/$defs/Id"}, "kind": {"const": "tool"},
+            "tool": {"type": "string", "minLength": 1, "maxLength": 128},
+            "title": {"type": "string", "minLength": 1, "maxLength": 300},
+            "observed_at": {"type": "string", "format": "date-time"}
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "kind", "document_id", "version", "title"],
+          "properties": {
+            "id": {"$ref": "#/$defs/Id"}, "kind": {"const": "document"},
+            "document_id": {"$ref": "#/$defs/Id"},
+            "version": {"type": "string", "minLength": 1, "maxLength": 128},
+            "chunk_id": {"$ref": "#/$defs/Id"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 300},
+            "excerpt": {"type": "string", "maxLength": 2000},
+            "url": {"type": "string", "format": "uri", "pattern": "^https://", "maxLength": 2048}
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "kind", "title", "url"],
+          "properties": {
+            "id": {"$ref": "#/$defs/Id"}, "kind": {"const": "url"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 300},
+            "url": {"type": "string", "format": "uri", "pattern": "^https://", "maxLength": 2048},
+            "accessed_at": {"type": "string", "format": "date-time"}
+          }
+        }
+      ]
+    },
+    "Warning": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "message": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "dataset_id": {"$ref": "#/$defs/Id"}
+      }
+    },
+    "Question": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "field", "prompt", "kind", "required"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"}, "field": {"$ref": "#/$defs/Field"},
+        "prompt": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "kind": {"enum": ["text", "number", "date", "single_choice"]},
+        "required": {"type": "boolean"},
+        "options": {"type": "array", "minItems": 1, "maxItems": 100, "items": {
+          "type": "object", "additionalProperties": false, "required": ["value", "label"],
+          "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 256}, "label": {"type": "string", "minLength": 1, "maxLength": 300}}
+        }}
+      },
+      "allOf": [{"if": {"properties": {"kind": {"const": "single_choice"}}}, "then": {"required": ["options"]}, "else": {"not": {"required": ["options"]}}}]
+    },
+    "Error": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message", "retryable", "trace_id"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "message": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "retryable": {"type": "boolean"}, "trace_id": {"$ref": "#/$defs/Id"}
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "status": "needs_input",
+  "run_id": "run_clarify_001",
+  "answer": "Bạn muốn mua loại băng keo nào, số lượng bao nhiêu và cần nhận ngày nào? Các lựa chọn dưới đây chỉ là ví dụ hợp đồng.",
+  "datasets": [],
+  "tables": [],
+  "charts": [],
+  "sources": [],
+  "warnings": [],
+  "questions": [
+    {
+      "id": "q_product",
+      "field": "product",
+      "prompt": "Chọn sản phẩm",
+      "kind": "single_choice",
+      "required": true,
+      "options": [
+        {"value": "DEMO-P03", "label": "Băng keo Scotch 371 vàng, 48 mm × 100 m"},
+        {"value": "DEMO-P19", "label": "Băng keo Scotch 371 trong, 48 mm × 100 m"}
+      ]
+    },
+    {"id": "q_quantity", "field": "quantity", "prompt": "Số lượng cuộn cần mua", "kind": "number", "required": true},
+    {"id": "q_delivery_date", "field": "requested_delivery_date", "prompt": "Ngày cần nhận hàng", "kind": "date", "required": true}
+  ],
+  "error": null
+}

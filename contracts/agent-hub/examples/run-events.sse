@@ -1,0 +1,56 @@
+: Example only; SPDX-License-Identifier: GPL-3.0-or-later; see LICENSE in FlowBridge.
+
+id: evt_000001
+event: run.queued
+data: {"schema_version":"1.0","id":"evt_000001","sequence":1,"type":"run.queued","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:00Z","data":{"status":"queued","result_url":"/api/v1/agent-hub/runs/run_rank_001"}}
+
+id: evt_000002
+event: run.started
+data: {"schema_version":"1.0","id":"evt_000002","sequence":2,"type":"run.started","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:01Z","data":{"status":"running","result_url":"/api/v1/agent-hub/runs/run_rank_001"}}
+
+id: evt_000003
+event: agent.started
+data: {"schema_version":"1.0","id":"evt_000003","sequence":3,"type":"agent.started","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:01Z","data":{"span_id":"span_central_1","parent_span_id":null,"agent":"central","invoked_by":null,"role":"coordinator","label":"Đang xử lý yêu cầu"}}
+
+id: evt_000004
+event: agent.started
+data: {"schema_version":"1.0","id":"evt_000004","sequence":4,"type":"agent.started","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:02Z","data":{"span_id":"span_prediction_1","parent_span_id":"span_central_1","agent":"prediction","invoked_by":"central","role":"primary","label":"Đang chuẩn bị xếp hạng nhà cung cấp"}}
+
+id: evt_000005
+event: agent.started
+data: {"schema_version":"1.0","id":"evt_000005","sequence":5,"type":"agent.started","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:03Z","data":{"span_id":"span_database_1","parent_span_id":"span_prediction_1","agent":"database","invoked_by":"prediction","role":"dependency","label":"Đang xác minh sản phẩm"}}
+
+id: evt_000006
+event: tool.started
+data: {"schema_version":"1.0","id":"evt_000006","sequence":6,"type":"tool.started","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:03Z","data":{"span_id":"span_catalog_1","parent_span_id":"span_database_1","agent":"database","tool":"catalog_resolve_entities","label":"Đang tra cứu định danh sản phẩm"}}
+
+: heartbeat
+
+id: evt_000007
+event: tool.completed
+data: {"schema_version":"1.0","id":"evt_000007","sequence":7,"type":"tool.completed","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:04Z","data":{"span_id":"span_catalog_1","parent_span_id":"span_database_1","agent":"database","tool":"catalog_resolve_entities","label":"Đã xác minh sản phẩm","outcome":"success","duration_ms":1000}}
+
+id: evt_000008
+event: agent.completed
+data: {"schema_version":"1.0","id":"evt_000008","sequence":8,"type":"agent.completed","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:04Z","data":{"span_id":"span_database_1","parent_span_id":"span_prediction_1","agent":"database","invoked_by":"prediction","role":"dependency","label":"Hoàn tất xác minh sản phẩm","outcome":"success","duration_ms":1000}}
+
+id: evt_000009
+event: tool.started
+data: {"schema_version":"1.0","id":"evt_000009","sequence":9,"type":"tool.started","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:05Z","data":{"span_id":"span_rank_1","parent_span_id":"span_prediction_1","agent":"prediction","tool":"prediction_rank_suppliers","label":"Đang xếp hạng nhà cung cấp"}}
+
+id: evt_000010
+event: tool.completed
+data: {"schema_version":"1.0","id":"evt_000010","sequence":10,"type":"tool.completed","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:08Z","data":{"span_id":"span_rank_1","parent_span_id":"span_prediction_1","agent":"prediction","tool":"prediction_rank_suppliers","label":"Đã nhận kết quả xếp hạng","outcome":"success","duration_ms":3000}}
+
+id: evt_000011
+event: agent.completed
+data: {"schema_version":"1.0","id":"evt_000011","sequence":11,"type":"agent.completed","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:09Z","data":{"span_id":"span_prediction_1","parent_span_id":"span_central_1","agent":"prediction","invoked_by":"central","role":"primary","label":"Hoàn tất xếp hạng","outcome":"success","duration_ms":7000}}
+
+id: evt_000012
+event: agent.completed
+data: {"schema_version":"1.0","id":"evt_000012","sequence":12,"type":"agent.completed","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:10Z","data":{"span_id":"span_central_1","parent_span_id":null,"agent":"central","invoked_by":null,"role":"coordinator","label":"Đã chuẩn bị câu trả lời","outcome":"success","duration_ms":9000}}
+
+id: evt_000013
+event: run.completed
+data: {"schema_version":"1.0","id":"evt_000013","sequence":13,"type":"run.completed","run_id":"run_rank_001","occurred_at":"2026-10-19T03:00:10Z","data":{"status":"completed","result_url":"/api/v1/agent-hub/runs/run_rank_001"}}
+

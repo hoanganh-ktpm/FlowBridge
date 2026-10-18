@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "run_id": "run_comparison_001",
+  "answer": "Dữ liệu minh họa: trong các đơn đã nhận đủ, NCC-03 có tỷ lệ trễ 60,77%, NCC-04 có tỷ lệ trễ 20,00%. Đơn giá tham khảo DEMO-P03 lần lượt là 25.000 và 27.000 VND/cuộn, chưa VAT. Đây không phải kết quả từ hệ thống thực.",
+  "datasets": [
+    {
+      "id": "delivery_comparison",
+      "title": "Đơn đã nhận đủ theo nhà cung cấp",
+      "columns": [
+        {"field": "supplier_code", "label": "Mã nhà cung cấp", "type": "string"},
+        {"field": "on_time_orders", "label": "Nhận đủ đúng hạn", "type": "integer", "unit": "đơn đặt hàng"},
+        {"field": "late_orders", "label": "Nhận đủ trễ hạn", "type": "integer", "unit": "đơn đặt hàng"},
+        {"field": "received_orders", "label": "Tổng đơn đã nhận đủ", "type": "integer", "unit": "đơn đặt hàng"},
+        {"field": "late_pct", "label": "Tỷ lệ trễ", "type": "number", "unit": "%", "format": "percent"}
+      ],
+      "rows": [
+        {"supplier_code": "NCC-03", "on_time_orders": 71, "late_orders": 110, "received_orders": 181, "late_pct": 60.773480662983424},
+        {"supplier_code": "NCC-04", "on_time_orders": 80, "late_orders": 20, "received_orders": 100, "late_pct": 20}
+      ],
+      "context": {
+        "as_of": "2026-10-19T03:00:00Z",
+        "period_from": "2026-09-01",
+        "period_to": "2026-09-30",
+        "timezone": "Asia/Ho_Chi_Minh",
+        "complete": true,
+        "count_unit": "đơn đặt hàng",
+        "metric_definition": "Mỗi đơn đã nhận đủ thuộc đúng một nhóm đúng hạn/trễ hạn. Dữ liệu tổng hợp minh họa.",
+        "denominator_definition": "late_pct = late_orders / received_orders * 100; received_orders = on_time_orders + late_orders. Không bao gồm đơn chưa nhận đủ."
+      },
+      "source_ids": ["delivery_source"]
+    },
+    {
+      "id": "price_comparison",
+      "title": "Đơn giá DEMO-P03, cùng cơ sở so sánh",
+      "columns": [
+        {"field": "supplier_code", "label": "Mã nhà cung cấp", "type": "string"},
+        {"field": "unit_price", "label": "Đơn giá chưa VAT", "type": "decimal", "unit": "VND/cuộn", "currency": "VND", "scale": 4, "format": "currency"}
+      ],
+      "rows": [
+        {"supplier_code": "NCC-03", "unit_price": "25000.0000"},
+        {"supplier_code": "NCC-04", "unit_price": "27000.0000"}
+      ],
+      "context": {
+        "as_of": "2026-10-19T03:00:00Z",
+        "complete": true,
+        "metric_definition": "Giá minh họa cho cùng sản phẩm và số lượng tham chiếu; chưa VAT, chưa phí giao, chưa chiết khấu.",
+        "filters": {"product_code": "DEMO-P03", "unit": "cuộn", "currency": "VND", "reference_quantity": "100.0000", "price_basis": "ex_vat_ex_shipping_before_discount"}
+      },
+      "source_ids": ["offers_source"]
+    }
+  ],
+  "tables": [
+    {"id": "delivery_table", "title": "So sánh giao hàng", "dataset_id": "delivery_comparison", "fields": ["supplier_code", "on_time_orders", "late_orders", "received_orders", "late_pct"]},
+    {"id": "price_table", "title": "So sánh đơn giá", "dataset_id": "price_comparison", "fields": ["supplier_code", "unit_price"]}
+  ],
+  "charts": [
+    {
+      "id": "late_rate_chart", "title": "Tỷ lệ trễ trên đơn đã nhận đủ", "dataset_id": "delivery_comparison",
+      "type": "bar", "orientation": "vertical", "stacking": "none", "x_field": "supplier_code", "x_label": "Nhà cung cấp", "y_label": "Tỷ lệ trễ", "y_unit": "%",
+      "series": [{"field": "late_pct", "label": "Tỷ lệ trễ"}]
+    },
+    {
+      "id": "delivery_stack", "title": "Số đơn đã nhận đủ: đúng hạn và trễ", "dataset_id": "delivery_comparison",
+      "type": "bar", "orientation": "vertical", "stacking": "normal", "x_field": "supplier_code", "x_label": "Nhà cung cấp", "y_label": "Số đơn đã nhận đủ", "y_unit": "đơn đặt hàng",
+      "series": [{"field": "on_time_orders", "label": "Đúng hạn"}, {"field": "late_orders", "label": "Trễ hạn"}]
+    },
+    {
+      "id": "delivery_percent_stack", "title": "Cơ cấu 100% đơn đã nhận đủ", "dataset_id": "delivery_comparison",
+      "type": "bar", "orientation": "horizontal", "stacking": "percent", "x_field": "supplier_code", "x_label": "Nhà cung cấp", "y_label": "Tỷ trọng", "y_unit": "%",
+      "series": [{"field": "on_time_orders", "label": "Đúng hạn"}, {"field": "late_orders", "label": "Trễ hạn"}]
+    },
+    {
+      "id": "price_chart", "title": "Đơn giá DEMO-P03 chưa VAT", "dataset_id": "price_comparison",
+      "type": "bar", "orientation": "vertical", "stacking": "none", "x_field": "supplier_code", "x_label": "Nhà cung cấp", "y_label": "Đơn giá", "y_unit": "VND/cuộn",
+      "series": [{"field": "unit_price", "label": "Đơn giá"}]
+    }
+  ],
+  "sources": [
+    {"id": "delivery_source", "kind": "tool", "tool": "supplier_delivery_statistics", "title": "Nguồn mô phỏng: thống kê giao hàng"},
+    {"id": "offers_source", "kind": "tool", "tool": "supplier_offers", "title": "Nguồn mô phỏng: báo giá nhà cung cấp"}
+  ],
+  "warnings": [{"code": "EXAMPLE_DATA", "message": "Toàn bộ dữ liệu trong file này là ví dụ thiết kế, không được dùng làm kết quả nghiệp vụ."}],
+  "questions": [],
+  "error": null
+}

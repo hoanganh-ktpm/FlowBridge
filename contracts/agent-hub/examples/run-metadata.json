@@ -1,0 +1,21 @@
+{
+  "run_id": "run_rank_001",
+  "conversation_id": "conv_001",
+  "user_message_id": "msg_user_001",
+  "assistant_message_id": "msg_assistant_001",
+  "status": "completed",
+  "conversation_revision": 1,
+  "selected_agents": ["prediction"],
+  "used_agents": ["prediction", "database"],
+  "dependency_agents": ["database"],
+  "accepted_at": "2026-10-19T03:00:00Z",
+  "started_at": "2026-10-19T03:00:01Z",
+  "finished_at": "2026-10-19T03:00:10Z",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "business_date": "2026-10-19",
+  "cancellation_requested": false,
+  "trace_id": "trace_rank_001",
+  "result_url": "/api/v1/agent-hub/runs/run_rank_001",
+  "events_url": "/api/v1/agent-hub/runs/run_rank_001/events",
+  "events_expires_at": "2026-10-20T03:00:10Z"
+}
