@@ -108,6 +108,7 @@ include = [
     "/langflow/start-sso.cmd",
     "/docs/LANGFLOW-SSO.md",
     "/docs/AGENT-HUB.md",
+    "/docs/MOBILE-PLAN.md",
     "/docs/ML-SERVICE.md",
     "/docs/RAG.md",
     "/infra/identity",

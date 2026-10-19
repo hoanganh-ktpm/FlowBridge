@@ -93,6 +93,7 @@ docs/                Hướng dẫn kỹ thuật theo thành phần
 | Chat và agent | [Backend ↔ Langflow](docs/LANGFLOW-SSO.md), [Langflow](langflow/README.md), [Agent Hub](docs/AGENT-HUB.md) |
 | Model và tài liệu | [ML](docs/ML-SERVICE.md), [RAG](docs/RAG.md) |
 | Giao diện | [Client React](clients/sso/README.md) |
+| Mobile dự kiến | [Kế hoạch React Native](docs/MOBILE-PLAN.md) — mới lập kế hoạch, chưa tạo app |
 | Hạ tầng | [Gateway](docs/GATEWAY.md), [Container phát triển](docs/DEV-CONTAINERS.md) |
 
 ## Phát triển và kiểm tra
