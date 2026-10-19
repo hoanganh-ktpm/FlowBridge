@@ -214,20 +214,65 @@ async def enrich_delivery_statistics(response: dict, receipts: list[dict]) -> di
         return unavailable(response)
 
     async def fetch(identifier):
-        async with httpx.AsyncClient(timeout=30, trust_env=False, follow_redirects=False) as http:
-            result = await http.post(
-                config.origin + "/internal/v1/tools/supplier-delivery-statistics",
-                headers={
-                    "Authorization": "Bearer " + config.ai_token,
-                    "X-Job-Context": config.job_context,
-                },
-                json={"supplier_id": identifier},
-            )
-            result.raise_for_status()
-            data = DeliveryStatistics.model_validate_json(result.content)
-            if str(data.supplier_id) != identifier:
-                raise ValueError("STATISTICS_SUPPLIER_MISMATCH")
-            return data
+        from time import monotonic
+        from uuid import uuid4
+
+        from flowbridge_agent.caller import CALLER
+        from flowbridge_agent.hub_activity import TOOL_LABELS, error_detail
+
+        caller = CALLER.get()
+        emit = caller.emit if caller and caller.central_span_id else None
+        activity = {
+            "span_id": uuid4().hex,
+            "parent_span_id": caller.central_span_id if caller else "",
+            "agent": "database",
+            "tool": "supplier_delivery_statistics",
+            "label": TOOL_LABELS["supplier_delivery_statistics"],
+        }
+        started, outcome = monotonic(), "success"
+        if emit:
+            emit({"type": "tool.started", "data": activity})
+        try:
+            async with httpx.AsyncClient(
+                timeout=30, trust_env=False, follow_redirects=False
+            ) as http:
+                result = await http.post(
+                    config.origin + "/internal/v1/tools/supplier-delivery-statistics",
+                    headers={
+                        "Authorization": "Bearer " + config.ai_token,
+                        "X-Job-Context": config.job_context,
+                    },
+                    json={"supplier_id": identifier},
+                )
+                result.raise_for_status()
+                data = DeliveryStatistics.model_validate_json(result.content)
+                if str(data.supplier_id) != identifier:
+                    raise ValueError("STATISTICS_SUPPLIER_MISMATCH")
+                return data
+        except BaseException:
+            outcome = "failed"
+            raise
+        finally:
+            if emit:
+                emit(
+                    {
+                        "type": "tool.completed",
+                        "data": {
+                            **activity,
+                            "outcome": outcome,
+                            "duration_ms": max(0, int((monotonic() - started) * 1000)),
+                            **(
+                                {
+                                    "error": error_detail(
+                                        "DELIVERY_STATISTICS_FAILED", caller.execution_id
+                                    )
+                                }
+                                if outcome == "failed"
+                                else {}
+                            ),
+                        },
+                    }
+                )
 
     results = await asyncio.gather(*(fetch(i) for i in identifiers[:3]), return_exceptions=True)
     for result in results:

@@ -1,4 +1,4 @@
-# APISIX Gateway — PR02
+# APISIX Gateway
 
 Gateway dùng Apache APISIX OSS 3.19.0 (Apache-2.0), chạy thành dịch vụ riêng;
 backend FlowBridge giữ GPL-3.0-or-later. Không copy hoặc sửa source upstream.
@@ -97,8 +97,8 @@ Nếu cleanup thất bại, runner dừng container và giữ volumes, trả l�
 ```
 
 Không chạy recovery với tên mẫu trên; thay bằng project của lần lỗi. Không xóa
-volumes khi chưa đối soát fixture. Kết quả và giới hạn nghiệm thu:
-[GATEWAY-TEST-RESULTS.md](GATEWAY-TEST-RESULTS.md).
+volumes khi chưa đối soát fixture. Private Data/Files/Workflow routes cần receiver thật trước khi mở thêm; profile
+hiện tại chỉ công bố Identity core.
 
 ## Nguồn upstream
 

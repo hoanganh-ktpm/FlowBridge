@@ -130,6 +130,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                 await worker
 
                         stack.push_async_callback(stop_manager)
+                if configuration.agent_hub_enabled:
+                    from flowbridge.agent_hub.worker import HubWorker
+
+                    hub = HubWorker(app)
+                    await hub.verify_schema()
+                    if configuration.agent_hub_worker_enabled:
+                        hub_task = asyncio.create_task(hub.run())
+
+                        async def stop_hub():
+                            hub_task.cancel()
+                            with contextlib.suppress(asyncio.CancelledError):
+                                await hub_task
+
+                        stack.push_async_callback(stop_hub)
                 yield
             finally:
                 # Gỡ tài nguyên khỏi state trước khi ExitStack thực sự đóng client/pool.
@@ -164,8 +178,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Content-Type",
                 "Idempotency-Key",
                 "X-Confirmation-Token",
+                "If-Match",
+                "Last-Event-ID",
             ],
-            expose_headers=["X-Correlation-Id"],
+            expose_headers=["X-Correlation-Id", "X-Request-ID", "ETag", "Location", "Retry-After"],
         )
     # Starlette bọc middleware thêm sau ra ngoài: correlation phải bao cả nhánh lỗi.
     app.add_middleware(CorrelationMiddleware)
@@ -193,6 +209,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from flowbridge.supplier_assistant.knowledge.manager_router import install_manager_router
 
         install_manager_router(app)
+    if configuration.agent_hub_enabled:
+        from flowbridge.agent_hub.router import install_hub
+
+        install_hub(app)
     install_openapi(app)
     return app
 

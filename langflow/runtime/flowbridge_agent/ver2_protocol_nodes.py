@@ -17,10 +17,10 @@ from pydantic import BaseModel, Field
 
 from flowbridge_agent.ver2_coordination import (
     CURRENT,
-    EDGES,
     TASKS,
     Reply,
     Request,
+    allowed_targets,
     collect,
     loads,
     resolved_from,
@@ -130,7 +130,7 @@ class ProtocolTool(BaseTool):
         try:
             if scope is None or scope.role != self.caller_service:
                 raise ValueError("PROTOCOL_SCOPE_REQUIRED")
-            if self.target_service not in EDGES[scope.role]:
+            if self.target_service not in allowed_targets(scope.role):
                 raise ValueError("PROTOCOL_ROUTE_BLOCKED")
             request = normalize_request(input_value, self.target_service, scope)
             raw = await self.original.ainvoke(

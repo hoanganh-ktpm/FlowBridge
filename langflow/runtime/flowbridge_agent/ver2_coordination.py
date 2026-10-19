@@ -10,6 +10,7 @@ from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date
+from time import monotonic
 from typing import Annotated, Literal
 from uuid import uuid4
 
@@ -18,6 +19,8 @@ from langchain_core.messages import ToolMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from flowbridge_agent.hub_activity import AGENT_LABELS, TOOL_LABELS, error_detail
+from flowbridge_agent.hub_activity import outcome as activity_outcome
 from flowbridge_agent.tools import ToolResult, failure, tool_result
 
 Service = Literal["database", "prediction", "knowledge"]
@@ -146,28 +149,96 @@ class Invocation:
     receipts: list[dict] = field(default_factory=list)
     child_replies: list[dict] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
+    span_id: str = field(default_factory=lambda: uuid4().hex)
+    activity_status: str | None = None
+    activity_error: str = "AGENT_EXECUTION_FAILED"
 
 
 CURRENT: ContextVar[Invocation | None] = ContextVar("flowbridge_invocation", default=None)
 PENDING: ContextVar[tuple[str, Request] | None] = ContextVar("flowbridge_a2a_request", default=None)
 
 
+def allowed_targets(role: str) -> set[str]:
+    from flowbridge_agent.caller import CALLER
+
+    caller = CALLER.get()
+    if role == "central" and caller is not None and caller.selected_agents is not None:
+        return EDGES[role] & set(caller.selected_agents)
+    return EDGES[role]
+
+
 @contextmanager
 def invocation(role: str):
+    from flowbridge_agent.caller import CALLER
+
     parent, pending = CURRENT.get(), PENDING.get()
+    caller = CALLER.get()
     if parent is not None:
         if pending is None or pending[0] != role or role in parent.path:
             raise ValueError("INVALID_AGENT_ROUTE")
         scope = Invocation(parent.run, role, (*parent.path, role), pending[1])
     else:
         scope = Invocation(Run(), role, (role,))
+        if caller and caller.selected_agents is not None:
+            scope.run.identifier = caller.execution_id
+            caller.central_span_id = scope.span_id
     if scope.request is not None:
         scope.receipts = [r.model_dump(mode="json") for r in scope.request.evidence]
     token = CURRENT.set(scope)
     pending_token = PENDING.set(None)
+    started = monotonic()
+    data = {
+        "span_id": scope.span_id,
+        "parent_span_id": parent.span_id if parent else None,
+        "agent": role,
+        "invoked_by": parent.role if parent else None,
+        "role": "coordinator"
+        if parent is None
+        else "primary"
+        if parent.role == "central"
+        else "dependency",
+        "label": AGENT_LABELS[role],
+    }
+    outcome = "success"
     try:
+        if caller and caller.emit:
+            caller.emit({"type": "agent.started", "data": data})
         yield scope
+        if scope.activity_status:
+            outcome = scope.activity_status
+        elif scope.blocked:
+            outcome = "failed"
+            scope.activity_error = scope.blocked[0]
+        elif any(
+            r.get("status") in {"error", "unavailable", "partial"} for r in scope.child_replies
+        ):
+            outcome = "failed"
+            scope.activity_error = "DEPENDENCY_FAILED"
+        elif any(
+            r.get("questions") or r.get("status") in {"needs_input", "ambiguous"}
+            for r in scope.child_replies
+        ):
+            outcome = "needs_input"
+    except BaseException:
+        outcome = "failed"
+        raise
     finally:
+        if caller and caller.emit:
+            caller.emit(
+                {
+                    "type": "agent.completed",
+                    "data": {
+                        **data,
+                        "outcome": outcome,
+                        "duration_ms": max(0, int((monotonic() - started) * 1000)),
+                        **(
+                            {"error": error_detail(scope.activity_error, scope.run.identifier)}
+                            if outcome == "failed"
+                            else {}
+                        ),
+                    },
+                }
+            )
         PENDING.reset(pending_token)
         CURRENT.reset(token)
 
@@ -262,6 +333,16 @@ def prediction_preflight(request: Request, scope: Invocation) -> dict | None:
             break
     reply = Reply(service="prediction", status="needs_input", missing=missing)
     if product and receipt is None:
+        from flowbridge_agent.caller import CALLER
+
+        caller = CALLER.get()
+        if (
+            caller
+            and caller.selected_agents is not None
+            and "database" not in caller.selected_agents
+        ):
+            # In Hub mode ML resolves its own Data dependency; central cannot call unselected Data.
+            return None
         reply.status = "needs_service"
         reply.handoffs = [
             Handoff(
@@ -365,12 +446,23 @@ def finish_reply(raw: dict, scope: Invocation) -> dict:
 
 class CoordinationMiddleware(AgentMiddleware):
     async def awrap_model_call(self, request, handler):
+        from flowbridge_agent.caller import CALLER
+
         scope = CURRENT.get()
         if scope is None or scope.run.model_calls >= scope.run.max_models:
             if scope:
                 scope.blocked.append("MODEL_BUDGET_EXHAUSTED")
             raise ValueError("MODEL_BUDGET_EXHAUSTED")
         scope.run.model_calls += 1
+        caller = CALLER.get()
+        if scope.role == "central" and caller and caller.selected_agents is not None:
+            request = request.override(
+                tools=[
+                    t
+                    for t in request.tools
+                    if A2A_SERVICE.get(getattr(t, "name", "")) in allowed_targets("central")
+                ]
+            )
         if scope.request is not None:
             actions = {TASK_ACTION[scope.request.task]}
             if scope.role in {"prediction", "knowledge"}:
@@ -394,6 +486,49 @@ class CoordinationMiddleware(AgentMiddleware):
         return await handler(request)
 
     async def awrap_tool_call(self, request, handler):
+        from flowbridge_agent.caller import CALLER
+
+        caller, scope = CALLER.get(), CURRENT.get()
+        name = request.tool_call["name"]
+        target = A2A_SERVICE.get(name)
+        if not (caller and caller.emit and scope and target):
+            return await self._awrap_tool_call(request, handler)
+        started = monotonic()
+        data = {
+            "span_id": uuid4().hex,
+            "parent_span_id": scope.span_id,
+            "agent": target,
+            "tool": name,
+            "label": TOOL_LABELS[name],
+        }
+        caller.emit({"type": "tool.started", "data": data})
+        outcome, code = "failed", "HANDOFF_FAILED"
+        try:
+            response = await self._awrap_tool_call(request, handler)
+            payload = loads(response.content)
+            outcome = activity_outcome(payload.get("status", "error"))
+            code = (payload.get("error") or {}).get("code") or next(
+                iter(payload.get("warnings", [])), "HANDOFF_FAILED"
+            )
+            return response
+        finally:
+            caller.emit(
+                {
+                    "type": "tool.completed",
+                    "data": {
+                        **data,
+                        "outcome": outcome,
+                        "duration_ms": max(0, int((monotonic() - started) * 1000)),
+                        **(
+                            {"error": error_detail(code, scope.run.identifier)}
+                            if outcome == "failed"
+                            else {}
+                        ),
+                    },
+                }
+            )
+
+    async def _awrap_tool_call(self, request, handler):
         scope = CURRENT.get()
         call = request.tool_call
         name = call["name"]
@@ -422,7 +557,7 @@ class CoordinationMiddleware(AgentMiddleware):
         ):
             scope.blocked.append("TOOL_OUTSIDE_TASK")
             return response(tool_result(action, {}, failure("TOOL_OUTSIDE_TASK")))
-        if (target is not None and target not in EDGES[scope.role]) or (
+        if (target is not None and target not in allowed_targets(scope.role)) or (
             target is None and ACTION_SERVICE.get(action) != scope.role
         ):
             scope.blocked.append("TOOL_OUTSIDE_SERVICE")
@@ -451,6 +586,19 @@ class CoordinationMiddleware(AgentMiddleware):
             scope.calls += 1
             if target is None:
                 scope.api_calls += 1
+            from flowbridge_agent.caller import CALLER
+
+            caller = CALLER.get()
+            started = monotonic()
+            activity = {
+                "span_id": uuid4().hex,
+                "parent_span_id": scope.span_id,
+                "agent": scope.role,
+                "tool": action,
+                "label": TOOL_LABELS.get(action, action),
+            }
+            if target is None and caller and caller.emit:
+                caller.emit({"type": "tool.started", "data": activity})
             try:
                 message = await handler(request)
             except Exception as exc:
@@ -478,6 +626,28 @@ class CoordinationMiddleware(AgentMiddleware):
                         if target
                         else tool_result(action, {}, failure("TOOL_CALL_FAILED"))
                     )
+            if target is None and caller and caller.emit:
+                outcome = activity_outcome(payload.get("status", "error"))
+                caller.emit(
+                    {
+                        "type": "tool.completed",
+                        "data": {
+                            **activity,
+                            "outcome": outcome,
+                            "duration_ms": max(0, int((monotonic() - started) * 1000)),
+                            **(
+                                {
+                                    "error": error_detail(
+                                        (payload.get("error") or {}).get("code", "TOOL_FAILED"),
+                                        scope.run.identifier,
+                                    )
+                                }
+                                if outcome == "failed"
+                                else {}
+                            ),
+                        },
+                    }
+                )
             scope.run.tools[key] = deepcopy(payload)
         if target:
             scope.child_replies.append(payload)

@@ -15,12 +15,12 @@ from lfx.schema.message import Message
 from flowbridge_agent.ver2_agent import OpenAICompatibleAgent
 from flowbridge_agent.ver2_coordination import (
     CURRENT,
-    EDGES,
     PENDING,
     TASKS,
     CoordinationMiddleware,
     Reply,
     Request,
+    allowed_targets,
     finish_reply,
     invocation,
     loads,
@@ -80,6 +80,8 @@ class CoordinatedServiceAgent(BoundedAgentMixin, StructuredServiceAgent):
                 getattr(t, "action", getattr(t, "name", "")) == "knowledge_search_supplier"
                 for t in (self.tools or [])
             ):
+                scope.activity_status = "failed"
+                scope.activity_error = "KNOWLEDGE_TOOL_UNAVAILABLE"
                 return Data(data=stopped("knowledge", "KNOWLEDGE_TOOL_UNAVAILABLE"))
             try:
                 output = await super().json_response()
@@ -89,7 +91,12 @@ class CoordinatedServiceAgent(BoundedAgentMixin, StructuredServiceAgent):
                     raise
                 scope.blocked.append("MODEL_BUDGET_EXHAUSTED")
                 raw = stopped(role, "MODEL_BUDGET_EXHAUSTED")
-            return Data(data=finish_reply(raw, scope))
+            value = finish_reply(raw, scope)
+            from flowbridge_agent.hub_activity import outcome
+
+            scope.activity_status = outcome(value["status"])
+            scope.activity_error = next(iter(value.get("warnings", [])), "AGENT_EXECUTION_FAILED")
+            return Data(data=value)
 
 
 class BoundedA2AAgent(A2AAgentComponent):
@@ -147,10 +154,21 @@ class BoundedA2AAgent(A2AAgentComponent):
 
         if self.mode != "Internal" or scope is None or scope.role != self.caller_service:
             return fail("INVALID_AGENT_ROUTE")
-        if target not in EDGES[scope.role] or target in scope.path or len(scope.path) >= 3:
+        if (
+            target not in allowed_targets(scope.role)
+            or target in scope.path
+            or len(scope.path) >= 3
+        ):
             return fail("AGENT_ROUTE_BLOCKED")
         try:
             request = Request.model_validate(loads(self.input_value))
+            from flowbridge_agent.caller import CALLER
+
+            caller = CALLER.get()
+            if caller and caller.business_date:
+                from datetime import date
+
+                request.business_date = date.fromisoformat(caller.business_date)
             if request.task not in TASKS[target]:
                 raise ValueError("Unsupported task")
             if scope.role == "prediction" and request.task not in {

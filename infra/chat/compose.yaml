@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# FlowBridge; see LICENSE. Overlay on the canonical root compose.yaml; not a second IAM stack.
+# FlowBridge; see LICENSE. Overlay on infra/dev/compose.yaml; not a second IAM stack.
 services:
   prepare:
     command: [python, scripts/container_chat.py, prepare]
@@ -25,6 +25,9 @@ services:
     environment:
       FLOWBRIDGE_CHAT_ML: ${FLOWBRIDGE_CHAT_ML:-false}
       FLOWBRIDGE_CHAT_RAG: ${FLOWBRIDGE_CHAT_RAG:-false}
+      FLOWBRIDGE_AGENT_HUB_ENABLED: ${FLOWBRIDGE_AGENT_HUB_ENABLED:-false}
+      FLOWBRIDGE_AGENT_HUB_WORKER_ENABLED: ${FLOWBRIDGE_AGENT_HUB_WORKER_ENABLED:-true}
+      FLOWBRIDGE_AGENT_HUB_QUEUE_TIMEOUT_SECONDS: ${FLOWBRIDGE_AGENT_HUB_QUEUE_TIMEOUT_SECONDS:-300}
     volumes:
       - chat-config:/chat-config:ro
       - ${FLOWBRIDGE_CHAT_MODELS_DIR:-./.cache/models}:/models:ro

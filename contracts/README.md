@@ -2,7 +2,7 @@
 
 ## Agent Hub cho Web/App và Langflow ver2
 
-[Agent Hub OpenAPI 1.0.0](agent-hub-api.yaml) và [hướng dẫn tích hợp](agent-hub/README.md)
+[Agent Hub OpenAPI 1.0.1](agent-hub-api.yaml) và [hướng dẫn tích hợp](agent-hub/README.md)
 mô tả 12 operation: thư viện ba agent, hội thoại/lựa chọn agent, chat bất đồng bộ,
 kết quả JSON, metadata, Activities SSE và hủy run. Langflow tự điều phối và gọi
 phụ thuộc; API truyền/lưu yêu cầu và kết quả theo quyền người dùng.
@@ -12,7 +12,7 @@ dùng cung cấp, dùng chung dataset cho bảng và biểu đồ. Có quy tắc
 tiền decimal, mẫu số tỷ lệ, provenance, lỗi, idempotency, revision và reconnect.
 Ví dụ nằm trong [agent-hub/examples](agent-hub/examples/PROVENANCE.md).
 
-Đây là **hợp đồng thiết kế mới, chưa triển khai endpoint/node**, không thay snapshot
+Đã có **backend bật tùy chọn sau migration0006**, xem [cách chạy](../docs/AGENT-HUB.md). Không thay snapshot
 App/AI/Core hoặc manifest checksum hiện tại. Nguồn chuẩn Agent Hub nằm tại đây;
 không đưa vào script đồng bộ upstream của App/AI/Core. Khi phân phối giữ nguyên
 `agent-hub-api.yaml` và cây `agent-hub/` vì OpenAPI dùng external schema/reference.
@@ -77,4 +77,4 @@ có fragment riêng theo profile. Trùng path+method, operationId hoặc compone
 làm việc xuất OpenAPI thất bại. Component giống hệt nhau có thể dùng chung.
 
 Hai API Identity có kiểm parity URI, correlation, security, response/error schema
-và header 409 với Core YAML. Xem [kết quả sửa review](../docs/CONTRACT-IDENTITY-REVIEW.md).
+và header 409 với Core YAML.

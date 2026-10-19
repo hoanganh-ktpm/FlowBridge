@@ -100,6 +100,10 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=list)
     core_identity: IdentityBinding | None = None
     chat_enabled: bool = False
+    agent_hub_enabled: bool = False
+    agent_hub_worker_enabled: bool = True
+    agent_hub_queue_timeout_seconds: int = Field(default=300, ge=30, le=3600)
+    agent_hub_credential_key: SecretStr | None = None
     langflow_url: str = "http://127.0.0.1:7860"
     langflow_flow_id: str = Field(default="flowbridge-ver2-central", pattern=r"^[A-Za-z0-9_-]+$")
     langflow_api_key: SecretStr | None = None
@@ -125,7 +129,7 @@ class Settings(BaseSettings):
         return value.rstrip("/")
 
     def validate_chat(self) -> Self:
-        if self.chat_enabled and not all(
+        if (self.chat_enabled or self.agent_hub_enabled) and not all(
             (
                 self.database_url,
                 self.oidc_issuer,
@@ -142,6 +146,15 @@ class Settings(BaseSettings):
             raise ValueError("langflow_bridge_secret must contain at least 32 characters")
         if bool(self.langflow_ai_client_id) != bool(self.langflow_ai_client_secret):
             raise ValueError("Configure both Langflow AI client credentials or neither")
+        if self.agent_hub_enabled and (
+            not self.agent_hub_credential_key
+            or len(self.agent_hub_credential_key.get_secret_value()) < 32
+        ):
+            raise ValueError(
+                "Agent Hub requires a separate credential encryption key (32+ characters)"
+            )
+        if self.agent_hub_enabled and self.agent_hub_credential_key == self.langflow_bridge_secret:
+            raise ValueError("Agent Hub credential key must differ from the bridge secret")
         return self
 
     @field_validator("trusted_proxy_ips")

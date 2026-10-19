@@ -1,180 +1,86 @@
-# Chạy chat bằng Docker
+# Chạy FlowBridge bằng một lệnh Compose
 
-Stack này dành cho phát triển local: Keycloak, backend, Langflow và giao diện SSO
-chạy cùng Docker Compose; Supabase vẫn là database bên ngoài đang cấu hình trong
-`.env`. Đây là overlay của `compose.yaml`, dùng lại generator IAM và công cụ dev
-hiện có. Không cài lại Python/Java/Node của máy, không reset user/grant hoặc seed DB.
+## Cách chạy mặc định
 
-## Chạy trên máy hiện tại
+Chỉnh file trước khi chạy, sau đó từ root FlowBridge:
 
-1. Mở Docker Desktop từ Start menu, chọn Linux containers và chờ Engine chạy.
-   Docker CLI/Compose đã có trên máy; chỉ có CLI không chứng minh Engine đã lên.
-   Nếu không thấy ứng dụng trong Start, nhấn **Win + R** và mở đúng bản đã cài:
+```powershell
+docker compose up
+```
 
-   ```text
-   %LOCALAPPDATA%\Programs\DockerDesktop\Docker Desktop.exe
-   ```
+Chạy nền bằng `docker compose up -d`; xem bằng `docker compose ps -a`,
+`docker compose logs --tail 80`, dừng bằng `docker compose down` (giữ volumes).
+Docker Desktop Linux + Compose >=2.35.0 là đủ, không cần launcher/Python host.
 
-   Nếu chỉ có tiến trình nền nhưng không có cửa sổ, chưa chạy các bước build.
-   `wsl -l -v` đang hiển thị `docker-desktop Stopped` và `doctor` thất bại nghĩa
-   là Engine chưa sẵn sàng. Không cần xóa distro/volume để chạy cấu hình này.
-2. Tại thư mục FlowBridge, kiểm tra cấu hình:
-
-   ```powershell
-   cd E:\CTU\CLB_Tin_hoc\OLP\FlowBridge
-   .\chat-docker.cmd doctor
-   ```
-
-3. Lần đầu, khi Supabase đã kết nối được, áp migration bằng lệnh riêng:
-
-   ```powershell
-   .\chat-docker.cmd migrate
-   ```
-
-   Lệnh này chạy Alembic chuẩn trên database trong `.env`. Không chạy lại seed.
-   `up` chỉ kiểm kết nối/revision và sẽ dừng nếu schema chưa khớp source.
-
-4. Bật stack:
-
-   ```powershell
-   .\chat-docker.cmd up
-   ```
-
-   Những lần sau dùng lại lệnh này. Để bật cả ML/RAG với artifact đã có:
-
-   ```powershell
-   .\chat-docker.cmd up --ml --rag
-   ```
-
-   Giữ các cờ `--ml`/`--rag` khi chạy lại nếu vẫn muốn bật chúng. Build đầu tiên có
-   thể lâu vì tải image/dependency; không tự tải model weights hoặc gọi OpenAI.
-
-| Thành phần | Địa chỉ mặc định |
+| Nguồn cấu hình | Vai trò |
 |---|---|
-| Giao diện đăng nhập/nghiệp vụ | http://127.0.0.1:8761 |
-| Swagger/API | http://127.0.0.1:18082/docs |
-| Keycloak | https://localhost:19444 |
-| Langflow phục vụ chat | http://127.0.0.1:7861 |
+| compose.env | Ports, thư mục nguồn/cache, bật migration, demo accounts, ML/RAG/Hub |
+| .env | DB thật và ML/RAG settings theo .env.example; biến cùng tên ưu tiên hơn compose.env |
+| langflow/data/agent.env | Provider key/base URL; chỉ các trường cho phép được chuyển sang Langflow |
+| langflow/data/langflow.db + secret_key | Snapshot nguồn có4flow ver2 và khóa đi cùng; nhận từ người bàn giao hoặc chuẩn bị/import theo Langflow |
+| infra/dev/images.env + infra/chat/images.env | Manifest image chuẩn, pin tag/digest; Compose tự đọc |
 
-Langflow native 7860 và backend test 8001 có thể giữ nguyên; bản Docker dùng state riêng.
-Đăng nhập ở8761 bằng tài khoản EMPLOYEE rồi chọn **Trợ lý AI** để chat trực tiếp.
-Swagger vẫn có `POST /api/v1/chat/messages` cho tích hợp API. Hội thoại thật có thể
-gọi model tính phí theo cấu hình flow. Không tự gọi model khi startup/healthcheck.
+Root compose.yaml dùng include với project_directory gốc để gộp base
+infra/dev/compose.yaml, overlay chat và startup.yaml. Không sao chép manifest
+image sang .env. Cấu hình startup mặc định ở compose.env; shell/.env có thể
+đè giá trị. Tùy chỉnh xong chạy lại up; các service có pull_policy build để
+build source hiện tại. Khi đổi nội dung file secret đã mount mà Compose không
+recreate process, dùng down rồi up để nạp chắc chắn.
 
-## Dữ liệu và secret
+Thứ tự tự động: prepare → IAM healthy → database-init / Langflow → tài khoản
+team / metadata flow → API healthy → client A/B. Lỗi job chuẩn bị sẽ chặn API/UI,
+không báo ready giả. Prepare dùng SQLite backup API trong container khi tạo
+volume Langflow lần đầu; volume đã có giữ flow/key riêng, không import lại.
+Không cần tạo snapshot .cache trên host hoặc xuất password trước.
 
-Lần đầu, runner dùng SQLite backup API để lấy bản nhất quán từ
-`langflow/data/langflow.db`, giữ file `secret_key` gốc. Snapshot ở
-`.cache/chat-stack/flowbridge-chat/seed/`, bị Git/build context ignore; sau đó chỉ
-import một lần vào volume riêng. Cần đủ 4 flow ver2 và cùng native owner active.
-Không đọc từng flow rồi dựng lại bằng preset mặc định hoặc đổi flow đang chỉnh.
+`FLOWBRIDGE_COMPOSE_MIGRATE=true` cho phép Alembic upgrade head lên DB được
+cấu hình. `false` chỉ kiểm kết nối và head, dừng nếu schema chưa đúng.
+Advisory lock PostgreSQL điều phối các lần startup đồng thời trên DB dùng chung.
+Không seed dữ liệu. Không gọi model khi chuẩn bị/health/upgrade metadata.
 
-Sau startup, runner nâng metadata ver2 cũ trên bản Docker qua API metadata native:
-Data tools, coordination và protocol nodes dùng các graph migration đã có trong
-repo. Có backup tại `/var/lib/langflow/flowbridge-backups`, kiểm concurrent edit
-và rollback khi PATCH lỗi. Giữ model/credential/preset; không thay nguồn native.
-Chạy lại trên metadata hiện tại không tạo thay đổi hoặc gọi model.
+`FLOWBRIDGE_TEAM_ACCOUNTS_ENABLED=true` tự đối soát bộ demo ở
+[hướng dẫn ngắn](../HUONG-DAN-SU-DUNG-BACKEND.md), thông qua policy hiện có.
+Nếu DB có ADMIN khác, điền `FLOWBRIDGE_TEAM_GRANTED_BY` bằng user_id ADMIN ứng
+dụng trước khi up; không phải ID Keycloak. `FLOWBRIDGE_TEAM_TEST_PASSWORD`
+chỉ dùng cho tài khoản mới, không reset password/OTP đã có. Giá trị mặc định
+là password demo công khai theo chủ đích nhóm, không phải secret môi trường thật.
 
-Secret API key nội bộ và bridge được sinh ngẫu nhiên, lưu trong volume và giữ qua
-restart. Dùng cơ chế `LANGFLOW_API_KEY_SOURCE=env` upstream với đúng owner của flow
-đã import; auto-login tắt. Database/key Langflow đi cùng nhau để giữ credential mã
-hóa. Password editor được giữ nguyên từ DB import, không reset bằng env. Việc đăng
-nhập ứng dụng vẫn do Keycloak; không có tài khoản giả hoặc token bỏ qua SSO.
+`FLOWBRIDGE_COMPOSE_UPGRADE_FLOWS=false` bỏ bước nâng metadata khi cần giữ bản
+canvas đang chỉnh. ML/RAG mặc định tắt do cần artifact/cache/service grants
+riêng. Hub mặc định bật, phụ thuộc migration0006; không tự tạo run/model call.
+Không tự triển khai workflow/email/storage hoặc tuyên bố các engine đó đã sẵn sàng.
 
-Launcher native ở các nhánh bật `LANGFLOW_AUTO_LOGIN=true`, nên trước Docker không
-hiện màn hình login. Tài khoản editor `langflow` sở hữu4flow; nó độc lập với user
-SSO của ứng dụng. Ngày19/10, theo lựa chọn rõ của user, đã reset riêng mật khẩu
-editor Docker qua API native và kiểm login thành công. Mật khẩu mới ở file ignored
-`.cache/chat-stack/flowbridge-chat/langflow-editor-login.json`; không dùng random
-startup password trong config làm mật khẩu của user đã tồn tại. Không đổi flow,
-tool/model credential, password native nguồn hoặc bật lại auto-login.
+Tên project mặc định flowbridge-chat và tên volumes giữ nguyên để dùng lại
+môi trường hiện có. Không đổi cổng SSO/API của volume đã chuẩn bị; profile sẽ
+chặn thay đổi thay vì tự xoay state. Nếu cần một môi trường độc lập, cấu hình
+COMPOSE_PROJECT_NAME trong .env và chuẩn bị DB/grants tương ứng.
 
-Backend đọc riêng DB config, IAM config và chat config. Langflow không mount các
-volume DB/IAM; provider key chỉ lấy từ `langflow/data/agent.env` hoặc credential
-mã hóa đã có trong DB Langflow. Không sao chép user/AI access token hoặc JobContext
-tĩnh trong agent.env sang bản Docker. Backend truyền caller riêng cho từng request.
+Cơ chế Compose: [include](https://docs.docker.com/reference/compose-file/include/),
+[startup dependencies](https://docs.docker.com/compose/how-tos/startup-order/).
 
-Muốn xem tài khoản Keycloak local của stack mới, xuất ra file bị ignore:
+### Kiểm chứng ngày20/10/2026
 
-```powershell
-.\chat-docker.cmd credentials
-```
+- `docker compose config --quiet` và đồ thị9service mặc định đạt, không cần
+  flags manifest/overlay; file paths/build contexts trỏ đúng project root.
+- Startup trên volumes hiện có đạt:5service dài hạn healthy,4job exit0;
+  fingerprint IAM operator, fixture và backend chat secret giữ nguyên.
+  UI A/B config, Swagger, readiness HTTP200; anonymous me401.
+- Giải nén source tar.gz441members ngoài source tree, cung cấp private inputs
+  sau khi audit archive, rồi chạy cùng một lệnh trên volumes trống: đạt.
+  Dùng Supabase đã có schema/catalog/dữ liệu, không nhận nghiệm thu DB trống.
+  IAM mới tạo lại đúng subjects,4user backend giữ nguyên IDs/grants; bản Langflow
+  mới được import/upgrade metadata thành công. Không gọi model trong bài kiểm.
+- 66unit liên quan đạt trên Linux build từ archive (3.84s); cùng nhóm test
+  Windows đạt52+14. Chrome chấp nhận cả4mật khẩu demo trên IAM mới, dừng trước
+  enroll OTP. Chưa chứng minh /me sau OTP cho user mới hoặc nghiệm thu ML/RAG.
+- Namespace/volumes cold-test do lượt này tạo đã được dọn sau khi kiểm project
+  name; bản sao .env private tạm đã xóa. Volumes stack chính được giữ để bật lại.
+  Không thêm dependency/migration, không seed hoặc phát hành artifact/release.
 
-Mở riêng `.cache/chat-stack/flowbridge-chat/credentials.json` trên máy. Lệnh dùng
-Docker copy file, không đưa mật khẩu qua container stdout/log hoặc terminal.
-Không đưa file này vào Git/chat/issue. Certificate CA local được backend dùng
-trực tiếp; browser cần tin CA bằng cơ chế trust của môi trường, không tắt TLS.
+## Launcher tương thích
 
-Docker project mặc định `flowbridge-chat` có IAM state riêng với stack/native cũ.
-User Keycloak vẫn phải được liên kết issuer+subject và cấp EMPLOYEE có chủ đích
-trong Supabase. Không tự cấp grant chỉ vì đăng nhập thành công. Xem
-[SSO.md, bước liên kết user](SSO.md#3-liên-kết-user-và-cấp-quyền-có-chủ-đích).
-CLI bootstrap chuẩn có trong image tooling; nếu cần dùng từ Docker, giữ identity
-đang chạy và dùng cùng project/config:
-
-```powershell
-# Ví dụ xem trước; các UUID phải là tài khoản/phòng ban/admin thực đã kiểm tra.
-docker compose --project-name flowbridge-chat --env-file infra/dev/images.env --env-file infra/chat/images.env -f compose.yaml -f infra/chat/compose.yaml run --rm --no-deps tools python scripts/container_chat.py bootstrap --subject UUID_USER_KEYCLOAK --grant EMPLOYEE --department UUID_PHONG_BAN --granted-by UUID_ADMIN_UNG_DUNG
-```
-
-Wrapper nạp DB config đã prepare rồi gọi CLI bootstrap chuẩn. Lệnh trên rollback
-mặc định; chỉ thêm `--apply` sau khi kiểm tra đúng user/grant.
-Trường hợp chưa có ADMIN ứng dụng dùng quy trình bootstrap đầu tiên trong SSO.md;
-không reset DB hoặc tự nhận ADMIN từ tài khoản quản trị Keycloak.
-
-## Model và cấu hình
-
-Mặc định chỉ bật API dữ liệu/chat. `--ml`/`--rag` build optional extras đã khai báo
-trong pyproject/uv.lock. Cache `.cache/models` mount read-only tại `/models`,
-context `.cache/ml` tại `/ml-context`. Có thể chọn thư mục bằng `--models-dir` và
-`--ml-dir`. Các ML/RAG settings khác đọc từ `.env`; host paths checkpoint/context
-được ánh xạ sang thư mục mount bằng tên file, không ghi Windows path vào image.
-Nếu thiếu model/checkpoint/context, startup phải fail; không giả ready.
-
-RAG dùng service client thật `flowbridge-ai`, cần grant AI_SERVICE và task phân
-tích thuộc PR của caller. Secret service đọc từ IAM state của chính stack;
-không tạo task demo hoặc tự cấp quyền DB. Xem [hợp đồng chat/RAG](LANGFLOW-SSO.md).
-
-Đổi env/provider key rồi chạy lại `up` để prepare lại cấu hình. Compose không tự
-restart container khi nội dung file trong volume đổi: nếu process đang chạy và
-config thay đổi, dừng bằng `down` rồi `up` để nạp lại; volume giữ nguyên.
-Không đổi ports của project đã có state; dùng lại ports cũ hoặc project mới.
-Nếu dùng `--project`, `--api-port`, `--iam-port`, `--langflow-port`, truyền nhất
-quán ở các lệnh. Snapshot nguồn khác cần project mới; không ghi đè volume đang dùng.
-
-## Quản lý
-
-```powershell
-.\chat-docker.cmd status
-.\chat-docker.cmd logs
-.\chat-docker.cmd down
-```
-
-`down` dừng đúng project và giữ volumes. Không có action tự xóa volume hoặc làm
-sạch dữ liệu nghiệp vụ. Snapshot và volume Docker không tự đồng bộ các lần sửa
-canvas tiếp theo trên Langflow native; bản Docker đã import có state độc lập.
-
-Image Langflow upstream 1.12.6 (MIT) được pin bằng manifest digest, các image khác
-dùng manifest chuẩn infra/dev/images.env. Nguồn upstream:
-[Docker deployment](https://docs.langflow.org/deployment-docker) và
-[API keys](https://docs.langflow.org/api-keys-and-authentication). Source/config
-nhóm tạo GPL-3.0-or-later. Không thêm source/binary/cache của dependency vào Git
-hoặc source artifact. Image build có dependency cần audit riêng; không coi kiểm
-Compose/unit là chứng nhận license/bundling hoặc nghiệm thu toàn image.
-
-## Kết quả kiểm tra ngày 2026-10-18
-
-- 42 test helper/chat/migration đạt; Ruff lint/format và `git diff --check` đạt.
-- Compose hợp lệ với tất cả profile ở cấu hình mặc định và `--ml --rag`;
-  xác minh merge giữ DB/IAM mounts, secret nguồn và thứ tự startup.
-- Snapshot dữ liệu Langflow hiện có đạt integrity check, đủ 4 flow ver2 và khóa gốc.
-- Gói source tar.gz có file Docker/adapter cần thiết, không chứa state/cache/secret;
-  launcher/config chạy được từ bản giải nén ngoài source tree gốc.
-- Docker Engine đã hoạt động; build/start Keycloak/API/Langflow/client đạt.
-  Supabase đã áp đúng delta `0004_knowledge_manager` → `0005_chat_projection`;
-  SQL knowledge0004 được giữ nguyên byte từ commit `5e96b38` của nhánh
-  `origin/minnhungdev_features`. Không chạy lại0004/reset/stamp dữ liệu.
-- E2E thật đạt: login PKCE/OTP, chat trả đúng mã/tên 2 sản phẩm qua API, replay
-  và history200, anonymous401. Fixture test đã cleanup; stack vẫn đang chạy.
-  ML/RAG optional chưa bật/nghiệm thu trong lần này. Xem
-  [bằng chứng và lệnh chạy lại](DOCKER-CHAT-LIVE.md).
+Các helper `chat-docker.cmd` và `scripts/dev_stack.py` vẫn dùng được với Python3.12.
+Chúng chọn base `infra/dev/compose.yaml` và overlay riêng, không tự chạy DAG startup
+của root Compose. Quy trình bootstrap/E2E thủ công tại
+[hướng dẫn chạy](../HUONG-DAN-CHAY.md#kiểm-thử-hệ-thống).
+ML và RAG dùng [tài liệu ML](ML-SERVICE.md), [tài liệu RAG](RAG.md).
