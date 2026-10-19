@@ -144,8 +144,9 @@ Trên profile Keycloak local đã chuẩn bị, launcher chạy `local_identity_
 credentials; token ngắn hạn được làm mới trong lúc server chạy. Các tool đọc kết nối
 từ `data/agent.env` mỗi lần gọi; không cần sửa node hay gắn token vào flow. Backend
 thật ở cổng 18083 vẫn kiểm token Keycloak, quyền database và JobContext thật.
-Đóng Langflow sẽ dừng worker do launcher tạo. Phiên Keycloak local có giới hạn,
-nếu worker báo hết phiên/lỗi thì xem log local và khởi động lại launcher.
+Đóng Langflow sẽ dừng worker do launcher tạo. Khi refresh token hết hạn hoặc gặp
+lỗi HTTP, worker tự đăng nhập lại qua PKCE với thời gian chờ tăng từ 2 đến 30 giây.
+Lỗi cấu hình local vẫn được báo để sửa trước khi khởi động lại launcher.
 
 Trong canvas, chạy nhánh **JSON cho frontend · ver2** để xem Data. Playground chat
 mặc định hiển thị Chat Output. Khi dùng HTTP run API của bản cài trên máy, đặt
