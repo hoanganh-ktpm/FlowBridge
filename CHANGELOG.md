@@ -27,6 +27,18 @@
 
 ## Unreleased
 
+- Compose mặc định khởi động toàn bộ local stack bằng `docker compose up`:
+  nạp image manifests và compose.env, chuẩn bị IAM/Langflow trong container,
+  migration có công tắc, tài khoản team, metadata flow, API và hai UI.
+  Giữ volumes/project flowbridge-chat; helper dev/chat/gateway dùng base riêng
+  tại infra/dev/compose.yaml để duy trì quy trình kiểm thử cũ.
+
+- Thêm `chat-docker.cmd team-accounts`: tạo rõ ràng bộ tài khoản demo cố định
+  trên mỗi IAM local, liên kết/cấp quyền qua policy hiện có và dùng ID ổn định
+  khi chia sẻ Supabase. Giữ password/OTP của user đã có; Compose mặc định gọi
+  setup theo công tắc FLOWBRIDGE_TEAM_ACCOUNTS_ENABLED.
+  Mật khẩu demo được công khai theo yêu cầu nhóm trong hướng dẫn backend.
+
 - Thêm khung chat Trợ lý AI vào client SSO: EMPLOYEE gửi qua backend, xem lịch sử,
   chọn PR, khôi phục phiên bằng check-sso sau reload. Retry dùng đúng key/body,
   không tự chạy model lại hoặc đưa Langflow credential xuống browser. Kiểm UI

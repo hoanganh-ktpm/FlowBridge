@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# FlowBridge; see LICENSE. Overlay on the canonical root compose.yaml; not a second IAM stack.
+# FlowBridge; see LICENSE. Overlay on infra/dev/compose.yaml; not a second IAM stack.
 services:
   prepare:
     command: [python, scripts/container_chat.py, prepare]

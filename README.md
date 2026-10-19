@@ -8,6 +8,9 @@ Open-Core/DX-OS, phát triển cho OLP 2026.
 Keycloak, backend, Langflow và giao diện trong cùng stack Docker. Người dùng đăng
 nhập SSO trên giao diện rồi sử dụng nghiệp vụ và chat.
 
+**Cho thành viên mới:** [Hướng dẫn backend ngắn](HUONG-DAN-SU-DUNG-BACKEND.md)
+gồm một lệnh Compose, tài khoản test, SSO và test bằng UI/Swagger.
+
 ## Chức năng
 
 | Thành phần | Khả năng hiện có |
@@ -56,14 +59,14 @@ Sau khi chuẩn bị DB, flow Langflow, credential và model theo
 [hướng dẫn chạy](HUONG-DAN-CHAY.md):
 
 ```powershell
-.\chat-docker.cmd doctor
-.\chat-docker.cmd up --ml --rag
-.\chat-docker.cmd status
+docker compose up
 ```
 
-Mở [FlowBridge](http://127.0.0.1:8761/), đăng nhập bằng user đã được liên kết/cấp
-quyền trong DB. `--ml --rag` yêu cầu đủ artifact và cấu hình; launcher kiểm DB head
-và readiness, không tự seed hoặc tải weights.
+Chỉnh `compose.env`, `.env` và cấu hình Langflow trước khi chạy. Compose tự chuẩn
+bị IAM, schema theo công tắc, tài khoản test, metadata flow, API và UI A/B. Không
+cần Python/Java/Node host. Mở [FlowBridge](http://127.0.0.1:8761/), dùng `tester01`
+với mật khẩu demo `FlowBridgeTest@2026` và thiết lập OTP nếu được yêu cầu.
+ML/RAG bật trong `compose.env` khi đã có đủ artifact; không tự tải weights hoặc seed.
 
 ## Cấu trúc repository
 

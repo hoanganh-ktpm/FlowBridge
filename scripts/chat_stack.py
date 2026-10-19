@@ -85,7 +85,7 @@ class ChatStack(Stack):
         command = super().command(*args)
         index = command.index("-f")
         command[index:index] = ["--env-file", str(ROOT / "infra/chat/images.env")]
-        index = command.index(str(ROOT / "compose.yaml")) + 1
+        index = command.index(str(ROOT / "infra/dev/compose.yaml")) + 1
         command[index:index] = ["-f", str(ROOT / "infra/chat/compose.yaml")]
         return command
 
@@ -140,7 +140,17 @@ def main() -> int:
         "action",
         nargs="?",
         default="up",
-        choices=["doctor", "config", "up", "down", "status", "logs", "migrate", "credentials"],
+        choices=[
+            "doctor",
+            "config",
+            "up",
+            "down",
+            "status",
+            "logs",
+            "migrate",
+            "credentials",
+            "team-accounts",
+        ],
     )
     parser.add_argument("--env-file", type=Path, default=ROOT / ".env")
     parser.add_argument("--project", default="flowbridge-chat")
@@ -156,7 +166,10 @@ def main() -> int:
         "--rag", action="store_true", help="Build existing optional PostgreSQL RAG dependencies"
     )
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--granted-by", help="Application ADMIN UUID for team-accounts setup")
     args = parser.parse_args()
+    if args.granted_by and args.action != "team-accounts":
+        parser.error("--granted-by is only supported for team-accounts")
     try:
         stack = ChatStack(
             args.project,
@@ -220,6 +233,19 @@ def main() -> int:
                 )
                 print(f"Client: http://127.0.0.1:8761; API: http://127.0.0.1:{stack.api_port}/docs")
                 print(f"Langflow: http://127.0.0.1:{stack.langflow_port}; volumes are persistent.")
+        elif args.action == "team-accounts":
+            bootstrap = ["--granted-by", args.granted_by] if args.granted_by else []
+            stack.run(
+                "run",
+                "--build",
+                "--rm",
+                "--no-deps",
+                "tools",
+                "python",
+                "scripts/container_chat.py",
+                "team-accounts",
+                *bootstrap,
+            )
         elif args.action == "credentials":
             print("Credentials saved privately to:", stack.credentials())
         elif args.action == "logs":

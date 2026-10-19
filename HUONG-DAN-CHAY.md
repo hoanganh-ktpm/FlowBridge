@@ -7,7 +7,7 @@ repo; state và credential của mỗi môi trường được giữ riêng.
 ## Chuẩn bị môi trường
 
 - Docker Desktop với Linux Engine và Compose >=2.35.0.
-- Python 3.12 cho launcher; `.cmd` ưu tiên `.venv`, sau đó dùng `python` trên PATH.
+- Không cần Python/Java/Node host khi dùng Compose. Launcher `.cmd` thủ công mới cần Python3.12.
 - Database PostgreSQL/Supabase và `.env` hợp lệ theo `.env.example`.
 - Bốn flow ver2 trong Langflow cùng một owner active. Cần cả
   `langflow/data/langflow.db` và `langflow/data/secret_key` tương ứng. Máy mới xem
@@ -40,40 +40,29 @@ FLOWBRIDGE_DATABASE_SSL=require
 
 URL có giá trị được ưu tiên hơn trường thành phần. Muốn dùng trang quản lý tài
 liệu, thêm `FLOWBRIDGE_RAG_MANAGER_ENABLED=true`; cần RAG PostgreSQL và ADMIN.
-`--rag` bật retrieval, không tự bật manager.
+`FLOWBRIDGE_CHAT_RAG=true` trong `compose.env` bật retrieval, không tự bật manager.
 
 ## Khởi động
 
-1. Mở Docker Desktop, chờ Linux Engine.
-2. Kiểm tra:
+1. Chỉnh `compose.env` cho cổng, bật/tắt migration, tài khoản test và ML/RAG/Hub.
+   `.env` giữ kết nối Supabase, `langflow/data/agent.env` giữ provider/model.
+2. Mở Docker Desktop, chờ Linux Engine rồi tại root repo chạy:
 
    ```powershell
-   .\chat-docker.cmd doctor
+   docker compose up
    ```
 
-3. Lần đầu hoặc khi có migration mới, backup và xác định đúng DB rồi áp migration:
-
-   ```powershell
-   .\chat-docker.cmd migrate
-   ```
-
-   Lệnh thay đổi schema DB. `up` chỉ kiểm revision khớp Alembic head; không tự
-   migrate/seed. Không stamp/reset để vượt guard. DB mới cần dữ liệu nền theo
+   Dùng `docker compose up -d` nếu chạy nền. Compose tự build, chuẩn bị cấu hình,
+   chờ IAM, kiểm/nâng schema, tạo tài khoản team, nâng metadata flow rồi bật API
+   và UI A/B. Không cần chạy lệnh tạo tài khoản hoặc launcher riêng.
+3. Mặc định `FLOWBRIDGE_COMPOSE_MIGRATE=true` cho phép Alembic upgrade head trên
+   đúng Supabase trong `.env`. Chọn `false` nếu chỉ muốn kiểm schema hiện có.
+   Không seed, reset hoặc stamp. DB mới cần dữ liệu nền theo
    [quản lý database](alembic/README.md).
-
-4. Bật các dịch vụ cùng ML/RAG đã chuẩn bị:
-
-   ```powershell
-   .\chat-docker.cmd up --ml --rag
-   .\chat-docker.cmd status
-   ```
-
-   Giữ `--ml --rag` khi `up` lại. Thiếu artifact phải xử lý lỗi readiness; launcher
-   không tự tải weights. Có thể dùng `up` cho nghiệp vụ/chat dữ liệu; chế độ này
-   chưa kiểm được ML/RAG.
-
-5. Mở [FlowBridge](http://127.0.0.1:8761/), đăng nhập SSO bằng user đã liên kết/cấp
-   quyền. Chọn **Trợ lý AI** hoặc **Tài liệu RAG** nếu có ADMIN.
+4. ML/RAG mặc định tắt do cần artifact/cache/service grant thật. Khi đã chuẩn bị,
+   đổi `FLOWBRIDGE_CHAT_ML=true` và `FLOWBRIDGE_CHAT_RAG=true` trong `compose.env`.
+   Không tự tải weights; thiếu artifact phải xử lý lỗi trước khi dùng.
+5. Mở [FlowBridge](http://127.0.0.1:8761/), đăng nhập bằng tài khoản test ở dưới.
 
 | Thành phần | Địa chỉ mặc định |
 |---|---|
@@ -87,7 +76,25 @@ verification. Keycloak và Langflow editor dùng tài khoản riêng.
 
 ## Tài khoản và quyền
 
-Xuất credential Keycloak của stack vào file riêng bị Git ignore:
+Compose mặc định tự tạo bộ demo dùng chung, không reset password/OTP của user cũ:
+
+| Tài khoản | Mật khẩu mặc định | Quyền |
+|---|---|---|
+| `tester01` | `FlowBridgeTest@2026` | EMPLOYEE |
+| `tester02` | `FlowBridgeTest@2026` | EMPLOYEE |
+| `tester03` | `FlowBridgeTest@2026` | EMPLOYEE |
+| `team-admin` | `FlowBridgeTest@2026` | ADMIN, không tự có EMPLOYEE |
+
+Có thể chỉnh `FLOWBRIDGE_TEAM_TEST_PASSWORD` trước khi tạo user. Nếu DB có ADMIN
+khác, điền `FLOWBRIDGE_TEAM_GRANTED_BY` bằng UUID ADMIN ứng dụng trước khi chạy.
+Giữ cùng issuer/port và dùng chung Supabase để cùng user/quyền backend; OTP và
+thay đổi mật khẩu của IAM vẫn riêng trên từng máy.
+
+Cách đăng nhập/test UI/Swagger tại [hướng dẫn ngắn](HUONG-DAN-SU-DUNG-BACKEND.md).
+Thiết kế startup/config chi tiết tại [Docker Compose](docs/DOCKER-CHAT.md).
+
+Các tài khoản local cũ và quản trị Keycloak có credential riêng. Khi cần, xuất
+credential Keycloak của stack vào file riêng bị Git ignore:
 
 ```powershell
 .\chat-docker.cmd credentials
@@ -105,7 +112,7 @@ ADMIN không tự có quyền đó. Keycloak có thể yêu cầu thiết lập 
 CLI bootstrap có trong image tooling. Ví dụ xem trước cấp EMPLOYEE khi đã có ADMIN:
 
 ```powershell
-docker compose --project-name flowbridge-chat --env-file infra/dev/images.env --env-file infra/chat/images.env -f compose.yaml -f infra/chat/compose.yaml run --rm --no-deps tools python scripts/container_chat.py bootstrap --subject UUID_USER_KEYCLOAK --grant EMPLOYEE --department UUID_PHONG_BAN --granted-by UUID_ADMIN_UNG_DUNG
+docker compose --project-name flowbridge-chat --env-file infra/dev/images.env --env-file infra/chat/images.env -f infra/dev/compose.yaml -f infra/chat/compose.yaml run --rm --no-deps tools python scripts/container_chat.py bootstrap --subject UUID_USER_KEYCLOAK --grant EMPLOYEE --department UUID_PHONG_BAN --granted-by UUID_ADMIN_UNG_DUNG
 ```
 
 Thay UUID bằng định danh đã kiểm. CLI rollback mặc định; thêm `--apply` để ghi sau
@@ -137,18 +144,18 @@ service token. Quản lý tài liệu cần ADMIN; đợi job `ready` rồi tra 
 ## Dừng, cập nhật và dữ liệu bền vững
 
 ```powershell
-.\chat-docker.cmd status
-.\chat-docker.cmd logs
-.\chat-docker.cmd down
-.\chat-docker.cmd up --ml --rag
+docker compose ps -a
+docker compose logs --tail 80
+docker compose down
+docker compose up
 ```
 
 `down` giữ volume. Đổi `.env`/provider settings dùng `down` rồi `up` để process nạp
-lại. Giữ cùng project và cổng để dùng lại state. Các cờ `--project`, `--api-port`,
-`--iam-port`, `--langflow-port` phải nhất quán giữa các lệnh.
+lại. Giữ cùng project và cổng trong file để dùng lại state. `COMPOSE_PROJECT_NAME`
+trong `.env` chọn môi trường độc lập; không đổi cổng của profile đã có.
 
-Lần đầu launcher chụp DB Langflow bằng SQLite backup API và giữ khóa nguồn tại
-`.cache/chat-stack/<project>/seed/`, rồi import một lần vào volume. Bản Docker có
+Lần đầu Compose chụp DB Langflow bằng SQLite backup API bên trong container và
+giữ khóa nguồn đi cùng, rồi import một lần vào volume. Bản Docker có
 state độc lập; sửa flow native sau đó không tự đồng bộ. Metadata ver2 cũ được nâng
 trên bản Docker, backup tại `/var/lib/langflow/flowbridge-backups` và kiểm concurrent
 edit. Muốn đổi snapshot nguồn dùng project mới, không ghi đè volume đang dùng.
@@ -156,15 +163,15 @@ edit. Muốn đổi snapshot nguồn dùng project mới, không ghi đè volume
 Bridge/API key nội bộ được sinh và giữ trong volume. Langflow không mount DB/IAM
 config; launcher chỉ chuyển provider settings từ `agent.env`, không sao chép bearer
 hoặc JobContext tĩnh. Cache `.cache/models` mount read-only tại `/models`, context
-`.cache/ml` tại `/ml-context`; đổi qua `--models-dir`, `--ml-dir`.
+`.cache/ml` tại `/ml-context`; đổi đường dẫn trong `compose.env`.
 Image references được pin trong `infra/*/images.env`.
 
 ## Xử lý lỗi
 
 | Hiện tượng | Kiểm tra |
 |---|---|
-| `doctor` thiếu Linux Engine | Mở Docker Desktop, chờ Engine; kiểm `wsl -l -v`. |
-| Không mở được 8761 | Xem `status`, `logs`, xung đột cổng. |
+| Docker thiếu Linux Engine | Mở Docker Desktop, chờ Engine; kiểm `wsl -l -v`. |
+| Không mở được 8761 | Xem `docker compose ps -a`, `docker compose logs`, xung đột cổng. |
 | Lỗi chứng chỉ Keycloak | Tin CA local đúng profile, giữ TLS verification. |
 | DB revision/connectivity lỗi | Kiểm Supabase và migration theo source; không reset/stamp. |
 | Login nhưng 401/403, tab chat khóa | Kiểm phiên, issuer+subject, user active và EMPLOYEE trong DB. |
@@ -180,7 +187,7 @@ Image references được pin trong `infra/*/images.env`.
 Kiểm cấu hình và regression offline:
 
 ```powershell
-.\chat-docker.cmd up --ml --rag --dry-run
+docker compose config --quiet
 uv run --locked pytest tests/unit -q
 npm --prefix clients/sso run test:ui
 ```
@@ -192,9 +199,9 @@ giữ để sử dụng hằng ngày. Client A vẫn dùng cổng 8761 nên dừ
 
 ```powershell
 .\chat-docker.cmd up --project flowbridge-chat-e2e --env-file .env.test --ml --rag
-docker compose --project-name flowbridge-chat-e2e --env-file infra/dev/images.env --env-file infra/chat/images.env -f compose.yaml -f infra/chat/compose.yaml run --build --rm --no-deps tools
-docker compose --project-name flowbridge-chat-e2e --env-file infra/dev/images.env --env-file infra/chat/images.env -f compose.yaml -f infra/chat/compose.yaml run --build --rm --no-deps browser npx playwright test --config chat.config.mjs
-docker compose --project-name flowbridge-chat-e2e --env-file infra/dev/images.env --env-file infra/chat/images.env -f compose.yaml -f infra/chat/compose.yaml run --rm --no-deps tools python scripts/container_dev.py cleanup
+docker compose --project-name flowbridge-chat-e2e --env-file infra/dev/images.env --env-file infra/chat/images.env -f infra/dev/compose.yaml -f infra/chat/compose.yaml run --build --rm --no-deps tools
+docker compose --project-name flowbridge-chat-e2e --env-file infra/dev/images.env --env-file infra/chat/images.env -f infra/dev/compose.yaml -f infra/chat/compose.yaml run --build --rm --no-deps browser npx playwright test --config chat.config.mjs
+docker compose --project-name flowbridge-chat-e2e --env-file infra/dev/images.env --env-file infra/chat/images.env -f infra/dev/compose.yaml -f infra/chat/compose.yaml run --rm --no-deps tools python scripts/container_dev.py cleanup
 .\chat-docker.cmd down --project flowbridge-chat-e2e --env-file .env.test --ml --rag
 ```
 
