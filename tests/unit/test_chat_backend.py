@@ -205,6 +205,57 @@ def chat_case():
 
 
 @pytest.mark.asyncio
+async def test_procurement_reader_can_use_company_evidence_but_keeps_private_chat_ownership(
+    chat_case,
+):
+    case, role_id, grant_id = chat_case, uuid4(), uuid4()
+    with case.engine.begin() as connection:
+        connection.execute(
+            sa.insert(table("roles")).values(
+                role_id=role_id,
+                role_code="PROCUREMENT_VIEWER",
+                status="active",
+                allowed_account_type="human",
+                scope_type="global",
+            )
+        )
+        connection.execute(
+            sa.insert(table("user_roles")).values(
+                user_role_id=grant_id,
+                user_id=case.actor,
+                role_id=role_id,
+                scope_type="global",
+                department_id=None,
+                revoked_at=None,
+            )
+        )
+    case.response["request_ids"] = [str(case.other_request)]
+    async with (
+        case.http,
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=case.app), base_url="http://api.test"
+        ) as client,
+    ):
+        headers = {"Authorization": "Bearer alice-token", "Idempotency-Key": "reader"}
+        result = await client.post(
+            "/api/v1/chat/messages",
+            headers=headers,
+            json={"message": "Lịch sử giao hàng toàn công ty"},
+        )
+        assert result.status_code == 200, result.text
+        history = f"/api/v1/chat/sessions/{result.json()['session_id']}/messages"
+        assert (
+            await client.get(history, headers={"Authorization": "Bearer bob-token"})
+        ).status_code == 404
+        with case.engine.begin() as connection:
+            connection.execute(
+                sa.delete(table("user_roles")).where(table("user_roles").c.user_role_id == grant_id)
+            )
+        # Revocation rechecks source permissions on historical messages too.
+        assert (await client.get(history, headers=headers)).status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_http_real_auth_policy_retry_history_and_isolation(chat_case):
     case = chat_case
     async with (

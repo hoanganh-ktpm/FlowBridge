@@ -11,7 +11,12 @@ from flowbridge.identity.authentication import VerifiedIdentity, authenticated_i
 from flowbridge.shared.errors import CoreError, ErrorCode, ErrorResponse
 from flowbridge.shared.openapi import namespace_schemas, register_fragment
 
-from .delivery_statistics import DeliveryStatistics, StatisticsRequest, calculate_statistics
+from .delivery_statistics import (
+    DeliveryOrdersRequest,
+    DeliveryStatistics,
+    StatisticsRequest,
+    calculate_statistics,
+)
 
 router = APIRouter(
     tags=["Supplier Assistant / Delivery statistics"],
@@ -41,7 +46,33 @@ async def statistics(
     try:
         async with asyncio.timeout(30):
             return await calculate_statistics(
-                resources.sessions, identity, task_id, body.supplier_id
+                resources.sessions, identity, task_id, body.supplier_id, body
+            )
+    except DBAPIError:
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE) from None
+    except TimeoutError:
+        raise CoreError(ErrorCode.UPSTREAM_TIMEOUT) from None
+
+
+@router.post(
+    "/internal/v1/tools/supplier-delivery-orders",
+    response_model=DeliveryStatistics,
+    operation_id="getVisibleSupplierDeliveryOrders",
+)
+async def delivery_orders(
+    body: DeliveryOrdersRequest,
+    request: Request,
+    identity: Annotated[VerifiedIdentity, Depends(authenticated_identity)],
+):
+    if request.headers.getlist("X-User-Context") or request.headers.getlist("X-Job-Context"):
+        raise CoreError(ErrorCode.VALIDATION_ERROR)
+    resources = request.app.state.resources
+    if resources is None or resources.sessions is None:
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+    try:
+        async with asyncio.timeout(30):
+            return await calculate_statistics(
+                resources.sessions, identity, None, body.supplier_id, body
             )
     except DBAPIError:
         raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE) from None

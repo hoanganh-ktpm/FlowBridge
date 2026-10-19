@@ -36,7 +36,7 @@ def settings(**kwargs):
     return Settings(_env_file=None, database_url=DSN, ml_enabled=True, **kwargs)
 
 
-def test_order_max_tracks_item_deadline_and_does_not_hide_missing_scores():
+def test_order_value_weighting_tracks_worst_item_and_does_not_hide_missing_scores():
     now = datetime.now(UTC)
     a, b, missing = uuid4(), uuid4(), uuid4()
     items = [
@@ -45,11 +45,17 @@ def test_order_max_tracks_item_deadline_and_does_not_hide_missing_scores():
             product_id=uuid4(),
             requested_delivery_date=(now + timedelta(days=days)).date(),
             result=RiskResult(status="success", risk_score=score, risk_threshold=0.7),
+            remaining_value=Decimal(10 if item == a else 90),
+            currency="VND",
         )
         for item, score, days in [(a, 0.8, 10), (b, 0.3, 3)]
     ]
     result = aggregate_order(uuid4(), items)
-    assert result.representative_risk_score == 0.8
+    assert result.representative_risk_score == 0.35
+    assert result.highest_item_risk_score == 0.8
+    assert result.scored_value_coverage == 1
+    assert result.high_risk_item_count == 1
+    assert "HIGH_RISK_ITEM_PRESENT" in result.warnings
     assert result.highest_risk_item_id == a
     assert result.highest_risk_item_deadline == (now + timedelta(days=10)).date()
     assert result.is_complete
@@ -59,11 +65,16 @@ def test_order_max_tracks_item_deadline_and_does_not_hide_missing_scores():
             product_id=uuid4(),
             requested_delivery_date=now.date(),
             result=RiskResult(status="insufficient_data", risk_threshold=0.7),
+            remaining_value=Decimal(50),
+            currency="VND",
         )
     )
     result = aggregate_order(uuid4(), items)
     assert result.status == "partial"
-    assert result.representative_risk_score == 0.8
+    assert result.representative_risk_score is None
+    assert result.observed_value_weighted_score == 0.35
+    assert result.scored_value_coverage == pytest.approx(2 / 3)
+    assert result.unscored_item_count == 1
     assert not result.is_complete
     assert aggregate_order(uuid4(), []).status == "no_open_items"
 
@@ -81,7 +92,8 @@ def test_ml_openapi_preserves_legacy_security_and_includes_new_routes():
     assert schema["security"]
     assert app.openapi() == schema
     routes = route_map(include_ml=True)
-    assert len(routes) == len(route_map()) + 5
+    assert len(routes) == len(route_map()) + 6
+    assert next(r for r in routes if r.operation_id == "getMLFeatureHistory").visibility == "public"
     assert (
         next(r for r in routes if r.operation_id == "predictMLPurchaseOrder").visibility
         == "internal"

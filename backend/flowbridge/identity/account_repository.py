@@ -3,10 +3,12 @@
 # Provided without warranty. See LICENSE.
 
 # Identity owns this SQL adapter; all writes use the caller's transaction.
+from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flowbridge.models import Department, Role, User, UserRole
@@ -61,6 +63,27 @@ class IdentityAccountRepository:
     async def role(self, code: str) -> dict[str, Any]:
         target = Role.__table__
         return await self._one(sa.select(target).where(target.c.role_code == code))
+
+    async def ensure_procurement_reader_role(self) -> None:
+        # Only invoked after bootstrap verifies an active application ADMIN.
+        # Add a role catalog record, never silently change an existing role or grant.
+        target, now = Role.__table__, datetime.now(UTC)
+        await self.session.execute(
+            insert(target)
+            .values(
+                role_id=uuid4(),
+                role_code="PROCUREMENT_VIEWER",
+                role_name="Phụ trách mua hàng — xem lịch sử toàn công ty",
+                description="Read-only company-wide PR/PO and supplier delivery history. "
+                "Does not grant purchase creation, approval, receipt or document changes.",
+                allowed_account_type="human",
+                scope_type="global",
+                status="active",
+                created_at=now,
+                updated_at=now,
+            )
+            .on_conflict_do_nothing(index_elements=[target.c.role_code])
+        )
 
     async def active_grant(
         self, user_id: UUID, role_id: UUID, department_id: UUID | None

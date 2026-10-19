@@ -3484,6 +3484,78 @@ paths:
               $ref: '#/components/schemas/ConfirmationDecision'
             example:
               decision: confirmed
+  /api/v1/ml/history:
+    post:
+      tags:
+      - Supplier Assistant / ML
+      summary: Read the completed historical cohort behind hist_sample_count; no inference
+      operationId: getMLFeatureHistory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MLHistoryRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLHistoryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+      security:
+      - HTTPBearer: []
+      description: Read the hist_sample_count cohort with PROCUREMENT_VIEWER, without inference or writes.
+        Original references check membership; a matching count alone does not verify original membership.
+        Missing original cutoff uses current history with an explicit warning.
 components:
   schemas:
     MLCandidate:
@@ -3618,6 +3690,16 @@ components:
           anyOf:
           - $ref: '#/components/schemas/MLTrace'
           - type: 'null'
+        remaining_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Remaining Value
+        currency:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currency
       additionalProperties: false
       type: object
       required:
@@ -3634,9 +3716,11 @@ components:
           title: Purchase Order Id
         aggregation_policy:
           type: string
-          const: max_open_item_v1
+          enum:
+          - max_open_item_v1
+          - remaining_value_weighted_v2
           title: Aggregation Policy
-          default: max_open_item_v1
+          default: remaining_value_weighted_v2
         status:
           type: string
           enum:
@@ -3650,8 +3734,10 @@ components:
           - type: number
           - type: 'null'
           title: Representative Risk Score
-          minimum: 0
-          maximum: 1
+        aggregation_definition:
+          type: string
+          title: Aggregation Definition
+          default: ''
         highest_risk_item_id:
           anyOf:
           - type: string
@@ -3664,6 +3750,39 @@ components:
             format: date
           - type: 'null'
           title: Highest Risk Item Deadline
+        highest_item_risk_score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Highest Item Risk Score
+        observed_value_weighted_score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Observed Value Weighted Score
+        scored_value_coverage:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Scored Value Coverage
+        high_risk_item_count:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: High Risk Item Count
+        unscored_item_count:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Unscored Item Count
         score_is_calibrated:
           type: boolean
           const: false
@@ -3690,10 +3809,10 @@ components:
       - is_complete
       - items
       title: OrderRisk
-      description: 'MAX điểm hợp lệ của các PO item còn phải giao; highest_risk_item_id và deadline thuộc cùng món.
-        Đây là điểm đại diện, không phải xác suất ít nhất một món bị trễ. success: đủ điểm cho mọi món mở; partial:
-        chỉ một số món có điểm; insufficient_data: không món mở nào có điểm; no_open_items: không còn món phải giao,
-        risk/item/deadline đại diện null. is_complete=false khi có món chưa chấm được, không thay món thiếu bằng 0.'
+      description: 'remaining_value_weighted_v2: trung bình điểm theo giá trị hàng còn chưa nhận, cùng tiền
+        tệ; không phải xác suất toàn đơn trễ. MAX giữ riêng ở highest_item_risk_score. Thiếu điểm/trọng số
+        thì điểm toàn đơn null, observed chỉ mô tả phần đã chấm cùng coverage. Bản replay max_open_item_v1
+        giữ ngữ nghĩa cũ.'
     MLRankRequest:
       properties:
         product_id:
@@ -3866,15 +3985,19 @@ components:
             type: string
           type: array
           title: Warnings
+        history_reference:
+          anyOf:
+          - $ref: '#/components/schemas/MLHistoryReference'
+          - type: 'null'
       additionalProperties: false
       type: object
       required:
       - status
       - risk_threshold
       title: RiskResult
-      description: risk_score trong [0,1] là điểm chưa hiệu chuẩn; risk_level=high khi score > threshold. Không diễn
-        đạt là xác suất nghiệp vụ đã kiểm chứng. hist_sample_count là số mẫu, không phải độ tin cậy. insufficient_data
-        giữ score null; missing_fields chỉ ra dữ liệu bắt buộc còn thiếu.
+      description: risk_score trong [0,1] là điểm chưa hiệu chuẩn; risk_level=high khi score > threshold.
+        Không diễn đạt là xác suất nghiệp vụ đã kiểm chứng. hist_sample_count là số mẫu, không phải độ tin
+        cậy. insufficient_data giữ score null; missing_fields chỉ ra dữ liệu bắt buộc còn thiếu.
     MLScenarioRequest-Input:
       properties:
         product_id:
@@ -7065,6 +7188,242 @@ components:
             - type: 'null'
       description: Projection hiện tại của dòng request; không đưa trường trạng thái mutable vào approved snapshot
         PurchaseLine. Job/report/status chỉ dùng revision đang đọc.
+    MLHistoryReference:
+      properties:
+        policy:
+          type: string
+          const: supplier-product-unit-completed-v1
+          title: Policy
+          default: supplier-product-unit-completed-v1
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+        supplier_id:
+          type: string
+          format: uuid
+          title: Supplier Id
+        unit:
+          type: string
+          title: Unit
+        product_category:
+          type: string
+          title: Product Category
+        feature_asof:
+          type: string
+          format: date-time
+          title: Feature Asof
+        history_window_days:
+          type: integer
+          maximum: 3650.0
+          minimum: 1.0
+          title: History Window Days
+        exclude_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Exclude Item Id
+        sample_count:
+          type: integer
+          minimum: 0.0
+          title: Sample Count
+        fingerprint:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          title: Fingerprint
+      additionalProperties: false
+      type: object
+      required:
+      - product_id
+      - supplier_id
+      - unit
+      - product_category
+      - feature_asof
+      - history_window_days
+      - sample_count
+      - fingerprint
+      title: HistoryReference
+    MLHistoryRequest:
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+        supplier_id:
+          type: string
+          format: uuid
+          title: Supplier Id
+        feature_asof:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Feature Asof
+        reference:
+          anyOf:
+          - $ref: '#/components/schemas/MLHistoryReference'
+          - type: 'null'
+        expected_count:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Expected Count
+        page:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Page
+          default: 1
+        page_size:
+          type: integer
+          maximum: 20.0
+          minimum: 1.0
+          title: Page Size
+          default: 20
+      additionalProperties: false
+      type: object
+      required:
+      - product_id
+      - supplier_id
+      title: HistoryRequest
+    MLHistoryResponse:
+      properties:
+        status:
+          type: string
+          enum:
+          - success
+          - partial
+          - not_found
+          - changed
+          title: Status
+        reference:
+          $ref: '#/components/schemas/MLHistoryReference'
+        reference_matches:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Reference Matches
+        expected_count_matches:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Expected Count Matches
+        scope:
+          type: string
+          const: company_procurement_reader
+          title: Scope
+          default: company_procurement_reader
+        definition:
+          type: string
+          title: Definition
+          default: Dòng hàng đã nhận đủ, cùng NCC–sản phẩm–đơn vị, trong cửa sổ lịch sử tại mốc chấm. Dùng
+            tính hist_sample_count/lead time/tỷ lệ trễ; không phải toàn bộ context TabICL và không phải giải
+            thích nhân quả của điểm.
+        items:
+          items:
+            $ref: '#/components/schemas/MLHistoryRow'
+          type: array
+          title: Items
+        total_matches:
+          type: integer
+          title: Total Matches
+        page:
+          type: integer
+          title: Page
+        page_size:
+          type: integer
+          title: Page Size
+        next_page:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Next Page
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      - reference
+      - reference_matches
+      - expected_count_matches
+      - items
+      - total_matches
+      - page
+      - page_size
+      - next_page
+      - warnings
+      title: HistoryResponse
+    MLHistoryRow:
+      properties:
+        purchase_order_id:
+          type: string
+          format: uuid
+          title: Purchase Order Id
+        po_item_id:
+          type: string
+          format: uuid
+          title: Po Item Id
+        po_number:
+          type: string
+          title: Po Number
+        product_name:
+          type: string
+          title: Product Name
+        unit:
+          type: string
+          title: Unit
+        ordered_quantity:
+          type: string
+          title: Ordered Quantity
+        order_date:
+          type: string
+          format: date
+          title: Order Date
+        requested_delivery_date:
+          type: string
+          format: date
+          title: Requested Delivery Date
+        completion_date:
+          type: string
+          format: date
+          title: Completion Date
+        completion_known_at:
+          type: string
+          format: date-time
+          title: Completion Known At
+        lead_days:
+          type: integer
+          title: Lead Days
+        days_late:
+          type: integer
+          minimum: 0.0
+          title: Days Late
+        delivered_late:
+          type: boolean
+          title: Delivered Late
+      additionalProperties: false
+      type: object
+      required:
+      - purchase_order_id
+      - po_item_id
+      - po_number
+      - product_name
+      - unit
+      - ordered_quantity
+      - order_date
+      - requested_delivery_date
+      - completion_date
+      - completion_known_at
+      - lead_days
+      - days_late
+      - delivered_late
+      title: HistoryRow
   securitySchemes:
     MLBearerAuth:
       type: http

@@ -15,6 +15,39 @@ from flowbridge.supplier_assistant.database_service import BUSINESS_TIMEZONE
 from .schemas import Features, FeatureSnapshot
 
 
+def history_samples(
+    facts: list["OrderFact"],
+    *,
+    product_id: UUID,
+    supplier_id: UUID,
+    unit: str,
+    category: str,
+    asof: datetime,
+    history_days: int,
+    exclude_item_id: UUID | None = None,
+) -> list[tuple["OrderFact", tuple[date, datetime]]]:
+    """The exact completed supplier/product/unit cohort behind hist_sample_count."""
+    cutoff = asof - timedelta(days=history_days)
+    result = []
+    for fact in facts:
+        if (
+            cutoff <= fact.order["order_date"] < asof
+            and fact.item["po_item_id"] != exclude_item_id
+            and fact.order["status"] not in {"cancelled", "rejected"}
+            and fact.item["item_status"] != "cancelled"
+            and fact.item["product_category_snapshot"] == category
+            and fact.item["product_id"] == product_id
+            and fact.item["unit"] == unit
+            and fact.order["supplier_id"] == supplier_id
+        ):
+            outcome = fact.outcome(asof)
+            if outcome is not None:
+                result.append((fact, outcome))
+    return sorted(
+        result, key=lambda row: (row[0].order["order_date"], str(row[0].item["po_item_id"]))
+    )
+
+
 @dataclass(frozen=True)
 class OrderFact:
     item: dict[str, Any]
@@ -128,13 +161,16 @@ class FeatureBuilder:
             if f.item["product_category_snapshot"] == category
         ]
         pool = [(f, outcome) for f, outcome in pool if outcome is not None]
-        group = [
-            (f, outcome)
-            for f, outcome in pool
-            if f.item["product_id"] == product_id
-            and f.item["unit"] == unit
-            and f.order["supplier_id"] == supplier_id
-        ]
+        group = history_samples(
+            facts,
+            product_id=product_id,
+            supplier_id=supplier_id,
+            unit=unit,
+            category=category,
+            asof=asof,
+            history_days=self.history_days,
+            exclude_item_id=current.item["po_item_id"] if current else None,
+        )
         leads = [
             float((c[0] - f.order["order_date"].astimezone(BUSINESS_TIMEZONE).date()).days)
             for f, c in group
@@ -215,6 +251,8 @@ class FeatureBuilder:
                 warnings.append("RECEIPT_COVERAGE_UNCONFIRMED")
             margin = self.promise_margin(current, receipts, asof, deadline)
             x["promise_margin_days"] = margin
+        from .history import history_reference
+
         return FeatureSnapshot(
             x=Features(**x),
             feature_asof=asof,
@@ -230,6 +268,16 @@ class FeatureBuilder:
                 "history_pool": "category",
                 "history_group": "supplier-product-unit",
                 "history_source": "issued-items-and-append-only-accepted-receipts",
+                "history_reference": history_reference(
+                    group,
+                    product_id=product_id,
+                    supplier_id=supplier_id,
+                    unit=unit,
+                    category=category,
+                    asof=asof,
+                    history_days=self.history_days,
+                    exclude_item_id=current.item["po_item_id"] if current else None,
+                ).model_dump(mode="json"),
                 "receipt_coverage_confirmed": self.receipt_coverage_confirmed,
                 "warnings": warnings,
             },

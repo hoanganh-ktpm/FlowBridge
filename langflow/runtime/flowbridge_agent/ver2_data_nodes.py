@@ -169,9 +169,18 @@ class DataNodeBase(Component):
                 timeout=int(self.timeout),
             )
         )
+        runtime_guidance = ""
+        if self.action == "purchase_get_request":
+            runtime_guidance = (
+                " Runtime: PR tự trả request_delivery_evidence gồm các PO con và phiếu nhận "
+                "đúng yêu cầu. Dùng chứng cứ đó cho câu hỏi giao chưa/trễ; không gọi công cụ PR "
+                "với mã PO. Không phải xin xác nhận đọc các đơn con. summary=null hoặc tỷ lệ "
+                "null không được đổi thành 0%; điểm rủi ro ML không phải tỷ lệ trễ thực tế."
+            )
         return DataActionTool(
             name=self.action,
             description=str(self.tool_description or description)
+            + runtime_guidance
             + (" Locked inputs: " + json.dumps(locked, ensure_ascii=False) if locked else ""),
             args_schema=agent_schema,
             action=self.action,

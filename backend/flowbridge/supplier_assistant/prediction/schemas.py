@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
+from .history import HistoryReference
+
 FEATURE_VERSION = "tabicl_supplier_fixed_v1"
 PREPROCESSING_VERSION = "supplier-features-v1"
 CATEGORICAL = ("prediction_stage", "supplier_id", "product_category", "confirmation_state")
@@ -122,6 +124,7 @@ class RiskResult(StrictModel):
     score_is_calibrated: Literal[False] = False
     calibrated_late_probability: None = None
     hist_sample_count: int | None = None
+    history_reference: HistoryReference | None = None
     error_code: str | None = None
     missing_fields: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -171,15 +174,25 @@ class ItemRisk(StrictModel):
     requested_delivery_date: date
     result: RiskResult
     trace: Trace | None = None
+    remaining_value: Decimal | None = Field(default=None, ge=0)
+    currency: str | None = None
 
 
 class OrderRisk(StrictModel):
     purchase_order_id: UUID
-    aggregation_policy: Literal["max_open_item_v1"] = "max_open_item_v1"
+    aggregation_policy: Literal["max_open_item_v1", "remaining_value_weighted_v2"] = (
+        "remaining_value_weighted_v2"
+    )
     status: Literal["success", "partial", "insufficient_data", "no_open_items"]
     representative_risk_score: float | None = None
+    aggregation_definition: str = ""
     highest_risk_item_id: UUID | None = None
     highest_risk_item_deadline: date | None = None
+    highest_item_risk_score: float | None = Field(default=None, ge=0, le=1)
+    observed_value_weighted_score: float | None = Field(default=None, ge=0, le=1)
+    scored_value_coverage: float | None = Field(default=None, ge=0, le=1)
+    high_risk_item_count: int | None = Field(default=None, ge=0)
+    unscored_item_count: int | None = Field(default=None, ge=0)
     score_is_calibrated: Literal[False] = False
     is_complete: bool
     items: list[ItemRisk]

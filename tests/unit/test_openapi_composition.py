@@ -46,7 +46,7 @@ def test_composer_cache_invalidates_and_isolates_apps() -> None:
     assert other.openapi()["paths"] == {}
 
 
-@pytest.mark.parametrize("ml,count", [(False, 46), (True, 51)])
+@pytest.mark.parametrize("ml,count", [(False, 46), (True, 52)])
 def test_database_profiles_match_live_route_registry(ml: bool, count: int) -> None:
     app = create_app(
         Settings(
@@ -146,7 +146,7 @@ def test_postgres_rag_preserves_identity_and_ml_fragments(core: bool, ml: bool) 
 
     app.openapi_schema = None
     assert operations(FastAPI.openapi(app)) == operations(exported)
-    assert len(operations(exported)) == 46 + 5 * ml + 2 * core
+    assert len(operations(exported)) == 46 + 6 * ml + 2 * core
     other = create_app(
         Settings(_env_file=None, database_url="postgresql+asyncpg://x:y@localhost/test")
     )

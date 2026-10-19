@@ -74,7 +74,7 @@ def settings(**updates: object) -> Settings:
     return Settings(**values)
 
 
-@pytest.mark.parametrize("ml,count", [(False, 48), (True, 53)])
+@pytest.mark.parametrize("ml,count", [(False, 48), (True, 54)])
 def test_identity_openapi_semantics_match_core_contract(ml: bool, count: int) -> None:
     from fastapi import FastAPI
 

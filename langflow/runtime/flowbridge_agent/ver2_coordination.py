@@ -31,7 +31,17 @@ EDGES = {
     "database": set(),
 }
 TASKS = {
-    "database": {"resolve_entities", "list_catalog", "offers", "request", "order"},
+    "database": {
+        "resolve_entities",
+        "list_catalog",
+        "offers",
+        "request",
+        "order",
+        "delivery_orders",
+        "history_samples",
+        "find_multi_item_orders",
+        "find_multi_supplier_requests",
+    },
     "prediction": {"rank_suppliers", "score_supplier", "order_risk", "stored_result"},
     "knowledge": {"retrieve"},
 }
@@ -42,6 +52,10 @@ ACTION_SERVICE = {
     "catalog_read_offers": "database",
     "purchase_get_request": "database",
     "purchase_get_order": "database",
+    "supplier_delivery_orders": "database",
+    "ml_feature_history": "database",
+    "purchase_find_multi_item_orders": "database",
+    "purchase_find_multi_supplier_requests": "database",
     "prediction_rank_suppliers": "prediction",
     "prediction_score_supplier": "prediction",
     "prediction_get_order_risk": "prediction",
@@ -55,6 +69,10 @@ TASK_ACTION = {
     "offers": "catalog_read_offers",
     "request": "purchase_get_request",
     "order": "purchase_get_order",
+    "delivery_orders": "supplier_delivery_orders",
+    "history_samples": "ml_feature_history",
+    "find_multi_item_orders": "purchase_find_multi_item_orders",
+    "find_multi_supplier_requests": "purchase_find_multi_supplier_requests",
     "rank_suppliers": "prediction_rank_suppliers",
     "score_supplier": "prediction_score_supplier",
     "order_risk": "prediction_get_order_risk",
@@ -293,6 +311,13 @@ def resolved_from(receipts: list[dict]) -> dict:
             resolved.update(data.get("resolved", {}))
         elif action == "purchase_get_order" and "purchase_order_id" in data:
             resolved["order_id"] = data["purchase_order_id"]
+            resolved.update(
+                {
+                    k: data[k]
+                    for k in ("supplier_id", "supplier_code", "supplier_name")
+                    if data.get(k)
+                }
+            )
         elif action == "purchase_get_request" and "request_id" in data:
             resolved["request_id"] = data["request_id"]
         elif action.startswith("prediction_"):
