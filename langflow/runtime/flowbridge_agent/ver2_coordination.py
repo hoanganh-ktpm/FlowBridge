@@ -389,7 +389,20 @@ def finish_reply(raw: dict, scope: Invocation) -> dict:
         if reply.service != scope.role:
             raise ValueError("SERVICE_MISMATCH")
     except (ValueError, TypeError):
-        reply = Reply(service=scope.role, status="error", warnings=["SERVICE_OUTPUT_INVALID"])
+        from flowbridge_agent.ver2_catalog_reply import catalog_receipt_reply
+
+        catalog = catalog_receipt_reply(raw, scope)
+        if catalog is None:
+            reply = Reply(service=scope.role, status="error", warnings=["SERVICE_OUTPUT_INVALID"])
+        else:
+            reply = Reply.model_validate(catalog)
+            scope.run.events.append(
+                {
+                    "target": "database",
+                    "code": "SERVICE_OUTPUT_INVALID",
+                    "recovered_by": "VERIFIED_CATALOG_RECEIPT",
+                }
+            )
     actual = scope.receipts[-5:]
     allowed = {json.dumps(r, sort_keys=True, ensure_ascii=False) for r in scope.receipts}
     if any(

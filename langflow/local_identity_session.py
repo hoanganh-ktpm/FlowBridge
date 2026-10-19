@@ -136,6 +136,27 @@ def configure(identity_dir: Path, watch: bool) -> None:
             human = response.json()
 
 
+def maintain_session(identity_dir: Path, watch: bool) -> None:
+    """Re-enter genuine PKCE login after refresh expiry or transient HTTP failures."""
+    retry_delay = 2
+    while True:
+        try:
+            configure(identity_dir, watch)
+            return
+        except httpx.HTTPError as exc:
+            if not watch:
+                raise
+            # A refresh token can expire while Langflow stays open. Reuse only the
+            # existing isolated test profile; never publish unverified credentials.
+            print(
+                f"Local identity unavailable ({type(exc).__name__}); "
+                f"retrying PKCE login in {retry_delay}s; credentials hidden.",
+                flush=True,
+            )
+            time.sleep(retry_delay)
+            retry_delay = min(30, retry_delay * 2)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -146,7 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("--watch", action="store_true")
     args = parser.parse_args()
     try:
-        configure(args.identity_dir, args.watch)
+        maintain_session(args.identity_dir, args.watch)
     except Exception as exc:
         print(f"Local identity stopped ({type(exc).__name__}); credentials hidden.", flush=True)
         raise SystemExit(1) from None
