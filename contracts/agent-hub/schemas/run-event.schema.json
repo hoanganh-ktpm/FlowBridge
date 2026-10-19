@@ -43,7 +43,8 @@
           "role": {"enum": ["coordinator", "primary", "dependency"]},
           "label": {"type": "string", "minLength": 1, "maxLength": 300},
           "outcome": {"enum": ["success", "needs_input", "failed", "cancelled"]},
-          "duration_ms": {"type": "integer", "minimum": 0}
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "error": {"$ref": "run-result.schema.json#/$defs/Error"}
         }
       }}}
     },
@@ -58,7 +59,8 @@
           "tool": {"type": "string", "minLength": 1, "maxLength": 128},
           "label": {"type": "string", "minLength": 1, "maxLength": 300},
           "outcome": {"enum": ["success", "needs_input", "failed", "cancelled"]},
-          "duration_ms": {"type": "integer", "minimum": 0}
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "error": {"$ref": "run-result.schema.json#/$defs/Error"}
         }
       }}}
     },
@@ -68,7 +70,15 @@
     },
     {
       "if": {"properties": {"type": {"enum": ["agent.started", "tool.started"]}}},
-      "then": {"properties": {"data": {"not": {"anyOf": [{"required": ["outcome"]}, {"required": ["duration_ms"]}]}}}}
+      "then": {"properties": {"data": {"not": {"anyOf": [{"required": ["outcome"]}, {"required": ["duration_ms"]}, {"required": ["error"]}]}}}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["agent.completed", "tool.completed"]}}},
+      "then": {"properties": {"data": {
+        "if": {"properties": {"outcome": {"const": "failed"}}},
+        "then": {"required": ["error"]},
+        "else": {"not": {"required": ["error"]}}
+      }}}
     },
     {
       "if": {"properties": {"type": {"const": "answer.delta"}}},

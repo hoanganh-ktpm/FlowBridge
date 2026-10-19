@@ -1,5 +1,45 @@
 # Checkpoint FlowBridge
 
+## 2026-10-19 — Gỡ trang kiểm thử Agent Hub theo yêu cầu
+
+- Đã xóa trang HTML/CSS/JavaScript kiểm thử, route tĩnh, link từ client SSO và
+  test Playwright dành riêng cho trang đó. Giữ nguyên backend Agent Hub, contract,
+  migration, Langflow bridge và test backend.
+
+## 2026-10-19 — CODE-AGENT-HUB-01: Backend Agent Hub (hoàn tất mã và kiểm thử offline)
+
+- Yêu cầu hiện tại: đọc main mới, triển khai 12 API theo hợp đồng và xuất timeline
+  agent/tool gồm trạng thái, thời gian, lỗi theo đúng agent Dữ liệu/Dự đoán/RAG;
+  chỉ backend/contract, không làm giao diện; không gọi OpenAI hoặc workflow có phí.
+  Branch hoanganhdev_features, HEAD2440e89.
+- Đã đối chiếu chat/SSO mới, CallerMiddleware, frontend response node/builder.
+  Bridge cũ chỉ trả text; thêm giao thức agent-hub-v1 NDJSON, giữ đường chat cũ.
+- Đã thêm module agent_hub, 12 endpoint, PostgreSQL queue/result/events/cursor,
+  idempotency, policy hiện có, selection theo ContextVar và migration0006 nối0005.
+  Không sửa graph export, baseline nghiệp vụ hoặc engine IAM. Worker không tự retry model.
+- Credential forwarding dùng pgcrypto AES256 với khóa cấu hình riêng, xóa khi
+  terminal; không lưu bearer dạng rõ. Migration chưa áp dụng vào DB nào.
+- Contract1.0.1 làm rõ as_of=null khi upstream không biết cutoff, thêm request_id
+  tùy chọn khi tạo hội thoại để giữ ngữ cảnh PR/RAG theo SSO hiện có. Mẫu user giữ nguyên.
+- Langflow bridge agent-hub-v1 phát NDJSON activity/final, dùng lại SSO caller; backend
+  lưu SSE theo run, replay Last-Event-ID, đóng span dở khi lỗi/cancel, phân biệt lỗi
+  A2A, Data, Prediction, Knowledge và tool bên trong. duration_ms của agent/tool là
+  riêng từng span; result JSON được kiểm kiểu, nguồn, số/đơn vị và reference trước lưu.
+- Hướng dẫn vận hành tại docs/AGENT-HUB.md; cập nhật hợp đồng OpenAPI/schema,
+  README/CHANGELOG, settings/env/Docker và đóng gói wheel. Tạo bản wheel offline;
+  kiểm gói có module Hub và schema contract. Không có code giao diện/frontend trong
+  diff cuối; user sẽ tự triển khai UI bằng SSE/RunResult.
+- Kiểm tra offline: backend suite 93 passed (trước kiểm thử ACL bổ sung), sau đó
+  test_agent_hub 21 passed; Langflow regression 120 passed (8 warning upstream);
+  Ruff, git diff --check, wheel build và kiểm nội dung wheel đều pass. Test mới xác
+  nhận quyền tài nguyên kế thừa qua follow-up, event failed bắt buộc error; không
+  chạy lại toàn suite sau thay đổi chỉ test/schema/tài liệu.
+- Chưa áp migration0006 vào DB thật, chưa gọi OpenAI, Langflow run thật, ML/RAG
+  thật hoặc container. Bước vận hành: review SQL migration và khóa credential,
+  áp migration, bật settings và khởi động lại backend/SSO bridge trước nghiệm thu
+  live do người dùng chủ động thực hiện. Không commit/push/deploy trong lượt này.
+
+
 ## 2026-10-19 — GIT-PR-17-01: Giải quyết conflict với main (hoàn tất)
 
 - User yêu cầu sửa conflict PR #17; nguồn huuhuandev_features dc6abfd, đích

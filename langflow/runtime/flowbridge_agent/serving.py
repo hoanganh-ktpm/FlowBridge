@@ -5,6 +5,7 @@
 # ASGI adapter around upstream Langflow; no dependency source changes or token in graph data.
 import json
 import secrets
+from datetime import date
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -49,7 +50,11 @@ class CallerMiddleware:
                     headers.get(b"x-flowbridge-bridge-secret", b""), self.secret.encode()
                 )
             )
-            result = {"protocol": "flowbridge-caller-v1", "flow_id": self.flow_id}
+            hub = headers.get(b"x-flowbridge-protocol") == b"agent-hub-v1"
+            result = {
+                "protocol": "agent-hub-v1" if hub else "flowbridge-caller-v1",
+                "flow_id": self.flow_id,
+            }
             return await JSONResponse(result if valid_probe else {}, 200 if valid_probe else 403)(
                 scope, receive, send
             )
@@ -66,13 +71,16 @@ class CallerMiddleware:
             return await JSONResponse({"detail": "Bridge request rejected"}, 403)(
                 scope, receive, send
             )
+        hub = headers.get(b"x-flowbridge-protocol") == b"agent-hub-v1"
+        if b"x-flowbridge-protocol" in headers and not hub:
+            return await JSONResponse({"detail": "Unsupported protocol"}, 422)(scope, receive, send)
         raw = bytearray()
         while True:
             event = await receive()
             if event["type"] == "http.disconnect":
                 return
             raw.extend(event.get("body", b""))
-            if len(raw) > 20000:
+            if len(raw) > (262144 if hub else 20000):
                 return await JSONResponse({"detail": "Invalid bridge body"}, 413)(
                     scope, receive, send
                 )
@@ -87,7 +95,7 @@ class CallerMiddleware:
                 body["input_type"] != "chat"
                 or body["output_type"] != "chat"
                 or not isinstance(body["input_value"], str)
-                or not 1 <= len(body["input_value"]) <= 4000
+                or not 1 <= len(body["input_value"]) <= (100000 if hub else 4000)
             ):
                 raise ValueError
             user_token = headers[b"x-flowbridge-access-token"].decode("ascii")
@@ -100,11 +108,29 @@ class CallerMiddleware:
                 raise ValueError
             if job:
                 UUID(job)
+            selected, business_date = None, None
+            if hub:
+                selected = json.loads(headers[b"x-flowbridge-selected-agents"])
+                business_date = headers[b"x-flowbridge-business-date"].decode("ascii")
+                date.fromisoformat(business_date)
+                if (
+                    not isinstance(selected, list)
+                    or len(selected) > 3
+                    or any(not isinstance(x, str) for x in selected)
+                    or len(set(selected)) != len(selected)
+                    or not set(selected) <= {"database", "prediction", "knowledge"}
+                ):
+                    raise ValueError
         except (ValueError, TypeError, KeyError, UnicodeError):
             return await JSONResponse({"detail": "Invalid bridge request"}, 422)(
                 scope, receive, send
             )
         caller = Caller(body["session_id"], self.api_origin, user_token, ai_token, job)
+        if hub:
+            caller.selected_agents = tuple(selected)
+            caller.business_date = business_date
+            body["output_type"] = "any"
+            body["output_component"] = "FrontendResponse-ver2-central"
         if bound_request:
             caller.request_ids.add(bound_request)
             # Business context is safe to show to the agent; authorization credentials are not.
@@ -142,6 +168,13 @@ class CallerMiddleware:
                 consumed = True
                 return {"type": "http.request", "body": payload, "more_body": False}
             return await receive()
+
+        if hub:
+            from flowbridge_agent.hub_serving import stream_hub
+
+            return await stream_hub(
+                self.app, caller, scope, clean_scope, receive, receive_body, send
+            )
 
         response = bytearray()
         status = 500

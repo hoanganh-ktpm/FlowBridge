@@ -1,7 +1,8 @@
 # Agent Hub — hợp đồng Web/App và Langflow ver2
 
-Phiên bản API **1.0.0**, phiên bản JSON kết quả/sự kiện **1.0**, ngày **19/10/2026**.
-Trạng thái: **thiết kế đã ghi thành hợp đồng, chưa triển khai endpoint hoặc node**.
+Phiên bản API **1.0.1**, phiên bản JSON kết quả/sự kiện **1.0**, ngày **19/10/2026**.
+Trạng thái: **đã triển khai, bật tùy chọn sau migration 0006**.
+Hướng dẫn chạy và adapter đầu ra thực tế: [AGENT-HUB](../../docs/AGENT-HUB.md).
 Đây là hợp đồng Agent Hub riêng, không thay thế App/AI database API 0.4.1 hoặc
 OpenCore. Không suy ra API đang hoạt động từ ví dụ hoặc file OpenAPI.
 
@@ -202,7 +203,8 @@ hardcode trong prompt hoặc ngày lúc retry executor. Ngày do user nói rõ v
 
 Timestamps RFC3339 có offset; server ưu tiên UTC Z. Mẫu gốc +00:00 có microsecond
 vẫn hợp lệ. `context.as_of` là cutoff thực của dữ liệu, không mặc định bằng thời gian
-chạy. period_from/period_to đi cùng nhau, from <= to, ngày biên bao gồm cả hai phía.
+chạy. Từ 1.0.1, `as_of=null` nếu upstream không cung cấp cutoff; kèm cảnh báo
+`AS_OF_UNKNOWN`, UI không được hiển thị như số liệu chốt tại hiện tại. period_from/period_to đi cùng nhau, from <= to, ngày biên bao gồm cả hai phía.
 Nguồn dùng timestamp cần quy đổi biên theo timezone dataset và ghi rõ trong context.
 
 ## 8. RunResult chuẩn và ngữ nghĩa trạng thái
@@ -457,3 +459,20 @@ normal/percent; tiền decimal; chia cho 0/null; duplicate ID/reference lỗi; �
 giữa run; hai user đồng thời; replay idempotency; SSE reconnect/retention; cancellation
 race; mất quyền; dependency thất bại; output lớn/không hợp lệ. Đây là danh sách nghiệm
 thu cần thực hiện sau, không phải báo cáo các kiểm thử đã đạt.
+
+## Bổ sung triển khai 1.0.1
+
+- CreateConversation nhận `request_id` tùy chọn, được kiểm quyền và bất biến; cần
+  khi chọn knowledge theo mô hình PR/analysis job của SSO hiện tại. Không nhận job,
+  token công cụ hoặc danh sách dependency từ client.
+- Event agent/tool.completed có `duration_ms` và khi failed có `error` gồm
+  code/message/retryable/trace_id. Agent/tool.started không có duration/error.
+  Span được đóng khi run gián đoạn để frontend không treo; xem quy tắc thời gian,
+  handoff và tool thống kê trong [hướng dẫn runtime](../../docs/AGENT-HUB.md).
+- Web/app dùng SSE RunEvent để dựng bảng công cụ, agent, số giây và lỗi;
+  giữ Last-Event-ID khi nối lại. Chưa phát answer.delta.
+- Public as_of nhận null khi không biết; không sửa byte mẫu gốc. Adapter giữ
+  tiền decimal, ánh xạ partial thành completed + warning, câu hỏi chuỗi thành
+  text question và percent đã tính thành normal stacking để tránh tính lần hai.
+- Cursor snapshot tối đa 10.000 mục, quá giới hạn trả 413. Không tự xóa lịch sử
+  hoặc tự retry model sau lỗi/worker restart. Bằng chứng kiểm thử ghi ở checkpoint.

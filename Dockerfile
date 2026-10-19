@@ -17,6 +17,7 @@ FROM base AS dependencies
 COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY backend ./backend
+COPY contracts ./contracts
 RUN uv sync --locked --no-dev --no-editable
 
 FROM base AS runtime

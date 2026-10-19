@@ -58,6 +58,10 @@ required-version = "==0.13.1"
 [tool.hatch.build.targets.wheel]
 packages = ["backend/flowbridge"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"contracts/agent-hub-api.yaml" = "flowbridge/agent_hub/contracts/agent-hub-api.yaml"
+"contracts/agent-hub" = "flowbridge/agent_hub/contracts/agent-hub"
+
 [tool.hatch.build.targets.sdist]
 include = [
     "/backend/flowbridge",
@@ -112,6 +116,7 @@ include = [
     "/langflow/start-sso.ps1",
     "/langflow/start-sso.cmd",
     "/docs/LANGFLOW-SSO.md",
+    "/docs/AGENT-HUB.md",
     "/docs/ML-SERVICE.md",
     "/infra/identity",
     "/infra/dev",

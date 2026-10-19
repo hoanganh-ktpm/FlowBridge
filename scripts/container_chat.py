@@ -98,6 +98,9 @@ def prepare_chat(
         }
         shutil.copyfile(seed, state / "langflow.db")
         shutil.copyfile(seed_key, state / "secret_key")
+    # Stable queue key stays backend-only; never copied to Langflow or rotated on restart.
+    if "FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY" not in chat:
+        chat["FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY"] = secrets.token_urlsafe(48)
     # Provider keys are refreshed deliberately during prepare; caller credentials are excluded.
     values = dotenv_values(agent, interpolate=False)
     for key in MODEL_KEYS:

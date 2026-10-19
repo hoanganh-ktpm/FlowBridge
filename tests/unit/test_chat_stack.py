@@ -125,6 +125,9 @@ def test_prepare_persists_secrets_and_separates_backend_provider_caller_material
     assert runtime["FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET"] == api["FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET"]
     assert runtime["OPENAI_API_KEY"] == "provider-key"
     assert "OPENAI_API_KEY" not in api
+    assert len(api["FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY"]) >= 32
+    assert "FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY" not in runtime
+    assert api["FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY"] != api["FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET"]
     assert "never-copy" not in json.dumps(runtime) + json.dumps(api)
     assert (state / "secret_key").read_bytes() == (source / "secret_key").read_bytes()
     # Key rotation in source env updates provider config, never the persistent bridge/API secrets.

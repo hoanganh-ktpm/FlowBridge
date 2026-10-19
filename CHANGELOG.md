@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-19 — Agent Hub backend và Activities
+
+- Triển khai opt-in 12 API từ hợp đồng Agent Hub: owner ACL, revision/ETag,
+  idempotency, queue PostgreSQL, messages/results, snapshot cursor, cancel và SSE replay.
+- Thêm migration0006 và pgcrypto cho credential forwarding; worker không tự chạy
+  lại model khi gián đoạn. API chat/bridge cũ và graph export giữ nguyên.
+- Bridge agent-hub-v1 xuất JSON node frontend cùng activity trực tiếp từ lời gọi
+  agent/tool: span, agent, tool, thời gian và lỗi đúng vị trí. Selection theo run,
+  phụ thuộc vẫn do Langflow; web/app nhận event để tự dựng giao diện.
+- Contract1.0.1 bổ sung PR context tùy chọn và as_of=null khi upstream không biết;
+  adapter chuyển partial/questions/decimal/source/percent stacking một cách xác định.
+- Hướng dẫn cấu hình, migration, giới hạn và test offline tại docs/AGENT-HUB.md.
+
 ## Unreleased
 
 - Thêm khung chat Trợ lý AI vào client SSO: EMPLOYEE gửi qua backend, xem lịch sử,

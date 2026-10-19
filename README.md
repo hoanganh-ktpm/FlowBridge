@@ -371,3 +371,12 @@ Dependency giữ giấy phép, copyright và NOTICE upstream, được lấy qua
 ## RAG PostgreSQL và pgvector
 
 Giữ ba bảng Core theo thiết kế nhóm, dùng Qwen + exact cosine pgvector + BM25/RRF. Xem [thiết kế đã hiệu chỉnh](docs/rag-postgres-pgvector-design.md) và [migration, import, index, HTTP](docs/rag-postgres-setup.md). Bật `FLOWBRIDGE_RAG_POSTGRES_ENABLED=true` sau migration 0003; HTTP yêu cầu AI_SERVICE và JobContext từ database.
+
+
+### Agent Hub cho web/mobile
+
+[Hướng dẫn chạy và tích hợp](docs/AGENT-HUB.md): 12 API cho hội thoại, chọn agent,
+run bất đồng bộ, kết quả bảng/biểu đồ, history và SSE Activities. Bật riêng bằng
+`FLOWBRIDGE_AGENT_HUB_ENABLED` sau migration0006; giữ API chat cũ. Langflow tự gọi
+phụ thuộc trong phạm vi mỗi run. Event chỉ rõ agent/công cụ, duration_ms và mã lỗi
+để web/app tự dựng bảng tiến độ.

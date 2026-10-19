@@ -5,9 +5,9 @@ openapi: 3.1.0
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 info:
   title: FlowBridge Agent Hub API for Web and Mobile
-  version: 1.0.0
+  version: 1.0.1
   description: |
-    Hợp đồng thiết kế, chưa phải các endpoint đã triển khai. Kết quả công khai theo
+    Hợp đồng API Agent Hub; bật bằng FLOWBRIDGE_AGENT_HUB_ENABLED. Kết quả công khai theo
     template (1).json người dùng cung cấp. API tiếp nhận/lưu/truyền yêu cầu;
     Langflow ver2 tự điều phối agent chính, gọi phụ thuộc và dựng JSON cuối.
     Đọc agent-hub/README.md cho quy tắc ngữ nghĩa, lifecycle, SSE và tích hợp.
@@ -21,7 +21,7 @@ tags:
   - name: Agent Hub / Agents
   - name: Agent Hub / Conversations
   - name: Agent Hub / Runs
-x-contract-status: design-only; no runtime routes, database migration or Langflow graph changes in this delivery
+x-contract-status: implemented-opt-in; migration 0006 and agent-hub-v1 serving bridge required
 x-result-schema-version: '1.0'
 x-canonical-result-schema: agent-hub/schemas/run-result.schema.json
 x-canonical-event-schema: agent-hub/schemas/run-event.schema.json
@@ -482,6 +482,10 @@ components:
       additionalProperties: false
       required: [title, selected_agents]
       properties:
+        request_id:
+          type: string
+          format: uuid
+          description: PR được kiểm quyền; bất biến trong hội thoại, cần cho RAG hiện tại.
         title: {type: string, minLength: 1, maxLength: 200}
         selected_agents: {$ref: '#/components/schemas/AgentSelection'}
     UpdateConversation:
@@ -496,6 +500,7 @@ components:
       additionalProperties: false
       required: [id, title, selected_agents, revision, created_at, updated_at]
       properties:
+        request_id: {type: [string, 'null'], format: uuid}
         id: {$ref: '#/components/schemas/HubId'}
         title: {type: string, minLength: 1, maxLength: 200}
         selected_agents: {$ref: '#/components/schemas/AgentSelection'}
