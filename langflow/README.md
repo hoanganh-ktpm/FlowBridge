@@ -2,21 +2,14 @@
 
 API chat sau đăng nhập Keycloak dùng profile riêng
 [backend ↔ Langflow SSO](../docs/LANGFLOW-SSO.md) và `start-sso.cmd`.
-Không dùng `start-test-backend.cmd` cho đường này. Profile mới giữ flow hiện có,
-truyền caller theo request và kiểm quyền tại API chuẩn.
+Backend truyền caller theo request và kiểm quyền tại API chuẩn.
+Chạy hệ thống bằng [Docker có SSO](../HUONG-DAN-CHAY.md).
 
 **FlowBridge - ver3** clone đầy đủ từ ver2 rồi thay phần điều phối bằng cổng chat,
 state/controller và service bridge không LLM; giữ API tool/preset/kết nối ver2.
 Xem [sơ đồ, ngân sách, kiểm thử và khôi phục ver3](VER3.md).
 
-Thử riêng **ver2** khi chưa cấu hình SSO: mở Langflow bằng `start.cmd`, sau đó nhấp
-đúp [start-test-backend.cmd](start-test-backend.cmd). Backend test chạy riêng tại
-`http://127.0.0.1:8001`; các node Dữ liệu/ML của ver2 dùng credential local tự tạo.
-F5 tab ver2 trước khi chat. Xem [cách chạy/dừng và giới hạn](VER2.md#test-local-khi-chưa-có-sso).
-RAG có thể dùng Markdown/chunk đã lập chỉ mục trên Supabase; xem phần chuẩn bị RAG
-trong hướng dẫn trên. Không cần nhập hoặc lập chỉ mục lại tài liệu.
-
-Nhấp đúp start.cmd, mở **FlowBridge - Trợ lý mua hàng**.
+## Flow trợ lý mua hàng
 
 **Nhập câu hỏi → Trợ lý mua hàng → Trả lời người dùng**.
 Mô hình OpenAI cấp model; các node tác vụ đăng ký công cụ qua Dịch vụ dữ liệu,
@@ -177,3 +170,33 @@ Xem [hướng dẫn và hợp đồng ver2](VER2.md). Không thay workflow trợ
 
 Code/config nhóm tạo: GPL-3.0-or-later, xem LICENSE. Langflow/lfx MIT theo requirements.
 Không đóng gói .venv, data, model weights hoặc cache.
+
+
+## Chuẩn bị flow trên máy mới
+
+Stack Docker nhận DB Langflow đã có đủ bốn flow ver2 cùng một owner active.
+Nếu chưa có state, chuẩn bị editor native từ thư mục gốc repo:
+
+```powershell
+uv venv --python 3.12 langflow/.venv
+uv pip sync --python langflow/.venv/Scripts/python.exe langflow/requirements.lock.txt
+New-Item -ItemType Directory -Force langflow/data | Out-Null
+if (-not (Test-Path -LiteralPath langflow/data/agent.env)) {
+    Copy-Item langflow/agent.env.example langflow/data/agent.env
+}
+.\langflow\start.cmd
+```
+
+Điền provider key/model trong `agent.env` hoặc credential store Langflow trước khi
+cài flow. Thiết lập owner/mật khẩu bằng giao diện native Langflow. Launcher editor
+native bật auto-login cho bước chuẩn bị metadata local; helper `setup_ver2.py` dùng
+phiên editor này. Cài bốn flow ở terminal khác:
+
+```powershell
+.\langflow\.venv\Scripts\python.exe langflow/setup_ver2.py --install
+```
+
+Lệnh setup chỉnh metadata, không chạy model. Dùng trên workspace mới; export/backup trước khi
+cài lại flow đã chỉnh. Khi có DB và `secret_key`, quay lại
+[hướng dẫn chạy](../HUONG-DAN-CHAY.md) để khởi động stack đầy đủ.
+Editor native dùng để chuẩn bị flow; chat ứng dụng đi qua backend SSO.

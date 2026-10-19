@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Dọn repository và thống nhất hướng dẫn
+
+- Gộp hướng dẫn Docker/chat vào `HUONG-DAN-CHAY.md`, thiết kế SSO/Identity vào
+  hướng dẫn tương ứng, và tài liệu RAG vào `docs/RAG.md`.
+- Bỏ checkpoint, plan cũ, báo cáo nghiệm thu theo lượt và thiết kế RAG đã thay thế.
+- Gỡ backend Langflow test dùng danh tính local, launcher/kết nối/test phụ thuộc,
+  worker đăng nhập thử nghiệm và runner chat trực tiếp. Chat ứng dụng dùng SSO.
+- Xóa credential test/cổng backend cũ khỏi flow ver3; cập nhật manifest đóng gói
+  và liên kết tài liệu. Giữ unit, SQL integration và E2E của hệ thống.
+- Sửa kiểm tra schema seed để chỉ đếm baseline 27 bảng; các bảng vận hành chat/Hub
+  đăng ký chung metadata không làm sai kết quả kiểm baseline.
+
 ## 2026-10-19 — Agent Hub backend và Activities
 
 - Triển khai opt-in 12 API từ hợp đồng Agent Hub: owner ACL, revision/ETag,

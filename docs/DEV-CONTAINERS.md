@@ -18,7 +18,7 @@ IAM/API/clients, 280 unit và SQL Identity đạt. Ngày 17/10 đã gỡ lệch 
 
 Source đã bổ sung `0003_core_knowledge` từ commit gốc `99c9b69` trên nhánh nhóm.
 DB hiện tại khớp head; fixture SQL/SSO đối chiếu chính xác Alembic heads,
-không khóa hằng revision 0002. Xem [evidence đối chiếu](MIGRATION-0003-RECONCILIATION.md).
+không khóa hằng revision 0002. Xem [evidence đối chiếu](../alembic/README.md).
 `up` chỉ kiểm kết nối và readiness, không xác nhận toàn schema đã tương thích.
 
 ## Lệnh chạy
@@ -149,10 +149,3 @@ fixture cleanup được xác nhận; `down` thông thường luôn giữ volume
   chạy được từ ngoài checkout. Không dùng `.env` secret làm Compose interpolation file.
 - ML/RAG runtime, PostgreSQL local, storage/scanner/search/workflow/broker chưa được
   thêm. Các engine sau có profile riêng khi đã chọn và nghiệm thu upstream.
-
-## Evidence và phần còn lại
-
-Kết quả từng kiểm tra ghi trong [infra/dev/README.md](../infra/dev/README.md).
-Còn full SSO/business trong container, recovery sau fixture có tác động thật,
-audit toàn image packages/licenses/secrets và build container từ archive sạch.
-Không suy ra các bước này đã đạt từ healthcheck hoặc unit test.

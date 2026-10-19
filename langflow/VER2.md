@@ -310,84 +310,11 @@ chạy câu hỏi nào và vẫn phải xin phép từng OpenAI request khi test
 RAG cần AI bearer và JobContext thật; thiếu thì tool RAG không đăng ký, agent báo
 unavailable. Chưa nghiệm thu auth/backend/model hoặc độ chính xác chọn tool.
 
-## Test local khi chưa có SSO
+## Chạy cùng hệ thống
 
-Mở `start.cmd` để chạy Langflow, rồi nhấp đúp `start-test-backend.cmd`. Launcher tạo
-token ngẫu nhiên trong `data/local-test.json` (Git ignore), dùng tài khoản human
-active có quyền đọc đang có trong database và nối các node Dữ liệu/ML của ver2 sang
-`http://127.0.0.1:8001`. F5 tab ver2 trước khi thử. Không thay `.env`, credential
-OpenAI, prompt, input mặc định, dây nối hoặc workflow v1.
-
-Đây là entry point test riêng trong `scripts/langflow_test_backend.py`; backend
-thường trên8000 vẫn dùng SSO. Server test chỉ bind/check loopback, yêu cầu token
-local, giữ policy/grant/ownership và dùng transaction PostgreSQL read-only. Chỉ
-mở tra sản phẩm/NCC/báo giá/PR/PO, rank/scenario và đọc prediction/rủi ro đã lưu;
-chặn API ghi, administration, lập chỉ mục và chấm-lưu PO. RAG PostgreSQL chỉ bật
-sau bước chuẩn bị riêng bên dưới. Chỉ chạy environment=development.
-Không dùng chế độ này như nghiệm thu SSO hoặc triển khai production.
-
-Khi tự mở launcher sau này, giữ cửa sổ backend test mở; Ctrl+C để dừng. Để khôi phục
-origin/token cũ của các node Dữ liệu/ML mà vẫn giữ chỉnh sửa workflow khác, chạy từ root:
-
-```powershell
-.\langflow\.venv\Scripts\python.exe langflow/connect_local_test.py --disconnect
-```
-
-Backup connection ở `data/local-test-connection.json` (ignore). Lệnh từ chối ghi đè
-nếu người dùng đã thay connection hoặc node. Muốn nối lại, mở launcher; Langflow
-phải đang chạy. Token backend local là Credential riêng, không phải OpenAI key.
-
-Đã kiểm API thật: catalog/PR/PO200, ML rank200 và guard DB chặn write25006. Context ML
-hiện dùng synthetic-smoke-v1, thiếu quantity reference (`q_ref`), nên case băng keo
-có thể trả insufficient_data thay vì xếp hạng. Đây là giới hạn dữ liệu ML còn lại,
-không phải lỗi xác thực. Có hai loại băng keo; dùng mã DEMO-P03 hoặc DEMO-P19 khi
-muốn xác định rõ sản phẩm. Người dùng cũng có thể chọn bằng tên/màu ở lượt tiếp nối.
-
-### RAG test với tài liệu/chunk có sẵn trên Supabase
-
-Không cần import Markdown hoặc lập chỉ mục lại. Ngoài DSN PostgreSQL đã cấu hình,
-RAG cần model embedding câu hỏi đúng profile của chunk, tài khoản service có quyền
-`AI_SERVICE` và `JobContext` của task thật. Token người dùng tra danh mục không tự
-thay thế được service identity/context này.
-
-Từ root repo, chuẩn bị một lần khi backend test đang dừng:
-
-```powershell
-.\.tools\uv\bin\uv.exe sync --locked --extra ml --extra rag --group dev --group build
-.\.venv\Scripts\python.exe scripts/langflow_test_backend.py --prepare
-.\.venv\Scripts\hf.exe download Qwen/Qwen3-Embedding-0.6B --revision 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3 --cache-dir .cache/models --include "*.json" --include "*.safetensors" --include "*.txt" --include "*.model" --include "LICENSE" --include "README.md"
-.\.venv\Scripts\python.exe scripts/prepare_langflow_rag.py
-```
-
-Nếu dùng uv đã cài trên PATH, thay đường dẫn lệnh đầu bằng `uv`. Script chuẩn bị
-chọn tài khoản/task đang hợp lệ và có tài liệu nhìn thấy với chunk đúng profile;
-chỉ đọc DB, không tạo role/job, sửa cutoff hoặc viết dữ liệu. Không có context hợp
-lệ thì dừng; cần chuẩn bị quyền/task bằng quy trình nghiệp vụ. Model được tải từ
-Hugging Face; embedding/truy hồi chạy local, không gọi OpenAI.
-
-Sau đó mở Langflow và `start-test-backend.cmd`, F5 tab ver2. Launcher nối riêng tool
-RAG tới8001, credential local và JobContext thật; lần mở sau tự bật lại PostgreSQL
-RAG. Không sửa prompt/model/input khác hoặc workflow v1. JobContext giới hạn theo
-task, phòng ban và thời điểm `feature_asof`, không phải truy hồi mọi tài liệu mới
-nhất. Xem cutoff trong `data/local-test.json`, không chia sẻ file vì chứa token.
-Nếu quyền/task hết hợp lệ, dừng backend, chạy lại script chuẩn bị và mở launcher.
-
-Test local dùng token ngẫu nhiên để ánh xạ vào tài khoản service thật; vẫn kiểm
-role/grant và phạm vi JobContext. Đây chưa phải nghiệm thu SSO/OIDC. Backend thường
-vẫn yêu cầu service bearer hợp lệ và JobContext theo hợp đồng. Route lập chỉ mục
-không được mở, mọi session PostgreSQL của backend test đều read-only.
-
-Để khôi phục riêng connection RAG (giữ nguyên chỉnh sửa node khác):
-
-```powershell
-.\langflow\.venv\Scripts\python.exe langflow/connect_local_rag.py --disconnect
-```
-
-Backup `data/local-rag-connection.json` được ignore; từ chối restore khi connection
-đã bị sửa. Mở launcher sẽ nối lại. Kiểm tra ngày18/10/2026:6tài liệu/24phiên bản/
-633chunk có sẵn; API trả200 với3chunk đúng NCC Phúc Lâm và nguồn `core-document://`;
-thiếu token/context bị chặn, số bản ghi DB không đổi. Snapshot đã chọn có cutoff
-17/10/2026 21:19 giờ Việt Nam. Chưa chạy hội thoại/model OpenAI để nghiệm thu RAG.
+Dùng [stack Docker có SSO](../HUONG-DAN-CHAY.md). Backend truyền caller theo request;
+Data/ML gọi API chuẩn, RAG dùng AI_SERVICE và JobContext thật. Native serving theo
+[backend ↔ Langflow](../docs/LANGFLOW-SSO.md).
 
 ## Dựng lại riêng ver2
 
@@ -414,3 +341,88 @@ Agent stock chưa có các ô này.
 Tài liệu upstream: [A2A](https://docs.langflow.org/a2a-server),
 [Tools](https://docs.langflow.org/agents-tools). Cấu hình này đối chiếu source bản
 Langflow/lfx 1.12.6 cài local. Code/config nhóm GPL-3.0-or-later; xem LICENSE.
+
+
+## Chuẩn hóa giao tiếp A2A
+
+
+Mỗi đường A2A giữ nguyên node A2A cũ, chỉ chèn adapter vào dây Tools:
+
+```mermaid
+flowchart LR
+    A[Node A2A hiện có] --> B[Chuẩn hóa A2A mới]
+    B -->|Tool cùng tên| C[Agent hiện có]
+```
+
+Luồng công việc thực tế vẫn là trung tâm → ML → Dữ liệu → ML → trung tâm.
+Adapter bọc công cụ A2A; nó kiểm gói tin tại thời điểm agent gọi tool, trước khi
+node A2A cũ chạy. Chỉ thêm parser ở đầu/cuối flow sẽ không bắt được task sai vì
+BoundedA2AAgent hiện có từ chối gói tin trước khi chạy flow bên nhận.
+
+Mỗi flow con có thêm hai node trên dây trả lời:
+
+```mermaid
+flowchart LR
+    A[Agent cũ] --> B[Parser cũ]
+    B --> C[Kiểm JSON trả về mới]
+    C --> D[Type Convert native mới]
+    D --> E[Chat Output cũ]
+```
+
+| Node thêm | Số lượng | Xử lý |
+| --- | ---: | --- |
+| Chuẩn hóa A2A | 5 | Trung tâm → 3 nhánh; ML/RAG → Dữ liệu |
+| Kiểm JSON trả về | 3 | Đọc khung JSON, kiểm service/schema/handoff, giữ lỗi và chứng cứ |
+| Type Convert | 3 | Native Langflow: chuyển text JSON đã kiểm thành Message |
+
+Tổng **11 node**, không thêm model. Parser native đang có tiếp tục được sử dụng.
+Type Convert và Parser có sẵn chỉ chuyển kiểu/đóng gói; kiểm task theo vai trò,
+receipt và phạm vi lần chạy cần hai loại component nhỏ riêng. Không sửa thư viện
+Langflow, runtime Agent/A2A cũ hoặc nguồn code của các node đang có.
+
+### Quy tắc của lớp mới
+
+- Request dùng schema Request hiện có. Null của known/evidence được xử lý theo
+  contract; không tự đặt sản phẩm, số lượng, ngày hoặc UUID còn thiếu.
+- Với dependency ML/RAG → Dữ liệu, lấy điều kiện từ request cha đã nhận. Rank/score/
+  retrieve dùng resolve_entities; order_risk dùng order. Không giao phép xếp hạng
+  hoặc xem báo giá cho dependency tra định danh.
+- Evidence model gửi lại không được sử dụng. Runtime chọn receipt thật của đúng
+  đối tượng trong cùng lần chạy và đính kèm nguyên bản. Không lấy evidence của phiên
+  khác, không chép receipt sang sản phẩm/NCC khác, không tạo kết quả ML giả.
+- Sau một reply dependency, adapter ngừng xuất hiện trong danh sách tool được
+  middleware hiện có đưa cho model ở lần tiếp theo. ML chuyển sang API chuyên môn,
+  hoặc trả yêu cầu người dùng chọn/bổ sung khi dependency chưa giải quyết được.
+- Receipt đầy đủ nằm trong runtime. Reply tra định danh thành công cho ML/RAG chỉ
+  cần resolved và trạng thái; bỏ việc đưa cả receipt dài cho model chép lại. Reply
+  nhập nhằng giữ nguyên các lựa chọn và câu hỏi thực.
+- Output vẫn theo Reply hiện có. Envelope không biến error/unavailable thành
+  success và không phục hồi dữ liệu đã bị validator trong Agent cũ loại bỏ.
+- Riêng ML rank/score nhờ Data resolve_entities: câu hỏi con và known chỉ chứa
+  nhiệm vụ/selector định danh; lượng/ngày/giá vẫn giữ ở request ML cha. Nếu Data đã
+  tra thành công nhưng reply chỉ lỗi INVALID_DEPENDENCY do handoff ngoài nhiệm vụ,
+  adapter xác nhận hoàn thành từ receipt thực cùng run: đúng selector, UUID hợp lệ,
+  mã/tên/đơn vị, match_count=1, không truncated. Score phải đủ cả sản phẩm và NCC.
+  Lỗi API/quyền/schema, thiếu dữ kiện và nhập nhằng vẫn giữ nguyên. Warning gốc
+  lưu ở trace. Không áp dụng cho Data gọi trực tiếp, offers/list/PR/PO hoặc RAG.
+- Không thêm lượt LLM để sửa JSON, không thêm retry model hoặc nới giới hạn lượt.
+  Lớp này kiểm giao tiếp; chất lượng hiểu ý định/trả lời của model cần kiểm riêng.
+
+### Giữ nguyên node cũ và khôi phục
+
+Installer `add_ver2_protocol_nodes.py` chỉ thêm node và thay các dây cần chèn lớp mới.
+Trước PATCH nó so cấu hình hiện tại với snapshot để tránh ghi đè bản người dùng vừa
+chỉnh. Sau PATCH nó so toàn bộ object của từng node cũ, gồm code, prompt, model,
+credential reference, tham số, metadata và vị trí; các flow ngoài ver2 giữ nguyên hash.
+
+Snapshot bốn flow và danh sách hash node cũ được lưu trong thư mục ignored
+`data/ver2-before-protocol-nodes-*`. Thay đổi qua API có rollback khi lỗi. Chạy lại
+trên flow đã có adapter bị từ chối để tránh tạo node trùng.
+
+```powershell
+.\langflow\.venv\Scripts\python.exe langflow/add_ver2_protocol_nodes.py
+.\langflow\.venv\Scripts\python.exe langflow/add_ver2_protocol_nodes.py --apply
+```
+
+Lệnh đầu chỉ dựng graph/kiểm cấu hình. Cả hai lệnh không chạy workflow hoặc model.
+Sau cập nhật, F5 bốn tab ver2 để canvas cũ không ghi đè cấu hình mới.

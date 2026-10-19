@@ -77,4 +77,4 @@ có fragment riêng theo profile. Trùng path+method, operationId hoặc compone
 làm việc xuất OpenAPI thất bại. Component giống hệt nhau có thể dùng chung.
 
 Hai API Identity có kiểm parity URI, correlation, security, response/error schema
-và header 409 với Core YAML. Xem [kết quả sửa review](../docs/CONTRACT-IDENTITY-REVIEW.md).
+và header 409 với Core YAML.

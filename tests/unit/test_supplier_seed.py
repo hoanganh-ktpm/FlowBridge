@@ -11,14 +11,20 @@ from pathlib import Path
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint
 
+from flowbridge.models import supplier_assistant
 from flowbridge.models.base import Base
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_registered_models_cover_the_agreed_schema():
-    # The supplied baseline stays at 27 tables; API retry state is a separate migration.
-    tables = [table for name, table in Base.metadata.tables.items() if name != "api_idempotency"]
+    # Validate the supplied baseline independently of registered chat/Hub projections.
+    tables = [
+        model.__table__
+        for model in vars(supplier_assistant).values()
+        if isinstance(model, type) and model is not Base and issubclass(model, Base)
+    ]
+    assert all(Base.metadata.tables[table.key] is table for table in tables)
     assert len(tables) == 27
     assert sum(len(table.columns) for table in tables) == 293
     assert (
