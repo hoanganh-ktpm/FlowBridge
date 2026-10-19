@@ -81,8 +81,13 @@ async def test_real_model_rank_po_persistence_replay_permissions_and_rollback(ca
     response = first.json()
     assert response["status"] == "success"
     assert response["is_complete"] is True
-    assert response["representative_risk_score"] == max(
-        item["result"]["risk_score"] for item in response["items"]
+    assert response["aggregation_policy"] == "remaining_value_weighted_v2"
+    assert response["representative_risk_score"] == pytest.approx(
+        sum(
+            float(item["remaining_value"]) * item["result"]["risk_score"]
+            for item in response["items"]
+        )
+        / sum(float(item["remaining_value"]) for item in response["items"])
     )
     again = await case.call("POST", url, key="ml-po-integration")
     assert again.status_code == 200

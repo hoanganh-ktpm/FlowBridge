@@ -19,6 +19,7 @@ from flowbridge.shared.errors import CoreError, ErrorCode, ErrorResponse
 from flowbridge.shared.openapi import namespace_schemas, register_fragment
 from flowbridge.supplier_assistant.repository import SupplierRepository
 
+from .history import HistoryRequest, HistoryResponse
 from .repository import PredictionRepository
 from .schemas import OrderRisk, RankRequest, RankResponse, ScenarioRequest, ScenarioResponse
 from .service import PredictionService
@@ -73,6 +74,16 @@ WriteKey = Annotated[
         pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
     ),
 ]
+
+
+@router.post(
+    "/api/v1/ml/history",
+    response_model=HistoryResponse,
+    operation_id="getMLFeatureHistory",
+    summary="Read the completed historical cohort behind hist_sample_count; no inference",
+)
+async def feature_history(body: HistoryRequest, service: Service) -> HistoryResponse:
+    return await service.history(body)
 
 
 @router.post(

@@ -31,6 +31,71 @@ def _documents() -> tuple[dict[str, Any], ...]:
     )
     if documents[0]["components"]["schemas"] != documents[1]["components"]["schemas"]:
         raise RuntimeError("Application and AI contract schemas differ")
+    # Runtime extension; keep the versioned upstream snapshots/checksums intact.
+    # The router and served OpenAPI consume the same operation definitions.
+    for resource, code in (("purchase-orders", "po_number"), ("purchase-requests", "request_code")):
+        documents[0]["paths"][f"/api/v1/{resource}"]["get"]["parameters"].append(
+            {
+                "name": code,
+                "in": "query",
+                "description": "Exact code, case-insensitive; retains caller read scope.",
+                "schema": {"type": "string", "minLength": 1, "maxLength": 255, "pattern": r"\S"},
+            }
+        )
+    documents[0]["paths"]["/api/v1/purchase-orders"]["get"]["parameters"].append(
+        {
+            "name": "request_id",
+            "in": "query",
+            "description": "Orders of this exact purchase request; caller read scope applies.",
+            "schema": {"type": "string", "format": "uuid"},
+        }
+    )
+    documents[0]["paths"]["/api/v1/purchase-orders"]["get"]["parameters"].append(
+        {
+            "name": "min_distinct_products",
+            "in": "query",
+            "description": "Minimum distinct product IDs before pagination; caller scope applies.",
+            "schema": {"type": "integer", "minimum": 2, "maximum": 100},
+        }
+    )
+    documents[0]["paths"]["/api/v1/purchase-requests"]["get"]["parameters"].append(
+        {
+            "name": "min_distinct_suppliers",
+            "in": "query",
+            "description": "PRs split across suppliers, excluding cancelled POs; page_size <= 10.",
+            "schema": {"type": "integer", "minimum": 2, "maximum": 100},
+        }
+    )
+    for document in documents:
+        document["components"]["schemas"]["PurchaseOrderPage"]["properties"][
+            "min_distinct_products"
+        ] = {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100,
+            "description": "Echo of the applied distinct-product filter, when requested.",
+        }
+        schemas = document["components"]["schemas"]
+        schemas["PurchaseOrderPage"]["properties"]["request_id"] = {
+            "type": "string",
+            "format": "uuid",
+            "description": "Echo of the applied parent-request filter, when requested.",
+        }
+        schemas["PurchaseRequestPage"]["properties"]["min_distinct_suppliers"] = {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100,
+        }
+        schemas["PurchaseRequest"]["properties"]["purchase_orders"] = {
+            "type": "array",
+            "maxItems": 100,
+            "items": {"$ref": "#/components/schemas/PurchaseOrderRow"},
+            "description": "Non-cancelled orders of this request for the supplier filter.",
+        }
+        schemas["PurchaseRequest"]["properties"]["distinct_supplier_count"] = {
+            "type": "integer",
+            "minimum": 2,
+        }
     return documents
 
 
@@ -91,7 +156,8 @@ def database_document(
             "analysis job and real AI service credentials. Native chat memory is disabled."
         )
         application["paths"]["/api/v1/chat/messages"]["post"]["description"] = (
-            "Execute one Langflow turn as the verified EMPLOYEE. Session ownership and "
+            "Execute one Langflow turn as a verified human business reader "
+            "(EMPLOYEE, APPROVER, WAREHOUSE or PROCUREMENT_VIEWER). Session ownership and "
             "request access are checked before execution and on replay. Idempotency-Key "
             "is reserved durably before execution; interrupted/failed turns never auto-retry. "
             "Chat history lives in operational projection tables outside the supplier baseline."
@@ -99,7 +165,8 @@ def database_document(
         history = application["paths"]["/api/v1/chat/sessions/{session_id}/messages"]["get"]
         history["summary"] = "Lịch sử chat thuộc caller"
         history["description"] = (
-            "Read completed turns after checking active EMPLOYEE, session ownership, bound "
+            "Read completed turns after checking an active human business reader, "
+            "session ownership, bound "
             "request and observed resource/source permissions. No Langflow history is exposed."
         )
     application["x-database-migration"] = (

@@ -173,12 +173,15 @@ def test_statistics_openapi_is_available_without_enabling_ml():
 def test_statistics_is_opt_in_and_requires_a_database():
     with pytest.raises(ValidationError):
         Settings(_env_file=None, delivery_statistics_enabled=True)
-    app = create_app(Settings(_env_file=None, database_url="postgresql+asyncpg://x:y@localhost/test"))
+    app = create_app(
+        Settings(_env_file=None, database_url="postgresql+asyncpg://x:y@localhost/test")
+    )
     assert "/internal/v1/tools/supplier-delivery-statistics" not in app.openapi()["paths"]
 
 
 @pytest.mark.asyncio
-async def test_statistics_endpoint_rejects_unauthenticated_requests_before_database():
+@pytest.mark.parametrize("path", ["supplier-delivery-statistics", "supplier-delivery-orders"])
+async def test_statistics_endpoint_rejects_unauthenticated_requests_before_database(path):
     app = create_app(
         Settings(
             _env_file=None,
@@ -191,7 +194,7 @@ async def test_statistics_endpoint_rejects_unauthenticated_requests_before_datab
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as c:
         r = await c.post(
-            "/internal/v1/tools/supplier-delivery-statistics",
+            "/internal/v1/tools/" + path,
             json={
                 "supplier_id": str(sample_statistics().supplier_id),
             },

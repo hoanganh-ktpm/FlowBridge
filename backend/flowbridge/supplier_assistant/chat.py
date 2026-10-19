@@ -158,7 +158,8 @@ class ChatService:
         require(identity.account_type == "human", ErrorCode.FORBIDDEN)
         policy = SupplierPolicy(SupplierRepository(session))
         await policy.authenticate(identity)
-        policy.authorize("EMPLOYEE")
+        # Chat reads business evidence; this does not grant business write operations.
+        policy.authorize("EMPLOYEE", read=True)
         return policy
 
     async def session_scope(

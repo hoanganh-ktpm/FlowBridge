@@ -133,6 +133,30 @@ async def test_database_http_validation_runs_before_database_commands() -> None:
         assert "cannot-select-actor" not in invalid.text
         duplicate = await client.get("/api/v1/suppliers?page=1&page=2")
         assert duplicate.status_code == 422
+        for resource, code in (
+            ("purchase-orders", "po_number"),
+            ("purchase-requests", "request_code"),
+        ):
+            for params in ([(code, "A"), (code, "B")], {code: " "}, {code: "X" * 256}):
+                assert (await client.get("/api/v1/" + resource, params=params)).status_code == 422
+        for value in ("1", "101", "2.5", "bad"):
+            assert (
+                await client.get(
+                    "/api/v1/purchase-orders",
+                    params={
+                        "min_distinct_products": value,
+                    },
+                )
+            ).status_code == 422
+            assert (
+                await client.get(
+                    "/api/v1/purchase-requests",
+                    params={
+                        "min_distinct_suppliers": value,
+                        "page_size": 1,
+                    },
+                )
+            ).status_code == 422
 
 
 @pytest.mark.asyncio

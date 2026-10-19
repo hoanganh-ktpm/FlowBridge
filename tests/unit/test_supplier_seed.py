@@ -17,8 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_registered_models_cover_the_agreed_schema():
-    # The supplied baseline stays at 27 tables; API retry state is a separate migration.
-    tables = [table for name, table in Base.metadata.tables.items() if name != "api_idempotency"]
+    # Baseline remains 27 tables; retry state and the chat projection are separate migrations.
+    extensions = {"api_idempotency", "chat_sessions", "chat_turns"}
+    tables = [table for name, table in Base.metadata.tables.items() if name not in extensions]
     assert len(tables) == 27
     assert sum(len(table.columns) for table in tables) == 293
     assert (

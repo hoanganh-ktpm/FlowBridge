@@ -152,10 +152,38 @@ response; no successful prediction row or substitute score is fabricated for tha
 
 The result contains:
 
-- `representative_risk_score = MAX(successful scores of open items)`;
-- `highest_risk_item_id` and `highest_risk_item_deadline` from the same item;
-- `items`: item result, original deadline, prediction UUID and trace;
-- `is_complete=false` / `status=partial` when any open item is unscored.
+- `aggregation_policy=remaining_value_weighted_v2` for newly computed responses;
+- `representative_risk_score = sum(value_i * score_i) / sum(value_i)`, where
+  `value_i = max(ordered_quantity - accepted_received_quantity, 0) * unit_price`;
+  all values use the PO's contract currency. Do not add unlike product quantities;
+- a full-order score requires all open item scores and value weights. Otherwise it
+  is null; `observed_value_weighted_score` describes only the scored portion and
+  `scored_value_coverage` gives its share of total outstanding value;
+- `highest_item_risk_score`, `highest_risk_item_id` and its original deadline remain
+  separate. `HIGH_RISK_ITEM_PRESENT` preserves a warning even if the weighted mean
+  is low. Item thresholds are not silently reused to classify the weighted mean;
+- `items` include remaining value/currency and prediction trace. Unknown prices,
+  mixed currencies or zero total value produce no substitute order score;
+- old idempotent responses explicitly marked `max_open_item_v1` retain their original
+  MAX meaning. Consumers must read the returned aggregation policy.
+
+This is an exposure-weighted monitoring index, not an estimated probability of any
+late item or a calibrated expected financial loss. It favors high-value outstanding
+exposure; it does not measure operational criticality of a cheap essential item.
+The worst-item warning therefore remains mandatory. There is no arbitrary 70/30
+blend and no fitted order-level model or extra inference call.
+
+For example, scores 0.9 and 0.1 with outstanding values 100 and 900 give 0.18,
+while the highest-item score stays 0.9. Splitting one equivalent exposure into two
+lines leaves the weighted index unchanged. Missing scores are never replaced by zero.
+
+A noisy-OR `1 - product(1-p_i)` would require justified independence and meaningful
+item probabilities; common supplier/logistics causes make that assumption unsafe
+here. See [NIST series model](https://www.itl.nist.gov/div898/handbook/apr/section1/apr182.htm)
+and [probability calibration](https://scikit-learn.org/stable/modules/calibration.html).
+Weight choice changes the purpose and compensability of a composite index; see the
+[OECD handbook](https://www.oecd.org/en/publications/handbook-on-constructing-composite-indicators_533411815016.html).
+Use a grouped, time-split order-outcome evaluation before claiming a better predictor.
 
 Completed/cancelled items and delivered/cancelled/rejected orders do not contribute.
 This is a representative score, not the probability of the union of all late items.
@@ -168,6 +196,43 @@ All scores remain uncalibrated: `score_is_calibrated=false` and
 `calibrated_late_probability=null`. A threshold of .70 means an ML score threshold.
 Do not describe it as a validated 70% business probability. Model/context evaluation,
 calibration and cost-based alert threshold selection are still required.
+
+### Inspecting the feature-history cohort
+
+`hist_sample_count` counts completed PO **item rows** for the same supplier,
+product and unit, with matching category, within the issue-date history window.
+It is not the number of all TabICL in-context examples, all supplier orders, or
+an explanation of which input caused a high score. Category-level smoothing,
+quantity references and the model context are separate inputs.
+
+New successful scores include `result.history_reference`, also kept inside the
+immutable feature snapshot metadata for persisted predictions. This contains the
+cutoff, window, cohort policy, identities, count and a deterministic fingerprint
+of the selected item outcomes. It does not expose the training context or a full
+feature snapshot. Feature generation and the inspection endpoint share the same
+cohort selector so that adding a tool does not silently change the 19 model inputs.
+
+`POST /api/v1/ml/history` reads the cohort without inference or writes. It requires
+the human `PROCUREMENT_VIEWER` database grant for company-wide order detail. Use
+product/supplier UUIDs and the original reference. Results include order/item IDs,
+order numbers, quantities, original deadlines, physical completion dates, the date
+completion was known and late days. Item row count can differ from distinct orders.
+The endpoint preserves a timezone-aware cutoff and ignores receipts recorded later.
+Results are bounded and paginated; read `total_matches` and `next_page`.
+
+`reference_matches=true` means the reconstructed cohort matches the supplied original
+reference, not that the reference is a signed or persisted prediction. Source edits
+can yield `status=changed` even when the count is unchanged. An old score without a
+reference may supply `feature_asof` and `expected_count` to reconstruct the cohort;
+matching a count alone never verifies the original membership. With neither reference
+nor cutoff, it reads current history and explicitly warns that this is not necessarily
+the previous prediction's cohort. Current cancellation status is not historized and
+product labels come from the current catalog; both limitations stay in warnings.
+
+Langflow exposes this through Data task `history_samples`, not RAG, with backend
+receipts going to both Agent and frontend JSON. The tool resolves names/codes and
+passes canonical UUIDs itself; it does not ask the user to provide UUIDs or rescore
+the purchase to get history. Existing graph objects and connections remain unchanged.
 
 For the later rule, check score and deadline on the same open item. If any item has
 score > .70 and 0..3 days to its deadline, it can qualify even when another item

@@ -57,6 +57,11 @@ async def test_purchase_ambiguity_uses_visible_rows_and_reads_detail_only_after_
 
     def handle(request):
         calls.append(request.url.path)
+        if action == "purchase_get_request" and request.url.path == "/api/v1/purchase-orders":
+            return httpx.Response(
+                200,
+                json={"items": [], "total": 0, "request_id": PRODUCT, "page": 1, "page_size": 10},
+            )
         if request.url.path == "/api/v1/" + resource:
             return httpx.Response(200, json={"items": rows, "total": 2})
         assert request.url.path == "/api/v1/" + resource + "/" + PRODUCT
@@ -68,13 +73,13 @@ async def test_purchase_ambiguity_uses_visible_rows_and_reads_detail_only_after_
     assert len(calls) == 1 and key not in ambiguous
     detail = await api.execute(action, {"identifier": "vật tư tháng 10"})
     assert detail[key] == PRODUCT
-    assert calls[-1].endswith(PRODUCT)
+    assert "/api/v1/" + resource + "/" + PRODUCT in calls
     schema = convert_to_openai_tool(node_type().make_tool(), strict=True)
     assert "identifier" in schema["function"]["parameters"]["properties"]
 
 
 @pytest.mark.asyncio
-async def test_incomplete_purchase_scan_never_selects_a_single_apparent_match():
+async def test_exact_purchase_filter_ignored_by_upstream_never_selects_apparent_match():
     calls = []
 
     def handle(request):
@@ -91,8 +96,205 @@ async def test_incomplete_purchase_scan_never_selects_a_single_apparent_match():
 
     api = DataBackend(BackendConfig(user_token="test", max_pages=1), httpx.MockTransport(handle))
     result = await api.execute("purchase_get_order", {"identifier": "PO-001"})
-    assert result["status"] == "partial" and result["truncated"]
+    assert result["code"] == "INVALID_BACKEND_RESPONSE"
     assert calls == ["/api/v1/purchase-orders"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "action,resource,key,code",
+    [
+        ("purchase_get_order", "purchase-orders", "purchase_order_id", "po_number"),
+        ("purchase_get_request", "purchase-requests", "request_id", "request_code"),
+    ],
+)
+async def test_full_code_lookup_finds_order_beyond_scan_limit_and_enriches_labels(
+    action,
+    resource,
+    key,
+    code,
+):
+    calls = []
+    value = "DEMO-PR-00656" if action == "purchase_get_request" else "DEMO-PO-00656"
+    row = {key: OTHER, code: value, "status": "issued"}
+
+    def handle(request):
+        calls.append(request)
+        if request.url.path == "/api/v1/" + resource:
+            # 1,200 orders exist; server applies exact filter before pagination.
+            assert dict(request.url.params) == {
+                code: value,
+                "page": "1",
+                "page_size": "2",
+            }
+            return httpx.Response(200, json={"items": [row], "total": 1})
+        if request.url.path == "/api/v1/" + resource + "/" + OTHER:
+            return httpx.Response(
+                200,
+                json={
+                    **row,
+                    "items": [
+                        {
+                            "product_id": PRODUCT,
+                            "unit": "thùng",
+                            "ordered_quantity": "89",
+                            "unit_price": "25000",
+                        },
+                    ],
+                },
+            )
+        if action == "purchase_get_request" and request.url.path == "/api/v1/purchase-orders":
+            return httpx.Response(
+                200,
+                json={"items": [], "total": 0, "request_id": OTHER, "page": 1, "page_size": 10},
+            )
+        assert request.url.path == "/api/v1/products"
+        return httpx.Response(200, json={"items": PRODUCTS, "total": len(PRODUCTS)})
+
+    api = DataBackend(BackendConfig(user_token="test", max_pages=1), httpx.MockTransport(handle))
+    result = await api.execute(action, {"identifier": value.lower()})
+    assert result[key] == OTHER
+    assert result["items"][0]["product_name"] == PRODUCTS[0]["product_name"]
+    assert result["items"][0]["product_code"] == "DEMO-P03"
+    assert result["items"][0]["unit"] == "thùng"  # Keep the order's original unit.
+    assert result["items"][0]["ordered_quantity"] == "89"
+    assert len(calls) == (4 if action == "purchase_get_request" else 3)
+    assert all(r.method == "GET" for r in calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"items": [], "total": 0},
+        {
+            "items": [
+                {
+                    "purchase_order_id": "024b8d0d-3548-54ad-8733-8385905fdbe1",
+                    "po_number": "DEMO-PO-99999",
+                }
+            ],
+            "total": 1,
+        },
+        {"items": [{"purchase_order_id": "bad", "po_number": "DEMO-PO-00656"}], "total": 1},
+        {"items": [], "total": 1},
+        {"items": [], "total": True},
+    ],
+)
+async def test_exact_order_lookup_absent_or_malformed_never_reads_unverified_detail(payload):
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(200, json=payload)
+
+    api = DataBackend(BackendConfig(user_token="test"), httpx.MockTransport(handle))
+    result = await api.execute("purchase_get_order", {"identifier": "DEMO-PO-00656"})
+    if payload["total"] == 0:
+        assert result["status"] == "not_found" and not result["truncated"]
+        assert not result.get("questions")
+    else:
+        assert result["code"] == "INVALID_BACKEND_RESPONSE"
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_exact_order_denied_never_falls_back_to_other_credentials_or_catalog():
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(403, json={"secret": "not-public"})
+
+    api = DataBackend(BackendConfig(user_token="test"), httpx.MockTransport(handle))
+    result = await api.execute("purchase_get_order", {"identifier": "DEMO-PO-00656"})
+    assert result["http_status"] == 403 and "not-public" not in str(result)
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_partial_code_scan_remains_bounded_and_never_claims_uniqueness():
+    def handle(request):
+        assert "po_number" not in request.url.params
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {"purchase_order_id": PRODUCT, "po_number": "DEMO-PO-00656"},
+                ],
+                "total": 1200,
+            },
+        )
+
+    api = DataBackend(BackendConfig(user_token="test", max_pages=1), httpx.MockTransport(handle))
+    result = await api.execute("purchase_get_order", {"identifier": "DEMO"})
+    assert result["status"] == "partial" and result["truncated"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "catalog_state", ["success", "missing", "denied", "duplicate", "malformed"]
+)
+async def test_order_supplier_matches_its_fk_and_keeps_promise_distinct_from_receipt(catalog_state):
+    from flowbridge_agent.tools import tool_result
+    from flowbridge_agent.ver2_coordination import resolved_from
+
+    calls = []
+    order = {
+        "purchase_order_id": OTHER,
+        "po_number": "DEMO-PO-00656",
+        "supplier_id": SUPPLIER,
+        "status": "delivered",
+        "items": [],
+        "schedules": [
+            {
+                "requested_delivery_date": "2026-05-09",
+                "promised_delivery_date": "2026-06-02",
+                "status": "completed",
+            }
+        ],
+    }
+
+    def handle(request):
+        calls.append(request)
+        if request.url.path == "/internal/v1/tools/supplier-delivery-orders":
+            return httpx.Response(404, json={})
+        if request.url.path == "/api/v1/purchase-orders":
+            return httpx.Response(200, json={"items": [order], "total": 1})
+        if request.url.path.endswith("/" + OTHER):
+            return httpx.Response(200, json=order)
+        assert request.url.path == "/api/v1/suppliers"
+        if catalog_state == "denied":
+            return httpx.Response(403, json={"private": "not-public"})
+        # A different NCC is deliberately first: the order's UUID must control selection.
+        suppliers = [{**SUPPLIERS[0], "supplier_id": PRODUCT, "supplier_name": "Khác"}]
+        if catalog_state != "missing":
+            suppliers += SUPPLIERS
+        if catalog_state == "duplicate":
+            suppliers += SUPPLIERS
+        if catalog_state == "malformed":
+            suppliers = [{"supplier_name": "Thiếu định danh"}]
+        return httpx.Response(200, json={"items": suppliers, "total": len(suppliers)})
+
+    api = DataBackend(BackendConfig(user_token="scoped-user"), httpx.MockTransport(handle))
+    result = await api.execute("purchase_get_order", {"identifier": order["po_number"]})
+    receipt = tool_result("purchase_get_order", {}, result)
+    resolved = resolved_from([receipt])
+    assert result["purchase_order_id"] == OTHER and result["supplier_id"] == SUPPLIER
+    assert resolved["order_id"] == OTHER and resolved["supplier_id"] == SUPPLIER
+    if catalog_state == "success":
+        assert result["supplier_name"] == SUPPLIERS[0]["supplier_name"]
+        assert resolved["supplier_name"] == result["supplier_name"]
+        assert result["supplier_code"] == SUPPLIERS[0]["supplier_code"]
+    else:
+        assert "supplier_name" not in result and "supplier_name" not in resolved
+        assert any(w.startswith("SUPPLIER_LABEL_UNAVAILABLE") for w in result["warnings"])
+    assert any(w.startswith("PROMISED_DATE_NOT_ACTUAL_RECEIPT") for w in result["warnings"])
+    assert result["schedules"] == order["schedules"]
+    assert "completion_date" not in str(result) and "late_days" not in str(result)
+    assert "not-public" not in str(result)
+    assert len(calls) == 4
+    assert [r.method for r in calls] == ["GET", "GET", "POST", "GET"]
 
 
 PRODUCT = "024b8d0d-3548-54ad-8733-8385905fdbe1"

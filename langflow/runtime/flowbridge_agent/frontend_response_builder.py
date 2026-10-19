@@ -26,12 +26,31 @@ FIELDS = {
     "quoted_lead_days": ("Thời gian giao dự kiến", "integer", "ngày"),
     "rank": ("Hạng", "integer", "hạng"),
     "risk_score": ("Điểm rủi ro (chưa hiệu chuẩn)", "number", "điểm"),
+    "hist_sample_count": ("Số dòng lịch sử dùng tính đặc trưng", "integer", "dòng"),
+    "order_date": ("Ngày phát hành đơn", "date", None),
+    "lead_days": ("Thời gian nhận đủ", "integer", "ngày"),
+    "delivered_late": ("Đã nhận đủ trễ hạn", "boolean", None),
+    "highest_item_risk_score": ("Điểm dòng rủi ro cao nhất", "number", "điểm"),
+    "scored_value_coverage": ("Tỷ phần giá trị đã chấm", "number", None),
+    "high_risk_item_count": ("Số dòng có điểm cao", "integer", "dòng"),
+    "unscored_item_count": ("Số dòng chưa chấm được", "integer", "dòng"),
+    "aggregation_policy": ("Quy tắc tổng hợp", "string", None),
     "score_status": ("Trạng thái chấm điểm", "string", None),
     "status": ("Trạng thái", "string", None),
     "prediction_id": ("Mã kết quả", "string", None),
     "request_code": ("Mã phiếu yêu cầu mua", "string", None),
     "po_number": ("Mã đơn đặt hàng", "string", None),
+    "distinct_product_count": ("Số loại hàng khác nhau trong đơn", "integer", "loại hàng"),
+    "distinct_supplier_count": ("Số NCC của yêu cầu mua", "integer", "nhà cung cấp"),
+    "total_amount": ("Tổng tiền đơn", "decimal", "currency"),
     "requested_delivery_date": ("Ngày cần nhận", "date", None),
+    "completion_date": ("Ngày nhận đủ lịch giao", "date", None),
+    "days_late": ("Số ngày trễ của lịch giao", "integer", "ngày"),
+    "max_days_late": ("Số ngày trễ lớn nhất của đơn", "integer", "ngày"),
+    "received_quantity": ("Lượng đã nhận", "decimal", "quantity"),
+    "scheduled_quantity": ("Lượng theo lịch giao", "decimal", "quantity"),
+    "schedule_id": ("Định danh lịch giao", "string", None),
+    "delivery_status": ("Tình trạng giao của đơn", "string", None),
     "is_available": ("Có trong danh mục cung ứng", "boolean", None),
     "missing_fields": ("Dữ liệu còn thiếu", "string", None),
     "text": ("Đoạn trích", "string", None),
@@ -43,6 +62,10 @@ TOOLS = {
     "catalog_resolve_entities": "Đối tượng đã xác minh",
     "purchase_get_request": "Phiếu yêu cầu mua hàng",
     "purchase_get_order": "Đơn đặt hàng",
+    "purchase_find_multi_item_orders": "Đơn có nhiều mặt hàng",
+    "purchase_find_multi_supplier_requests": "Yêu cầu mua chia cho nhiều nhà cung cấp",
+    "supplier_delivery_orders": "Đơn và lịch giao của nhà cung cấp",
+    "ml_feature_history": "Lịch sử dùng tính đặc trưng ML",
     "prediction_rank_suppliers": "Xếp hạng nhà cung cấp",
     "prediction_score_supplier": "Đánh giá rủi ro nhà cung cấp",
     "prediction_get_order_risk": "Rủi ro đơn đặt hàng",
@@ -251,6 +274,7 @@ def build_response(
                         "risk_score": risk.get("risk_score"),
                         "score_status": risk.get("status"),
                         "missing_fields": ", ".join(risk.get("missing_fields") or []),
+                        "hist_sample_count": risk.get("hist_sample_count"),
                     }
                 )
         elif tool == "prediction_score_supplier":
@@ -261,18 +285,231 @@ def build_response(
                     "risk_score": risk.get("risk_score"),
                     "score_status": risk.get("status"),
                     "missing_fields": ", ".join(risk.get("missing_fields") or []),
+                    "hist_sample_count": risk.get("hist_sample_count"),
                 }
             ]
+            context["history_reference"] = risk.get("history_reference")
             incomplete |= risk.get("status") != "success"
         elif tool == "prediction_get_order_risk":
             rows = [
-                {"risk_score": data.get("representative_risk_score"), "status": data.get("status")}
+                {
+                    "risk_score": data.get("representative_risk_score"),
+                    "status": data.get("status"),
+                    **{
+                        k: data.get(k)
+                        for k in (
+                            "aggregation_policy",
+                            "highest_item_risk_score",
+                            "scored_value_coverage",
+                            "high_risk_item_count",
+                            "unscored_item_count",
+                        )
+                    },
+                }
             ]
+            weighted = data.get("aggregation_policy") == "remaining_value_weighted_v2"
             warn(
-                "ORDER_RISK_MAX",
-                "Điểm đại diện là MAX theo API, không phải tỷ lệ giao trễ.",
+                "ORDER_RISK_VALUE_WEIGHTED" if weighted else "ORDER_RISK_MAX",
+                "Điểm đại diện theo giá trị hàng còn chưa nhận; MAX là cảnh báo riêng. "
+                "Không phải xác suất hoặc tỷ lệ trễ."
+                if weighted
+                else "Điểm đại diện là MAX theo API, không phải tỷ lệ giao trễ.",
                 identifier,
             )
+        elif tool == "purchase_get_request" and isinstance(
+            data.get("request_delivery_evidence"), dict
+        ):
+            group = data["request_delivery_evidence"]
+            children = group.get("orders")
+            if (
+                group.get("request_id") != data.get("request_id")
+                or group.get("request_code") != data.get("request_code")
+                or not isinstance(children, list)
+                or any(not isinstance(o, dict) for o in children)
+                or len({o.get("purchase_order_id") for o in children}) != len(children)
+            ):
+                warn("INVALID_TOOL_DATA", "Bằng chứng không khớp yêu cầu mua.", identifier)
+                incomplete = True
+                continue
+            context.update(
+                as_of=group.get("observed_to"),
+                scope=group.get("scope"),
+                count_unit="đơn đặt hàng",
+                total_matches=group.get("total_orders"),
+                metric_definition=group.get("definition"),
+                denominator_definition="Chỉ các đơn đã nhận đủ thuộc đúng yêu cầu này.",
+            )
+            for order in children:
+                status = order.get("delivery_status")
+                rows.append(
+                    {
+                        **order,
+                        "request_code": data.get("request_code"),
+                        "delivered_late": (status == "completed_late")
+                        if status in {"completed_on_time", "completed_late"}
+                        else None,
+                    }
+                )
+            if group.get("status") == "unavailable":
+                # Keep the original request lines when receipt service is down.
+                rows = data.get("items") or []
+            data = {**data, "truncated": group.get("complete") is not True}
+        elif tool == "supplier_delivery_orders" or (
+            tool == "purchase_get_order" and data.get("delivery_evidence_status") == "verified"
+        ):
+            delivery = data if tool == "supplier_delivery_orders" else data.get("delivery_evidence")
+            if not isinstance(delivery, dict):
+                warn("INVALID_TOOL_DATA", "Thiếu bằng chứng phiếu nhận của đơn.", identifier)
+                incomplete = True
+                continue
+            page = delivery.get("orders") or {}
+            if (
+                not isinstance(page, dict)
+                or not isinstance(page.get("items"), list)
+                or any(
+                    not isinstance(o, dict)
+                    or not isinstance(o.get("po_number"), str)
+                    or not isinstance(o.get("delivery_status"), str)
+                    or not isinstance(o.get("schedules"), list)
+                    or any(not isinstance(p, dict) for p in o.get("schedules", []))
+                    for o in page.get("items", [])
+                )
+            ):
+                warn("INVALID_TOOL_DATA", "Thiếu danh sách đơn được kiểm chứng.", identifier)
+                incomplete = True
+                continue
+            if tool == "purchase_get_order" and (
+                delivery.get("supplier_id") != data.get("supplier_id")
+                or page.get("purchase_order_id") != data.get("purchase_order_id")
+                or any(
+                    row.get("purchase_order_id") != data.get("purchase_order_id")
+                    or row.get("po_number") != data.get("po_number")
+                    for row in page["items"]
+                )
+            ):
+                warn("INVALID_TOOL_DATA", "Bằng chứng phiếu nhận không khớp đơn.", identifier)
+                incomplete = True
+                continue
+            context.update(
+                {
+                    "as_of": delivery.get("as_of"),
+                    "count_unit": "lịch giao",
+                    "metric_definition": delivery.get("metric_definition"),
+                    "scope": delivery.get("scope"),
+                    "page": page.get("page"),
+                    "total_matches": page.get("total_matches"),
+                    "next_page": page.get("next_page"),
+                }
+            )
+            for order in page["items"]:
+                for plan in order.get("schedules", []):
+                    rows.append(
+                        {
+                            **plan,
+                            "supplier_code": delivery.get("supplier_code"),
+                            "supplier_name": delivery.get("supplier_name"),
+                            "po_number": order["po_number"],
+                            "delivery_status": {
+                                "completed_on_time": "Đã nhận đủ đúng hạn",
+                                "completed_late": "Đã nhận đủ trễ hạn",
+                                "open_overdue": "Chưa nhận đủ, đang quá hạn",
+                                "open_not_due": "Phần còn thiếu chưa đến hạn",
+                                "unknown_schedule": "Chưa đủ lịch giao để phân loại",
+                            }.get(order["delivery_status"], order["delivery_status"]),
+                        }
+                    )
+                incomplete |= bool(order.get("details_truncated"))
+            data = {
+                **data,
+                "has_more": page.get("has_more"),
+                "truncated": any(
+                    o.get("details_truncated")
+                    or any(p.get("receipts_truncated") for p in o.get("schedules", []))
+                    for o in page["items"]
+                ),
+            }
+        elif tool == "purchase_find_multi_supplier_requests":
+            if any(
+                not isinstance(group.get("purchase_orders"), list)
+                or any(not isinstance(order, dict) for order in group["purchase_orders"])
+                for group in data.get("items", [])
+            ):
+                warn("INVALID_TOOL_DATA", "Nhóm nhà cung cấp không đúng cấu trúc.", identifier)
+                incomplete = True
+                continue
+            context.update(
+                {
+                    "scope": data.get("scope"),
+                    "page": data.get("page"),
+                    "total_matches": data.get("total_matches"),
+                    "next_page": data.get("next_page"),
+                    "count_unit": "đơn đặt hàng",
+                    "metric_definition": "Các đơn cùng một yêu cầu mua; mỗi đơn một NCC. "
+                    "Không gộp khác yêu cầu.",
+                }
+            )
+            for group in data.get("items", []):
+                for order in group.get("purchase_orders", []):
+                    rows.append(
+                        {
+                            **order,
+                            "request_code": group.get("request_code"),
+                            "distinct_supplier_count": group.get("distinct_supplier_count"),
+                        }
+                    )
+        elif tool == "purchase_find_multi_item_orders":
+            context.update(
+                {
+                    "scope": data.get("scope"),
+                    "page": data.get("page"),
+                    "total_matches": data.get("total_matches"),
+                    "next_page": data.get("next_page"),
+                    "count_unit": "dòng hàng",
+                    "metric_definition": "Lọc số product_id khác nhau trước phân trang; "
+                    "không cộng khác đơn vị.",
+                }
+            )
+            for order in data.get("items", []):
+                for line in order.get("items", []):
+                    rows.append(
+                        {
+                            **line,
+                            **{
+                                k: order.get(k)
+                                for k in (
+                                    "po_number",
+                                    "currency",
+                                    "distinct_product_count",
+                                )
+                            },
+                        }
+                    )
+                incomplete |= bool(order.get("items_truncated"))
+        elif tool == "ml_feature_history":
+            rows = data.get("items") or []
+            reference = data.get("reference") or {}
+            context.update(
+                {
+                    "history_reference": reference,
+                    "as_of": reference.get("feature_asof"),
+                    "reference_matches": data.get("reference_matches"),
+                    "expected_count_matches": data.get("expected_count_matches"),
+                    "scope": data.get("scope"),
+                    "page": data.get("page"),
+                    "total_matches": data.get("total_matches"),
+                    "next_page": data.get("next_page"),
+                    "metric_definition": data.get("definition"),
+                    "count_unit": "dòng hàng",
+                }
+            )
+            data = {**data, "has_more": data.get("next_page") is not None}
+            if data.get("reference_matches") is not True:
+                warn(
+                    "HISTORY_NOT_VERIFIED_ORIGINAL",
+                    "Danh sách tái dựng từ database; "
+                    "chưa xác minh khớp tham chiếu gốc của lần chấm trước.",
+                    identifier,
+                )
         elif tool == "prediction_get_result":
             rows = [data]
         elif tool == "catalog_resolve_entities":
@@ -360,6 +597,8 @@ def build_response(
                 )
             elif unit == "quantity":
                 unit = context.get("unit")
+            elif unit == "currency":
+                unit = context.get("currency")
             columns.append(
                 {"field": field, "label": label, "type": kind, "unit": unit, "nullable": True}
             )

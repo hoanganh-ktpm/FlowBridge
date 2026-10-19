@@ -94,7 +94,9 @@ DESCRIPTIONS = {
     "prediction_get_order_risk": (
         "Đọc rủi ro hiện có cho PO và từng dòng, không tính/lưu lại. Input order_id=UUID PO. "
         "Output data.purchase_order_id, representative_risk_score, highest_risk_item_id, "
-        "highest_risk_item_deadline, is_complete, items. Điểm đại diện là MAX dòng còn mở, "
+        "highest_risk_item_deadline, is_complete, items. Đọc aggregation_policy: "
+        "remaining_value_weighted_v2 là điểm theo giá trị hàng còn chưa nhận, "
+        "highest_item_risk_score/MAX là cảnh báo dòng riêng; max_open_item_v1 là bản cũ. "
         "không phải xác suất ít nhất một món trễ. Partial/insufficient_data/no_open_items "
         "phải nói rõ. Không dùng product_id, mã PO hay prediction_id thay order_id."
     ),
@@ -135,7 +137,9 @@ HANDOFFS = {
     "prediction_score_supplier": [
         "data.scenario + data.result + data.trace -> câu trả lời có ngữ cảnh"
     ],
-    "prediction_get_order_risk": ["data.items + điểm MAX + is_complete -> tổng hợp rủi ro PO"],
+    "prediction_get_order_risk": [
+        "data.aggregation_policy + điểm theo giá trị còn thiếu + MAX riêng + coverage -> rủi ro PO"
+    ],
     "prediction_get_result": ["data -> kết quả lịch sử và mốc dữ liệu, không coi là điểm hiện tại"],
     "knowledge_search_supplier": ["data.chunks[].reference + text -> dẫn nguồn trong câu trả lời"],
 }

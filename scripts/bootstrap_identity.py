@@ -69,7 +69,15 @@ def main() -> int:
         "--grant",
         action="append",
         default=[],
-        choices=["EMPLOYEE", "ADMIN", "APPROVER", "WAREHOUSE", "AI_SERVICE", "PO_SERVICE"],
+        choices=[
+            "EMPLOYEE",
+            "ADMIN",
+            "APPROVER",
+            "WAREHOUSE",
+            "AI_SERVICE",
+            "PO_SERVICE",
+            "PROCUREMENT_VIEWER",
+        ],
     )
     parser.add_argument("--granted-by", type=UUID, help="Existing active application ADMIN UUID")
     parser.add_argument("--bootstrap-admin", action="store_true", help="Only the first ADMIN")

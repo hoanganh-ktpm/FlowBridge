@@ -82,8 +82,10 @@ DATA_SPECS = {
         "Tìm PR theo mã đầy đủ/một phần hoặc từ khóa trong ghi chú/ngày/trạng thái; "
         "identifier=null để xem lựa chọn. Chỉ đọc các PR mà người dùng có quyền. "
         "Nhiều khớp trả items và questions để chọn, không lấy dòng đầu. Một khớp mới "
-        "đọc chi tiết request_id, request_code, items. Không cần UUID. Nếu nhiều dòng "
-        "hàng, hỏi chọn dòng trước ML; không mặc định preferred_supplier_id.",
+        "đọc chi tiết request_id, request_code, items. Không cần UUID. "
+        "Tự đọc các đơn con của đúng yêu cầu và phiếu nhận trong request_delivery_evidence; "
+        "dùng số liệu đó để trả lời đã giao chưa, không tra mã PO bằng công cụ PR. "
+        "Nhiều dòng hàng thì hỏi chọn dòng trước ML; không mặc định preferred_supplier_id.",
     ),
     "purchase_get_order": (
         PurchaseLookupInput,
@@ -91,7 +93,18 @@ DATA_SPECS = {
         "Tìm PO theo mã đầy đủ/một phần hoặc ngày/trạng thái; identifier=null để xem "
         "lựa chọn. Chỉ đọc phạm vi người dùng có quyền. Nhiều khớp trả items và questions "
         "để chọn; một khớp đọc chi tiết purchase_order_id, po_number, items, schedules. "
-        "Không cần UUID. Tra mô tả không có trong danh sách: hỏi mã/ngày để thu hẹp, "
+        "Mã đầy đủ được tìm trực tiếp ở backend, không cần ngày hoặc UUID. "
+        "Trả supplier_id, supplier_code, supplier_name đã đối chiếu theo UUID của đơn. "
+        "Tự đối chiếu phiếu nhận của đúng đơn trong delivery_evidence: completion_date, "
+        "received_quantity, days_late, receipt_ids và as_of. Khi có bằng chứng này, dùng "
+        "ngày nhận đủ thực tế để xác nhận trễ; không nói thiếu phiếu nhận chỉ vì không "
+        "nằm trong schedules gốc. Có thể thiếu bằng chứng nếu dịch vụ lỗi/thiếu quyền. "
+        "Tên NCC/sản phẩm là nhãn danh mục hiện tại; số lượng, đơn vị và giá lấy từ đơn. "
+        "promised_delivery_date là ngày CAM KẾT, không phải ngày nhận thực tế; "
+        "status=delivered/completed không tự chứng minh ngày nhận đủ. Chỉ tính trễ thực tế "
+        "khi có phiếu nhận hoặc lịch sử giao đã kiểm chứng. Tên NCC của đơn không chứng minh "
+        "nguyên nhân hay lỗi của NCC; muốn giải thích nguyên nhân phải có tài liệu nguồn. "
+        "Tra mô tả không có trong danh sách: hỏi mã/ngày để thu hẹp, "
         "không khẳng định không có đơn. Không tạo/sửa đơn và không tự dự đoán.",
     ),
 }
@@ -352,12 +365,62 @@ class DataBackend(BackendTools):
             if kind == "purchase-requests"
             else ("purchase_order_id", "po_number", "đơn hàng PO")
         )
-        selected = None
+        selected = expected_code = None
         if identifier:
             try:
                 selected = str(UUID(identifier))
             except ValueError:
                 pass
+        selector = re.sub(
+            r"^(?:(?:don dat hang|don hang|ma don|phieu mua|phieu yeu cau mua)\s+)+",
+            "",
+            normalized(identifier or ""),
+        ).strip()
+        # A PO code sent to the PR tool is a routing error, not evidence of a
+        # missing order or insufficient permissions. Never silently switch APIs.
+        wrong_resource = "po" if kind == "purchase-requests" else "pr"
+        if re.match(rf"^(?:[a-z0-9]+-)*{wrong_resource}-", selector):
+            return {
+                **failure("PURCHASE_RESOURCE_MISMATCH"),
+                "suggested_action": "purchase_get_order"
+                if kind == "purchase-requests"
+                else "purchase_get_request",
+            }
+        if (
+            selected is None
+            and re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)+", selector)
+            and any(c.isdigit() for c in selector)
+        ):
+            # Exact lookup is performed in SQL across the authorized scope, not
+            # in the first max_pages pages. Never trust an ignored query filter.
+            result = await self.request(
+                "GET", path, params={code: selector.upper(), "page": 1, "page_size": 2}
+            )
+            if result.get("status") == "error":
+                return result
+            rows, total = result.get("items"), result.get("total")
+            if (
+                not isinstance(rows, list)
+                or type(total) is not int
+                or total not in (0, 1)
+                or len(rows) != total
+            ):
+                return failure("INVALID_BACKEND_RESPONSE")
+            if not rows:
+                return {
+                    "status": "not_found",
+                    "items": [],
+                    "match_count": 0,
+                    "truncated": False,
+                    "warnings": ["Không tìm thấy mã trong phạm vi quyền đọc hiện tại."],
+                }
+            try:
+                if rows[0][code].strip().lower() != selector:
+                    return failure("INVALID_BACKEND_RESPONSE")
+                selected = str(UUID(rows[0][key]))
+                expected_code = rows[0][code]
+            except (KeyError, ValueError, TypeError, AttributeError):
+                return failure("INVALID_BACKEND_RESPONSE")
         if selected is None:
             rows, truncated, error = await self.pages(path)
             if error:
@@ -422,6 +485,80 @@ class DataBackend(BackendTools):
         result = await self.request("GET", path + "/" + selected)
         if result.get("status") != "error" and result.get(key) != selected:
             return failure("INVALID_BACKEND_RESPONSE")
+        if result.get("status") != "error" and expected_code and result.get(code) != expected_code:
+            return failure("INVALID_BACKEND_RESPONSE")
+        if result.get("status") != "error" and result.get("items"):
+            if not isinstance(result["items"], list) or any(
+                not isinstance(item, dict) for item in result["items"]
+            ):
+                return failure("INVALID_BACKEND_RESPONSE")
+            # Display labels only: do not replace contractual units/prices/qty
+            # with current catalog values or infer physical receipts from status.
+            products, truncated, error = await self.catalog("products")
+            labels = {p["product_id"]: p for p in products} if not error else {}
+            result = {**result, "items": [dict(item) for item in result["items"]]}
+            missing = False
+            for item in result["items"]:
+                product = labels.get(str(item.get("product_id")))
+                if product:
+                    item.update({k: product[k] for k in ("product_code", "product_name")})
+                else:
+                    missing = True
+            result["warnings"] = [
+                *result.get("warnings", []),
+                "PRODUCT_LABELS_CURRENT_CATALOG: tên sản phẩm là nhãn danh mục hiện tại.",
+                *(["PRODUCT_LABELS_INCOMPLETE"] if missing or error or truncated else []),
+            ]
+        if kind == "purchase-orders" and result.get("status") != "error":
+            from flowbridge_agent.ver2_order_delivery import order_delivery
+
+            # Resolve the actual supplier FK from this authorized order, not a
+            # name remembered from chat or the first row in the catalog.
+            result = dict(result)
+            result.pop("supplier_code", None)
+            result.pop("supplier_name", None)
+            evidence, evidence_error = (
+                await order_delivery(self, result)
+                if result.get("supplier_id")
+                else (None, "DELIVERY_EVIDENCE_UNAVAILABLE")
+            )
+            result["delivery_evidence_status"] = "verified" if evidence else "unavailable"
+            warnings = list(result.get("warnings", []))
+            if evidence:
+                result["delivery_evidence"] = evidence
+                result.update({k: evidence[k] for k in ("supplier_code", "supplier_name")})
+                result["supplier_label_source"] = "current_catalog_in_delivery_snapshot"
+                warnings.extend(evidence["warnings"])
+            else:
+                warnings.append(evidence_error)
+            suppliers, truncated, error = (
+                await self.catalog("suppliers")
+                if result.get("supplier_id") and not evidence
+                else ([], False, None)
+            )
+            matches = (
+                [s for s in suppliers if s["supplier_id"] == result.get("supplier_id")]
+                if not error
+                else []
+            )
+            if not error and len(matches) == 1:
+                result.update({k: matches[0][k] for k in ("supplier_code", "supplier_name")})
+                result["supplier_label_source"] = "current_catalog_by_order_supplier_id"
+            elif not evidence:
+                warnings.append("SUPPLIER_LABEL_UNAVAILABLE: chưa xác minh được tên NCC của đơn.")
+            if truncated:
+                warnings.append("SUPPLIER_CATALOG_SCAN_INCOMPLETE")
+            warnings.append(
+                "PROMISED_DATE_NOT_ACTUAL_RECEIPT: promised_delivery_date là ngày cam kết; "
+                "ngày nhận đủ và số ngày trễ thực tế xem delivery_evidence nếu đã xác minh. "
+                "Chưa có bằng chứng nguyên nhân trễ chỉ từ nội dung đơn."
+            )
+            result["warnings"] = warnings
+        if kind == "purchase-requests" and result.get("status") != "error":
+            from flowbridge_agent.ver2_request_delivery import request_delivery
+
+            evidence = await request_delivery(self, result)
+            result = {**result, "request_delivery_evidence": evidence}
         return result
 
     async def execute(self, name: str, values: dict) -> dict:

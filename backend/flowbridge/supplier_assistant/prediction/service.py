@@ -16,7 +16,8 @@ from flowbridge.supplier_assistant.database_service import BUSINESS_TIMEZONE
 from flowbridge.supplier_assistant.policy import SupplierPolicy, require
 from flowbridge.supplier_assistant.repository import json_value, table
 
-from .features import FeatureBuilder, OrderFact
+from .features import FeatureBuilder, OrderFact, history_samples
+from .history import HistoryRequest, HistoryResponse, history_reference, history_row
 from .model import TabICLRuntime
 from .repository import PredictionRepository
 from .schemas import (
@@ -39,21 +40,65 @@ def aggregate_order(order_id: UUID, items: list[ItemRisk]) -> OrderRisk:
     valid = [r for r in items if r.result.status == "success" and r.result.risk_score is not None]
     highest = min(valid, key=lambda r: (-r.result.risk_score, str(r.po_item_id))) if valid else None
     complete = len(valid) == len(items)
+    currencies = {r.currency for r in items}
+    weights_known = bool(items) and all(r.remaining_value is not None for r in items)
+    weights_known &= len(currencies) == 1 and None not in currencies
+    total = sum((r.remaining_value for r in items), Decimal(0)) if weights_known else Decimal(0)
+    scored_value = (
+        sum((r.remaining_value for r in valid), Decimal(0)) if weights_known else Decimal(0)
+    )
+    observed = (
+        float(
+            sum((Decimal(str(r.result.risk_score)) * r.remaining_value for r in valid), Decimal(0))
+            / scored_value
+        )
+        if scored_value > 0
+        else None
+    )
+    coverage = float(scored_value / total) if total > 0 else None
     status = (
         "no_open_items"
         if not items
-        else ("success" if complete else "partial" if valid else "insufficient_data")
+        else ("success" if complete and total > 0 else "partial" if valid else "insufficient_data")
     )
     return OrderRisk(
         purchase_order_id=order_id,
         status=status,
         is_complete=complete,
-        representative_risk_score=highest.result.risk_score if highest else None,
+        representative_risk_score=observed if complete and coverage is not None else None,
+        aggregation_definition="Điểm trung bình có trọng số theo giá trị hàng còn chưa nhận "
+        "(lượng còn thiếu × đơn giá hợp đồng), cùng tiền tệ. Chỉ số ưu tiên theo dõi, "
+        "không phải xác suất ít nhất một món trễ. Giữ riêng điểm MAX của dòng và cảnh báo "
+        "HIGH_RISK_ITEM_PRESENT. Thiếu điểm hoặc trọng số: điểm toàn đơn là null; "
+        "observed_value_weighted_score chỉ mô tả phần đã chấm, xem scored_value_coverage.",
+        observed_value_weighted_score=observed,
+        scored_value_coverage=coverage,
+        highest_item_risk_score=highest.result.risk_score if highest else None,
+        high_risk_item_count=sum(r.result.risk_score > r.result.risk_threshold for r in valid),
+        unscored_item_count=len(items) - len(valid),
         highest_risk_item_id=highest.po_item_id if highest else None,
         highest_risk_item_deadline=highest.requested_delivery_date if highest else None,
         items=items,
-        warnings=[] if complete else ["ORDER_RISK_INCOMPLETE"],
+        warnings=([] if complete else ["ORDER_RISK_INCOMPLETE"])
+        + (["ORDER_VALUE_WEIGHTS_UNAVAILABLE"] if items and total <= 0 else [])
+        + (
+            ["HIGH_RISK_ITEM_PRESENT"]
+            if any(r.result.risk_score > r.result.risk_threshold for r in valid)
+            else []
+        ),
     )
+
+
+def item_exposure(fact: OrderFact, asof: datetime) -> dict:
+    """Use outstanding contractual value in one PO currency; never sum mixed units."""
+    received = sum((r["received_quantity"] for r in fact.known_receipts(asof)), Decimal(0))
+    remaining = max(Decimal(0), fact.item["ordered_quantity"] - received)
+    price = fact.item.get("unit_price")
+    currency = fact.order.get("currency")
+    return {
+        "remaining_value": remaining * price if price is not None else None,
+        "currency": currency,
+    }
 
 
 class PredictionService:
@@ -104,6 +149,7 @@ class PredictionService:
             risk_level="high" if score > self.settings.ml_risk_threshold else "low",
             risk_threshold=self.settings.ml_risk_threshold,
             hist_sample_count=snapshot.x.hist_sample_count,
+            history_reference=snapshot.metadata.get("history_reference"),
             warnings=warnings,
         )
 
@@ -115,6 +161,84 @@ class PredictionService:
             risk_threshold=self.settings.ml_risk_threshold,
             error_code=reason,
             missing_fields=[d.field for d in error.details] if error else [],
+        )
+
+    async def history(self, body: HistoryRequest) -> HistoryResponse:
+        # Detailed model-feature evidence is a company-wide purchase-history permission.
+        # Plain employees receive neither another user's orders nor a fake empty sample.
+        self.policy.authorize("PROCUREMENT_VIEWER")
+        reference = body.reference
+        now = datetime.now(UTC)
+        asof = reference.feature_asof if reference else body.feature_asof or now
+        require(asof.tzinfo is not None and asof <= now, ErrorCode.VALIDATION_ERROR)
+        if reference:
+            require(
+                reference.product_id == body.product_id
+                and reference.supplier_id == body.supplier_id,
+                ErrorCode.VALIDATION_ERROR,
+            )
+            require(
+                body.feature_asof is None or body.feature_asof == asof, ErrorCode.VALIDATION_ERROR
+            )
+        product = await self.repo.core.get("products", body.product_id)
+        await self.repo.core.get("suppliers", body.supplier_id)
+        unit = reference.unit if reference else product["unit"]
+        category = reference.product_category if reference else product["product_category"]
+        days = reference.history_window_days if reference else self.settings.ml_history_days
+        exclude = reference.exclude_item_id if reference else None
+        facts = await self.repo.facts(
+            {**product, "product_category": category}, [body.supplier_id], asof, days
+        )
+        group = history_samples(
+            facts,
+            product_id=body.product_id,
+            supplier_id=body.supplier_id,
+            unit=unit,
+            category=category,
+            asof=asof,
+            history_days=days,
+            exclude_item_id=exclude,
+        )
+        actual = history_reference(
+            group,
+            product_id=body.product_id,
+            supplier_id=body.supplier_id,
+            unit=unit,
+            category=category,
+            asof=asof,
+            history_days=days,
+            exclude_item_id=exclude,
+        )
+        matches = actual == reference if reference else None
+        count_matches = (
+            len(group) == body.expected_count if body.expected_count is not None else None
+        )
+        warnings = ["CURRENT_STATUS_NOT_HISTORIZED", "PRODUCT_NAME_IS_CURRENT_CATALOG_LABEL"]
+        if reference is None:
+            warnings.append("HISTORY_RECONSTRUCTED_WITHOUT_ORIGINAL_REFERENCE")
+        if reference is None and body.feature_asof is None:
+            warnings.append("CURRENT_HISTORY_NOT_PREVIOUS_PREDICTION")
+        if matches is False or count_matches is False:
+            warnings.append("HISTORY_CHANGED_OR_REFERENCE_MISMATCH")
+        more = body.page * body.page_size < len(group)
+        rows = group[(body.page - 1) * body.page_size : body.page * body.page_size]
+        return HistoryResponse(
+            status="changed"
+            if matches is False or count_matches is False
+            else "partial"
+            if more
+            else "success"
+            if group
+            else "not_found",
+            reference=actual,
+            reference_matches=matches,
+            expected_count_matches=count_matches,
+            items=[history_row(f, outcome, product["product_name"]) for f, outcome in rows],
+            total_matches=len(group),
+            page=body.page,
+            page_size=body.page_size,
+            next_page=body.page + 1 if more else None,
+            warnings=warnings,
         )
 
     @staticmethod
@@ -410,6 +534,8 @@ class PredictionService:
                     trace=self.trace(asof, prediction_id),
                 )
             )
+        exposures = {f.item["po_item_id"]: item_exposure(f, asof) for f in active}
+        items = [item.model_copy(update=exposures[item.po_item_id]) for item in items]
         response = aggregate_order(order_id, sorted(items, key=lambda r: str(r.po_item_id)))
         await self.repo.core.insert(
             "api_idempotency",
@@ -435,6 +561,7 @@ class PredictionService:
                 else self.settings.ml_risk_threshold
             ),
             hist_sample_count=snapshot["x"].get("hist_sample_count"),
+            history_reference=snapshot.get("metadata", {}).get("history_reference"),
             error_code=row["error_code"],
             warnings=snapshot.get("metadata", {}).get("warnings", []),
         )
@@ -507,7 +634,7 @@ class PredictionService:
                     requested_delivery_date=fact.deadline(),
                     result=self.insufficient(reason="NO_PREDICTION"),
                 )
-            items.append(item)
+            items.append(item.model_copy(update=item_exposure(fact, asof)))
         return aggregate_order(order_id, items)
 
     async def prediction(self, prediction_id: UUID) -> dict:

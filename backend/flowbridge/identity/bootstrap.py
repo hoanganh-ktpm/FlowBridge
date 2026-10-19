@@ -26,7 +26,16 @@ async def bootstrap_identity(
 ) -> dict[str, Any]:
     require(
         all(
-            code in {"ADMIN", "EMPLOYEE", "APPROVER", "WAREHOUSE", "AI_SERVICE", "PO_SERVICE"}
+            code
+            in {
+                "ADMIN",
+                "EMPLOYEE",
+                "APPROVER",
+                "WAREHOUSE",
+                "AI_SERVICE",
+                "PO_SERVICE",
+                "PROCUREMENT_VIEWER",
+            }
             for code in roles
         ),
         ErrorCode.VALIDATION_ERROR,
@@ -41,6 +50,9 @@ async def bootstrap_identity(
             require(bool(existing) and set(admins) == {existing["user_id"]}, ErrorCode.FORBIDDEN)
     else:
         require(granted_by is not None and granted_by in admins, ErrorCode.FORBIDDEN)
+    if "PROCUREMENT_VIEWER" in roles:
+        require(identity.account_type == "human", ErrorCode.FORBIDDEN)
+        await repo.ensure_procurement_reader_role()
     accounts = IdentityAccounts(repo)
     user, created = await accounts.link(
         identity,

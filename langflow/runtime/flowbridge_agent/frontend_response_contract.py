@@ -80,6 +80,13 @@ class Context(Strict):
     metric_definition: str | None = None
     count_unit: str | None = None
     denominator_definition: str | None = None
+    scope: str | None = None
+    page: int | None = None
+    total_matches: int | None = None
+    next_page: int | None = None
+    history_reference: dict[str, Scalar] | None = None
+    reference_matches: bool | None = None
+    expected_count_matches: bool | None = None
 
 
 class Dataset(Strict):

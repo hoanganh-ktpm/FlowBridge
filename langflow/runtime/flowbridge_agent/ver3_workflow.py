@@ -627,7 +627,11 @@ def render_result(result: dict) -> str:
         return (
             "Rủi ro đơn hàng: "
             + safe_cell(data.get("status"))
-            + "; điểm MAX: "
+            + (
+                "; điểm theo giá trị còn chưa nhận: "
+                if data.get("aggregation_policy") == "remaining_value_weighted_v2"
+                else "; điểm MAX: "
+            )
             + safe_cell(data.get("representative_risk_score"))
             + "; đầy đủ: "
             + safe_cell(data.get("is_complete"))

@@ -189,7 +189,56 @@ class SupplierDatabaseService:
             if name != "purchase_requests":
                 requests = sa.select(table("purchase_requests").c.request_id).where(*conditions)
                 conditions = [table(name).c.request_id.in_(requests)]
-            return await self.repo.page(name, conditions, page, size)
+            code = {"purchase_requests": "request_code", "purchase_orders": "po_number"}.get(name)
+            parent = query.get("request_id") if name == "purchase_orders" else None
+            if parent is not None:
+                conditions = [*conditions, table(name).c.request_id == UUID(str(parent))]
+            if code and query.get(code):
+                conditions = [
+                    *conditions,
+                    sa.func.upper(table(name).c[code]) == query[code].strip().upper(),
+                ]
+            minimum = query.get("min_distinct_products") if name == "purchase_orders" else None
+            suppliers = query.get("min_distinct_suppliers") if name == "purchase_requests" else None
+            if minimum is not None:
+                lines = table("purchase_order_items")
+                matching = (
+                    sa.select(lines.c.purchase_order_id)
+                    .group_by(lines.c.purchase_order_id)
+                    .having(sa.func.count(sa.distinct(lines.c.product_id)) >= minimum)
+                )
+                conditions = [*conditions, table(name).c.purchase_order_id.in_(matching)]
+            if suppliers is not None:
+                require(size <= 10, ErrorCode.VALIDATION_ERROR)
+                orders = table("purchase_orders")
+                matching = (
+                    sa.select(orders.c.request_id)
+                    .where(orders.c.status.not_in(["cancelled", "rejected"]))
+                    .group_by(orders.c.request_id)
+                    .having(sa.func.count(sa.distinct(orders.c.supplier_id)) >= suppliers)
+                )
+                conditions = [*conditions, table(name).c.request_id.in_(matching)]
+            result = await self.repo.page(name, conditions, page, size)
+            if parent is not None:
+                result["request_id"] = str(parent)
+            if minimum is not None:
+                result["min_distinct_products"] = minimum
+            if suppliers is not None:
+                result["min_distinct_suppliers"] = suppliers
+                for request in result["items"]:
+                    related = await self.repo.rows(
+                        "purchase_orders",
+                        table("purchase_orders").c.request_id == UUID(request["request_id"]),
+                        table("purchase_orders").c.status.not_in(["cancelled", "rejected"]),
+                        limit=101,
+                    )
+                    require(len(related) <= 100, ErrorCode.INSUFFICIENT_DATA)
+                    request["purchase_orders"] = [dto("purchase_orders", o) for o in related]
+                    request["distinct_supplier_count"] = len({o["supplier_id"] for o in related})
+                    require(
+                        request["distinct_supplier_count"] >= suppliers, ErrorCode.REQUEST_CHANGED
+                    )
+            return result
         if op in DETAILS:
             name, pk = DETAILS[op]
             row = await self.repo.get(name, path[pk])
