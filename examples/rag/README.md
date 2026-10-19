@@ -22,7 +22,7 @@ Không ghi sự cố chất lượng, hóa đơn hoặc kết quả khắc phụ
 Script refresh chỉ nhận diện bộ seed 20261015 đã biết, giữ UUID, lịch sử giao nhận,
 phân quyền và snapshot A/B; không reset database hoặc chạy mô hình. Lệnh export chỉ đọc
 database và ghi file local. Muốn đưa MD lên Supabase và tạo vector, dùng
-[hướng dẫn PostgreSQL](../../docs/rag-postgres-setup.md); import tạo phiên bản mới,
+[hướng dẫn PostgreSQL](../../docs/RAG.md); import tạo phiên bản mới,
 không ghi đè bản đã công bố. Hướng dẫn phía dưới dành cho fixture local/development.
 
 ## 1. Cài đặt

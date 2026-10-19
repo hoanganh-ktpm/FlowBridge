@@ -64,7 +64,7 @@ SSO chat cũ vẫn probe `flowbridge-caller-v1` và nhận response cũ.
 Với profile Docker chat, rebuild image backend/Langflow để nạp runtime mới.
 Profile đã có tùy chọn `FLOWBRIDGE_AGENT_HUB_ENABLED` ở API container và sinh một
 credential key riêng trong volume `chat-config`; bật sau migration. Dùng các
-lệnh quản lý profile trong [DOCKER-CHAT](DOCKER-CHAT.md), không tạo stack IAM mới.
+lệnh quản lý profile trong [Hướng dẫn chạy](../HUONG-DAN-CHAY.md), không tạo stack IAM mới.
 Gateway profile Identity hiện tại chỉ công bố các route Identity; web/app gọi
 API origin đã cấu hình. Khi đặt reverse proxy trước Hub, chuyển nguyên Authorization,
 Idempotency-Key, If-Match, Last-Event-ID, tắt buffering/compression cho SSE và không

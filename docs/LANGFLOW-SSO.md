@@ -1,6 +1,6 @@
 # Backend chat sau đăng nhập Keycloak
 
-Cách chạy gom dịch vụ bằng Docker: [DOCKER-CHAT.md](DOCKER-CHAT.md).
+Cách chạy các dịch vụ bằng Docker: [Hướng dẫn chạy](../HUONG-DAN-CHAY.md).
 
 API chuẩn giữ nguyên DTO0.4.1: `POST /api/v1/chat/messages` và
 `GET /api/v1/chat/sessions/{session_id}/messages`. User phải được liên kết bằng
@@ -46,9 +46,8 @@ Trong `langflow/data/agent.env` bị ignore, cấu hình cùng
 `FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET` và `FLOWBRIDGE_LANGFLOW_FLOW_ID`; đặt
 `FLOWBRIDGE_API_ORIGIN` về API SSO chuẩn đang chạy, mặc định8000. Với container,
 phải dùng địa chỉ nội bộ của API truy cập được từ Langflow. Giữ config model/key
-hiện có. Không cần nhập user bearer vào env hoặc sửa credential của9node đang
-trỏ8001: context serving override origin/token theo request, cả flow A2A con.
-Editor test vẫn giữ nguyên cấu hình metadata cũ.
+hiện có. Không cần nhập user bearer vào env; context serving cung cấp origin/token theo request,
+kể cả flow A2A con.
 
 Dừng process Langflow cũ trên7860 rồi chạy profile serving:
 
@@ -151,24 +150,3 @@ revocation. SQLite không chứng nhận advisory lock PostgreSQL. Langflow suit
 ASGI và đường Internal A2A upstream, không gọi model. Không tự tải dependency hoặc
 gọi OpenAI để nghiệm thu. Login thật, PostgreSQL migration/locking và hội thoại
 model cần kiểm tích hợp riêng trên runtime đã cấu hình.
-
-## Trạng thái kiểm tra tại máy ngày18/10/2026
-
-- Suite backend liên quan:104 passed,1 failed;11 test chat mới đều đạt. Lỗi duy nhất là đối chiếu snapshot
-  `ai-tools-api.yaml` với `../ho-so-olp/03-api/contracts/ai-tools-api.yaml`; snapshot
-  hiện tại nguyên byte so với HEAD2464997 và HEAD cũng lệch bản ngoài repo.
-  Không sửa contract hoặc bỏ assertion để làm test pass.
-- Suite Langflow/tool/ver2/ver3 offline:142 passed, gồm7 test serving mới. Venv
-  Langflow thiếu pytest-asyncio; đã dùng plugin có sẵn ở venv backend qua runner
-  ignored `.cache/run_langflow_sso_tests.py`, không cài/sửa môi trường. Lệnh test
-  trực tiếp serving ở trên chạy độc lập; chạy cả suite cũ cần plugin asyncio.
-- SQL offline `alembic upgrade 0003_core_knowledge:head --sql` sinh thành công;
-  không áp vào DB. Ruff và diff whitespace được kiểm riêng.
-- Ngoài sandbox: Langflow7860vàbackend test8001đang chạy; API/Keycloak/clients
-  tại các cổng local đã biết chưa chạy. `.env` chưa có OIDC hoặc bridge secrets.
-  Có profile native cũ `.cache/identity-core-verification` (IAM19444/API18082),
-  `.cache/identity-final` (IAM18443/API18080), không tự reset hoặc dùng tài khoản
-  fixture để bootstrap quyền. Kết nối DB từ Settings bị timeout khi kiểm read-only.
-- Chưa apply migration, ghi credential local, khởi động/dừng runtime, gọi model,
-  commit/push hoặc nghiệm thu login thật. Muốn bật kết nối thật cần khôi phục DB,
-  chạy profile IAM hiện có, cấu hình key/secret như trên rồi chạy profile serving.
