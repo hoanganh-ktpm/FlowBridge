@@ -19,4 +19,6 @@ Production dùng cách cấu hình [Keycloak server](https://www.keycloak.org/se
 
 Xem [hướng dẫn SSO](../../docs/SSO.md) để chạy API, bootstrap quyền, client A/B và test. Không dùng realm mẫu để giả identity qua HTTP; mọi token do IdP thật cấp và được backend kiểm tra.
 
-Profile container development/test dùng chính generator/realm template này: [DEV-CONTAINERS.md](../../docs/DEV-CONTAINERS.md). Docker Linux build, IAM/API/clients và unit/SQL Identity đã chạy; full SSO bị chặn bởi DB revision, image audit toàn phần còn mở. Không thay hướng dẫn production upstream.
+Profile container development/test dùng chính generator/realm template này:
+[DEV-CONTAINERS.md](../../docs/DEV-CONTAINERS.md). Chạy ứng dụng cùng Langflow qua
+[hướng dẫn chạy](../../HUONG-DAN-CHAY.md). Production theo hướng dẫn upstream.

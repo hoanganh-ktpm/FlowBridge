@@ -142,11 +142,6 @@ def upgrade(origin: str, apply: bool) -> None:
         (backup / (flow["id"] + ".json")).write_text(
             json.dumps(flow, ensure_ascii=False), encoding="utf-8"
         )
-    # Keep local-test disconnect bookkeeping valid after tool IDs change.
-    state_file = ROOT / "data/local-test-connection.json"
-    state = json.loads(state_file.read_text(encoding="utf-8")) if state_file.exists() else None
-    if state:
-        (backup / "local-test-connection.json").write_text(json.dumps(state), encoding="utf-8")
     for flow, payload in plans:
         # Refuse to overwrite edits made after this migration prepared its snapshot.
         if digest(api.call("/api/v1/flows/" + flow["id"])) != digest(flow):
@@ -154,15 +149,7 @@ def upgrade(origin: str, apply: bool) -> None:
         saved = api.call("/api/v1/flows/" + flow["id"], payload, "PATCH")
         if saved["data"] != payload["data"]:
             raise RuntimeError("Langflow did not preserve requested graph")
-        if state and flow["endpoint_name"] == ENDPOINTS["database"]:
-            originals = state.get("flows", {}).get(flow["id"], {})
-            for old_kind, _, new_kind in REPLACEMENTS:
-                old_id, new_id = old_kind + "-v2-database", new_kind + "-v2-database"
-                if old_id in originals:
-                    originals[new_id] = originals.pop(old_id)
         print("Updated:", flow["endpoint_name"])
-    if state:
-        state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
     target_ids = {f["id"] for f in targets}
     for identifier, before in snapshots.items():
         if identifier not in target_ids and digest(

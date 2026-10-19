@@ -34,7 +34,7 @@ Xem [hướng dẫn dev containers](../../docs/DEV-CONTAINERS.md); giữ IAM, AP
 
 - ADMIN: trang **Tài liệu RAG** tại `/#knowledge`, quản lý Markdown PostgreSQL,
   lịch sử phiên bản, đồng bộ tự động và xóa tài liệu chưa được trích dẫn.
-  Cần bật manager và migration 0004 theo [hướng dẫn](../../docs/rag-markdown-manager.md).
+  Cần bật manager và migration 0004 theo [hướng dẫn](../../docs/RAG.md).
 
 - Nhân viên: danh mục sản phẩm/NCC, yêu cầu phân trang và chi tiết, tạo PR nhiều
   dòng, sửa/gửi lại/hủy khi trạng thái và owner cho phép, xem PO và lịch giao.
@@ -85,19 +85,3 @@ khóa trong package-lock.json; lấy dependency bằng npm, không đưa node_mo
 binary hoặc bundle dist vào Git/source release. esbuild giữ legal comments và
 notice license của dependency trong file `dist/business.js.LEGAL.txt` được server
 phục vụ cùng bundle runtime. Không sửa source dependency.
-
-## Bằng chứng kiểm tra 17/10/2026
-
-- `npm run build`: đạt; `npm run test:ui` với Chrome host: 10 passed trong8.8s.
-  Bao gồm create nhiều dòng/decimal, edit revision, submit/cancel, pagination/XSS,
-  retry key sau lỗi mạng, approver read-only, supplier confirm/reject và mobile.
-- `pytest tests/unit/test_dev_stack.py -q`: 17 passed trong0.81s.
-- Source tar.gz211members không node_modules/dist/cache/.env; giải nén độc lập
-  ngoài repo, `npm ci --offline --ignore-scripts` và build đạt. Bundle SHA256
-  bằng checkout: B3D524CB12D9B671D7B7896FB468EB421A8EC918EE7258789E8376407A1939DD.
-- Linux client image npm ci/build đạt. Chỉ recreate hai client của stack dev.
-  Chromium trên trang thật A/B kiểm assets200, React render và mở login Keycloak
-  thật với PKCES256/redirect đúng; không nhập credential hoặc tạo nghiệp vụ.
-- Chưa nghiệm thu login-to-write bằng user thật trong lượt này; chưa chạy lại
-  full SQL/SSO suite, workflow/email hoặc audit image toàn phần. Test UI mock
-  không thay bằng chứng integration engine. Không migration/seed/reset MFA.

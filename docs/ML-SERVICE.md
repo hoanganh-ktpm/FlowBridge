@@ -319,14 +319,3 @@ the actual user's delegated credential, not a broadly privileged shared token.
 For Python custom nodes, the packaged `prediction.client.SupplierMLClient` wraps the
 same endpoints and typed DTOs. Reuse an AsyncClient owned by the node/integration and
 refresh credentials there. Neither client logs bearer tokens or follows redirects.
-
-## Verification on 2026-10-16
-
-- 41 ML unit tests passed; whole unit suite: 186 passed, 13 existing RAG tests skipped
-  because optional rank_bm25 is not installed in the verification environment.
-- Two integration tests passed with real Supabase and official TabICLv2 weights:
-  HTTP scenario/ranking, no writes by lookup, PO snapshot persistence, replay, access
-  checks and rollback on inference failure. Test authentication/approval are injected.
-- Real model smoke passed with synthetic A/B context. No accuracy/calibration claim.
-- Ruff, formatting, lock check, wheel/source build and isolated wheel/OpenAPI validation
-  passed. Langflow UI execution and a real IdP login were not tested.

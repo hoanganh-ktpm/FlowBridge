@@ -59,7 +59,7 @@ class Stack:
             "--env-file",
             str(ROOT / "infra/dev/images.env"),
             "-f",
-            str(ROOT / "compose.yaml"),
+            str(ROOT / "infra/dev/compose.yaml"),
             *profiles,
             *args,
         ]

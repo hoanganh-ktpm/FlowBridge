@@ -20,7 +20,7 @@ và [cách gọi flow qua API](https://docs.langflow.org/concepts-publish).
 ## Kết nối dịch vụ
 
 Backend cần bật `FLOWBRIDGE_RAG_POSTGRES_ENABLED=true`, tắt `FLOWBRIDGE_ML_ENABLED` cho phiên
-chạy chỉ thử RAG. Chuẩn bị kho tài liệu theo [hướng dẫn RAG](../../docs/rag-postgres-setup.md),
+chạy chỉ thử RAG. Chuẩn bị kho tài liệu theo [hướng dẫn RAG](../../docs/RAG.md),
 Keycloak và danh tính service theo [hướng dẫn SSO](../../docs/SSO.md).
 
 Đặt các biến sau trong **tiến trình Langflow**, bằng secret/config local:

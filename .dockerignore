@@ -5,10 +5,12 @@
 **
 !Dockerfile
 !compose.yaml
+!compose.env
 !.dockerignore
 !pyproject.toml
 !uv.lock
 !README.md
+!HUONG-DAN-SU-DUNG-BACKEND.md
 !LICENSE
 !.env.example
 !.gitattributes
@@ -56,9 +58,6 @@ langflow/data/**
 !.env.example
 docs/CHECKPOINT.md
 docs/PLAN-*.md
-docs/TASK-API-TEST.md
-docs/PROJECT-RULES.md
-docs/reference-project-review.md
 docs/checkpoints/**
 docs/evidence/**
 **/test-results/**

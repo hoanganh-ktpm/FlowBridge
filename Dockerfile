@@ -17,6 +17,7 @@ FROM base AS dependencies
 COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY backend ./backend
+COPY contracts ./contracts
 RUN uv sync --locked --no-dev --no-editable
 
 FROM base AS runtime
@@ -64,6 +65,6 @@ COPY docs ./docs
 COPY clients ./clients
 COPY alembic ./alembic
 COPY alembic.ini .env.example .gitattributes .gitignore .python-version ./
-COPY compose.yaml Dockerfile .dockerignore ./
+COPY compose.yaml compose.env Dockerfile .dockerignore HUONG-DAN-SU-DUNG-BACKEND.md ./
 USER 10001:0
 CMD ["python", "-m", "pytest", "tests/unit", "-q", "--strict-markers", "-p", "no:cacheprovider", "--basetemp", "/tmp/pytest"]

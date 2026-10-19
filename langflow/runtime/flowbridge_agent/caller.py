@@ -3,6 +3,7 @@
 # Provided without warranty. See LICENSE.
 
 # In-process context survives native Internal A2A's copy_context, without model arguments.
+from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -23,6 +24,10 @@ class Caller:
     sources: list[dict] = field(default_factory=list)
     warnings: set[str] = field(default_factory=set)
     denied_status: int | None = None
+    selected_agents: tuple[str, ...] | None = None
+    business_date: str | None = None
+    central_span_id: str | None = None
+    emit: Callable[[dict], None] | None = field(default=None, repr=False)
 
 
 CALLER: ContextVar[Caller | None] = ContextVar("flowbridge_authenticated_caller", default=None)

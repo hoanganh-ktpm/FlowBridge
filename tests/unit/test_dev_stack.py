@@ -46,7 +46,7 @@ def test_invalid_namespace_or_ports_rejected_before_running_commands(
 
 
 def test_compose_never_builds_with_secrets_or_runs_schema_changes() -> None:
-    document = yaml.safe_load((ROOT / "compose.yaml").read_text("utf-8"))
+    document = yaml.safe_load((ROOT / "infra/dev/compose.yaml").read_text("utf-8"))
     services = document["services"]
     for name, service in services.items():
         if name != "prepare":

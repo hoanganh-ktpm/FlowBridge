@@ -125,6 +125,9 @@ def test_prepare_persists_secrets_and_separates_backend_provider_caller_material
     assert runtime["FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET"] == api["FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET"]
     assert runtime["OPENAI_API_KEY"] == "provider-key"
     assert "OPENAI_API_KEY" not in api
+    assert len(api["FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY"]) >= 32
+    assert "FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY" not in runtime
+    assert api["FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY"] != api["FLOWBRIDGE_LANGFLOW_BRIDGE_SECRET"]
     assert "never-copy" not in json.dumps(runtime) + json.dumps(api)
     assert (state / "secret_key").read_bytes() == (source / "secret_key").read_bytes()
     # Key rotation in source env updates provider config, never the persistent bridge/API secrets.
@@ -158,7 +161,7 @@ def test_overlay_reuses_core_stack_and_down_preserves_all_volumes(tmp_path):
     stack = chat.ChatStack("flowbridge-chat", tmp_path / "private.env", ml=True, rag=True)
     command = stack.command("down")
     assert command.count("-f") == 2
-    assert str(ROOT / "compose.yaml") in command
+    assert str(ROOT / "infra/dev/compose.yaml") in command
     assert str(ROOT / "infra/chat/compose.yaml") in command
     assert command[-3:] == ["--profile", "*", "down"]
     assert "--volumes" not in command
@@ -277,3 +280,35 @@ def test_bootstrap_loads_db_and_forwards_standard_cli_without_automatic_apply(mo
     assert calls[1][-2:] == ["--subject", "real-uuid"]
     assert "--apply" not in calls[1]
     assert str(container_dev.ROOT / "scripts/bootstrap_identity.py") in calls[1]
+
+
+def test_team_accounts_is_explicit_and_forwards_actor_to_container(monkeypatch):
+    calls = []
+    monkeypatch.setattr(chat.ChatStack, "check_engine", lambda *a, **kw: None)
+    monkeypatch.setattr(chat.ChatStack, "run", lambda self, *a, **kw: calls.append(a))
+    monkeypatch.setattr(sys, "argv", ["chat_stack.py", "team-accounts", "--granted-by", "admin-id"])
+    assert chat.main() == 0
+    assert len(calls) == 1
+    assert calls[0][-4:] == (
+        "scripts/container_chat.py",
+        "team-accounts",
+        "--granted-by",
+        "admin-id",
+    )
+    assert calls[0][:5] == ("run", "--build", "--rm", "--no-deps", "tools")
+
+
+def test_team_container_loads_db_and_uses_own_identity_profile(monkeypatch):
+    import container_dev
+
+    calls = []
+    monkeypatch.setattr(container_dev, "load_database", lambda: calls.append("database"))
+    monkeypatch.setattr(container.os, "execv", lambda executable, args: calls.append(args))
+    monkeypatch.setattr(sys, "argv", ["container_chat.py", "team-accounts"])
+    assert container.main() == 0
+    assert calls[0] == "database"
+    assert calls[1][-3:] == [
+        str(container_dev.ROOT / "scripts/team_accounts.py"),
+        "--identity-dir",
+        str(container_dev.STATE),
+    ]

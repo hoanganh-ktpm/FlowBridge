@@ -18,7 +18,7 @@ from dev_stack import ROOT, Stack, StackError
 class GatewayStack(Stack):
     def command(self, *args: str) -> list[str]:
         command = super().command(*args)
-        command[command.index(str(ROOT / "compose.yaml"))] = str(
+        command[command.index(str(ROOT / "infra/dev/compose.yaml"))] = str(
             ROOT / "infra/gateway/compose.yaml"
         )
         index = command.index("-f")

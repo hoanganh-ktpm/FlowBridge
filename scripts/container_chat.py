@@ -98,6 +98,9 @@ def prepare_chat(
         }
         shutil.copyfile(seed, state / "langflow.db")
         shutil.copyfile(seed_key, state / "secret_key")
+    # Stable queue key stays backend-only; never copied to Langflow or rotated on restart.
+    if "FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY" not in chat:
+        chat["FLOWBRIDGE_AGENT_HUB_CREDENTIAL_KEY"] = secrets.token_urlsafe(48)
     # Provider keys are refreshed deliberately during prepare; caller credentials are excluded.
     values = dotenv_values(agent, interpolate=False)
     for key in MODEL_KEYS:
@@ -170,14 +173,26 @@ def main() -> int:
             "db-check",
             "migrate",
             "bootstrap",
+            "team-accounts",
+            "upgrade-flows",
         ],
     )
     args, bootstrap_args = parser.parse_known_args()
-    if bootstrap_args and args.action != "bootstrap":
+    if bootstrap_args and args.action not in {"bootstrap", "team-accounts"}:
         parser.error("Unexpected arguments")
     try:
         if args.action == "langflow-health":
             health()
+        elif args.action == "upgrade-flows":
+            value = os.environ.get("FLOWBRIDGE_COMPOSE_UPGRADE_FLOWS", "true").lower()
+            if value not in {"true", "false"}:
+                raise ValueError("FLOWBRIDGE_COMPOSE_UPGRADE_FLOWS must be true or false")
+            if value == "true":
+                from upgrade_chat_flows import upgrade
+
+                asyncio.run(upgrade())
+            else:
+                print("Flow metadata upgrade disabled in configuration")
         elif args.action == "langflow":
             load_private(LANGFLOW_CONFIG / "runtime.json")
             port = os.environ.get("FLOWBRIDGE_CHAT_PORT", "7861")
@@ -231,12 +246,17 @@ def main() -> int:
                     asyncio.run(check_database(require_head=True))
                 elif args.action == "migrate":
                     os.execv(sys.executable, [sys.executable, "-m", "alembic", "upgrade", "head"])
-                elif args.action == "bootstrap":
+                elif args.action in {"bootstrap", "team-accounts"}:
+                    script = (
+                        "bootstrap_identity.py"
+                        if args.action == "bootstrap"
+                        else "team_accounts.py"
+                    )
                     os.execv(
                         sys.executable,
                         [
                             sys.executable,
-                            str(ROOT / "scripts/bootstrap_identity.py"),
+                            str(ROOT / "scripts" / script),
                             "--identity-dir",
                             str(STATE),
                             *bootstrap_args,

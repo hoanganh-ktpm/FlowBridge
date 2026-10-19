@@ -18,7 +18,7 @@ def test_chat_advances_published_knowledge_revision_without_reapplying_it(monkey
         str(Path(__file__).resolve().parents[2] / "alembic.ini"), output_buffer=io.StringIO()
     )
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["0005_chat_projection"]
+    assert scripts.get_heads() == ["0006_agent_hub"]
     assert scripts.get_revision("0005_chat_projection").down_revision == "0004_knowledge_manager"
     command.upgrade(config, "0004_knowledge_manager:head", sql=True)
     sql = config.output_buffer.getvalue()

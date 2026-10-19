@@ -4,6 +4,7 @@
 
 # Registered Supplier Assistant ORM mappings, available to application code and Alembic.
 
+from flowbridge.models import agent_hub as agent_hub
 from flowbridge.models.api_idempotency import ApiIdempotency
 from flowbridge.models.base import Base
 from flowbridge.models.chat import ChatSession, ChatTurn

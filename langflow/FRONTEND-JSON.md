@@ -139,25 +139,17 @@ Key gọi HTTP run được tạo riêng cho chủ sở hữu flow, lưu tại
 chạy helper `install_ver2_exports.py --refresh-key` bằng Python môi trường Langflow;
 lệnh này chỉ làm mới key, không cài lại hay ghi đè graph đã chỉnh trên canvas.
 
-Trên profile Keycloak local đã chuẩn bị, launcher chạy `local_identity_session.py`
-để đăng nhập tài khoản employee thử nghiệm qua PKCE và lấy token AI bằng client
-credentials; token ngắn hạn được làm mới trong lúc server chạy. Các tool đọc kết nối
-từ `data/agent.env` mỗi lần gọi; không cần sửa node hay gắn token vào flow. Backend
-thật ở cổng 18083 vẫn kiểm token Keycloak, quyền database và JobContext thật.
-Đóng Langflow sẽ dừng worker do launcher tạo. Khi refresh token hết hạn hoặc gặp
-lỗi HTTP, worker tự đăng nhập lại qua PKCE với thời gian chờ tăng từ 2 đến 30 giây.
-Lỗi cấu hình local vẫn được báo để sửa trước khi khởi động lại launcher.
+Ứng dụng dùng backend SSO truyền caller và token AI theo từng request; xem
+[hợp đồng chat](../docs/LANGFLOW-SSO.md). Không cần worker đăng nhập tài khoản
+thử nghiệm hoặc bearer tĩnh trong cấu hình flow.
 
 Trong canvas, chạy nhánh **JSON cho frontend · ver2** để xem Data. Playground chat
 mặc định hiển thị Chat Output. Khi dùng HTTP run API của bản cài trên máy, đặt
 `output_component="FrontendResponse-ver2-central"` để chọn đầu ra JSON; mặc định
 `output_type="chat"` sẽ chỉ lấy Chat Output.
 
-Để thử một hội thoại thật và xem JSON, mở `langflow/test-json.cmd`, nhập câu hỏi
-rồi Enter. Script chọn đúng output node, kiểm hợp đồng và ghi kết quả vào file
-local được Git bỏ qua: `langflow/data/frontend-response-last.json`. Mỗi lần chạy
-dùng một session mới. Lệnh này chạy model thật theo cấu hình và có thể phát sinh
-phí API. Có thể truyền `--query "..."` khi chạy từ terminal.
+Kiểm tra hội thoại thật qua [stack SSO](../HUONG-DAN-CHAY.md#kiểm-thử-hệ-thống).
+Đầu ra graph JSON phục vụ adapter backend; browser gọi API ứng dụng có xác thực.
 
 Dùng Python trong môi trường Langflow của nhóm (có lfx theo lockfile), không đổi
 môi trường ML. Launcher hiện có đã thêm `langflow/runtime` vào PYTHONPATH.
