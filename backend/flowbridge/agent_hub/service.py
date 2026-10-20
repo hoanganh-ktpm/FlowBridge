@@ -100,6 +100,7 @@ class HubService:
             {
                 "resources": resources,
                 "job_context": run["job_context"],
+                "knowledge_as_of": run["accepted_at"],
                 "result": {"sources": resources.get("document_references", [])},
             },
         )
@@ -118,8 +119,8 @@ class HubService:
             (
                 "knowledge",
                 "Tri thức RAG",
-                "Tra cứu tài liệu theo ngữ cảnh phiếu yêu cầu mua.",
-                bool(settings.rag_postgres_enabled and settings.langflow_ai_client_id),
+                "Tra cứu tài liệu dùng chung đã xuất bản.",
+                settings.rag_postgres_enabled,
             ),
         ):
             item = {"id": agent, "name": name, "description": description, "available": available}
@@ -127,6 +128,28 @@ class HubService:
                 item["unavailable_reason"] = "configuration_unavailable"
             items.append(item)
         return {"items": items}
+
+    async def search_knowledge(self, identity: VerifiedIdentity, body: dict) -> dict:
+        from flowbridge.supplier_assistant.knowledge.models import KnowledgeError, RetrievalRequest
+        from flowbridge.supplier_assistant.knowledge.postgres_domain import PgScope
+
+        check(self.settings.rag_postgres_enabled, 503, "AGENT_UNAVAILABLE", "RAG chưa được bật.")
+        service = self.chat.knowledge_service
+        check(service is not None, 503, "SERVICE_UNAVAILABLE", "RAG chưa sẵn sàng.")
+        query = RetrievalRequest.model_validate(body)
+        cutoff = datetime.now(UTC)
+
+        async def scope() -> PgScope:
+            async with self.sessions() as session, session.begin():
+                await self.authorize(session, identity)
+            # No PR means no department authority. Only published global sources are visible.
+            return PgScope(cutoff, supplier_id=query.supplier_id)
+
+        await scope()
+        try:
+            return await service.search(query, scope)
+        except KnowledgeError:
+            raise HubError(503, "KNOWLEDGE_UNAVAILABLE", "Chưa tra cứu được tài liệu.") from None
 
     async def idempotent(
         self,
@@ -333,7 +356,8 @@ class HubService:
                 await self.check_answers(repo, policy, cid, body)
                 job = await self.job_context(policy, conversation)
                 check(
-                    "knowledge" not in conversation["selected_agents"] or job,
+                    "knowledge" not in conversation["selected_agents"]
+                    or not conversation["request_id"] or job,
                     503,
                     "KNOWLEDGE_CONTEXT_REQUIRED",
                     "RAG cần hội thoại gắn PR và analysis job hợp lệ.",

@@ -5,7 +5,7 @@ openapi: 3.1.0
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 info:
   title: FlowBridge Agent Hub API for Web and Mobile
-  version: 1.0.1
+  version: 1.0.2
   description: |
     Hợp đồng API Agent Hub; bật bằng FLOWBRIDGE_AGENT_HUB_ENABLED. Kết quả công khai theo
     template (1).json người dùng cung cấp. API tiếp nhận/lưu/truyền yêu cầu;
@@ -37,6 +37,27 @@ x-conventions:
   pagination: Cursor opaque, scope theo actor/filter, snapshot ổn định; không tiết lộ tổng bản ghi không có quyền.
   idempotency: POST yêu cầu Idempotency-Key; scope actor/tenant/method/path/key, retention tối thiểu 24 giờ.
 paths:
+  /api/v1/agent-hub/knowledge/search:
+    post:
+      operationId: searchAgentHubKnowledge
+      tags: [Agent Hub / Agents]
+      summary: Tra tài liệu dùng chung đã xuất bản, không cần PR
+      description: |
+        Chỉ human EMPLOYEE đã được IAM và DB xác minh. Scope global, không cấp quyền
+        đọc tài liệu phòng ban. Cùng bộ tìm kiếm và kiểm lại ACL/withdrawal như RAG có PR.
+        Truy vấn chỉ đọc, không tạo job hoặc thay đổi tài liệu.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/KnowledgeSearch'}
+      responses:
+        '200':
+          description: Các trích dẫn tài liệu được phép đọc.
+          content:
+            application/json:
+              schema: {type: object}
+        default: {$ref: '#/components/responses/Problem'}
   /api/v1/agent-hub/agents:
     get:
       operationId: listAgentHubAgents
@@ -547,6 +568,14 @@ components:
         result_url: {type: string, format: uri-reference}
         metadata_url: {type: string, format: uri-reference}
         events_url: {type: string, format: uri-reference}
+    KnowledgeSearch:
+      type: object
+      additionalProperties: false
+      required: [query]
+      properties:
+        query: {type: string, minLength: 1, maxLength: 2000, pattern: '\S'}
+        supplier_id: {type: string, format: uuid}
+        top_k: {type: integer, minimum: 1, maximum: 20, default: 5}
     RunResult:
       $ref: './agent-hub/schemas/run-result.schema.json'
     RunEvent:

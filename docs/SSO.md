@@ -50,6 +50,11 @@ npm run start:b
 
 Client A: `http://127.0.0.1:8761`, B: `http://127.0.0.1:8762`. SDK lấy cấu hình public từ `/config.json`; không phục vụ thư mục state hoặc secret. Nút đăng nhập chuyển đến Keycloak. Token giữ trong bộ nhớ theo SDK; nút sao chép access token phục vụ nhập vào Authorize của Swagger. Mỗi client có clientId riêng, cùng realm, code+PKCE S256 và redirect allowlist.
 
+Frontend React khi phát triển tại `http://127.0.0.1:5174/` dùng cùng client A,
+callback và web origin 5174 được đăng ký chính xác trong template local. Vite proxy
+API cùng origin; không thêm wildcard hoặc mở CORS backend. Profile cũ cập nhật bằng
+`scripts/configure_web_dev.py` theo [hướng dẫn web](../web/README.md).
+
 ## 3. Liên kết user và cấp quyền có chủ đích
 
 Đăng nhập Keycloak Admin Console bằng tài khoản operator local trong file state để quản lý user và lấy UUID. Các tài khoản `flowbridge-admin`, `flowbridge-employee`, `flowbridge-other` là user IdP test, chưa tự có grant ứng dụng. Không dùng email hoặc username làm khóa đăng nhập trong DB; khóa là issuer+subject.

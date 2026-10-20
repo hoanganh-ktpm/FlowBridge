@@ -17,9 +17,10 @@ from langchain_core.messages import ToolMessage
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "backend"), str(ROOT / "langflow/runtime")]
 
-from flowbridge_agent.caller import CALLER, Caller  # noqa: E402
+from flowbridge_agent.caller import CALLER, Caller, knowledge_available  # noqa: E402
+from flowbridge_agent.config import BackendConfig  # noqa: E402
 from flowbridge_agent.serving import CallerMiddleware  # noqa: E402
-from flowbridge_agent.tools import failure, tool_result  # noqa: E402
+from flowbridge_agent.tools import BackendTools, failure, tool_result  # noqa: E402
 from flowbridge_agent.ver2_coordination import (  # noqa: E402
     PENDING,
     CoordinationMiddleware,
@@ -45,6 +46,33 @@ def hub_headers(selected):
 
 
 @async_test
+async def test_global_knowledge_uses_current_human_token_without_job_or_ai_credentials():
+    seen = []
+
+    def backend(request):
+        assert request.url.path == "/api/v1/agent-hub/knowledge/search"
+        assert request.headers["authorization"] == "Bearer current-human"
+        assert "X-Job-Context" not in request.headers
+        seen.append(request)
+        return httpx.Response(200, json={"chunks": [{"reference": {"document_version": "v1"}}]})
+
+    caller = Caller("global-test", "http://api.test", "current-human", knowledge_global=True)
+    token = CALLER.set(caller)
+    try:
+        config = BackendConfig(ai_token="unrelated-service-token")
+        assert knowledge_available(config)
+        tool = BackendTools(config, transport=httpx.MockTransport(backend))
+        result = await tool.request(
+            "POST", "/internal/v1/tools/retrieve-knowledge",
+            knowledge=True, body={"query": "tài liệu"},
+        )
+        assert len(seen) == 1 and result["chunks"]
+        assert caller.sources == [{"document_version": "v1"}]
+    finally:
+        CALLER.reset(token)
+
+
+@async_test
 async def test_hub_stream_contains_real_tool_timing_and_error_attribution():
     native = FastAPI()
     result = json.loads(
@@ -57,6 +85,7 @@ async def test_hub_stream_contains_real_tool_timing_and_error_attribution():
         assert body["output_component"] == "FrontendResponse-ver2-central"
         assert body["output_type"] == "any"
         assert CALLER.get().selected_agents == ("knowledge",)
+        assert CALLER.get().knowledge_global
         assert "x-flowbridge-access-token" not in request.headers
         with invocation("central"):
             token = PENDING.set(
@@ -101,7 +130,11 @@ async def test_hub_stream_contains_real_tool_timing_and_error_attribution():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://lf.test"
     ) as client:
-        reply = await client.post(PATH, headers=hub_headers(["knowledge"]), json=payload())
+        reply = await client.post(
+            PATH,
+            headers={**hub_headers(["knowledge"]), "X-FlowBridge-Knowledge-Mode": "caller-global"},
+            json=payload(),
+        )
     assert reply.status_code == 200, reply.text
     frames = [json.loads(line) for line in reply.text.splitlines() if line.strip()]
     assert frames[-1]["kind"] == "result"

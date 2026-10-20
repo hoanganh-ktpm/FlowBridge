@@ -462,8 +462,10 @@ thu cần thực hiện sau, không phải báo cáo các kiểm thử đã đ�
 
 ## Bổ sung triển khai 1.0.1
 
-- CreateConversation nhận `request_id` tùy chọn, được kiểm quyền và bất biến; cần
-  khi chọn knowledge theo mô hình PR/analysis job của SSO hiện tại. Không nhận job,
+- CreateConversation nhận `request_id` tùy chọn, được kiểm quyền và bất biến. Khi
+  không gắn PR, knowledge dùng danh tính human/EMPLOYEE tra tài liệu global đã xuất
+  bản qua `POST /api/v1/agent-hub/knowledge/search`. Ngữ cảnh PR/job cũ chỉ dùng cho
+  hội thoại đã gắn PR, giữ nguyên kiểm quyền và revision. Không nhận job,
   token công cụ hoặc danh sách dependency từ client.
 - Event agent/tool.completed có `duration_ms` và khi failed có `error` gồm
   code/message/retryable/trace_id. Agent/tool.started không có duration/error.

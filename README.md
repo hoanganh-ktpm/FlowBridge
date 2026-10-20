@@ -13,7 +13,7 @@ nhập SSO trên giao diện rồi sử dụng nghiệp vụ và chat.
 | Thành phần | Khả năng hiện có |
 |---|---|
 | Mua hàng | API PostgreSQL/Supabase quản lý NCC, sản phẩm, báo giá, PR, proposal, PO, giao nhận và xác nhận đơn theo contract v0.4.1. |
-| Giao diện | React cho nhân viên, người duyệt, nhà cung cấp và quản trị; có chat và quản lý tài liệu RAG. Người duyệt hiện xem đề xuất; quyết định chờ workflow. |
+| Giao diện | `web/`: Agent Hub với shadcn/ui, SSO, chat bất đồng bộ, bảng/biểu đồ và Activities. `clients/sso/` giữ giao diện nghiệp vụ và quản lý tài liệu hiện có. |
 | Identity/SSO | Keycloak OIDC/PKCE; kiểm access token qua introspection, kiểm user/grant/quyền tài nguyên tại backend. |
 | Chat | Lưu lịch sử, kiểm quyền và idempotency, truyền caller theo request tới Langflow ver2. |
 | Agent Hub | API hội thoại/run bất đồng bộ, bảng/biểu đồ, history và SSE Activities; bật qua cấu hình riêng. |
@@ -70,6 +70,7 @@ và readiness, không tự seed hoặc tải weights.
 ```text
 backend/flowbridge/   Backend, Identity, API nghiệp vụ, ML/RAG và chat
 clients/sso/         React client và browser tests
+web/                 Agent Hub web với shadcn/ui, OIDC/PKCE và SSE
 langflow/            Runtime, component và flow agent
 contracts/           OpenAPI, JSON Schema và provenance
 alembic/             Migration và SQL
@@ -89,7 +90,7 @@ docs/                Hướng dẫn kỹ thuật theo thành phần
 | Database và API | [API PostgreSQL/Supabase](docs/SUPABASE-API.md), [Migration](alembic/README.md) |
 | Chat và agent | [Backend ↔ Langflow](docs/LANGFLOW-SSO.md), [Langflow](langflow/README.md), [Agent Hub](docs/AGENT-HUB.md) |
 | Model và tài liệu | [ML](docs/ML-SERVICE.md), [RAG](docs/RAG.md) |
-| Giao diện | [Client React](clients/sso/README.md) |
+| Giao diện | [Agent Hub Web](web/README.md), [Client nghiệp vụ](clients/sso/README.md) |
 | Hạ tầng | [Gateway](docs/GATEWAY.md), [Container phát triển](docs/DEV-CONTAINERS.md) |
 
 ## Phát triển và kiểm tra
@@ -111,7 +112,7 @@ PostgreSQL và Langflow thật theo [quy trình E2E](HUONG-DAN-CHAY.md#kiểm-th
 ## Giới hạn hiện tại
 
 Workflow phê duyệt, worker phát hành PO/email và object storage chưa kết nối đầy đủ.
-Agent Hub có API riêng, chưa thay khung chat hiện tại. ML/RAG cần dữ liệu, artifact
+Agent Hub có API và giao diện riêng trong `web/`; bật bằng `web/start.ps1`. ML/RAG cần dữ liệu, artifact
 và quyền tương ứng; chưa có đánh giá chất lượng/hiệu chuẩn trên dữ liệu sản xuất.
 Profile local chưa phải cấu hình triển khai production.
 

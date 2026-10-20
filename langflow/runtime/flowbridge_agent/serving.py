@@ -129,6 +129,10 @@ class CallerMiddleware:
         if hub:
             caller.selected_agents = tuple(selected)
             caller.business_date = business_date
+            caller.knowledge_global = (
+                "knowledge" in selected and not job
+                and headers.get(b"x-flowbridge-knowledge-mode") == b"caller-global"
+            )
             body["output_type"] = "any"
             body["output_component"] = "FrontendResponse-ver2-central"
         if bound_request:
@@ -140,7 +144,7 @@ class CallerMiddleware:
                 + "\nCâu hỏi người dùng: "
                 + body["input_value"]
             )
-        if not job:
+        if not job and not caller.knowledge_global:
             caller.warnings.add("RAG_REQUIRES_AUTHORIZED_ANALYSIS_JOB")
         # Fresh native execution session, no native cross-turn memory or history replay.
         body["tweaks"] = {

@@ -39,6 +39,8 @@ class HubAdapter(LangflowChatAdapter):
         if run["job_context"]:
             headers["X-FlowBridge-AI-Token"] = await self.ai_token()
             headers["X-FlowBridge-Job-Context"] = str(run["job_context"])
+        elif "knowledge" in run["metadata"]["selected_agents"]:
+            headers["X-FlowBridge-Knowledge-Mode"] = "caller-global"
         context = {
             "business_date": run["metadata"]["business_date"],
             "timezone": run["metadata"]["timezone"],

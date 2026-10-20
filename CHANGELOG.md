@@ -2,6 +2,25 @@
 
 ## Unreleased — Dọn repository và thống nhất hướng dẫn
 
+- Bỏ bước chọn PR khi chat với agent Tri thức. Hội thoại không gắn PR tra tài liệu
+  global đã xuất bản bằng danh tính người dùng có EMPLOYEE, giữ kiểm ACL/thu hồi nguồn;
+  hội thoại cũ có PR tiếp tục dùng job/ngữ cảnh đã được kiểm quyền.
+- Sửa đăng nhập frontend Vite cổng 5174: đăng ký callback/origin local chính xác
+  trong Keycloak và proxy API qua Vite; có helper cập nhật client cũ, giữ PKCE,
+  callback 8761 và không mở rộng CORS backend.
+- Thu gọn frontend theo tỷ lệ ChatGPT: header 52 px, sidebar 248 px và cột chat
+  672 px; thay thẻ gợi ý lớn bằng nút nhỏ, giảm kích thước thư viện và form SSO.
+  Dùng InputGroup, NativeSelect, Table chính thức của shadcn/ui, Tabs cho bộ lọc
+  và Collapsible cho phần chi tiết; giữ bảng màu và các luồng API hiện có.
+- Gom ảnh, bản lưu trang web và thử nghiệm thiết kế không dùng vào `web/ref/`,
+  loại khỏi Git/Docker; chuyển ảnh QA vào cùng thư mục. Bỏ component chưa dùng,
+  bật kiểm tra TypeScript cho biến/tham số thừa và sửa hướng dẫn frontend.
+- Dựng lại frontend theo cấu trúc vùng của bản lưu ChatGPT: sidebar nhóm rõ ràng,
+  cột đọc căn giữa, composer gọn tự mở rộng, thư viện agent có bộ lọc, bảng/biểu đồ
+  và panel hoạt động cùng một hệ khoảng cách. Đồng bộ giao diện web và Keycloak,
+  dùng nền trung tính và font Be Vietnam Pro; giữ logic SSO/API/SSE hiện có.
+- Docker chat bổ sung node JSON frontend còn thiếu trong flow ver2 khi khởi động,
+  dùng backup và kiểm concurrent edit hiện có, giữ nguyên nhánh đã được chỉnh.
 - Gộp hướng dẫn Docker/chat vào `HUONG-DAN-CHAY.md`, thiết kế SSO/Identity vào
   hướng dẫn tương ứng, và tài liệu RAG vào `docs/RAG.md`.
 - Bỏ checkpoint, plan cũ, báo cáo nghiệm thu theo lượt và thiết kế RAG đã thay thế.

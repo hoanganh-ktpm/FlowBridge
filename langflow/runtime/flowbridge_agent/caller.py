@@ -19,6 +19,7 @@ class Caller:
     user_token: str = field(repr=False)
     ai_token: str = field(default="", repr=False)
     job_context: str = ""
+    knowledge_global: bool = False
     request_ids: set[str] = field(default_factory=set)
     order_ids: set[str] = field(default_factory=set)
     sources: list[dict] = field(default_factory=list)
@@ -37,6 +38,7 @@ def knowledge_available(config: "BackendConfig") -> bool:
     caller = CALLER.get()
     return (
         bool(caller.ai_token and caller.job_context)
+        or bool(caller.knowledge_global and caller.user_token)
         if caller
         else bool(config.ai_token and config.job_context)
     )
@@ -51,7 +53,7 @@ def observe(path: str, result: dict) -> None:
     if result.get("status") == "error":
         caller.warnings.add(str(result.get("code", "BACKEND_REQUEST_FAILED")))
         return
-    if path == "/internal/v1/tools/retrieve-knowledge":
+    if path in {"/internal/v1/tools/retrieve-knowledge", "/api/v1/agent-hub/knowledge/search"}:
         for chunk in result.get("chunks", []):
             reference = chunk.get("reference")
             if isinstance(reference, dict) and reference not in caller.sources:

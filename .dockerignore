@@ -34,6 +34,20 @@
 !clients/
 !clients/sso/
 !clients/sso/**
+!web/
+!web/package.json
+!web/package-lock.json
+!web/tsconfig.json
+!web/vite.config.ts
+!web/index.html
+!web/flowbridge-tokens.css
+!web/src/
+!web/src/**
+!web/server/
+!web/server/**
+!web/server.mjs
+!web/Dockerfile
+!logo-flowbridge.png
 !langflow/
 !langflow/runtime/
 !langflow/runtime/**
@@ -66,3 +80,4 @@ docs/evidence/**
 **/*.whl
 **/*.tar.gz
 **/*.tar.xz
+web/ref/**

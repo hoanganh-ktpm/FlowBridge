@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 async def upgrade() -> None:
+    from add_frontend_response import NODE_ID, prepare
     from add_ver2_protocol_nodes import insert_protocol_nodes
     from setup_ver2 import ENDPOINTS, digest
     from upgrade_ver2_coordination import coordinated_graph
@@ -61,10 +62,14 @@ async def upgrade() -> None:
                 for n in flow["data"]["nodes"]
             ):
                 flow["data"] = insert_protocol_nodes(flow, role)
+            if role == "central" and not any(
+                n["id"] == NODE_ID for n in flow["data"]["nodes"]
+            ):
+                flow = prepare(flow)
             plans[role] = flow["data"]
         changed = [role for role in targets if plans[role] != targets[role]["data"]]
         if not changed:
-            print("PASS: ver2 data/coordination/protocol metadata already current")
+            print("PASS: ver2 data/coordination/protocol/frontend metadata already current")
             return
         backup = Path("/var/lib/langflow/flowbridge-backups") / datetime.now(UTC).strftime(
             "%Y%m%dT%H%M%S%fZ"
@@ -88,7 +93,8 @@ async def upgrade() -> None:
                 await call("/api/v1/flows/" + targets[role]["id"], {"data": targets[role]["data"]})
             raise
         print(
-            "PASS: upgraded ver2 data/coordination/protocol; model and credential presets retained"
+            "PASS: upgraded ver2 data/coordination/protocol/frontend; "
+            "model and credential presets retained"
         )
 
 

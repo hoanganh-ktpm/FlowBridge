@@ -153,6 +153,11 @@ state độc lập; sửa flow native sau đó không tự đồng bộ. Metadat
 trên bản Docker, backup tại `/var/lib/langflow/flowbridge-backups` và kiểm concurrent
 edit. Muốn đổi snapshot nguồn dùng project mới, không ghi đè volume đang dùng.
 
+`chat-docker.cmd up` cũng bổ sung nhánh `FrontendResponse-ver2-central` nếu thiếu,
+nối từ Agent trung tâm để xuất JSON cho frontend/Agent Hub. Nhánh đã có được giữ
+nguyên; không import đè toàn bộ flow hoặc thay model/credential. Việc nâng cấp
+metadata không gọi model. Tải lại canvas Langflow sau khi launcher hoàn tất.
+
 Bridge/API key nội bộ được sinh và giữ trong volume. Langflow không mount DB/IAM
 config; launcher chỉ chuyển provider settings từ `agent.env`, không sao chép bearer
 hoặc JobContext tĩnh. Cache `.cache/models` mount read-only tại `/models`, context

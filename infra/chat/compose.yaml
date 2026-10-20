@@ -1,6 +1,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # FlowBridge; see LICENSE. Overlay on the canonical root compose.yaml; not a second IAM stack.
 services:
+  client-a:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      target: runtime
+      args:
+        PLAYWRIGHT_IMAGE: ${FLOWBRIDGE_PLAYWRIGHT_IMAGE:?Use infra/dev/images.env}
+        KEYCLOAK_IMAGE: ${FLOWBRIDGE_KEYCLOAK_IMAGE:?Use infra/dev/images.env}
+    command: [node, server.mjs, --port, "8761", --host, 0.0.0.0]
+
   prepare:
     command: [python, scripts/container_chat.py, prepare]
     environment:
@@ -12,6 +22,14 @@ services:
       - langflow-state:/var/lib/langflow
 
   identity:
+    image: ${COMPOSE_PROJECT_NAME:-flowbridge-chat}-identity
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      target: identity
+      args:
+        PLAYWRIGHT_IMAGE: ${FLOWBRIDGE_PLAYWRIGHT_IMAGE:?Use infra/dev/images.env}
+        KEYCLOAK_IMAGE: ${FLOWBRIDGE_KEYCLOAK_IMAGE:?Use infra/dev/images.env}
     ports:
       - "127.0.0.1:${FLOWBRIDGE_CHAT_PORT:-7861}:${FLOWBRIDGE_CHAT_PORT:-7861}"
 
@@ -25,6 +43,9 @@ services:
     environment:
       FLOWBRIDGE_CHAT_ML: ${FLOWBRIDGE_CHAT_ML:-false}
       FLOWBRIDGE_CHAT_RAG: ${FLOWBRIDGE_CHAT_RAG:-false}
+      OMP_NUM_THREADS: ${FLOWBRIDGE_ML_CPU_THREADS:-4}
+      MKL_NUM_THREADS: ${FLOWBRIDGE_ML_CPU_THREADS:-4}
+      OPENBLAS_NUM_THREADS: ${FLOWBRIDGE_ML_CPU_THREADS:-4}
       FLOWBRIDGE_AGENT_HUB_ENABLED: ${FLOWBRIDGE_AGENT_HUB_ENABLED:-false}
       FLOWBRIDGE_AGENT_HUB_WORKER_ENABLED: ${FLOWBRIDGE_AGENT_HUB_WORKER_ENABLED:-true}
       FLOWBRIDGE_AGENT_HUB_QUEUE_TIMEOUT_SECONDS: ${FLOWBRIDGE_AGENT_HUB_QUEUE_TIMEOUT_SECONDS:-300}

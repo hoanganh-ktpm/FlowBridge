@@ -27,6 +27,9 @@ test-results/
 .DS_Store
 Thumbs.db
 
+# Local web references and design experiments; excluded from source submissions.
+/web/ref/
+
 # Local RAG verification reports and generated results.
 docs/rag-*-report.md
 docs/rag-supabase-verification.md

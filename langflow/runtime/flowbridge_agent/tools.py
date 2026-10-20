@@ -132,8 +132,9 @@ class BackendTools:
         # A cached graph/tool must never carry a previous caller's results into a new run.
         if (caller.execution_id if caller else None) != self.caller_execution:
             return failure("TOOL_CONTEXT_EXPIRED")
+        global_knowledge = bool(knowledge and caller and caller.knowledge_global)
         token = (
-            (caller.ai_token if knowledge else caller.user_token)
+            (caller.ai_token if knowledge and not global_knowledge else caller.user_token)
             if caller
             else (self.config.ai_token if knowledge else self.config.user_token)
         )
@@ -143,9 +144,12 @@ class BackendTools:
             return failure("BACKEND_CREDENTIALS_MISSING")
         headers = {"Authorization": "Bearer " + token}
         if knowledge:
-            if not job_context:
+            if global_knowledge:
+                path = "/api/v1/agent-hub/knowledge/search"
+            elif not job_context:
                 return failure("JOB_CONTEXT_REQUIRED")
-            headers["X-Job-Context"] = job_context
+            else:
+                headers["X-Job-Context"] = job_context
             headers["Idempotency-Key"] = (
                 "rag-" + hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
             )

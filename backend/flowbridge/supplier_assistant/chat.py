@@ -182,9 +182,24 @@ class ChatService:
             await policy.request(order["request_id"])
         if turn.get("result", {}).get("sources"):
             # Revalidate original chunk/version visibility on replay, including withdrawals.
-            require(bool(turn["job_context"]), ErrorCode.FORBIDDEN)
             service = self.knowledge_service
             require(service is not None, ErrorCode.UPSTREAM_UNAVAILABLE)
+            if not turn["job_context"]:
+                # Hub chat without a PR can only cite globally visible published sources.
+                from flowbridge.supplier_assistant.knowledge.models import KnowledgeError
+                from flowbridge.supplier_assistant.knowledge.postgres_domain import PgScope
+
+                cutoff = turn.get("knowledge_as_of", datetime.now(UTC))
+
+                async def global_scope() -> PgScope:
+                    return PgScope(cutoff)
+
+                for reference in turn["result"]["sources"]:
+                    try:
+                        await service.resolve(reference, global_scope)
+                    except KnowledgeError:
+                        raise CoreError(ErrorCode.NOT_FOUND) from None
+                return
             # Ownership of the job's request is checked as the human, not the AI service.
             job = await policy.repository.get("analysis_tasks", turn["job_context"])
             await policy.request(job["request_id"])

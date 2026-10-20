@@ -1,0 +1,9 @@
+.qa/
+/ref/
+/public/keycloakify-dev-resources/
+dist_keycloak/
+.env.local
+node_modules/
+dist/
+test-results/
+playwright-report/

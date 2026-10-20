@@ -51,14 +51,16 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
-        "${SSO_ORIGIN_A}/"
+        "${SSO_ORIGIN_A}/",
+        "http://127.0.0.1:5174/"
       ],
       "webOrigins": [
-        "${SSO_ORIGIN_A}"
+        "${SSO_ORIGIN_A}",
+        "http://127.0.0.1:5174"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/"
+        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/##http://127.0.0.1:5174/"
       },
       "defaultClientScopes": [
         "flowbridge-api-audience"

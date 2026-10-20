@@ -185,6 +185,8 @@ def endpoint(operation: str):
             async with service.sessions() as session, session.begin():
                 await service.authorize(session, identity)
             return JSONResponse(service.catalog())
+        if operation == "searchAgentHubKnowledge":
+            return JSONResponse(await service.search_knowledge(identity, await body_json(request)))
         if operation in {"listAgentHubConversations", "listAgentHubMessages", "listAgentHubRuns"}:
             check(
                 not set(request.query_params) - {"cursor", "limit"},

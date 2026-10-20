@@ -9,7 +9,7 @@ COPY langflow/runtime /opt/flowbridge/runtime
 COPY langflow/components /opt/flowbridge/components
 COPY scripts/container_chat.py /opt/flowbridge/scripts/container_chat.py
 COPY scripts/upgrade_chat_flows.py /opt/flowbridge/scripts/upgrade_chat_flows.py
-COPY langflow/setup_agent.py langflow/setup_ver2.py langflow/upgrade_ver2_data.py langflow/upgrade_ver2_coordination.py langflow/add_ver2_protocol_nodes.py /opt/flowbridge/
+COPY langflow/setup_agent.py langflow/setup_ver2.py langflow/upgrade_ver2_data.py langflow/upgrade_ver2_coordination.py langflow/add_ver2_protocol_nodes.py langflow/add_frontend_response.py /opt/flowbridge/
 COPY LICENSE /opt/flowbridge/LICENSE
 ENV PYTHONPATH=/opt/flowbridge/runtime:/opt/flowbridge/backend \
     HOME=/tmp LANGFLOW_CONFIG_DIR=/var/lib/langflow \

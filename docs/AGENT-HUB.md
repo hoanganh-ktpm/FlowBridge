@@ -2,7 +2,7 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-or-later; FlowBridge, see LICENSE. -->
 
-Backend cung cấp đủ 12 operation trong [OpenAPI](../contracts/agent-hub-api.yaml),
+Backend cung cấp các operation trong [OpenAPI](../contracts/agent-hub-api.yaml),
 prefix `/api/v1/agent-hub`. Chat cũ `/api/v1/chat/*` giữ nguyên. Module được bật
 riêng; API list/create conversation không chạy model. Chỉ POST tạo run được nhận
 mới mới đưa công việc vào hàng đợi để chạy Langflow.
@@ -81,7 +81,12 @@ Retry-After/X-Request-ID. Không công bố bridge secret/native Langflow key.
    {"title":"Tư vấn nhà cung cấp","selected_agents":["prediction"]}
    ```
 
-   Với RAG, thêm `request_id` là UUID PR người dùng có quyền đọc. Backend chọn
+   Agent Tri thức không yêu cầu PR: khi không có `request_id`, tra tài liệu dùng
+   chung đã xuất bản bằng danh tính human có EMPLOYEE, không mở tài liệu phòng ban.
+   Tool dùng `POST /api/v1/agent-hub/knowledge/search`, cùng engine và cơ chế kiểm lại
+   ACL/withdrawal hiện có. Không tạo PR hoặc analysis job thay người dùng.
+
+   Với hội thoại cũ có `request_id` là UUID PR người dùng có quyền đọc, backend chọn
    analysis job hợp lệ của đúng revision PR để cấp ngữ cảnh RAG theo cơ chế SSO
    có sẵn. Client không gửi job ID, role, tenant, service token hoặc dependency.
    `request_id` bất biến; không tự tạo PR/job khi chat. Khi không có job phù hợp,

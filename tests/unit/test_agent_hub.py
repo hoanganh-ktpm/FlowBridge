@@ -243,6 +243,45 @@ async def create(case, selected=None):
     return response["body"]["id"]
 
 
+@pytest.mark.asyncio
+async def test_knowledge_admission_without_pr_uses_no_fabricated_job(hub_case):
+    case = hub_case
+    case.service.settings = case.service.settings.model_copy(update={"rag_postgres_enabled": True})
+    cid = await create(case, ["knowledge"])
+    admitted = await case.service.create_run(ALICE, cid, request_body(), KEY, "alice-token")
+    run = await case.service.get_run(ALICE, admitted["body"]["run_id"])
+    assert admitted["status"] == 202
+    assert run["job_context"] is None and run["input"]["request_id"] is None
+    assert run["metadata"]["selected_agents"] == ["knowledge"]
+
+
+@pytest.mark.asyncio
+async def test_global_knowledge_requires_human_role_and_rechecks_it(hub_case):
+    case = hub_case
+    case.service.settings = case.service.settings.model_copy(update={"rag_postgres_enabled": True})
+    calls = []
+
+    class Knowledge:
+        async def search(self, query, resolver):
+            scope = await resolver()
+            assert scope.department_id is None and not scope.operator
+            assert scope == await resolver()
+            calls.append(query.query)
+            return {"query": query.query, "chunks": [], "index_version": "test", "warnings": []}
+
+    case.service.chat.knowledge_service = Knowledge()
+    result = await case.service.search_knowledge(ALICE, {"query": "tài liệu dùng chung"})
+    assert result["chunks"] == [] and len(calls) == 1
+    service_identity = VerifiedIdentity(ISSUER, "alice", "web", account_type="service")
+    with pytest.raises(CoreError):
+        await case.service.search_knowledge(service_identity, {"query": "không được gọi"})
+    with case.engine.begin() as connection:
+        connection.execute(sa.update(table("user_roles")).values(revoked_at=datetime.now(UTC)))
+    with pytest.raises(CoreError):
+        await case.service.search_knowledge(ALICE, {"query": "không được gọi"})
+    assert len(calls) == 1
+
+
 def request_body(**overrides):
     return {
         "message": "Tôi muốn mua băng keo",
