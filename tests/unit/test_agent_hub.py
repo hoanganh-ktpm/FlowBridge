@@ -68,6 +68,17 @@ def test_partial_and_questions_are_explicit_not_guessed_from_text():
     assert any(w["code"] == "PARTIAL_RESULT" for w in result["warnings"])
 
 
+def test_failed_presentation_keeps_the_existing_answer():
+    raw = fixture_result("failed")
+    raw["answer"] = "Đã tra cứu được sản phẩm; phần dữ liệu bổ sung chưa khả dụng."
+    result = from_langflow(raw, "run_failed_content")
+    assert result["status"] == "failed"
+    assert result["answer"] == raw["answer"]
+    assert result["error"]["code"] == "LANGFLOW_EXECUTION_FAILED"
+    assert result["datasets"] == [] and result["charts"] == []
+    validate_result(result)
+
+
 @pytest.mark.parametrize(
     "mutation",
     ["missing_source", "extra_cell", "wrong_type", "null_chart", "wrong_unit", "duplicate_label"],

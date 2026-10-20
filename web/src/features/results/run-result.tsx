@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAnswerReveal } from "./use-answer-reveal";
 import { DataChart, DataTable } from "./data-chart";
+import { PresentationBoundary } from "./presentation-boundary";
 import type { RunResult as Result } from "@/lib/types";
 
 function safeUrl(url?: string) {
@@ -80,10 +81,22 @@ export function RunResult({
           </AlertDescription>
         </Alert>
       )}
+      <PresentationBoundary>
+        <ResultVisuals result={result} />
+      </PresentationBoundary>
+    </div>
+  );
+}
+
+function ResultVisuals({ result }: { result: Result }) {
+  return (
+    <>
       {result.charts.map((chart) => {
         const dataset = result.datasets.find((d) => d.id === chart.dataset_id);
         return dataset ? (
-          <DataChart key={chart.id} dataset={dataset} chart={chart} />
+          <PresentationBoundary key={chart.id}>
+            <DataChart dataset={dataset} chart={chart} />
+          </PresentationBoundary>
         ) : null;
       })}
       {result.tables.map((table) => {
@@ -101,7 +114,7 @@ export function RunResult({
                 <ChevronDown className="size-3.5" />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent><DataTable dataset={dataset} fields={table.fields} /></CollapsibleContent>
+            <CollapsibleContent><PresentationBoundary><DataTable dataset={dataset} fields={table.fields} /></PresentationBoundary></CollapsibleContent>
           </Collapsible>
         ) : null;
       })}
@@ -114,7 +127,7 @@ export function RunResult({
         .map((d) => (
           <section className="result-table" key={d.id}>
             <h4>{d.title}</h4>
-            <DataTable dataset={d} />
+            <PresentationBoundary><DataTable dataset={d} /></PresentationBoundary>
           </section>
         ))}
       {!!result.sources.length && (
@@ -169,6 +182,6 @@ export function RunResult({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

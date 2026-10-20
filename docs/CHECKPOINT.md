@@ -1,5 +1,31 @@
 # Checkpoint vận hành FlowBridge
 
+## Sửa tra cứu nhãn sản phẩm và giữ nội dung khi lỗi biểu đồ (2026-10-20)
+
+- Hoàn tất yêu cầu hiện tại: sửa backend catalog, giữ content khi biểu đồ sai định dạng, build và chạy frontend/backend để người dùng tự thử. Quyền sửa hiện tại thay thế giới hạn chỉ phân tích của mục cũ bên dưới.
+- Git hoanganhdev_features / 4ab8c55a1ccba91ed44d455da052899f15c660e5; giữ các thay đổi ML/RAG có trước. PLAN/PROJECT-RULES/TASK-API-TEST không tồn tại trong checkout; không tạo ID CODE. Chưa commit/push; không thêm dependency/migration hoặc đổi flow/credential.
+- ver2_data.match_entity nhận mã nguyên token trong nhãn mã + tên + đơn vị, kiểm các token mô tả còn lại với đúng dòng. Mã có màu/quy cách/đơn vị mâu thuẫn không fallback sang sản phẩm khác. Regression gồm nhãn có/không unit, không dấu, mã gần giống, xung đột và resolve → offers.
+- presentation_response giữ answer và loại phần bảng/biểu đồ không đạt validator strict; giữ view hợp lệ còn lại. Bỏ NO_DATA khi chỉ có lời giải thích/xác nhận và không có rows. Hub projection giữ answer khi failed/oversized; frontend PresentationBoundary cô lập lỗi shape/render khỏi phần chữ. Cập nhật CHANGELOG, VER2, FRONTEND-JSON.
+- Python ngoài sandbox: 116 passed cho catalog/frontend response/delivery/hub bridge; 24 passed cho Agent Hub. Các lượt sandbox bị kẹt Windows asyncio đã dừng trước khi chạy lại. TypeScript/Vite production build PASS; 9 unit web PASS; Ruff và diff whitespace PASS.
+- E2E đầy đủ: 14 passed / 1 timeout khi trang còn Đang tải, trước render chart. Chạy lại đầu cũng timeout. Sửa test mới để chờ textbox khởi tạo trước khi kiểm answer (không nới timeout hoặc sửa production). Hai ca malformed series/charts sau đó PASS, session 97380 exit 0; các ca còn lại đã PASS, không lặp toàn bộ suite khi production không đổi.
+- Docker Desktop ban đầu tắt rồi lỗi socket tạm reparse point. Đã dừng đúng Desktop/backend lỗi, giữ lại bằng đổi tên hai thư mục chỉ chứa run/dockerInference và docker-secrets-engine/engine.sock, để Desktop tạo mới; không reset settings/WSL disk/volume hoặc xóa dữ liệu. Engine Linux đã phục hồi.
+- web/start.ps1 session 88219 hoàn tất exit 0: prepare và read-only DB connectivity/migration-head PASS; frontend/theme/Langflow/API build thành công, ML/RAG cài theo lockfile. Keycloak/API/Langflow healthy, client-a chạy. Updater báo ver2 metadata already current, không đổi graph mới.
+- HTTP cuối: frontend http://127.0.0.1:8761/, API /docs và /openapi.json tại 18082, Langflow http://127.0.0.1:7861/ đều 200. Docker exec xác nhận ML=true, RAG=true, Hub=true; backend đang chạy giữ answer khi failed và matcher live nhận nhãn DEMO-P03 ghép tên/unit.
+- Smoke fixture trong image Linux mới và container live PASS; không gọi model, suy luận ML/RAG hoặc chat bằng tài khoản thật. Người dùng có thể Ctrl+F5 frontend và tự thử lại hội thoại DEMO-P03. Không còn build/test process cần chờ trong lượt này.
+
+## Bật ML/RAG mặc định và phân tích vòng xác nhận sản phẩm (2026-10-20)
+
+- Phạm vi hiện tại: người dùng chỉ cho phép đổi FLOWBRIDGE_CHAT_ML/RAG sang true; lỗi xác nhận sản phẩm chỉ phân tích, chưa sửa logic catalog/agent/frontend.
+- Git thực tế: branch hoanganhdev_features, HEAD 4ab8c55; working tree sạch đầu lượt. PLAN-OPENCORE.md không tồn tại; không tự tạo ID CODE.
+- Đã đổi mặc định ở launcher ChatStack/CLI, Compose build/runtime, Dockerfile chat và container_chat; CLI giữ --ml/--rag, thêm --no-ml/--no-rag. Cập nhật README, HUONG-DAN-CHAY, CHANGELOG và hai expectation trong test hiện có.
+- Docker read-only xác nhận API đang healthy nhưng ML=false/RAG=false, Hub=true; CPU threads=4. Không sửa flow hoặc gọi model.
+- Tái hiện bằng chính các hàm matcher của source với fixture: DEMO-P03 hoặc tên thuần -> success; tên kèm (cuộn) hoặc chuỗi mã + tên + (cuộn) -> not_found, chỉ có suggestions. Matcher container Langflow cũng cho kết quả tương ứng với dữ liệu giả. catalog_read_offers dừng khi resolve chưa success; frontend builder phát NO_DATA khi không có rows.
+- Đã xác minh hội thoại thật bằng read-only: Hub có các lượt DEMO-P03 lúc 08:16–08:21 UTC; projection chỉ giữ nguồn, không giữ selector. Đọc chọn lọc span SQLite Langflow của lượt 08:21 UTC xác nhận input.product/query = DEMO-P03 – Băng keo Scotch 371 vàng, 48 mm × 100 m (không có hậu tố đơn vị trong selector thực tế), status not_found, match_count=0, không có resolved.product_id. Như vậy mã ghép tên là nguyên nhân đã được xác nhận trên trace, không chỉ giả thuyết từ fixture. Không xuất prompt/full log/credential hoặc thay dữ liệu.
+- DB read-only xác nhận DEMO-P03 tồn tại đúng tên, unit=cuộn, có 6 bản ghi supplier_products. Không đọc/xuất tên NCC, giá hoặc đơn hàng; chưa đánh giá khả năng đáp ứng 100 cuộn/ngày giao.
+- Dry-run mặc định true/true và opt-out false/false PASS; Ruff PASS. Pytest đầu lỗi tempdir sandbox; dùng basetemp trong workspace và cập nhật expectation RAG theo mặc định mới: 11 passed (1.12s). git diff --check PASS.
+- Preflight Compose xác nhận chỉ hai biến environment ML/RAG thay đổi, build args true/true, Hub/CPU giữ nguyên. Build/recreate riêng API session 69188 hoàn tất exit 0: dependency extras cài theo lockfile, image export thành công, API Healthy. Docker exec xác nhận ML=true/RAG=true, Hub=true và CPU threads=4; startup complete, restarts=0. Không recreate Langflow/Identity/client, không chạy launcher up hoặc nâng cấp flow, không migration/thay manifest hoặc lockfile.
+- Phạm vi đã hoàn tất: hai cờ bật ở runtime và mặc định cho lần khởi động sau; phân tích lỗi dựa trên trace thật + code + DB read-only. Không sửa lỗi catalog/agent/frontend, không gọi LLM, không chạy suy luận hoặc RAG query mới, không commit/push. Bước tiếp theo nếu người dùng yêu cầu sửa: tách mã nhúng trong selector, kiểm mô tả/quy cách riêng, giữ lựa chọn được xác minh và xử lý NO_DATA phù hợp.
+
 - Ngày: 2026-10-20, múi giờ Asia/Saigon.
 - Yêu cầu hiện tại: khởi động backend theo `chat-docker.cmd up` với cấu hình sẵn có.
 - Git: branch `hoanganhdev_features`, HEAD `b944ad1ba8ea3bc914bf21449aa5a0a3f8cfec6f`; working tree sạch trước thao tác.

@@ -52,6 +52,13 @@ Langflow API key giữa các agent. Ba flow con bật Serve as an A2A agent; flo
 tâm không bật để tránh tự gọi. Session con được A2A native tách namespace; lịch sử
 agent con mặc định 0 để tránh lấy nhầm dữ liệu nhiệm vụ trước.
 
+Tra cứu danh mục nhận cả mã riêng và nhãn `mã – tên (đơn vị)`. Mã nhúng phải khớp
+nguyên token; phần tên/quy cách/đơn vị còn lại phải phù hợp cùng sản phẩm. Mã đúng
+nhưng mô tả mâu thuẫn vẫn cần làm rõ. Nhãn đã xác nhận hoặc UUID trả về có thể dùng
+tiếp với `catalog_read_offers`; không cần xác nhận lại chỉ vì định dạng nhãn.
+JSON frontend giữ `answer` khi bảng/biểu đồ không hợp lệ và chỉ xuất phần trình bày
+đạt validator. Thiếu dữ liệu vẽ biểu đồ không ngăn trả lời bằng chữ.
+
 ## Phối hợp giữa các agent, có giới hạn thực thi
 
 ```text

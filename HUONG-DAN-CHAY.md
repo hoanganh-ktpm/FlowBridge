@@ -68,9 +68,10 @@ liệu, thêm `FLOWBRIDGE_RAG_MANAGER_ENABLED=true`; cần RAG PostgreSQL và AD
    .\chat-docker.cmd status
    ```
 
-   Giữ `--ml --rag` khi `up` lại. Thiếu artifact phải xử lý lỗi readiness; launcher
-   không tự tải weights. Có thể dùng `up` cho nghiệp vụ/chat dữ liệu; chế độ này
-   chưa kiểm được ML/RAG.
+   ML/RAG bật mặc định cả khi chạy `up` không có cờ và khi chạy `web/start.ps1`.
+   `--ml --rag` vẫn được hỗ trợ; dùng `--no-ml --no-rag` cho nghiệp vụ/chat dữ liệu
+   khi muốn tắt hai tính năng. Thiếu artifact phải xử lý lỗi readiness; launcher
+   không tự tải weights.
 
 5. Mở [FlowBridge](http://127.0.0.1:8761/), đăng nhập SSO bằng user đã liên kết/cấp
    quyền. Chọn **Trợ lý AI** hoặc **Tài liệu RAG** nếu có ADMIN.

@@ -2,6 +2,13 @@
 
 ## Unreleased — Dọn repository và thống nhất hướng dẫn
 
+- Sửa tra cứu danh mục với chuỗi mã + tên + đơn vị (ví dụ DEMO-P03), kiểm
+  mô tả/quy cách còn lại để không tự chọn khi mâu thuẫn; dùng lại được lựa chọn
+  để đọc nhà cung cấp. Bỏ cảnh báo biểu đồ rỗng khi chỉ xác nhận sản phẩm.
+- Giữ nội dung trả lời khi dữ liệu bảng/biểu đồ không hợp lệ hoặc dịch vụ trả
+  lỗi; loại phần trình bày sai qua validator và cô lập lỗi render ở frontend.
+- Docker chat bật ML/RAG mặc định trong launcher, build và API runtime;
+  hỗ trợ `--no-ml --no-rag` để tắt khi cần.
 - Bỏ bước chọn PR khi chat với agent Tri thức. Hội thoại không gắn PR tra tài liệu
   global đã xuất bản bằng danh tính người dùng có EMPLOYEE, giữ kiểm ACL/thu hồi nguồn;
   hội thoại cũ có PR tiếp tục dùng job/ngữ cảnh đã được kiểm quyền.

@@ -170,6 +170,11 @@ def backend(*, incomplete=False, denied=False):
         PRODUCT,
         "băng keo Scotch 371 vàng",
         "bang keo vang 48mm x100m",
+        "DEMO-P03 – Băng keo Scotch 371 vàng, 48 mm × 100 m",
+        "DEMO-P03 – Băng keo Scotch 371 vàng, 48 mm × 100 m (cuộn)",
+        "demo p03: bang keo Scotch 371 vang 48mm x100m (cuon)",
+        "Băng keo Scotch 371 vàng, 48 mm × 100 m (cuộn)",
+        "Băng keo Scotch 371 vàng, 48 mm × 100 m — DEMO-P03",
     ],
 )
 @pytest.mark.parametrize("supplier", ["Nhà vật tư Phúc Lâm", "phuc lam", "NCC-06", "DEMO-S06"])
@@ -210,6 +215,38 @@ async def test_misspelling_or_wrong_spec_only_suggests_and_never_resolves():
         result = await api.execute("catalog_resolve_entities", {"product": query})
         assert "product_id" not in result["resolved"]
         assert result["entities"]["product"]["suggestions"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "selector",
+    [
+        "DEMO-P03 – Băng keo Scotch 371 trong, 48 mm × 100 m",
+        "DEMO-P03 – Băng keo Scotch 371 vàng, 50 mm × 100 m",
+        "DEMO-P03 – Băng keo Scotch 371 vàng, 48 mm × 100 m (thùng)",
+        "DEMO-P03 DEMO-P19",
+        "DEMO-P030 – Băng keo Scotch 371 vàng, 48 mm × 100 m",
+    ],
+)
+async def test_embedded_code_with_conflicting_description_never_reads_offers(selector):
+    api, calls = backend()
+    result = await api.execute("catalog_read_offers", {"product": selector})
+    assert result["status"] == "not_found"
+    assert "product_id" not in result["resolved"]
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_confirmed_display_label_can_be_reused_to_read_suppliers():
+    api, calls = backend()
+    selector = "DEMO-P03 – Băng keo Scotch 371 vàng, 48 mm × 100 m (cuộn)"
+    resolved = await api.execute("catalog_resolve_entities", {"product": selector})
+    assert resolved["resolved"]["product_id"] == PRODUCT
+    result = await api.execute("catalog_read_offers", {"product": selector})
+    assert result["status"] == "success"
+    assert result["resolved"]["product_id"] == PRODUCT
+    assert result["items"][0]["supplier_id"] == SUPPLIER
+    assert len(calls) == 3
 
 
 @pytest.mark.asyncio

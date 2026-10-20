@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 Scalar = str | int | float | bool | None
 
@@ -231,3 +231,42 @@ class FrontendResponse(Strict):
 
 def validate_response(value: dict) -> dict:
     return FrontendResponse.model_validate(value).model_dump(mode="json")
+
+
+def presentation_response(value: dict) -> dict:
+    # Keep the answer when optional presentation data is invalid. The strict
+    # validator remains the authority for every dataset/view we actually return.
+    try:
+        return validate_response(value)
+    except ValidationError:
+        pass
+    output = {**value, "tables": [], "charts": []}
+    try:
+        output = validate_response(output)
+    except ValidationError:
+        output = validate_response(
+            {
+                **output,
+                "datasets": [],
+                "sources": [],
+                "warnings": [{**w, "dataset_id": None} for w in value.get("warnings", [])],
+            }
+        )
+    for group in ("tables", "charts"):
+        views = value.get(group)
+        for view in views if isinstance(views, list) else []:
+            try:
+                output = validate_response({**output, group: [*output[group], view]})
+            except ValidationError:
+                continue
+    output["warnings"] = output["warnings"][:99] + [
+        {
+            "code": "PRESENTATION_DATA_INVALID",
+            "message": "Một phần bảng hoặc biểu đồ không đúng định dạng đã được bỏ qua; "
+            "nội dung trả lời vẫn được giữ lại.",
+            "dataset_id": None,
+        }
+    ]
+    if output["status"] == "completed":
+        output["status"] = "partial"
+    return validate_response(output)

@@ -151,7 +151,12 @@ def from_langflow(raw: dict, run_id: str) -> dict:
     result = deepcopy(raw)
     result["run_id"] = run_id
     if result["status"] == "failed":
-        return failed_result(run_id, "LANGFLOW_EXECUTION_FAILED", "Langflow chưa hoàn tất yêu cầu.")
+        failure = failed_result(
+            run_id, "LANGFLOW_EXECUTION_FAILED", "Langflow chưa hoàn tất yêu cầu."
+        )
+        failure["answer"] = result["answer"]
+        validate_result(failure)
+        return failure
     if result["status"] == "partial":
         result["status"] = "completed"
         result["warnings"].append({"code": "PARTIAL_RESULT", "message": "Kết quả chưa đầy đủ."})

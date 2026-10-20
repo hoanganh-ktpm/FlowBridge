@@ -148,14 +148,28 @@ def match_entity(rows: list[dict], selector: str, stem: str, truncated: bool) ->
     fields = [stem + suffix for suffix in ("_id", "_code", "_name")]
     exact = [r for r in rows if any(normalized(str(r.get(f, ""))) == key for f in fields)]
     query = selector_words(selector, stem)
-    # A name can contain a secondary display code, e.g. "Phúc Lâm — NCC-06".
-    matches = exact or [
-        r for r in rows if query and set(query) <= set(words(str(r.get(fields[2], ""))))
-    ]
-    # Code formatting (DEMO P03 / DEMO-P03) is an exact normalized code match.
-    code_matches = [r for r in rows if query and query == words(str(r.get(fields[1], "")))]
-    if not exact and code_matches:
-        matches = code_matches
+    # Display labels combine code, name and unit. Match the code as whole tokens,
+    # then check every remaining token against that row, including its unit.
+    coded, compatible = [], []
+    matches = []
+    for row in rows:
+        name = words(str(row.get(fields[2], "")))
+        allowed = set(name + (words(str(row.get("unit") or "")) if stem == "product" else []))
+        code = words(str(row.get(fields[1], "")))
+        positions = [
+            i
+            for i in range(len(query) - len(code) + 1)
+            if code and query[i : i + len(code)] == code
+        ]
+        if positions:
+            coded.append(row)
+            if any(set(query[:i] + query[i + len(code) :]) <= allowed for i in positions):
+                compatible.append(row)
+        if query and set(query) <= allowed:
+            matches.append(row)
+    # An explicit code with a conflicting description must not fall back to a
+    # different product whose name happens to match.
+    matches = exact or (compatible if coded else matches)
     status = (
         "truncated"
         if truncated

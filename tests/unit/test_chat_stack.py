@@ -158,7 +158,7 @@ def test_incomplete_flow_set_or_partial_volume_never_creates_new_identity(tmp_pa
 
 
 def test_overlay_reuses_core_stack_and_down_preserves_all_volumes(tmp_path):
-    stack = chat.ChatStack("flowbridge-chat", tmp_path / "private.env", ml=True, rag=True)
+    stack = chat.ChatStack("flowbridge-chat", tmp_path / "private.env")
     command = stack.command("down")
     assert command.count("-f") == 2
     assert str(ROOT / "compose.yaml") in command
@@ -261,7 +261,7 @@ def test_model_config_maps_host_paths_and_rejects_unrelated_secrets(tmp_path, mo
         Path("/ml-context/chosen.json")
     )
     assert container.os.environ["FLOWBRIDGE_ML_ENABLED"] == "true"
-    assert container.os.environ["FLOWBRIDGE_RAG_POSTGRES_ENABLED"] == "false"
+    assert container.os.environ["FLOWBRIDGE_RAG_POSTGRES_ENABLED"] == "true"
     source.write_text(json.dumps({"FLOWBRIDGE_USER_ACCESS_TOKEN": "must-not-load"}), "utf-8")
     with pytest.raises(ValueError, match="Invalid model settings"):
         container.backend_model_settings(source)

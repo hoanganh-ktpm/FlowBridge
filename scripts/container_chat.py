@@ -144,8 +144,8 @@ def backend_model_settings(source: Path = Path("/config/chat-models.json")) -> N
         filename = filename.replace("\\", "/").rsplit("/", 1)[-1]
         os.environ[name] = str(Path(mount) / filename)
     os.environ["FLOWBRIDGE_RAG_POSTGRES_MODEL_CACHE_PATH"] = "/models"
-    os.environ["FLOWBRIDGE_ML_ENABLED"] = os.environ.get("FLOWBRIDGE_CHAT_ML", "false")
-    os.environ["FLOWBRIDGE_RAG_POSTGRES_ENABLED"] = os.environ.get("FLOWBRIDGE_CHAT_RAG", "false")
+    os.environ["FLOWBRIDGE_ML_ENABLED"] = os.environ.get("FLOWBRIDGE_CHAT_ML", "true")
+    os.environ["FLOWBRIDGE_RAG_POSTGRES_ENABLED"] = os.environ.get("FLOWBRIDGE_CHAT_RAG", "true")
 
 
 def health() -> None:

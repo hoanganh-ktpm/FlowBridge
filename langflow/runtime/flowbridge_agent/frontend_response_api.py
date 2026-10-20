@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Extract one typed Data output from a native Langflow run response, without I/O."""
 
-from flowbridge_agent.frontend_response_contract import validate_response
+from flowbridge_agent.frontend_response_contract import presentation_response
 
 
 def extract_frontend_response(run_response: dict, node_id="FrontendResponse-ver2-central") -> dict:
@@ -25,4 +25,4 @@ def extract_frontend_response(run_response: dict, node_id="FrontendResponse-ver2
             matches.append(result)
     if len(matches) != 1:
         raise ValueError("EXPECTED_ONE_FRONTEND_JSON_OUTPUT")
-    return validate_response(matches[0])
+    return presentation_response(matches[0])

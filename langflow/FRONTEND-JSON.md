@@ -39,6 +39,12 @@ Sự kiện lỗi/sai schema/khác run không được dùng làm số liệu. T
 lời giải thích từ Agent, không được validator chứng nhận là đúng về mặt nội dung;
 frontend vẽ chỉ từ `datasets` đã kiểm.
 
+Lỗi định dạng bảng/biểu đồ không làm mất `answer`: adapter bỏ view không hợp lệ,
+giữ bảng/biểu đồ hợp lệ còn lại và trả cảnh báo `PRESENTATION_DATA_INVALID`. Nếu
+dataset hoặc nguồn không đạt validator, phần trình bày bị loại, phần chữ vẫn được
+giữ. Khi chỉ cần làm rõ sản phẩm và không có dòng dữ liệu, không phát cảnh báo
+biểu đồ rỗng. Frontend cô lập lỗi render bảng/biểu đồ khỏi nội dung trả lời.
+
 ## Hợp đồng v1
 
 Schema: `schemas/frontend-response.v1.json`. Nguồn Python:

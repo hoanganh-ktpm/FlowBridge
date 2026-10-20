@@ -7,7 +7,7 @@ import re
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from flowbridge_agent.frontend_response_contract import Source, validate_response
+from flowbridge_agent.frontend_response_contract import Source, presentation_response
 
 # Allowlisted columns: unknown/nested/private tool fields never reach the frontend.
 FIELDS = {
@@ -323,7 +323,6 @@ def build_response(
             )
             incomplete = True
         if not rows:
-            warn("NO_DATA", "Không có dòng dữ liệu phù hợp để vẽ biểu đồ.")
             continue
 
         for key in ("product_id", "unit", "currency"):
@@ -451,11 +450,11 @@ def build_response(
         if warning["dataset_id"] not in dataset_ids:
             warning["dataset_id"] = None
     if len(json.dumps(response, ensure_ascii=False).encode("utf-8")) > 1_048_576:
-        return validate_response(
+        return presentation_response(
             {
                 **response,
                 "status": "failed",
-                "answer": "Kết quả vượt giới hạn phản hồi.",
+                "answer": response["answer"],
                 "datasets": [],
                 "tables": [],
                 "charts": [],
@@ -468,4 +467,4 @@ def build_response(
                 },
             }
         )
-    return validate_response(response)
+    return presentation_response(response)

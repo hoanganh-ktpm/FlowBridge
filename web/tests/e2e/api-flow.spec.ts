@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// FlowBridge; see LICENSE.
 import { expect, test, type Page } from '@playwright/test'
 import delivery from '../../../contracts/agent-hub/examples/delivery-result.json' with { type: 'json' }
 
@@ -13,6 +15,38 @@ async function mockSession(page: Page, signedIn = true) {
       async logout() { window.__loggedOut = true }
     }
   ` }))
+}
+
+for (const malformed of ['series', 'charts']) {
+  test(`malformed ${malformed} keeps the answer and composer usable`, async ({ page }) => {
+    await mockSession(page)
+    const cid = 'conv_visual'; const rid = 'run_visual'
+    const conversation = { id: cid, title: 'Kiểm tra biểu đồ lỗi', selected_agents: [], revision: 1, created_at: '2026-10-20T00:00:00Z', updated_at: '2026-10-20T00:00:00Z' }
+    const result = {
+      ...delivery, run_id: rid,
+      answer: 'Đã tìm thấy nhà cung cấp. Bạn vẫn đọc được câu trả lời khi biểu đồ bị lỗi.',
+      charts: malformed === 'charts' ? null : delivery.charts.map(c => ({ ...c, series: null })),
+    }
+    const metadata = { run_id: rid, conversation_id: cid, status: 'completed', selected_agents: [], used_agents: ['database'], dependency_agents: [], started_at: conversation.created_at, accepted_at: conversation.created_at, finished_at: conversation.created_at }
+    await page.route('**/api/v1/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      if (path.endsWith('/me')) return route.fulfill({ json: { user: { user_id: 'test', display_name: 'Kiểm thử', email: null }, roles: [] } })
+      if (path.endsWith('/agents')) return route.fulfill({ json: { items: [] } })
+      if (path.endsWith('/conversations')) return route.fulfill({ json: { items: [conversation], next_cursor: null } })
+      if (path.endsWith(`/conversations/${cid}`)) return route.fulfill({ json: conversation })
+      if (path.endsWith('/messages')) return route.fulfill({ json: { items: [{ id: 'msg_visual', run_id: rid, sequence: 1, role: 'assistant', text: result.answer, question_answers: {}, result_url: `/api/v1/agent-hub/runs/${rid}` }], next_cursor: null } })
+      if (path.endsWith(`/conversations/${cid}/runs`)) return route.fulfill({ json: { items: [metadata], next_cursor: null } })
+      if (path.endsWith(`/runs/${rid}`)) return route.fulfill({ json: result })
+      if (path.endsWith('/events')) return route.fulfill({ contentType: 'text/event-stream', body: '' })
+      return route.fulfill({ status: 404, json: {} })
+    })
+    await page.goto(`/#chat/${cid}`)
+    await page.getByRole('textbox', { name: 'Tin nhắn', exact: true }).waitFor()
+    await expect(page.getByText(result.answer, { exact: true })).toBeVisible()
+    await expect(page.getByRole('status').filter({ hasText: 'Bạn vẫn có thể đọc nội dung trả lời' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Tin nhắn', exact: true }).fill('Cho tôi hỏi thêm')
+    await expect(page.getByRole('button', { name: 'Gửi tin nhắn', exact: true })).toBeEnabled()
+  })
 }
 test('SSO login uses PKCE and a same-origin callback', async ({ page }) => {
   await mockSession(page, false)

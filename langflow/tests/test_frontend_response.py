@@ -15,7 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "runtime"), str(ROOT.parent / "backend")]
 
 from flowbridge_agent.frontend_response_builder import build_response  # noqa: E402
-from flowbridge_agent.frontend_response_contract import validate_response  # noqa: E402
+from flowbridge_agent.frontend_response_contract import (  # noqa: E402
+    presentation_response,
+    validate_response,
+)
 from flowbridge_agent.frontend_response_node import (  # noqa: E402
     FrontendResponse,
     response_from_message,
@@ -127,6 +130,59 @@ def test_invalid_price_stays_null_not_zero():
     assert result["datasets"][0]["rows"][1]["current_unit_price"] is None
     assert not result["charts"]
     assert result["status"] == "partial"
+
+
+@pytest.mark.parametrize("change", ["dataset", "column", "series", "unit", "null", "shape"])
+def test_invalid_visualization_preserves_answer_and_valid_table(change):
+    result = build_response("Có hai nhà cung cấp có báo giá cho sản phẩm này.", [receipt()])
+    chart = result["charts"][0]
+    if change == "dataset":
+        chart["dataset_id"] = "missing"
+    elif change == "column":
+        chart["x_field"] = "missing"
+    elif change == "series":
+        chart["series"] = None
+    elif change == "unit":
+        chart["y_unit"] = "%"
+    elif change == "null":
+        result["datasets"][0]["rows"][0]["current_unit_price"] = None
+    else:
+        result["charts"] = None
+    safe = presentation_response(result)
+    assert safe["answer"] == result["answer"]
+    assert safe["charts"] == []
+    assert safe["datasets"] and safe["tables"]
+    assert safe["status"] == "partial"
+    assert "PRESENTATION_DATA_INVALID" in {w["code"] for w in safe["warnings"]}
+    assert validate_response(safe) == safe
+
+
+def test_invalid_dataset_drops_visuals_without_losing_text_or_exposing_private_data():
+    result = build_response("Phần giải thích vẫn đọc được.", [receipt()])
+    result["datasets"][0]["rows"][0]["private"] = "SECRET"
+    safe = presentation_response(result)
+    assert safe["answer"] == result["answer"]
+    assert not safe["datasets"] and not safe["tables"] and not safe["charts"]
+    assert "SECRET" not in json.dumps(safe)
+
+
+def test_valid_charts_survive_an_invalid_chart_in_the_same_response():
+    result = build_response("Có báo giá.", [receipt()])
+    broken = {**result["charts"][0], "id": "broken", "x_field": "missing"}
+    result["charts"].append(broken)
+    safe = presentation_response(result)
+    assert len(safe["charts"]) == 1
+    assert safe["charts"][0] == result["charts"][0]
+
+
+def test_product_clarification_is_text_without_an_empty_chart_warning():
+    answer = "Bạn muốn băng keo vàng hay trong?"
+    result = build_response(
+        answer, [receipt("catalog_resolve_entities", {"resolved": {}, "items": []}, "ambiguous")]
+    )
+    assert result["answer"] == answer and result["status"] == "needs_input"
+    assert not result["charts"]
+    assert "NO_DATA" not in {w["code"] for w in result["warnings"]}
 
 
 def test_risk_score_is_not_a_percentage_and_unscored_rows_are_preserved():
@@ -263,7 +319,7 @@ def test_real_agent_grouped_tool_events_survive_nested_groups_and_message_reload
             contents=[
                 ContentBlock(title="Agent Steps", contents=[block, TextContent(text=forged)]),
                 deepcopy(block),  # Runtime may emit both native and serialized tool events.
-            ]
+            ],
         )
     )
     output = response_from_message(m)

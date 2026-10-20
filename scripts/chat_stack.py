@@ -49,8 +49,8 @@ class ChatStack(Stack):
         iam_port: int = 19444,
         langflow_port: int = 7861,
         *,
-        ml: bool = False,
-        rag: bool = False,
+        ml: bool = True,
+        rag: bool = True,
         langflow_data: Path = ROOT / "langflow/data",
         agent_env: Path = ROOT / "langflow/data/agent.env",
         models_dir: Path = ROOT / ".cache/models",
@@ -151,9 +151,13 @@ def main() -> int:
     parser.add_argument("--agent-env", type=Path, default=ROOT / "langflow/data/agent.env")
     parser.add_argument("--models-dir", type=Path, default=ROOT / ".cache/models")
     parser.add_argument("--ml-dir", type=Path, default=ROOT / ".cache/ml")
-    parser.add_argument("--ml", action="store_true", help="Build existing optional ML dependencies")
     parser.add_argument(
-        "--rag", action="store_true", help="Build existing optional PostgreSQL RAG dependencies"
+        "--ml", action=argparse.BooleanOptionalAction, default=True,
+        help="Build existing optional ML dependencies (enabled by default)",
+    )
+    parser.add_argument(
+        "--rag", action=argparse.BooleanOptionalAction, default=True,
+        help="Build existing optional PostgreSQL RAG dependencies (enabled by default)",
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

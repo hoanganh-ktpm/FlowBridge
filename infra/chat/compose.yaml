@@ -37,12 +37,12 @@ services:
     build:
       target: chat-runtime
       args:
-        CHAT_WITH_ML: ${FLOWBRIDGE_CHAT_ML:-false}
-        CHAT_WITH_RAG: ${FLOWBRIDGE_CHAT_RAG:-false}
+        CHAT_WITH_ML: ${FLOWBRIDGE_CHAT_ML:-true}
+        CHAT_WITH_RAG: ${FLOWBRIDGE_CHAT_RAG:-true}
     command: [python, scripts/container_chat.py, serve]
     environment:
-      FLOWBRIDGE_CHAT_ML: ${FLOWBRIDGE_CHAT_ML:-false}
-      FLOWBRIDGE_CHAT_RAG: ${FLOWBRIDGE_CHAT_RAG:-false}
+      FLOWBRIDGE_CHAT_ML: ${FLOWBRIDGE_CHAT_ML:-true}
+      FLOWBRIDGE_CHAT_RAG: ${FLOWBRIDGE_CHAT_RAG:-true}
       OMP_NUM_THREADS: ${FLOWBRIDGE_ML_CPU_THREADS:-4}
       MKL_NUM_THREADS: ${FLOWBRIDGE_ML_CPU_THREADS:-4}
       OPENBLAS_NUM_THREADS: ${FLOWBRIDGE_ML_CPU_THREADS:-4}

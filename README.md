@@ -57,13 +57,13 @@ Sau khi chuẩn bị DB, flow Langflow, credential và model theo
 
 ```powershell
 .\chat-docker.cmd doctor
-.\chat-docker.cmd up --ml --rag
+.\chat-docker.cmd up
 .\chat-docker.cmd status
 ```
 
 Mở [FlowBridge](http://127.0.0.1:8761/), đăng nhập bằng user đã được liên kết/cấp
-quyền trong DB. `--ml --rag` yêu cầu đủ artifact và cấu hình; launcher kiểm DB head
-và readiness, không tự seed hoặc tải weights.
+quyền trong DB. ML/RAG bật mặc định và yêu cầu đủ artifact, cấu hình; launcher kiểm
+DB head và readiness, không tự seed hoặc tải weights. Dùng `--no-ml --no-rag` để tắt.
 
 ## Cấu trúc repository
 
