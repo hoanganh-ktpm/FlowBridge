@@ -7,7 +7,11 @@ import { useEffect, useState } from "react";
  * character-by-character / word-by-word like ChatGPT, complete with typing
  * state for displaying a blinking cursor.
  */
-export function useAnswerReveal(answer: string, animate: boolean) {
+export function useAnswerReveal(
+  answer: string,
+  animate: boolean,
+  customDuration?: number,
+) {
   const [visible, setVisible] = useState(animate ? 0 : (answer?.length ?? 0));
   const [isTyping, setIsTyping] = useState(Boolean(animate && answer?.length));
 
@@ -32,7 +36,8 @@ export function useAnswerReveal(answer: string, animate: boolean) {
     // Short answers (100-300 chars): ~2 to 3.5s
     // Medium answers (500-1000 chars): ~3.5 to 5s
     // Long answers (>1500 chars): gracefully capped ~5.5s
-    const duration = Math.min(5500, Math.max(1400, totalChars * 18));
+    const duration =
+      customDuration ?? Math.min(5500, Math.max(1400, totalChars * 18));
 
     let start: number | undefined;
     let frame: number;
@@ -54,7 +59,7 @@ export function useAnswerReveal(answer: string, animate: boolean) {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [answer, animate]);
+  }, [answer, animate, customDuration]);
 
   return {
     text: animate ? answer.slice(0, visible) : answer,

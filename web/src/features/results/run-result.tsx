@@ -18,27 +18,6 @@ import { useAnswerReveal } from "./use-answer-reveal";
 import { DataChart, DataTable } from "./data-chart";
 import type { RunResult as Result } from "@/lib/types";
 
-const SUPPRESSED_WARNING_PATTERNS = [
-  "một phần kết quả công cụ",
-  "lượng tồn kho thực tế",
-  "phạm vi hoặc giới hạn dữ liệu",
-  "kết quả chưa đầy đủ",
-  "mốc chốt dữ liệu",
-];
-
-const SUPPRESSED_WARNING_CODES = [
-  "PARTIAL_RESULT",
-  "AS_OF_UNKNOWN",
-  "QUOTE_NOT_STOCK",
-];
-
-function isSuppressedWarning(w: { code?: string; message?: string }) {
-  if (w.code && SUPPRESSED_WARNING_CODES.includes(w.code)) return true;
-  if (!w.message) return false;
-  const lower = w.message.toLowerCase();
-  return SUPPRESSED_WARNING_PATTERNS.some((pattern) => lower.includes(pattern));
-}
-
 function safeUrl(url?: string) {
   try {
     const value = new URL(url ?? "");
@@ -60,9 +39,6 @@ export function RunResult({
   animateAnswer?: boolean;
 }) {
   const { text: answerText, isTyping } = useAnswerReveal(result.answer, animateAnswer);
-  const visibleWarnings = (result.warnings ?? []).filter(
-    (w) => !isSuppressedWarning(w),
-  );
 
   return (
     <div className="run-result">
@@ -104,22 +80,11 @@ export function RunResult({
           </AlertDescription>
         </Alert>
       )}
-      {visibleWarnings.map((w) => (
-        <Alert key={w.code + (w.dataset_id ?? "")} className="my-3 border-[var(--fb-warning)]/20 bg-[var(--fb-warning-bg)] text-[var(--fb-on-warning-bg)]">
-          <AlertTriangle size={15} />
-          <AlertDescription className="text-xs">{w.message}</AlertDescription>
-        </Alert>
-      ))}
       {result.charts.map((chart) => {
         const dataset = result.datasets.find((d) => d.id === chart.dataset_id);
         return dataset ? (
           <DataChart key={chart.id} dataset={dataset} chart={chart} />
-        ) : (
-          <Alert className="my-3" key={chart.id}>
-            <AlertTriangle />
-            <AlertDescription>Không tìm thấy bộ dữ liệu cho biểu đồ {chart.title}.</AlertDescription>
-          </Alert>
-        );
+        ) : null;
       })}
       {result.tables.map((table) => {
         const dataset = result.datasets.find((d) => d.id === table.dataset_id);

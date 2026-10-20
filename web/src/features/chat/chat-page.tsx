@@ -39,6 +39,106 @@ const GREETING_TEXT = `Tôi là FlowBridge, tôi có thể giúp bạn:
 • Xếp hạng & đối tượng NCC: Tra cứu uy tín, năng lực cung ứng và hồ sơ đối tác đã xác minh.
 • Tra cứu quy định & tài liệu: Tìm kiếm bằng chứng tài liệu, chính sách thu mua và phiếu yêu cầu (PR).`;
 
+function WelcomeGreeting({
+  hub,
+  blocked,
+  textarea,
+  copied,
+  copy,
+}: {
+  hub: Hub;
+  blocked: boolean;
+  textarea: React.RefObject<HTMLTextAreaElement | null>;
+  copied: string;
+  copy: (id: string, text: string) => Promise<void>;
+}) {
+  const { text: greetingText, isTyping: greetingTyping } = useAnswerReveal(
+    GREETING_MARKDOWN,
+    true,
+    3000,
+  );
+
+  return (
+    <article
+      data-message-role="assistant"
+      className="assistant-turn message-enter"
+      aria-label="Câu trả lời của FlowBridge"
+    >
+      <div className="run-result">
+        <div className="markdown">
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({ children }) => (
+                <h1 className="text-base sm:text-[17px] font-semibold text-foreground mb-3 tracking-tight">
+                  {children}
+                </h1>
+              ),
+              li: ({ children }) => (
+                <li className="my-2 leading-relaxed text-[13.5px] text-muted-foreground [&_strong]:text-foreground [&_strong]:font-medium">
+                  {children}
+                </li>
+              ),
+            }}
+          >
+            {greetingText}
+          </Markdown>
+          {greetingTyping && (
+            <span
+              className="typing-cursor inline-block w-1.5 h-3.5 bg-primary/80 ml-1 rounded-xs animate-pulse align-middle"
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      </div>
+      {!!hub.agents.filter((agent) => agent.available).length && (
+        <div className="chat-starters mt-4 flex flex-wrap gap-2">
+          {hub.agents
+            .filter((agent) => agent.available)
+            .map((agent) => (
+              <Button
+                key={agent.id}
+                variant="outline"
+                size="sm"
+                disabled={blocked}
+                aria-pressed={hub.selected.includes(agent.id)}
+                className={`starter-button ${hub.selected.includes(agent.id) ? "is-selected" : ""}`}
+                onClick={() => {
+                  void hub.toggleAgent(agent.id);
+                  textarea.current?.focus();
+                }}
+              >
+                <AgentIcon
+                  id={agent.id}
+                  className="size-4 bg-transparent! [&_svg]:size-4"
+                />
+                <span>{starters[agent.id] ?? agent.name}</span>
+              </Button>
+            ))}
+        </div>
+      )}
+      <div className="turn-actions">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="turn-action"
+              aria-label="Sao chép câu trả lời"
+              onClick={() => void copy("greeting", GREETING_TEXT)}
+            >
+              {copied === "greeting" ? <Check /> : <Copy />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {copied === "greeting" ? "Đã sao chép" : "Sao chép"}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </article>
+  );
+}
+
 export function ChatPage({
   hub,
   draft,
@@ -62,7 +162,7 @@ export function ChatPage({
       setThinkingIntro(true);
       const timer = setTimeout(() => {
         setThinkingIntro(false);
-      }, 850);
+      }, 500);
       return () => clearTimeout(timer);
     } else {
       setThinkingIntro(false);
@@ -160,77 +260,14 @@ export function ChatPage({
                 <RunProgress activities={[]} status="running" sending={false} />
               </article>
             ) : (
-              <article
-                data-message-role="assistant"
-                className="assistant-turn message-enter"
-                aria-label="Câu trả lời của FlowBridge"
-              >
-                <div className="run-result">
-                  <div className="markdown">
-                    <Markdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({ children }) => (
-                          <h1 className="text-base sm:text-[17px] font-semibold text-foreground mb-3 tracking-tight">
-                            {children}
-                          </h1>
-                        ),
-                        li: ({ children }) => (
-                          <li className="my-2 leading-relaxed text-[13.5px] text-muted-foreground [&_strong]:text-foreground [&_strong]:font-medium">
-                            {children}
-                          </li>
-                        ),
-                      }}
-                    >
-                      {GREETING_MARKDOWN}
-                    </Markdown>
-                  </div>
-                </div>
-                {!!hub.agents.filter((agent) => agent.available).length && (
-                  <div className="chat-starters mt-4 flex flex-wrap gap-2">
-                    {hub.agents
-                      .filter((agent) => agent.available)
-                      .map((agent) => (
-                        <Button
-                          key={agent.id}
-                          variant="outline"
-                          size="sm"
-                          disabled={blocked}
-                          aria-pressed={hub.selected.includes(agent.id)}
-                          className={`starter-button ${hub.selected.includes(agent.id) ? "is-selected" : ""}`}
-                          onClick={() => {
-                            void hub.toggleAgent(agent.id);
-                            textarea.current?.focus();
-                          }}
-                        >
-                          <AgentIcon
-                            id={agent.id}
-                            className="size-4 bg-transparent! [&_svg]:size-4"
-                          />
-                          <span>{starters[agent.id] ?? agent.name}</span>
-                        </Button>
-                      ))}
-                  </div>
-                )}
-                <div className="turn-actions">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="turn-action"
-                        aria-label="Sao chép câu trả lời"
-                        onClick={() => void copy("greeting", GREETING_TEXT)}
-                      >
-                        {copied === "greeting" ? <Check /> : <Copy />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {copied === "greeting" ? "Đã sao chép" : "Sao chép"}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </article>
+              <WelcomeGreeting
+                key={hub.sessionKey}
+                hub={hub}
+                blocked={blocked}
+                textarea={textarea}
+                copied={copied}
+                copy={copy}
+              />
             )
           ) : (
             <>
