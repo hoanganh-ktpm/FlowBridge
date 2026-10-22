@@ -32,7 +32,7 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 
 | Thành phần | Vai trò | Trạng thái |
 |---|---|---|
-| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Đã tổ chức module; API và schema nghiệp vụ đang phát triển |
+| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Manifest onboarding, schema discovery và Hasura planning có unit/contract tests; Core adapters và live integration đang phát triển |
 | Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Đã có Identity adapters và HTTP utilities; các tích hợp còn lại đang phát triển |
 | Business APIs | Đơn hàng, tồn kho và vận chuyển | Khung ứng dụng và migration directories |
 | Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
@@ -134,6 +134,9 @@ npm run build
 - [Kiến trúc và ranh giới module](docs/ARCHITECTURE.md)
 - [Phát triển song song và tiêu chí bàn giao](docs/DEVELOPMENT.md)
 - [Quản lý nội dung repository](docs/REPOSITORY.md)
+- [Hasura Integration và hướng dẫn phát triển không Docker](backend/app/core/hasura_provisioner/README.md)
+- [Declarative onboarding: JSON → Core Contracts → Hasura plan](docs/ONBOARDING.md)
+- [Giấy phép thành phần Hasura Integration](THIRD_PARTY_LICENSES.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
 - [Lịch sử thay đổi](CHANGELOG.md)
 

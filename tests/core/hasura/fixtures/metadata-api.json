@@ -1,0 +1,55 @@
+{
+  "export": {
+    "resource_version": 1,
+    "metadata": {"version": 3, "sources": []}
+  },
+  "add_source": {
+    "type": "pg_add_source",
+    "version": 1,
+    "resource_version": 1,
+    "args": {
+      "name": "warehouse",
+      "configuration": {
+        "connection_info": {
+          "database_url": {"from_env": "WAREHOUSE_READ_DATABASE_URL"},
+          "use_prepared_statements": false,
+          "isolation_level": "read-committed",
+          "pool_settings": {"max_connections": 5}
+        }
+      },
+      "customization": {
+        "root_fields": {"namespace": "warehouse"},
+        "type_names": {"prefix": "warehouse_"}
+      },
+      "replace_configuration": false
+    }
+  },
+  "track_table": {
+    "type": "pg_track_table",
+    "version": 1,
+    "resource_version": 2,
+    "args": {
+      "source": "warehouse",
+      "table": {"schema": "public", "name": "stock_available"}
+    }
+  },
+  "create_select": {
+    "type": "pg_create_select_permission",
+    "version": 1,
+    "resource_version": 3,
+    "args": {
+      "source": "warehouse",
+      "table": {"schema": "public", "name": "stock_available"},
+      "role": "dxos_department_00000000000000000000000000000004",
+      "permission": {
+        "columns": ["available_quantity", "sku"],
+        "filter": {},
+        "limit": 1000,
+        "allow_aggregations": false,
+        "query_root_fields": ["select"],
+        "subscription_root_fields": []
+      },
+      "comment": "flowbridge:select:v1"
+    }
+  }
+}

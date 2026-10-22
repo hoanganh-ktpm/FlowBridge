@@ -5,6 +5,7 @@ Hợp đồng chung là điểm nối các khối. Nhóm thống nhất contract
 - identity-context.schema.json: shape VerifiedIdentity sau xác thực, tương ứng adapter Platform hiện có. Đây là dữ liệu nội bộ tin cậy, không phải JSON client tự khai để nhận quyền.
 - portal/schemas/: JSON presentation/event schema được giữ cho UI; không đại diện API registry/domain mới.
 - fixtures/: dữ liệu tổng hợp dùng chung khi chốt Business APIs, data operation và grant model.
+- onboarding/: Application Manifest v1 JSON Schema, Warehouse/cross-source examples và offline schema fixture. Đây là declarative input, không phải HTTP/OpenAPI contract; xem [Onboarding](../docs/ONBOARDING.md).
 
 OpenAPI Domain/Core sẽ được thêm khi endpoint và DTO được thống nhất; không tạo OpenAPI rỗng rồi coi là API đã hoàn thiện. Những nội dung cần chốt: order_id/sku/status/errors/idempotency; Data Product/Grant; operation_ref/variables; danh tính human/service và actor workflow.
 

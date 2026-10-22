@@ -22,4 +22,4 @@ uv run --locked ruff check backend tests
 uv build --no-build-isolation
 ```
 
-Identity adapters và HTTP utilities đã có implementation. Chưa có app server entrypoint hoặc Core/Domain API runtime hoàn chỉnh. Khi phát triển endpoint mới, thêm composition/lifecycle tại app boundary và giữ logic trong module sở hữu.
+Identity adapters, HTTP utilities và [Hasura Client/services](app/core/hasura_provisioner/README.md) đã có implementation kiểm thử bằng mock. Chưa có app server entrypoint, Core DB adapters hoặc Core/Domain API runtime hoàn chỉnh. Khi phát triển endpoint mới, thêm composition/lifecycle tại app boundary và giữ logic trong module sở hữu.

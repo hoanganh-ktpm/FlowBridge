@@ -1,0 +1,19 @@
+{
+  "manifest_version": "1.0",
+  "application": {"key": "sales", "name": "Sales Management", "department_key": "sales"},
+  "sources": [{
+    "key": "sales-pg", "kind": "postgres", "host": "sales.example.invalid",
+    "database": "sales_db", "username": "dxos_reader", "secret_ref": "sales-reader"
+  }],
+  "data_products": [{
+    "key": "order_lines", "source_key": "sales-pg", "name": "Order Lines",
+    "object": {"schema": "public", "name": "order_lines", "kind": "table"},
+    "fields": [{"column": "order_id", "expected_type": "uuid"}, {"column": "sku", "expected_type": "text"}],
+    "requested_state": "PUBLISH_REQUESTED",
+    "relationships": [{
+      "name": "product", "type": "object", "target_product": "warehouse.product_catalog",
+      "strategy": "remote", "mapping": [{"from": "sku", "to": "sku"}],
+      "uniqueness_ref": "warehouse/catalog-sku-unique"
+    }]
+  }]
+}

@@ -1,0 +1,41 @@
+{
+  "source": {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "hasura_source_name": "warehouse",
+    "secret_ref": "warehouse-reader",
+    "db_type": "POSTGRESQL",
+    "host": "warehouse.example.invalid",
+    "port": 5432,
+    "database_name": "warehouse",
+    "db_user": "reader",
+    "ssl_mode": "require",
+    "status": "CONNECTED",
+    "approved": true,
+    "revision": 1
+  },
+  "product": {
+    "id": "00000000-0000-0000-0000-000000000002",
+    "data_source_id": "00000000-0000-0000-0000-000000000001",
+    "active_contract_id": "00000000-0000-0000-0000-000000000003",
+    "table": {"schema": "public", "name": "stock_available"},
+    "status": "ACTIVE",
+    "approved": true,
+    "revision": 1
+  },
+  "grant": {
+    "id": "00000000-0000-0000-0000-000000000005",
+    "data_product_id": "00000000-0000-0000-0000-000000000002",
+    "contract_version_id": "00000000-0000-0000-0000-000000000003",
+    "consumer_department_id": "00000000-0000-0000-0000-000000000004",
+    "consumer_principal_id": null,
+    "scope_json": {
+      "action": "SELECT",
+      "columns": ["sku", "available_quantity"],
+      "row_scope": {"kind": "ALL"}
+    },
+    "status": "PENDING_APPLY",
+    "approved": true,
+    "desired_revision": 3,
+    "applied_revision": 2
+  }
+}
