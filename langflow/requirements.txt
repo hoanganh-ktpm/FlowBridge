@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
-# FlowBridge; redistribution/modification under GNU GPL v3 or later.
-# Provided without warranty. See LICENSE.
-# Langflow upstream is MIT: https://github.com/langflow-ai/langflow
-langflow==1.12.6

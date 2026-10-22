@@ -1,126 +1,142 @@
-# FlowBridge
+<p align="center">
+  <img src="portal/public/logo-flowbridge.png" alt="FlowBridge" width="112">
+</p>
 
-Trợ lý AI hỗ trợ mua hàng và đánh giá nhà cung cấp, kết hợp dữ liệu nghiệp vụ,
-Langflow, mô hình dự đoán rủi ro và truy hồi tài liệu RAG. Dự án sử dụng kiến trúc
-Open-Core/DX-OS, phát triển cho OLP 2026.
+<h1 align="center">FlowBridge</h1>
 
-**Bắt đầu với [Hướng dẫn chạy](HUONG-DAN-CHAY.md)** để chuẩn bị môi trường và chạy
-Keycloak, backend, Langflow và giao diện trong cùng stack Docker. Người dùng đăng
-nhập SSO trên giao diện rồi sử dụng nghiệp vụ và chat.
+<p align="center">
+  <strong>DX-OS Open-Core Platform</strong><br>
+  Nền tảng tích hợp dữ liệu và điều phối nghiệp vụ cho các ứng dụng doanh nghiệp.
+</p>
 
-## Chức năng
+<p align="center">
+  Data Governance · AI Agent Tools · BPMN Workflows
+</p>
 
-| Thành phần | Khả năng hiện có |
-|---|---|
-| Mua hàng | API PostgreSQL/Supabase quản lý NCC, sản phẩm, báo giá, PR, proposal, PO, giao nhận và xác nhận đơn theo contract v0.4.1. |
-| Giao diện | `web/`: Agent Hub với shadcn/ui, SSO, chat bất đồng bộ, bảng/biểu đồ và Activities. `clients/sso/` giữ giao diện nghiệp vụ và quản lý tài liệu hiện có. |
-| Identity/SSO | Keycloak OIDC/PKCE; kiểm access token qua introspection, kiểm user/grant/quyền tài nguyên tại backend. |
-| Chat | Lưu lịch sử, kiểm quyền và idempotency, truyền caller theo request tới Langflow ver2. |
-| Agent Hub | API hội thoại/run bất đồng bộ, bảng/biểu đồ, history và SSE Activities; bật qua cấu hình riêng. |
-| ML | TabICLv2 chấm kịch bản, xếp hạng NCC và lưu/đọc rủi ro PO; cần checkpoint và context. |
-| RAG | Markdown PostgreSQL, Qwen3 embedding, pgvector + BM25/RRF; phiên bản và hàng đợi đồng bộ tài liệu. |
-| Gateway | APISIX standalone cho hai API Identity core; API mua hàng/chat hiện dùng backend trực tiếp. |
+<p align="center">
+  <a href="LICENSE">GPL-3.0-or-later</a> ·
+  <a href="docs/ARCHITECTURE.md">Kiến trúc</a> ·
+  <a href="docs/DEVELOPMENT.md">Phát triển</a> ·
+  <a href="CONTRIBUTING.md">Đóng góp</a>
+</p>
 
-Nhân viên truy cập PR theo quyền của mình. ADMIN không tự có EMPLOYEE/APPROVER.
-AI cung cấp dữ liệu và đề xuất; người có thẩm quyền quyết định phê duyệt.
-Thiếu dữ liệu hoặc lỗi công cụ phải được thể hiện trong kết quả.
+## Tổng quan
 
-## Kiến trúc
+FlowBridge hướng tới một nền tảng dùng chung để đăng ký ứng dụng, công bố dữ liệu có quản trị và phối hợp quy trình giữa các phòng ban. Dữ liệu nghiệp vụ được giữ tại ứng dụng sở hữu; nền tảng quản lý metadata, hợp đồng dữ liệu, quyền truy cập và các năng lực tích hợp.
+
+Sales, Warehouse và Logistics là ba ứng dụng mẫu cho quy trình Order Fulfillment. Agent và Workflow sử dụng các giao diện được cấp quyền để khai thác dữ liệu và thực hiện hành động nghiệp vụ.
+
+## Phạm vi và trạng thái
+
+Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các module được tách theo trách nhiệm để phát triển và kiểm thử độc lập.
+
+| Thành phần | Vai trò | Trạng thái |
+|---|---|---|
+| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Đã tổ chức module; API và schema nghiệp vụ đang phát triển |
+| Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Đã có Identity adapters và HTTP utilities; các tích hợp còn lại đang phát triển |
+| Business APIs | Đơn hàng, tồn kho và vận chuyển | Khung ứng dụng và migration directories |
+| Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
+| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | Có template Keycloak và cấu hình APISIX nền; chưa có stack tích hợp hoàn chỉnh |
+
+Chưa có backend server entrypoint, baseline database hoặc quy trình BPMN tích hợp hoàn chỉnh cho kiến trúc mới. Kiểm thử adapter bằng mock và preview UI không thay thế kiểm thử E2E với engine thật.
+
+## Kiến trúc định hướng
 
 ```mermaid
 flowchart LR
-    UI[React client] -->|Đăng nhập PKCE| IAM[Keycloak]
-    UI -->|Access token| API[FastAPI backend]
-    API -->|Introspection| IAM
-    API --> DB[(PostgreSQL / Supabase)]
-    API -->|Caller theo request| LF[Langflow ver2]
-    LF -->|Data / ML / RAG tools| API
-    API --> ML[TabICLv2]
-    API --> RAG[Qwen3 + pgvector + BM25]
-    RAG --> DB
-    GW[APISIX: Identity core] --> API
+    User[Người dùng] --> Portal[Portal]
+    Portal --> IAM[Keycloak]
+    Portal --> Gateway[APISIX]
+    Gateway --> Backend[Core & Platform APIs]
+    Backend --> Metadata[(Core Metadata)]
+    Backend --> Hasura[Hasura]
+    Backend --> Flowable[Flowable]
+    Hasura --> DomainDB[(Business Databases)]
+    Flowable --> APIs[Sales · Warehouse · Logistics APIs]
+    APIs --> DomainDB
 ```
 
-Backend tổ chức theo `router → service/policy → repository/adapter`. Request dùng
-session riêng; thao tác ghi/outbox dùng transaction. Identity sở hữu adapter user/grant
-dùng chung schema, độc lập với service mua hàng. [Contracts](contracts/README.md)
-giữ OpenAPI, JSON Schema và quy tắc đồng bộ.
-
-Chat đi qua SSO và API chuẩn; browser không giữ API key Langflow. RAG dùng service
-token AI_SERVICE và analysis task hợp lệ của PR. Kho tài liệu giữ phiên bản theo
-cutoff để truy vết nguồn; model không tự quyết định quyền truy cập.
-
-## Chạy hệ thống
-
-Sau khi chuẩn bị DB, flow Langflow, credential và model theo
-[hướng dẫn chạy](HUONG-DAN-CHAY.md):
-
-```powershell
-.\chat-docker.cmd doctor
-.\chat-docker.cmd up
-.\chat-docker.cmd status
-```
-
-Mở [FlowBridge](http://127.0.0.1:8761/), đăng nhập bằng user đã được liên kết/cấp
-quyền trong DB. ML/RAG bật mặc định và yêu cầu đủ artifact, cấu hình; launcher kiểm
-DB head và readiness, không tự seed hoặc tải weights. Dùng `--no-ml --no-rag` để tắt.
+Core quản lý dữ liệu được chia sẻ và quyền khai thác. Business APIs sở hữu thay đổi nghiệp vụ và transaction. Flowable điều phối quy trình; mỗi receiver chịu trách nhiệm xác thực và kiểm quyền phù hợp. Chi tiết tại [tài liệu kiến trúc](docs/ARCHITECTURE.md).
 
 ## Cấu trúc repository
 
 ```text
-backend/flowbridge/   Backend, Identity, API nghiệp vụ, ML/RAG và chat
-clients/sso/         React client và browser tests
-web/                 Agent Hub web với shadcn/ui, OIDC/PKCE và SSE
-langflow/            Runtime, component và flow agent
-contracts/           OpenAPI, JSON Schema và provenance
-alembic/             Migration và SQL
-infra/               Compose, IAM, gateway và image manifests
-scripts/             Công cụ vận hành, bootstrap, seed và đồng bộ contract
-tests/               Unit, SQL integration và E2E
-examples/            Fixture RAG và context ML mẫu
-docs/                Hướng dẫn kỹ thuật theo thành phần
+FlowBridge/
+├── backend/app/
+│   ├── core/                   Registry, Data Products, Governance, Agents, Core DB
+│   └── platform/               Identity, Gateway, Workflow, Audit, HTTP
+├── services/
+│   ├── sales-api/              app/ và migrations/
+│   ├── warehouse-api/          app/ và migrations/
+│   └── logistics-api/          app/ và migrations/
+├── portal/                     Giao diện và cấu hình frontend
+├── contracts/                  Schema, giao diện chung và fixtures
+├── workflows/                  Quy trình BPMN nghiệp vụ
+├── infra/                      Cấu hình triển khai engine
+├── tests/                      Domain, Core, Platform và E2E
+└── docs/                       Tài liệu kỹ thuật
 ```
 
-## Tài liệu kỹ thuật
+Các thư mục chưa có implementation được giữ trong Git bằng file package hoặc `.gitkeep`. Xem [Backend](backend/README.md), [Business APIs](services/README.md), [Portal](portal/README.md) và [Infrastructure](infra/README.md).
 
-| Chủ đề | Tài liệu |
+## Công nghệ
+
+| Phạm vi | Công nghệ |
 |---|---|
-| Cài đặt, khởi động, tài khoản, xử lý lỗi, E2E | [Hướng dẫn chạy](HUONG-DAN-CHAY.md) |
-| Xác thực và cấp quyền | [SSO](docs/SSO.md), [Identity core](docs/IDENTITY-CORE.md) |
-| Database và API | [API PostgreSQL/Supabase](docs/SUPABASE-API.md), [Migration](alembic/README.md) |
-| Chat và agent | [Backend ↔ Langflow](docs/LANGFLOW-SSO.md), [Langflow](langflow/README.md), [Agent Hub](docs/AGENT-HUB.md) |
-| Model và tài liệu | [ML](docs/ML-SERVICE.md), [RAG](docs/RAG.md) |
-| Giao diện | [Agent Hub Web](web/README.md), [Client nghiệp vụ](clients/sso/README.md) |
-| Hạ tầng | [Gateway](docs/GATEWAY.md), [Container phát triển](docs/DEV-CONTAINERS.md) |
+| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui |
+| Identity và Gateway | Keycloak, OIDC/PKCE, Apache APISIX |
+| Data và Workflow | PostgreSQL, Hasura, Flowable BPMN |
+| Kiểm thử | pytest, Ruff, Vitest, Playwright |
 
-## Phát triển và kiểm tra
+Dependency Python được khóa tại `pyproject.toml` và `uv.lock`; dependency frontend tại `portal/package.json` và `portal/package-lock.json`.
 
-Toolchain: Python 3.12, uv; Node >=20 cho client. Dependency khóa trong `uv.lock`,
-`clients/sso/package-lock.json` và lockfile Langflow.
+## Phát triển từ mã nguồn
 
-```powershell
+Yêu cầu: Python 3.12, uv 0.13.1, Node.js >=22.12 và npm.
+
+```sh
+git clone https://github.com/hoanganh-ktpm/FlowBridge.git
+cd FlowBridge
 uv sync --locked --group dev --group build
-uv run --locked ruff check backend scripts tests langflow
-uv run --locked pytest tests/unit -q
+```
+
+Các lệnh sau chạy từ gốc repository:
+
+```sh
+uv run --locked pytest tests/platform -q
+uv run --locked ruff check backend tests
 uv build --no-build-isolation
 ```
 
-Unit dùng mock/fixture để kiểm regression. Kiểm tra hệ thống dùng browser, Keycloak,
-PostgreSQL và Langflow thật theo [quy trình E2E](HUONG-DAN-CHAY.md#kiểm-thử-hệ-thống).
-Ứng dụng được sử dụng qua stack đầy đủ; các lớp test vẫn được giữ để phát hiện lỗi.
+Chạy Portal trong terminal riêng:
 
-## Giới hạn hiện tại
+```sh
+cd portal
+npm ci
+npm run dev
+```
 
-Workflow phê duyệt, worker phát hành PO/email và object storage chưa kết nối đầy đủ.
-Agent Hub có API và giao diện riêng trong `web/`; bật bằng `web/start.ps1`. ML/RAG cần dữ liệu, artifact
-và quyền tương ứng; chưa có đánh giá chất lượng/hiệu chuẩn trên dữ liệu sản xuất.
-Profile local chưa phải cấu hình triển khai production.
+Portal development tại `http://127.0.0.1:5174`; chế độ preview tại `http://127.0.0.1:5174/?preview=1`. Preview sử dụng dữ liệu tổng hợp. Đăng nhập và API thật cần deployment tương thích; xem [Portal README](portal/README.md).
 
-## Đóng góp và giấy phép
+Kiểm tra frontend:
 
-Giữ ranh giới module, bổ sung kiểm thử phù hợp và chạy lint/test trước khi gửi PR.
-Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
+```sh
+cd portal
+npm test
+npm run build
+```
 
-Mã và cấu hình của nhóm: **GPL-3.0-or-later**, xem [LICENSE](LICENSE). Dependency
-giữ giấy phép/notice upstream; dữ liệu, dataset và weights có điều kiện sử dụng riêng.
-Không commit `.env`, credential, cache, volume hoặc weights.
+`.env.example` chỉ chứa tên cấu hình và giá trị mẫu. Tạo `.env` cục bộ khi tích hợp Identity vào ứng dụng; không đưa credential vào source.
+
+## Tài liệu
+
+- [Kiến trúc và ranh giới module](docs/ARCHITECTURE.md)
+- [Phát triển song song và tiêu chí bàn giao](docs/DEVELOPMENT.md)
+- [Quản lý nội dung repository](docs/REPOSITORY.md)
+- [Hướng dẫn đóng góp](CONTRIBUTING.md)
+- [Lịch sử thay đổi](CHANGELOG.md)
+
+## Giấy phép
+
+Mã nguồn và cấu hình do dự án phát triển được cấp phép theo **GPL-3.0-or-later**, xem [LICENSE](LICENSE). Các thành phần bên thứ ba giữ giấy phép và attribution riêng, bao gồm [thành phần giao diện](portal/THIRD-PARTY-NOTICES.md). Dữ liệu, tài liệu và model bên ngoài có điều kiện sử dụng riêng.
