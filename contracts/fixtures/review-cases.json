@@ -1,0 +1,1824 @@
+{
+  "description": "Synthetic review examples only; valid means JSON Schema validity, not authorization or runtime success.",
+  "cases": [
+    {
+      "name": "create-sales-department",
+      "schema": "../core-api.openapi.yaml#/components/schemas/DepartmentCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "code": "sales",
+        "name": "Sales"
+      }
+    },
+    {
+      "name": "register-warehouse-application",
+      "schema": "../core-api.openapi.yaml#/components/schemas/ApplicationCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "department_id": "5c7adfd9-9e2e-507c-af01-b7aba017c3c3",
+        "app_key": "warehouse_app",
+        "name": "Warehouse demo",
+        "business_api_base_url": "https://warehouse.example.test"
+      }
+    },
+    {
+      "name": "register-warehouse-source",
+      "schema": "../core-api.openapi.yaml#/components/schemas/SourceCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "source_key": "warehouse_pg",
+        "db_type": "POSTGRESQL",
+        "host": "warehouse-db.example.test",
+        "port": 5432,
+        "database_name": "warehouse_demo",
+        "db_user": "warehouse_reader",
+        "secret_ref": "secrets/demo/warehouse-reader",
+        "ssl_mode": "verify-full",
+        "hasura_source_name": "warehouse_pg"
+      }
+    },
+    {
+      "name": "source-connected-redacted",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Source",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "8a5a83ec-7f8e-5888-aa17-e8997d37c9e6",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "created_by": "9f73cdc6-ab47-57cc-b782-06c711a4671b",
+        "updated_by": "9f73cdc6-ab47-57cc-b782-06c711a4671b",
+        "revision": 2,
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "source_key": "warehouse_pg",
+        "db_type": "POSTGRESQL",
+        "hasura_source_name": "warehouse_pg",
+        "status": "CONNECTED",
+        "last_checked_at": "2026-10-22T15:00:00Z"
+      }
+    },
+    {
+      "name": "source-password-leak-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Source",
+      "valid": false,
+      "purpose": "Read DTO rejects any credential field.",
+      "payload": {
+        "id": "8a5a83ec-7f8e-5888-aa17-e8997d37c9e6",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "created_by": "9f73cdc6-ab47-57cc-b782-06c711a4671b",
+        "updated_by": "9f73cdc6-ab47-57cc-b782-06c711a4671b",
+        "revision": 2,
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "source_key": "warehouse_pg",
+        "db_type": "POSTGRESQL",
+        "hasura_source_name": "warehouse_pg",
+        "status": "CONNECTED",
+        "last_checked_at": "2026-10-22T15:00:00Z",
+        "password": "SYNTHETIC_NOT_A_CREDENTIAL"
+      }
+    },
+    {
+      "name": "source-secret-ref-leak-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Source",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "id": "8a5a83ec-7f8e-5888-aa17-e8997d37c9e6",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "created_by": "9f73cdc6-ab47-57cc-b782-06c711a4671b",
+        "updated_by": "9f73cdc6-ab47-57cc-b782-06c711a4671b",
+        "revision": 2,
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "source_key": "warehouse_pg",
+        "db_type": "POSTGRESQL",
+        "hasura_source_name": "warehouse_pg",
+        "status": "CONNECTED",
+        "last_checked_at": "2026-10-22T15:00:00Z",
+        "secret_ref": "secrets/demo/warehouse-reader"
+      }
+    },
+    {
+      "name": "create-inventory-product",
+      "schema": "../core-api.openapi.yaml#/components/schemas/ProductCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "data_source_id": "8a5a83ec-7f8e-5888-aa17-e8997d37c9e6",
+        "product_key": "warehouse.available_inventory",
+        "name": "Available inventory",
+        "schema_name": "public",
+        "object_name": "stock_available",
+        "object_type": "VIEW",
+        "classification": "INTERNAL"
+      }
+    },
+    {
+      "name": "create-contract-1-0-0",
+      "schema": "../core-api.openapi.yaml#/components/schemas/ContractCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "version": "1.0.0",
+        "contract_json": {
+          "grain": "one row per sku",
+          "business_key": [
+            "sku"
+          ],
+          "fields": [
+            {
+              "name": "sku",
+              "type": "string",
+              "nullable": false,
+              "description": "Shared SKU business key"
+            },
+            {
+              "name": "available_quantity",
+              "type": "integer",
+              "nullable": false,
+              "description": "Current on_hand minus reserved; not a reservation promise",
+              "minimum": 0
+            }
+          ],
+          "classification": "INTERNAL"
+        }
+      }
+    },
+    {
+      "name": "invalid-contract-version",
+      "schema": "../core-api.openapi.yaml#/components/schemas/ContractCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "version": "latest",
+        "contract_json": {
+          "grain": "one row per sku",
+          "business_key": [
+            "sku"
+          ],
+          "fields": [
+            {
+              "name": "sku",
+              "type": "string",
+              "nullable": false,
+              "description": "Shared SKU business key"
+            },
+            {
+              "name": "available_quantity",
+              "type": "integer",
+              "nullable": false,
+              "description": "Current on_hand minus reserved; not a reservation promise",
+              "minimum": 0
+            }
+          ],
+          "classification": "INTERNAL"
+        }
+      }
+    },
+    {
+      "name": "request-sales-inventory",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AccessRequestCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+        "consumer_principal_id": null,
+        "requested_scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "reason": "Check stock before order fulfillment"
+      }
+    },
+    {
+      "name": "consumer-xor-both-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AccessRequestCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+        "consumer_principal_id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "requested_scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "reason": "Check stock before order fulfillment"
+      }
+    },
+    {
+      "name": "consumer-xor-neither-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AccessRequestCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "consumer_department_id": null,
+        "consumer_principal_id": null,
+        "requested_scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "reason": "Check stock before order fulfillment"
+      }
+    },
+    {
+      "name": "raw-sql-scope-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AccessRequestCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+        "consumer_principal_id": null,
+        "requested_scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "SQL",
+            "expression": "1=1"
+          }
+        },
+        "reason": "Check stock before order fulfillment"
+      }
+    },
+    {
+      "name": "approve-narrow-inventory",
+      "schema": "../core-api.openapi.yaml#/components/schemas/ApproveRequest",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "expected_revision": 1,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "expires_at": "2026-10-29T15:00:00Z",
+        "decision_note": "Approved demo use"
+      }
+    },
+    {
+      "name": "grant-pending-not-readable",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Grant",
+      "valid": true,
+      "purpose": "Valid schema does not prove read authorization; applied revision is still zero.",
+      "payload": {
+        "id": "a432c0d2-9232-5445-ad77-7edf7e6eca3a",
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "access_request_id": "5079a6b3-5594-5b67-b802-0cd926f9e0d7",
+        "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+        "consumer_principal_id": null,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "desired_revision": 1,
+        "applied_revision": 0,
+        "status": "PENDING_APPLY",
+        "expires_at": "2026-10-29T15:00:00Z",
+        "granted_by": "5c6fdebc-b9c2-5304-b928-d8433dda8ec1",
+        "granted_at": "2026-10-22T15:00:00Z",
+        "revoked_by": null,
+        "revoked_at": null,
+        "updated_at": "2026-10-22T15:00:00Z"
+      }
+    },
+    {
+      "name": "grant-active",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Grant",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "a432c0d2-9232-5445-ad77-7edf7e6eca3a",
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "access_request_id": "5079a6b3-5594-5b67-b802-0cd926f9e0d7",
+        "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+        "consumer_principal_id": null,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "desired_revision": 1,
+        "applied_revision": 1,
+        "status": "ACTIVE",
+        "expires_at": "2026-10-29T15:00:00Z",
+        "granted_by": "5c6fdebc-b9c2-5304-b928-d8433dda8ec1",
+        "granted_at": "2026-10-22T15:00:00Z",
+        "revoked_by": null,
+        "revoked_at": null,
+        "updated_at": "2026-10-22T15:00:00Z"
+      }
+    },
+    {
+      "name": "grant-revoking",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Grant",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "a432c0d2-9232-5445-ad77-7edf7e6eca3a",
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "access_request_id": "5079a6b3-5594-5b67-b802-0cd926f9e0d7",
+        "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+        "consumer_principal_id": null,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "desired_revision": 2,
+        "applied_revision": 1,
+        "status": "REVOKING",
+        "expires_at": "2026-10-29T15:00:00Z",
+        "granted_by": "5c6fdebc-b9c2-5304-b928-d8433dda8ec1",
+        "granted_at": "2026-10-22T15:00:00Z",
+        "revoked_by": "5c6fdebc-b9c2-5304-b928-d8433dda8ec1",
+        "revoked_at": null,
+        "updated_at": "2026-10-22T15:00:00Z"
+      }
+    },
+    {
+      "name": "revoke-grant",
+      "schema": "../core-api.openapi.yaml#/components/schemas/RevokeGrant",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "expected_desired_revision": 1,
+        "reason": "Demo permission no longer needed"
+      }
+    },
+    {
+      "name": "forged-applied-revision-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/RevokeGrant",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "expected_desired_revision": 1,
+        "reason": "forged",
+        "applied_revision": 2
+      }
+    },
+    {
+      "name": "apply-job-queued",
+      "schema": "../core-api.openapi.yaml#/components/schemas/PublicationJob",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "07173799-4ebb-580b-80f7-7ba0b20116c1",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "job_type": "APPLY_GRANT",
+        "data_source_id": null,
+        "data_product_id": null,
+        "access_grant_id": "a432c0d2-9232-5445-ad77-7edf7e6eca3a",
+        "target_revision": 1,
+        "status": "QUEUED",
+        "attempt_count": 0,
+        "max_attempts": 5,
+        "next_attempt_at": "2026-10-22T15:00:00Z",
+        "last_error_code": null,
+        "last_error_message": null
+      }
+    },
+    {
+      "name": "job-wrong-target-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/PublicationJob",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "id": "07173799-4ebb-580b-80f7-7ba0b20116c1",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "job_type": "APPLY_GRANT",
+        "data_source_id": null,
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "access_grant_id": "a432c0d2-9232-5445-ad77-7edf7e6eca3a",
+        "target_revision": 1,
+        "status": "QUEUED",
+        "attempt_count": 0,
+        "max_attempts": 5,
+        "next_attempt_at": "2026-10-22T15:00:00Z",
+        "last_error_code": null,
+        "last_error_message": null
+      }
+    },
+    {
+      "name": "approve-202-response",
+      "schema": "../core-api.openapi.yaml#/components/schemas/ApproveAccepted",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "access_request": {
+          "id": "5079a6b3-5594-5b67-b802-0cd926f9e0d7",
+          "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+          "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+          "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+          "consumer_principal_id": null,
+          "requested_scope_json": {
+            "action": "SELECT",
+            "columns": [
+              "sku",
+              "available_quantity"
+            ],
+            "row_scope": {
+              "kind": "ALL"
+            }
+          },
+          "reason": "Check stock before order fulfillment",
+          "requested_by": "0697dc26-7955-509d-837f-b9872a262991",
+          "status": "APPROVED",
+          "requested_at": "2026-10-22T15:00:00Z",
+          "decided_by": "5c6fdebc-b9c2-5304-b928-d8433dda8ec1",
+          "decided_at": "2026-10-22T15:00:00Z",
+          "decision_note": "Approved demo use",
+          "revision": 2
+        },
+        "grant": {
+          "id": "a432c0d2-9232-5445-ad77-7edf7e6eca3a",
+          "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+          "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+          "access_request_id": "5079a6b3-5594-5b67-b802-0cd926f9e0d7",
+          "consumer_department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+          "consumer_principal_id": null,
+          "scope_json": {
+            "action": "SELECT",
+            "columns": [
+              "sku",
+              "available_quantity"
+            ],
+            "row_scope": {
+              "kind": "ALL"
+            }
+          },
+          "desired_revision": 1,
+          "applied_revision": 0,
+          "status": "PENDING_APPLY",
+          "expires_at": "2026-10-29T15:00:00Z",
+          "granted_by": "5c6fdebc-b9c2-5304-b928-d8433dda8ec1",
+          "granted_at": "2026-10-22T15:00:00Z",
+          "revoked_by": null,
+          "revoked_at": null,
+          "updated_at": "2026-10-22T15:00:00Z"
+        },
+        "job_id": "07173799-4ebb-580b-80f7-7ba0b20116c1",
+        "job_url": "/api/v1/core/publication-jobs/07173799-4ebb-580b-80f7-7ba0b20116c1"
+      }
+    },
+    {
+      "name": "resolved-human-context",
+      "schema": "../resolved-identity-context.schema.json",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "verified_identity": {
+          "issuer": "https://iam.example.test/realms/demo",
+          "subject": "demo-sales-user",
+          "client_id": "portal-demo",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": [
+          {
+            "department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+            "membership_role": "STAFF",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "ACTIVE"
+          }
+        ]
+      }
+    },
+    {
+      "name": "human-app-binding-invalid",
+      "schema": "../resolved-identity-context.schema.json",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "verified_identity": {
+          "issuer": "https://iam.example.test/realms/demo",
+          "subject": "demo-sales-user",
+          "client_id": "portal-demo",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": "0c2cabb9-8a07-504c-8a99-9e217cd9c429",
+        "memberships": [
+          {
+            "department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+            "membership_role": "STAFF",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "ACTIVE"
+          }
+        ]
+      }
+    },
+    {
+      "name": "forged-role-field-invalid",
+      "schema": "../resolved-identity-context.schema.json",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "verified_identity": {
+          "issuer": "https://iam.example.test/realms/demo",
+          "subject": "demo-sales-user",
+          "client_id": "portal-demo",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": [
+          {
+            "department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+            "membership_role": "STAFF",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "ACTIVE"
+          }
+        ],
+        "role": "PLATFORM_ADMIN"
+      }
+    },
+    {
+      "name": "resolved-workflow-service",
+      "schema": "../resolved-identity-context.schema.json",
+      "valid": true,
+      "purpose": "Identity alone is not authorization to any business order.",
+      "payload": {
+        "verified_identity": {
+          "issuer": "https://iam.example.test/realms/demo",
+          "subject": "demo-workflow-service",
+          "client_id": "workflow-demo",
+          "account_type": "service",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "90ae8f6b-196f-5474-8448-c8de6030a691",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": []
+      }
+    },
+    {
+      "name": "create-demo-order",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/OrderCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "order_code": "ORDER-DEMO-001",
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 60
+          }
+        ]
+      }
+    },
+    {
+      "name": "reserve-demo-stock",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/ReservationCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 60
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-quantity-invalid",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/ReservationCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "fractional-quantity-invalid",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/ReservationCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 1.5
+          }
+        ]
+      }
+    },
+    {
+      "name": "forged-domain-actor-invalid",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/ReservationCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 60
+          }
+        ],
+        "actor_principal_id": "9f73cdc6-ab47-57cc-b782-06c711a4671b"
+      }
+    },
+    {
+      "name": "reserve-response",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/Reservation",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "0e8b7247-d6d3-5ce6-ac99-92e3e264fe02",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "revision": 1,
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 60
+          }
+        ],
+        "status": "RESERVED",
+        "packed_at": null,
+        "handed_over_at": null,
+        "shipment_id": null
+      }
+    },
+    {
+      "name": "create-demo-shipment",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/ShipmentCreate",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "reservation_id": "0e8b7247-d6d3-5ce6-ac99-92e3e264fe02"
+      }
+    },
+    {
+      "name": "handover-demo-reservation",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/Handover",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "expected_revision": 2,
+        "shipment_id": "064f2897-e6cf-56fe-b223-cfabb59616d3"
+      }
+    },
+    {
+      "name": "cancel-draft-order",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/OrderCancel",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "expected_revision": 1,
+        "reason": "Demo cancellation",
+        "reservation_id": null
+      }
+    },
+    {
+      "name": "execute-stock-lookup",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/ExecuteOperation",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "operation_ref": {
+          "operation_key": "warehouse.stock_lookup",
+          "version": 1
+        },
+        "variables": {
+          "sku": "SP001"
+        }
+      }
+    },
+    {
+      "name": "arbitrary-url-invalid",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/ExecuteOperation",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "operation_ref": {
+          "operation_key": "warehouse.stock_lookup",
+          "version": 1
+        },
+        "variables": {
+          "sku": "SP001"
+        },
+        "url": "https://unapproved.example.test"
+      }
+    },
+    {
+      "name": "forged-execute-context-invalid",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/ExecuteOperation",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "operation_ref": {
+          "operation_key": "warehouse.stock_lookup",
+          "version": 1
+        },
+        "variables": {
+          "sku": "SP001"
+        },
+        "context": {
+          "principal_id": "9f73cdc6-ab47-57cc-b782-06c711a4671b"
+        }
+      }
+    },
+    {
+      "name": "stock-lookup-result",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/OperationResult",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "operation_ref": {
+          "operation_key": "warehouse.stock_lookup",
+          "version": 1
+        },
+        "request_id": "demo-stock-lookup-001",
+        "result": {
+          "items": [
+            {
+              "sku": "SP001",
+              "available_quantity": 40
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "start-order-fulfillment",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/WorkflowStart",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "application_id": "0c2cabb9-8a07-504c-8a99-9e217cd9c429",
+        "workflow_key": "order-fulfillment",
+        "business_key": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "run_number": 1
+      }
+    },
+    {
+      "name": "caller-chosen-engine-invalid",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/WorkflowStart",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "application_id": "0c2cabb9-8a07-504c-8a99-9e217cd9c429",
+        "workflow_key": "order-fulfillment",
+        "business_key": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "run_number": 1,
+        "engine_ref": "unapproved"
+      }
+    },
+    {
+      "name": "workflow-pending-start",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/WorkflowLink",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "baa65bed-e1a0-55cb-b8f1-85f6b0b62615",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "application_id": "0c2cabb9-8a07-504c-8a99-9e217cd9c429",
+        "engine_ref": "demo-engine-adapter",
+        "workflow_key": "order-fulfillment",
+        "external_definition_ref": null,
+        "business_key": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "run_number": 1,
+        "external_run_id": null,
+        "started_by": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "execution_principal_id": "90ae8f6b-196f-5474-8448-c8de6030a691",
+        "link_status": "PENDING_START"
+      }
+    },
+    {
+      "name": "register-stock-lookup-operation",
+      "schema": "../core-api.openapi.yaml#/components/schemas/OperationCreate",
+      "valid": true,
+      "purpose": "GraphQL names illustrative only; provisioner must verify actual schema and query aliases the root to items; executor returns validated data only.",
+      "payload": {
+        "operation_key": "warehouse.stock_lookup",
+        "version": 1,
+        "operation_type": "HASURA_QUERY",
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "application_id": null,
+        "query_text": "query Stock($sku: String!) { items: stock_available(where: {sku: {_eq: $sku}}) { sku available_quantity } }",
+        "request_config_json": null,
+        "input_schema_json": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sku"
+          ],
+          "properties": {
+            "sku": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "output_schema_json": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sku",
+                  "available_quantity"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "available_quantity": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "operation-mixed-targets-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/OperationCreate",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "operation_key": "warehouse.stock_lookup",
+        "version": 1,
+        "operation_type": "HASURA_QUERY",
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "query_text": "query Stock($sku: String!) { items: stock_available(where: {sku: {_eq: $sku}}) { sku available_quantity } }",
+        "request_config_json": null,
+        "input_schema_json": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sku"
+          ],
+          "properties": {
+            "sku": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "output_schema_json": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sku",
+                  "available_quantity"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "available_quantity": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "insufficient-stock-error",
+      "schema": "../common.openapi.yaml#/components/schemas/Error",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "code": "INVALID_STATE",
+        "message": "Stock is insufficient.",
+        "request_id": "demo-reserve-001",
+        "retryable": false,
+        "details": [
+          {
+            "field": "items.SP001",
+            "reason": "INSUFFICIENT_STOCK"
+          }
+        ]
+      }
+    },
+    {
+      "name": "caller-token-secret-ref-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AuthenticationConfig",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "mode": "CALLER_TOKEN",
+        "secret_ref": "secrets/demo/forbidden"
+      }
+    },
+    {
+      "name": "service-credential-without-ref-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AuthenticationConfig",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "mode": "SERVICE_CREDENTIAL",
+        "secret_ref": null
+      }
+    },
+    {
+      "name": "caller-token-auth",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AuthenticationConfig",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "mode": "CALLER_TOKEN",
+        "secret_ref": null
+      }
+    },
+    {
+      "name": "service-credential-auth",
+      "schema": "../core-api.openapi.yaml#/components/schemas/AuthenticationConfig",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "mode": "SERVICE_CREDENTIAL",
+        "secret_ref": "secrets/demo/workflow"
+      }
+    },
+    {
+      "name": "consumed-without-handover-invalid",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/Reservation",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "id": "0e8b7247-d6d3-5ce6-ac99-92e3e264fe02",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "revision": 1,
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 60
+          }
+        ],
+        "status": "CONSUMED",
+        "packed_at": null,
+        "handed_over_at": null,
+        "shipment_id": null
+      }
+    },
+    {
+      "name": "consumed-reservation",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/Reservation",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "0e8b7247-d6d3-5ce6-ac99-92e3e264fe02",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "revision": 1,
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "items": [
+          {
+            "sku": "SP001",
+            "quantity": 60
+          }
+        ],
+        "status": "CONSUMED",
+        "packed_at": "2026-10-22T15:00:00Z",
+        "handed_over_at": "2026-10-22T15:00:00Z",
+        "shipment_id": "064f2897-e6cf-56fe-b223-cfabb59616d3"
+      }
+    },
+    {
+      "name": "delivered-without-evidence-invalid",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/Shipment",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "id": "064f2897-e6cf-56fe-b223-cfabb59616d3",
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "reservation_id": "0e8b7247-d6d3-5ce6-ac99-92e3e264fe02",
+        "revision": 3,
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "status": "DELIVERED",
+        "picked_up_at": null,
+        "delivered_at": null
+      }
+    },
+    {
+      "name": "delivered-shipment",
+      "schema": "../domain-api.openapi.yaml#/components/schemas/Shipment",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "064f2897-e6cf-56fe-b223-cfabb59616d3",
+        "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+        "reservation_id": "0e8b7247-d6d3-5ce6-ac99-92e3e264fe02",
+        "revision": 3,
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "status": "DELIVERED",
+        "picked_up_at": "2026-10-22T15:00:00Z",
+        "delivered_at": "2026-10-22T15:00:00Z"
+      }
+    },
+    {
+      "name": "disabled-department-context-no-rights",
+      "schema": "../resolved-identity-context.schema.json",
+      "valid": true,
+      "purpose": "Valid resolver output; runtime must deny department-derived rights.",
+      "payload": {
+        "verified_identity": {
+          "issuer": "https://iam.example.test/realms/demo",
+          "subject": "demo-sales-user",
+          "client_id": "portal-demo",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": [
+          {
+            "department_id": "68775ddf-7415-578e-9447-27c1e24305e0",
+            "membership_role": "STAFF",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "DISABLED"
+          }
+        ]
+      }
+    },
+    {
+      "name": "service-context-without-client-invalid",
+      "schema": "../resolved-identity-context.schema.json",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "verified_identity": {
+          "issuer": "https://iam.example.test/realms/demo",
+          "subject": "demo-workflow-service",
+          "client_id": null,
+          "account_type": "service",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "90ae8f6b-196f-5474-8448-c8de6030a691",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": []
+      }
+    },
+    {
+      "name": "human-principal",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Principal",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "created_by": null,
+        "updated_by": null,
+        "revision": 1,
+        "issuer": "https://iam.example.test/realms/demo",
+        "subject": "demo-user",
+        "kind": "human",
+        "display_name": "Demo",
+        "service_client_id": null,
+        "application_id": null,
+        "platform_role": "NONE",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "name": "human-principal-service-binding-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Principal",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "created_by": null,
+        "updated_by": null,
+        "revision": 1,
+        "issuer": "https://iam.example.test/realms/demo",
+        "subject": "demo-user",
+        "kind": "human",
+        "display_name": "Demo",
+        "service_client_id": "fake-service",
+        "application_id": null,
+        "platform_role": "NONE",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "name": "service-principal-without-client-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/Principal",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "id": "a5e88b4a-9bc8-5a12-ae7d-e160be6ca4b6",
+        "created_at": "2026-10-22T15:00:00Z",
+        "updated_at": "2026-10-22T15:00:00Z",
+        "created_by": null,
+        "updated_by": null,
+        "revision": 1,
+        "issuer": "https://iam.example.test/realms/demo",
+        "subject": "demo-user",
+        "kind": "service",
+        "display_name": "Demo",
+        "service_client_id": null,
+        "application_id": null,
+        "platform_role": "NONE",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "name": "business-api-variables",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/BusinessApiVariables",
+      "valid": true,
+      "purpose": "",
+      "payload": {
+        "path": {},
+        "query": {},
+        "body": {
+          "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+          "order_revision": 2,
+          "items": [
+            {
+              "sku": "SP001",
+              "quantity": 60
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "business-api-url-variable-invalid",
+      "schema": "../platform-api.openapi.yaml#/components/schemas/BusinessApiVariables",
+      "valid": false,
+      "purpose": "",
+      "payload": {
+        "path": {},
+        "query": {},
+        "body": {
+          "order_id": "ec495835-0176-527a-a416-53f1adf3ca75",
+          "order_revision": 2,
+          "items": [
+            {
+              "sku": "SP001",
+              "quantity": 60
+            }
+          ]
+        },
+        "url": "https://unapproved.example.test"
+      }
+    },
+    {
+      "name": "governed-data-rows",
+      "schema": "../core-api.openapi.yaml#/components/schemas/DataRows",
+      "valid": true,
+      "purpose": "Dynamic row constraints are additionally checked against projected data contract at runtime.",
+      "payload": {
+        "data_product_id": "8f026507-3ccf-5434-b2bf-4ace45ada5cd",
+        "contract_version_id": "bb0c85bd-d487-5fed-a3da-155cea12f6cf",
+        "columns": [
+          "sku",
+          "available_quantity"
+        ],
+        "rows": [
+          {
+            "sku": "SP001",
+            "available_quantity": 40
+          }
+        ],
+        "limit": 20,
+        "offset": 0,
+        "has_more": false
+      }
+    },
+    {
+      "name": "register-reserve-stock-operation",
+      "schema": "../core-api.openapi.yaml#/components/schemas/OperationCreate",
+      "valid": true,
+      "purpose": "Canonical target operation mapping; schemas are embedded serialized registry metadata for this example.",
+      "payload": {
+        "operation_key": "warehouse.reserve_stock",
+        "version": 1,
+        "operation_type": "BUSINESS_API",
+        "data_product_id": null,
+        "contract_version_id": null,
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "query_text": null,
+        "request_config_json": {
+          "target_operation_id": "reserveStock",
+          "method": "POST",
+          "path": "/api/v1/warehouse/reservations",
+          "timeout_seconds": 30,
+          "authentication": {
+            "mode": "SERVICE_CREDENTIAL",
+            "secret_ref": "secrets/demo/workflow"
+          }
+        },
+        "input_schema_json": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "query",
+            "body"
+          ],
+          "properties": {
+            "path": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "body": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "order_id",
+                "order_revision",
+                "items"
+              ],
+              "properties": {
+                "order_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "order_revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "sku",
+                      "quantity"
+                    ],
+                    "properties": {
+                      "sku": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                      }
+                    }
+                  },
+                  "minItems": 1,
+                  "maxItems": 100
+                }
+              },
+              "description": "All-or-nothing transaction; verify order/lines via trusted Sales boundary. One reservation per order; duplicate order with new key conflicts. Sales order must be SUBMITTED with exact revision/lines; do not reserve from a closed or compensating run."
+            }
+          }
+        },
+        "output_schema_json": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "created_at",
+            "updated_at",
+            "revision",
+            "order_id",
+            "items",
+            "status",
+            "packed_at",
+            "handed_over_at",
+            "shipment_id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "order_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sku",
+                  "quantity"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  }
+                }
+              },
+              "minItems": 1,
+              "maxItems": 100
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "RESERVED",
+                "RELEASED",
+                "CONSUMED"
+              ]
+            },
+            "packed_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "handed_over_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "shipment_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "CONSUMED"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "packed_at": {
+                    "type": "string"
+                  },
+                  "handed_over_at": {
+                    "type": "string"
+                  },
+                  "shipment_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "RESERVED",
+                      "RELEASED"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "handed_over_at": {
+                    "type": "null"
+                  },
+                  "shipment_id": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "business-target-operation-missing-invalid",
+      "schema": "../core-api.openapi.yaml#/components/schemas/OperationCreate",
+      "valid": false,
+      "purpose": "No guessed variable mapping.",
+      "payload": {
+        "operation_key": "warehouse.reserve_stock",
+        "version": 1,
+        "operation_type": "BUSINESS_API",
+        "data_product_id": null,
+        "contract_version_id": null,
+        "application_id": "3b43c78e-e80d-595e-8cb1-f634d88685d0",
+        "query_text": null,
+        "request_config_json": {
+          "method": "POST",
+          "path": "/api/v1/warehouse/reservations",
+          "timeout_seconds": 30,
+          "authentication": {
+            "mode": "SERVICE_CREDENTIAL",
+            "secret_ref": "secrets/demo/workflow"
+          }
+        },
+        "input_schema_json": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "query",
+            "body"
+          ],
+          "properties": {
+            "path": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "body": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "order_id",
+                "order_revision",
+                "items"
+              ],
+              "properties": {
+                "order_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "order_revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "sku",
+                      "quantity"
+                    ],
+                    "properties": {
+                      "sku": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                      }
+                    }
+                  },
+                  "minItems": 1,
+                  "maxItems": 100
+                }
+              },
+              "description": "All-or-nothing transaction; verify order/lines via trusted Sales boundary. One reservation per order; duplicate order with new key conflicts. Sales order must be SUBMITTED with exact revision/lines; do not reserve from a closed or compensating run."
+            }
+          }
+        },
+        "output_schema_json": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "created_at",
+            "updated_at",
+            "revision",
+            "order_id",
+            "items",
+            "status",
+            "packed_at",
+            "handed_over_at",
+            "shipment_id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "order_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sku",
+                  "quantity"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  }
+                }
+              },
+              "minItems": 1,
+              "maxItems": 100
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "RESERVED",
+                "RELEASED",
+                "CONSUMED"
+              ]
+            },
+            "packed_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "handed_over_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "shipment_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "CONSUMED"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "packed_at": {
+                    "type": "string"
+                  },
+                  "handed_over_at": {
+                    "type": "string"
+                  },
+                  "shipment_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "RESERVED",
+                      "RELEASED"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "handed_over_at": {
+                    "type": "null"
+                  },
+                  "shipment_id": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

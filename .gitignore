@@ -55,3 +55,6 @@ uploads/
 *.onnx
 coverage/
 .nyc_output/
+
+# Generated contract manuals; distributed separately from source.
+/output/pdf/

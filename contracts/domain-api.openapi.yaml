@@ -1,0 +1,1579 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of FlowBridge, licensed under GNU GPL version 3 or later.
+# Provided without warranty; see LICENSE for the full terms.
+# REVIEW CANDIDATE 0.1.1 - not an implemented API.
+
+openapi: 3.1.1
+info:
+  title: FlowBridge Domain APIs
+  version: 0.1.1
+  description: REVIEW CANDIDATE. Proposed Sales/Warehouse/Logistics MVP; owner review required, not derived domain
+    DDL.
+  license:
+    name: GNU GPL v3 or later
+    identifier: GPL-3.0-or-later
+x-contract-status: review-candidate
+x-design-date: '2026-10-22'
+servers:
+- url: /
+  description: Same origin; gateway preserves /api/v1 prefixes.
+security:
+- bearerAuth: []
+paths:
+  /api/v1/sales/orders:
+    post:
+      operationId: createOrder
+      summary: Create draft order
+      description: Sales staff for owned application/resources; service command requires scoped receiver authorization.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Sales staff for owned application/resources; service command requires scoped receiver authorization
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+            examples:
+              create-demo-order:
+                summary: Synthetic fixture
+                value:
+                  order_code: ORDER-DEMO-001
+                  items: &id001
+                  - sku: SP001
+                    quantity: 60
+    get:
+      operationId: listOrders
+      summary: List authorized orders
+      description: Sales staff for owned application/resources; service command requires scoped receiver authorization.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Sales staff for owned application/resources; service command requires scoped receiver authorization
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: status
+        in: query
+        required: false
+        schema: &id004
+          type: string
+          enum:
+          - DRAFT
+          - SUBMITTED
+          - CONFIRMED
+          - REJECTED
+          - CANCELLED
+          - FULFILLED
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/sales/orders/{order_id}:
+    get:
+      operationId: getOrder
+      summary: Read order and immutable submitted items
+      description: Sales staff for owned application/resources; service command requires scoped receiver authorization
+        or scoped service.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Sales staff for owned application/resources; service command requires scoped receiver authorization
+        or scoped service
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/sales/orders/{order_id}/submit:
+    post:
+      operationId: submitOrder
+      summary: Submit order
+      description: Sales staff for owned application/resources; service command requires scoped receiver authorization.
+        DRAFT to SUBMITTED only; does not auto-start workflow. Caller starts/reconciles separately.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Sales staff for owned application/resources; service command requires scoped receiver authorization
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/sales/orders/{order_id}/confirm:
+    post:
+      operationId: confirmOrder
+      summary: Confirm order
+      description: Verified workflow/domain service with receiver-validated run/order scope; never from caller JSON.
+        SUBMITTED to CONFIRMED; verify RESERVED reservation and matching order/lines.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Verified workflow/domain service with receiver-validated run/order scope; never from caller
+        JSON
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderEvidenceCommand'
+  /api/v1/sales/orders/{order_id}/reject:
+    post:
+      operationId: rejectOrder
+      summary: Reject order
+      description: Verified workflow/domain service with receiver-validated run/order scope; never from caller JSON.
+        SUBMITTED to REJECTED; ensure no outstanding RESERVED stock/shipment, compensate first. Coordinator must
+        drain/reconcile accepted reserve/create commands before terminal rejection; empty list after timeout is
+        not proof of no side effect.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Verified workflow/domain service with receiver-validated run/order scope; never from caller
+        JSON
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/ReasonCommand
+  /api/v1/sales/orders/{order_id}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel order
+      description: Sales staff for owned application/resources; service command requires scoped receiver authorization
+        for DRAFT only; otherwise Verified workflow/domain service with receiver-validated run/order scope; never
+        from caller JSON. DRAFT immediate with null reservation_id; SUBMITTED/CONFIRMED requires released reservation
+        evidence and cancelled shipment. Never after handover. Coordinator must first stop/fence new forward commands
+        and drain/reconcile every previously accepted reserve/create; unknown outcome blocks terminal cancellation.
+        Verify released reservation and cancelled shipment after drain.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Sales staff for owned application/resources; service command requires scoped receiver authorization
+        for DRAFT only; otherwise Verified workflow/domain service with receiver-validated run/order scope; never
+        from caller JSON
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCancel'
+  /api/v1/sales/orders/{order_id}/fulfill:
+    post:
+      operationId: fulfillOrder
+      summary: Fulfill order
+      description: Verified workflow/domain service with receiver-validated run/order scope; never from caller JSON.
+        CONFIRMED to FULFILLED; verify matching DELIVERED shipment.
+      tags:
+      - sales
+      x-priority: P0
+      x-authorization: Verified workflow/domain service with receiver-validated run/order scope; never from caller
+        JSON
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderFulfill'
+  /api/v1/warehouse/inventory:
+    get:
+      operationId: listWarehouseInventory
+      summary: Read internal inventory snapshot
+      description: Warehouse authorized staff/services only; cross-department reads use governed Data Product. Inventory
+        cursor sorts SKU; not a reservation promise.
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Warehouse authorized staff/services only; cross-department reads use governed Data Product
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: sku
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/Sku
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - sku
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/warehouse/reservations:
+    post:
+      operationId: reserveStock
+      summary: Atomically reserve all order lines
+      description: 'Verified workflow/domain service with receiver-validated run/order scope; never from caller
+        JSON. Insufficient stock: 409 INVALID_STATE details.reason=INSUFFICIENT_STOCK; zero partial writes. Require
+        Sales order SUBMITTED with exact order_revision and identical unique SKU/quantities. Current run authorization
+        must permit forward writes.'
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Verified workflow/domain service with receiver-validated run/order scope; never from caller
+        JSON
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationCreate'
+            examples:
+              reserve-demo-stock:
+                summary: Synthetic fixture
+                value:
+                  order_id: ec495835-0176-527a-a416-53f1adf3ca75
+                  order_revision: 2
+                  items: *id001
+    get:
+      operationId: listReservations
+      summary: Find reservation for reconciliation
+      description: Warehouse staff or narrowly authorized service for this order/reservation.
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Warehouse staff or narrowly authorized service for this order/reservation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: order_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/warehouse/reservations/{reservation_id}:
+    get:
+      operationId: getReservation
+      summary: Read reservation and packing/handover evidence
+      description: Warehouse staff or narrowly authorized service for this order/reservation or scoped Sales/Logistics
+        service.
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Warehouse staff or narrowly authorized service for this order/reservation or scoped Sales/Logistics
+        service
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: reservation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/warehouse/reservations/{reservation_id}/release:
+    post:
+      operationId: releaseReservation
+      summary: Release reservation
+      description: Warehouse staff or narrowly authorized service for this order/reservation. RESERVED to RELEASED;
+        verify no handed-over/consumed state. Decrement reserved only.
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Warehouse staff or narrowly authorized service for this order/reservation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: reservation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/ReasonCommand
+  /api/v1/warehouse/reservations/{reservation_id}/pack:
+    post:
+      operationId: packReservation
+      summary: Pack reservation
+      description: Warehouse staff or narrowly authorized service for this order/reservation. Require RESERVED;
+        set packed_at, increment revision, no stock consumption.
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Warehouse staff or narrowly authorized service for this order/reservation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: reservation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/warehouse/reservations/{reservation_id}/handover:
+    post:
+      operationId: handoverReservation
+      summary: Handover reservation
+      description: Warehouse staff or narrowly authorized service for this order/reservation. Require RESERVED+packed,
+        verify shipment; atomically consume once. No release afterward. Also verify matching Sales order CONFIRMED
+        and run permits forward work; reject premature handover before any stock write.
+      tags:
+      - warehouse
+      x-priority: P0
+      x-authorization: Warehouse staff or narrowly authorized service for this order/reservation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: reservation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Handover'
+            examples:
+              handover-demo-reservation:
+                summary: Synthetic fixture
+                value:
+                  expected_revision: 2
+                  shipment_id: 064f2897-e6cf-56fe-b223-cfabb59616d3
+  /api/v1/logistics/shipments:
+    post:
+      operationId: createShipment
+      summary: Create shipment for packed reservation
+      description: Current verified workflow executor scoped to this order/run; forward-write authorization required.
+        Logistics staff do not create shipments directly in this MVP. Verify Sales CONFIRMED, matching packed RESERVED
+        reservation. All accepted create commands must have a durable known/unknown outcome for workflow reconciliation.
+        A precondition read alone cannot stop an already accepted call during compensation.
+      tags:
+      - logistics
+      x-priority: P0
+      x-authorization: Current verified workflow executor scoped to this order/run; forward-write authorization
+        required. Logistics staff do not create shipments directly in this MVP.
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipmentCreate'
+            examples:
+              create-demo-shipment:
+                summary: Synthetic fixture
+                value:
+                  order_id: ec495835-0176-527a-a416-53f1adf3ca75
+                  reservation_id: 0e8b7247-d6d3-5ce6-ac99-92e3e264fe02
+    get:
+      operationId: listShipments
+      summary: Find shipment for reconciliation
+      description: Logistics staff or narrowly authorized service for this shipment or scoped service.
+      tags:
+      - logistics
+      x-priority: P0
+      x-authorization: Logistics staff or narrowly authorized service for this shipment or scoped service
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: order_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: reservation_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/logistics/shipments/{shipment_id}:
+    get:
+      operationId: getShipment
+      summary: Read shipment
+      description: Logistics staff or narrowly authorized service for this shipment or scoped Sales/Warehouse service.
+      tags:
+      - logistics
+      x-priority: P0
+      x-authorization: Logistics staff or narrowly authorized service for this shipment or scoped Sales/Warehouse
+        service
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: shipment_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/logistics/shipments/{shipment_id}/pickup:
+    post:
+      operationId: pickupShipment
+      summary: Pickup shipment
+      description: Logistics staff or narrowly authorized service for this shipment. CREATED to IN_TRANSIT; verify
+        Warehouse CONSUMED/handover to this shipment.
+      tags:
+      - logistics
+      x-priority: P0
+      x-authorization: Logistics staff or narrowly authorized service for this shipment
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: shipment_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/logistics/shipments/{shipment_id}/deliver:
+    post:
+      operationId: deliverShipment
+      summary: Deliver shipment
+      description: Logistics staff or narrowly authorized service for this shipment. IN_TRANSIT to DELIVERED; domain
+        records delivery evidence, not arbitrary status patch.
+      tags:
+      - logistics
+      x-priority: P0
+      x-authorization: Logistics staff or narrowly authorized service for this shipment
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: shipment_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/logistics/shipments/{shipment_id}/cancel:
+    post:
+      operationId: cancelShipment
+      summary: Cancel shipment
+      description: Logistics staff or narrowly authorized service for this shipment. CREATED to CANCELLED only after
+        Warehouse verifies reservation RELEASED. Warehouse owns atomic release-vs-handover decision; never cancel
+        CONSUMED stock.
+      tags:
+      - logistics
+      x-priority: P0
+      x-authorization: Logistics staff or narrowly authorized service for this shipment
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: shipment_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/ReasonCommand
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    OrderCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - order_code
+      - items
+      properties:
+        order_code: &id002
+          type: string
+          minLength: 1
+          maxLength: 100
+        items: &id003
+          type: array
+          items:
+            $ref: ./common.openapi.yaml#/components/schemas/OrderLine
+          minItems: 1
+          maxItems: 100
+      description: Unique order_code; unique SKU per order. No financial/customer PII model in this MVP.
+    Order:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - revision
+      - order_code
+      - items
+      - status
+      - created_by
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        order_code: *id002
+        items: *id003
+        status: *id004
+        created_by:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+    OrderEvidenceCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - reservation_id
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        reservation_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+    OrderFulfill:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - shipment_id
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        shipment_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+    OrderCancel:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - reason
+      - reservation_id
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        reservation_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+      description: DRAFT requires null reservation_id. SUBMITTED/CONFIRMED requires scoped workflow service and
+        matching RELEASED reservation; then verify any shipment CANCELLED. No direct user cancellation after submission
+        in this MVP.
+    InventoryItem:
+      type: object
+      additionalProperties: false
+      required:
+      - sku
+      - on_hand
+      - reserved
+      - available_quantity
+      - updated_at
+      properties:
+        sku:
+          $ref: ./common.openapi.yaml#/components/schemas/Sku
+        on_hand:
+          type: integer
+          minimum: 0
+        reserved:
+          type: integer
+          minimum: 0
+        available_quantity:
+          type: integer
+          minimum: 0
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+      description: Invariant available_quantity=on_hand-reserved; a read does not reserve stock.
+    ReservationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - order_id
+      - order_revision
+      - items
+      properties:
+        order_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        order_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        items:
+          type: array
+          items:
+            $ref: ./common.openapi.yaml#/components/schemas/OrderLine
+          minItems: 1
+          maxItems: 100
+      description: All-or-nothing transaction; verify order/lines via trusted Sales boundary. One reservation per
+        order; duplicate order with new key conflicts. Sales order must be SUBMITTED with exact revision/lines;
+        do not reserve from a closed or compensating run.
+    Reservation:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - revision
+      - order_id
+      - items
+      - status
+      - packed_at
+      - handed_over_at
+      - shipment_id
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        order_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        items:
+          type: array
+          items:
+            $ref: ./common.openapi.yaml#/components/schemas/OrderLine
+          minItems: 1
+          maxItems: 100
+        status:
+          type: string
+          enum:
+          - RESERVED
+          - RELEASED
+          - CONSUMED
+        packed_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        handed_over_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        shipment_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+      allOf:
+      - if:
+          properties:
+            status:
+              enum:
+              - CONSUMED
+        then:
+          properties:
+            packed_at:
+              type: string
+            handed_over_at:
+              type: string
+            shipment_id:
+              type: string
+      - if:
+          properties:
+            status:
+              enum:
+              - RESERVED
+              - RELEASED
+        then:
+          properties:
+            handed_over_at:
+              type: 'null'
+            shipment_id:
+              type: 'null'
+    Handover:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - shipment_id
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        shipment_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      description: Requires packed_at; verify CREATED shipment for this reservation. Atomically reserved-=qty and
+        on_hand-=qty. Matching Sales order must be CONFIRMED; receiver verifies through trusted API boundary.
+    ShipmentCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - order_id
+      - reservation_id
+      properties:
+        order_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        reservation_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      description: Current workflow executor only; matching Sales CONFIRMED and packed RESERVED reservation required.
+        One shipment per reservation. Creation timeout must be reconciled before terminal cancellation.
+    Shipment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - revision
+      - order_id
+      - reservation_id
+      - status
+      - picked_up_at
+      - delivered_at
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        order_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        reservation_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        status:
+          type: string
+          enum:
+          - CREATED
+          - IN_TRANSIT
+          - DELIVERED
+          - CANCELLED
+        picked_up_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        delivered_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+      allOf:
+      - if:
+          properties:
+            status:
+              enum:
+              - CREATED
+              - CANCELLED
+        then:
+          properties:
+            picked_up_at:
+              type: 'null'
+            delivered_at:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              enum:
+              - IN_TRANSIT
+        then:
+          properties:
+            picked_up_at:
+              type: string
+            delivered_at:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              enum:
+              - DELIVERED
+        then:
+          properties:
+            picked_up_at:
+              type: string
+            delivered_at:
+              type: string
+    OrderPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    InventoryItemPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryItem'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    ReservationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reservation'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    ShipmentPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shipment'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor

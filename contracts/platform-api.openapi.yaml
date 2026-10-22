@@ -1,0 +1,489 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of FlowBridge, licensed under GNU GPL version 3 or later.
+# Provided without warranty; see LICENSE for the full terms.
+# REVIEW CANDIDATE 0.1.1 - not an implemented API.
+
+openapi: 3.1.1
+info:
+  title: FlowBridge Platform integration boundaries
+  version: 0.1.1
+  description: REVIEW CANDIDATE. P1 registered operation executor and engine-neutral workflow adapter; no chat/user-task
+    compatibility promise.
+  license:
+    name: GNU GPL v3 or later
+    identifier: GPL-3.0-or-later
+x-contract-status: review-candidate
+x-design-date: '2026-10-22'
+servers:
+- url: /
+  description: Same origin; gateway preserves /api/v1 prefixes.
+security:
+- bearerAuth: []
+paths:
+  /api/v1/platform/operations/execute:
+    post:
+      operationId: executeRegisteredOperation
+      summary: Execute an approved pinned operation
+      description: Active verified caller with operation_permissions; HASURA_QUERY additionally requires valid grant;
+        BUSINESS_API receiver rechecks authorization. All call attempts recheck authorization. Read executions dedup
+        in-flight only, no cached query replay; writes relay stable downstream idempotency. See docs/API-CONTRACTS.md.
+        BUSINESS_API variables use BusinessApiVariables and registered target_operation_id. Validate both operation
+        schema and canonical target schema. Target app/department must remain ACTIVE and URL approved. Receiver
+        200/201 JSON -> 200 validated result; known sanitized 400/403/404/409/422/429 propagate; a credential rejection
+        by receiver -> 503 (including CALLER_TOKEN audience/config failure); caller authentication failure at this
+        endpoint remains 401. Receiver 5xx/schema failure -> 503, timeout -> 504 with mutation outcome unknown.
+        No redirect following or async target. Derive stable downstream key from verified caller identity + pinned
+        operation + incoming key; never collide two callers sharing a service credential.
+      tags:
+      - platform
+      x-priority: P1
+      x-authorization: Active verified caller with operation_permissions; HASURA_QUERY additionally requires valid
+        grant; BUSINESS_API receiver rechecks authorization
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteOperation'
+            examples:
+              execute-stock-lookup:
+                summary: Synthetic fixture
+                value:
+                  operation_ref:
+                    operation_key: warehouse.stock_lookup
+                    version: 1
+                  variables:
+                    sku: SP001
+  /api/v1/platform/workflow-runs:
+    post:
+      operationId: startWorkflowRun
+      summary: Durably accept workflow start
+      description: Caller owns permitted application/business resource and workflow-start capability; service executor
+        scoped separately. Persist link before external start, reconcile unknown outcome. Unique business/run; timeout
+        stays PENDING_START. Stable execution scope required before writes enabled. After an unknown outcome reuse
+        the same tuple/key and GET exact tuple; do not increment run_number to recover. Enter durable COMPENSATING
+        before cancelling a business process, stop new forward writes and drain/reconcile in-flight writes before
+        release/cancel/terminal order. The run fencing/delegation protocol is an integration gate, not supplied
+        by arbitrary client JSON.
+      tags:
+      - platform
+      x-priority: P1
+      x-authorization: Caller owns permitted application/business resource and workflow-start capability; service
+        executor scoped separately
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '202':
+          description: Accepted; poll Location, not completed.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+            Location:
+              description: Polling URL for the durable job or workflow link.
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              $ref: ./common.openapi.yaml#/components/headers/RetryAfter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowLink'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowStart'
+            examples:
+              start-order-fulfillment:
+                summary: Synthetic fixture
+                value:
+                  application_id: 0c2cabb9-8a07-504c-8a99-9e217cd9c429
+                  workflow_key: order-fulfillment
+                  business_key: ec495835-0176-527a-a416-53f1adf3ca75
+                  run_number: 1
+    get:
+      operationId: findWorkflowLink
+      summary: Recover an existing workflow link by exact business/run tuple
+      description: Resource-visible caller for owning application/business resource. Exact lookup only; 404 when
+        no visible matching link. Recover lost 202 without starting a new run; 404 alone does not prove an in-flight
+        start cannot commit.
+      tags:
+      - platform
+      x-priority: P1
+      x-authorization: Resource-visible caller for owning application/business resource
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: application_id
+        in: query
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: workflow_key
+        in: query
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+      - name: business_key
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - name: run_number
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowLink'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/platform/workflow-runs/{link_id}:
+    get:
+      operationId: getWorkflowLink
+      summary: Read workflow business link
+      description: Resource-visible caller for owning application/business resource.
+      tags:
+      - platform
+      x-priority: P1
+      x-authorization: Resource-visible caller for owning application/business resource
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: link_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowLink'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/platform/workflow-runs/{link_id}/runtime:
+    get:
+      operationId: getWorkflowRuntime
+      summary: Observe normalized engine runtime state
+      description: Resource-visible caller for owning application/business resource.
+      tags:
+      - platform
+      x-priority: P1
+      x-authorization: Resource-visible caller for owning application/business resource
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: link_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRuntime'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    ExecuteOperation:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_ref
+      - variables
+      properties:
+        operation_ref:
+          $ref: ./common.openapi.yaml#/components/schemas/OperationRef
+        variables:
+          type: object
+          additionalProperties: true
+          description: 'HASURA_QUERY: approved GraphQL variable object. BUSINESS_API: BusinessApiVariables shape
+            plus target operation validation. Registered input_schema_json applies to both.'
+      description: Variables must also validate against pinned operation input_schema; no URL/query/identity/secret
+        context accepted.
+    OperationResult:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_ref
+      - request_id
+      - result
+      properties:
+        operation_ref:
+          $ref: ./common.openapi.yaml#/components/schemas/OperationRef
+        request_id:
+          $ref: ./common.openapi.yaml#/components/schemas/RequestId
+        result: {}
+      description: result must validate pinned output_schema_json; dynamic registered schema is authoritative, never
+        arbitrary upstream data.
+    WorkflowStart:
+      type: object
+      additionalProperties: false
+      required:
+      - application_id
+      - workflow_key
+      - business_key
+      - run_number
+      properties:
+        application_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        workflow_key:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        business_key:
+          type: string
+          minLength: 1
+          maxLength: 200
+        run_number:
+          type: integer
+          minimum: 1
+      description: Application must own business resource. Backend selects engine/definition/executor; approved
+        order-fulfillment uses Sales order UUID as business_key.
+    WorkflowLink:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - application_id
+      - engine_ref
+      - workflow_key
+      - external_definition_ref
+      - business_key
+      - run_number
+      - external_run_id
+      - started_by
+      - execution_principal_id
+      - link_status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        application_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        engine_ref:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        workflow_key:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        external_definition_ref:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+          - type: 'null'
+        business_key:
+          type: string
+          minLength: 1
+          maxLength: 200
+        run_number:
+          type: integer
+          minimum: 1
+        external_run_id:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+          - type: 'null'
+        started_by:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        execution_principal_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        link_status:
+          type: string
+          enum:
+          - PENDING_START
+          - LINKED
+          - START_FAILED
+      description: Business link only, not engine runtime state. Omit idempotency_key from reads.
+    WorkflowRuntime:
+      type: object
+      additionalProperties: false
+      required:
+      - link_id
+      - runtime_status
+      - observed_at
+      properties:
+        link_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        runtime_status:
+          type: string
+          enum:
+          - UNKNOWN
+          - RUNNING
+          - WAITING
+          - COMPLETED
+          - FAILED
+          - CANCELLED
+        observed_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+      description: Normalized adapter observation, not stored as a Core link_status. Unsupported/unavailable provider
+        observation is UNKNOWN.
+    BusinessApiVariables:
+      type: object
+      additionalProperties: false
+      required:
+      - path
+      - query
+      - body
+      properties:
+        path:
+          type: object
+          additionalProperties:
+            type: string
+        query:
+          type: object
+          additionalProperties: true
+        body:
+          anyOf:
+          - type: object
+            additionalProperties: true
+          - type: 'null'
+      description: Required shape for BUSINESS_API operation variables. Target-specific path/query/body fields come
+        only from the registered Domain operation; extra/unknown fields rejected there. GET body is null. HASURA_QUERY
+        variables remain the approved GraphQL variable object.

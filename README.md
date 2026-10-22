@@ -36,7 +36,7 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 | Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Đã có Identity adapters và HTTP utilities; các tích hợp còn lại đang phát triển |
 | Business APIs | Đơn hàng, tồn kho và vận chuyển | Khung ứng dụng và migration directories |
 | Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
-| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | Có template Keycloak và cấu hình APISIX nền; chưa có stack tích hợp hoàn chỉnh |
+| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX; workflow engine chưa chọn | Có template Keycloak và cấu hình APISIX nền; chưa có stack tích hợp hoàn chỉnh |
 
 Chưa có backend server entrypoint, baseline database hoặc quy trình BPMN tích hợp hoàn chỉnh cho kiến trúc mới. Kiểm thử adapter bằng mock và preview UI không thay thế kiểm thử E2E với engine thật.
 
@@ -50,13 +50,13 @@ flowchart LR
     Gateway --> Backend[Core & Platform APIs]
     Backend --> Metadata[(Core Metadata)]
     Backend --> Hasura[Hasura]
-    Backend --> Flowable[Flowable]
+    Backend --> Workflow[Workflow adapter / engine]
     Hasura --> DomainDB[(Business Databases)]
-    Flowable --> APIs[Sales · Warehouse · Logistics APIs]
+    Workflow --> APIs[Sales · Warehouse · Logistics APIs]
     APIs --> DomainDB
 ```
 
-Core quản lý dữ liệu được chia sẻ và quyền khai thác. Business APIs sở hữu thay đổi nghiệp vụ và transaction. Flowable điều phối quy trình; mỗi receiver chịu trách nhiệm xác thực và kiểm quyền phù hợp. Chi tiết tại [tài liệu kiến trúc](docs/ARCHITECTURE.md).
+Core quản lý dữ liệu được chia sẻ và quyền khai thác. Business APIs sở hữu thay đổi nghiệp vụ và transaction. Workflow adapter tích hợp engine được chọn để điều phối quy trình; mỗi receiver chịu trách nhiệm xác thực và kiểm quyền phù hợp. Chi tiết tại [tài liệu kiến trúc](docs/ARCHITECTURE.md).
 
 ## Cấu trúc repository
 
@@ -86,7 +86,7 @@ Các thư mục chưa có implementation được giữ trong Git bằng file pa
 | Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui |
 | Identity và Gateway | Keycloak, OIDC/PKCE, Apache APISIX |
-| Data và Workflow | PostgreSQL, Hasura, Flowable BPMN |
+| Data và Workflow | PostgreSQL, Hasura; workflow trung lập engine |
 | Kiểm thử | pytest, Ruff, Vitest, Playwright |
 
 Dependency Python được khóa tại `pyproject.toml` và `uv.lock`; dependency frontend tại `portal/package.json` và `portal/package-lock.json`.
@@ -133,6 +133,7 @@ npm run build
 
 - [Kiến trúc và ranh giới module](docs/ARCHITECTURE.md)
 - [Phát triển song song và tiêu chí bàn giao](docs/DEVELOPMENT.md)
+- [API contracts v0.1.1 để team review](docs/API-CONTRACTS.md)
 - [Quản lý nội dung repository](docs/REPOSITORY.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
 - [Lịch sử thay đổi](CHANGELOG.md)

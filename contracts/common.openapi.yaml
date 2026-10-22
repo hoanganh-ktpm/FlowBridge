@@ -1,0 +1,355 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of FlowBridge, licensed under GNU GPL version 3 or later.
+# Provided without warranty; see LICENSE for the full terms.
+# REVIEW CANDIDATE 0.1.1 - not an implemented API.
+
+openapi: 3.1.1
+info:
+  title: FlowBridge shared contract components
+  version: 0.1.1
+  description: REVIEW CANDIDATE. Component library; no deployable endpoints.
+  license:
+    name: GNU GPL v3 or later
+    identifier: GPL-3.0-or-later
+x-contract-status: review-candidate
+x-design-date: '2026-10-22'
+servers:
+- url: /
+  description: Same origin; gateway preserves /api/v1 prefixes.
+security:
+- bearerAuth: []
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    Timestamp:
+      type: string
+      format: date-time
+      pattern: Z$
+    Revision:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+    RequestId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: ^[A-Za-z0-9._:-]+$
+    StableKey:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: ^[a-z][a-z0-9_.-]*$
+    Sku:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: ^[A-Za-z0-9][A-Za-z0-9_.-]*$
+    Quantity:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+    DataScope:
+      type: object
+      additionalProperties: false
+      required:
+      - action
+      - columns
+      - row_scope
+      properties:
+        action:
+          const: SELECT
+        columns:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^[a-z_][a-z0-9_]*$
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        row_scope:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              const: ALL
+      description: P0 only. ALL requires explicit owner approval. No raw SQL/expressions.
+    OrderLine:
+      type: object
+      additionalProperties: false
+      required:
+      - sku
+      - quantity
+      properties:
+        sku:
+          $ref: '#/components/schemas/Sku'
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - request_id
+      - retryable
+      - details
+      properties:
+        code:
+          type: string
+          enum:
+          - UNAUTHENTICATED
+          - FORBIDDEN
+          - NOT_FOUND
+          - VALIDATION_ERROR
+          - VERSION_CONFLICT
+          - IDEMPOTENCY_CONFLICT
+          - INVALID_STATE
+          - UPSTREAM_UNAVAILABLE
+          - UPSTREAM_TIMEOUT
+          - RATE_LIMITED
+          - TOKEN_EXPIRED
+          - TOKEN_INVALID
+          - INTERNAL_ERROR
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: \S
+        request_id:
+          $ref: '#/components/schemas/RequestId'
+        retryable:
+          type: boolean
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - field
+            - reason
+            properties:
+              field:
+                type: string
+                minLength: 1
+                maxLength: 200
+              reason:
+                type: string
+                minLength: 1
+                maxLength: 500
+          minItems: 0
+          maxItems: 100
+    RevisionCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: '#/components/schemas/Revision'
+    ReasonCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - reason
+      properties:
+        expected_revision:
+          $ref: '#/components/schemas/Revision'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    OperationRef:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_key
+      - version
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/StableKey'
+        version:
+          $ref: '#/components/schemas/Revision'
+    AsyncJobAccepted:
+      type: object
+      additionalProperties: false
+      required:
+      - resource_id
+      - job_id
+      - job_url
+      properties:
+        resource_id:
+          $ref: '#/components/schemas/UUID'
+        job_id:
+          $ref: '#/components/schemas/UUID'
+        job_url:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: ^/api/v1/core/publication-jobs/
+      description: Accepted in durable Core transaction; not proof of external success.
+    PageCursor:
+      anyOf:
+      - type: string
+        minLength: 1
+        maxLength: 2048
+      - type: 'null'
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Invalid or duplicate input is replaced; response always returns normalized ID.
+      schema:
+        $ref: '#/components/schemas/RequestId'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Caller/method/path scoped; durable dedup, see docs/API-CONTRACTS.md.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: ^[A-Za-z0-9._:-]+$
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 2048
+  headers:
+    CorrelationId:
+      description: Normalized correlation ID.
+      schema:
+        $ref: '#/components/schemas/RequestId'
+    IdempotencyReplayed:
+      description: true when returning the original completed command response.
+      schema:
+        type: boolean
+    RetryAfter:
+      description: Seconds until retry, when retryable.
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    '401':
+      description: 'Missing, invalid or expired authentication; WWW-Authenticate: Bearer.'
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+        WWW-Authenticate:
+          schema:
+            type: string
+          description: Bearer challenge.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '403':
+      description: Authenticated but resource/action is forbidden.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '404':
+      description: Resource does not exist or is not visible to this caller.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '409':
+      description: Version, idempotency or state conflict; insufficient stock uses INVALID_STATE.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '422':
+      description: Request schema or semantic validation failed.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '429':
+      description: Rate limited; respect Retry-After.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '500':
+      description: Sanitized internal error.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '503':
+      description: Upstream not ready or response violates registered output schema.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '504':
+      description: Upstream timeout; side-effect outcome may be unknown, reconcile before retry.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    '400':
+      description: Malformed JSON or HTTP request; code VALIDATION_ERROR, no raw input returned.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

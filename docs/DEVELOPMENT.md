@@ -6,7 +6,7 @@
 |---|---|---|
 | Business | Schema ba database, migration và seed tổng hợp | Sales/Warehouse/Logistics APIs, transaction, idempotency và business authorization |
 | DX-OS Data Core | Core schema, models, Application/Source Registry | Data Products/Contracts, Governance, Hasura provisioning và quyền đọc |
-| Contracts & Platform | Điều phối hợp đồng API, cấu hình môi trường | Identity, Gateway, Flowable, audit và ghép hệ thống |
+| Contracts & Platform | Điều phối hợp đồng API, cấu hình môi trường | Identity, Gateway, workflow adapter, audit và ghép hệ thống |
 
 Người điều phối contracts tổng hợp specification; chủ sở hữu nghiệp vụ/dữ liệu xác nhận DTO, trạng thái và quyền. Sau bước thiết kế, mỗi khối bàn giao implementation và kiểm thử có thể sử dụng được.
 
@@ -18,6 +18,8 @@ Người điều phối contracts tổng hợp specification; chủ sở hữu n
 - Data Product/Grant: owner, cột và phạm vi đọc, thời hạn, cấp/thu hồi và trạng thái áp dụng.
 
 Nguồn chuẩn nằm tại contracts. VerifiedIdentity hiện có chưa thay thế toàn bộ mô hình quyền và department binding cần xây tiếp.
+
+Đã có [review candidate v0.1.1](API-CONTRACTS.md) với OpenAPI Core/Domain/Platform, resolved identity schema và fixtures tổng hợp. Đây là đặc tả để owner/consumer review, chưa phải endpoint đã triển khai hoặc nghiệm thu. Workflow contract trung lập engine theo thiết kế database v0.2; việc nhắc Flowable trong scaffold không thay cho quyết định chọn engine.
 
 ## Phát triển độc lập
 

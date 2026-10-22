@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### API Contract Review Candidate v0.1.1
+
+- Thêm OpenAPI Core/Domain/Platform và components dùng chung, JSON Schema resolved identity, fixtures tổng hợp cùng kiểm tra contract.
+- Ghi rõ trạng thái review, phân chia P0/P1, quyền đọc/execute/ghi, publication revisions, idempotency và workflow trung lập engine theo thiết kế database v0.2.
+- Rà soát v0.1.1: bổ sung governed data read và tra cứu workflow link; siết identity, mapping Business API, stale approval và compensation race. Có 84 operations, 63 fixtures và báo cáo/PDF mô tả.
+- Đây là specification và tiêu chí nghiệm thu; chưa triển khai endpoint, migration hoặc runtime integration.
+
 ### Architecture
 
 - Tổ chức backend theo `app/core` và `app/platform`, tách Business APIs và Portal.
@@ -24,5 +31,5 @@
 ### Pending Integration
 
 - Core/Domain APIs, database baselines và Hasura provisioning.
-- Agent Runtime, Flowable adapter, BPMN Order Fulfillment và deployment stack.
+- Agent Runtime, workflow adapter trung lập engine, Order Fulfillment và deployment stack.
 - Chuyển API client của Portal sang contract mới và kiểm thử E2E với engine thật.

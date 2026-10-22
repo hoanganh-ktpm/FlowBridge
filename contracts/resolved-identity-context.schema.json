@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResolvedIdentityContext",
+  "$comment": "FlowBridge GPL-3.0-or-later; see LICENSE. Internal trusted resolver output only; never accept client-asserted context as authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verified_identity",
+    "principal_id",
+    "principal_status",
+    "platform_role",
+    "application_id",
+    "memberships"
+  ],
+  "properties": {
+    "verified_identity": {
+      "$ref": "./identity-context.schema.json"
+    },
+    "principal_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "principal_status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "DISABLED"
+      ]
+    },
+    "platform_role": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "PLATFORM_ADMIN"
+      ]
+    },
+    "application_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "memberships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "department_id",
+          "membership_role",
+          "status",
+          "expires_at",
+          "department_status"
+        ],
+        "properties": {
+          "department_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "membership_role": {
+            "type": "string",
+            "enum": [
+              "STAFF",
+              "OWNER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "REVOKED"
+            ]
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "department_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DISABLED"
+            ]
+          }
+        }
+      },
+      "minItems": 0,
+      "maxItems": 100
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verified_identity": {
+            "properties": {
+              "account_type": {
+                "const": "human"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "application_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verified_identity": {
+            "properties": {
+              "account_type": {
+                "const": "service"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verified_identity": {
+            "properties": {
+              "client_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "description": "Trusted resolver output, never client authorization input. Membership grants OWNER/STAFF rights only when principal, department, membership and application binding remain active and unexpired. DISABLED department grants no rights."
+}

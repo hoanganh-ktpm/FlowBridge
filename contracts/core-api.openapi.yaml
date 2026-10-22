@@ -1,0 +1,5362 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of FlowBridge, licensed under GNU GPL version 3 or later.
+# Provided without warranty; see LICENSE for the full terms.
+# REVIEW CANDIDATE 0.1.1 - not an implemented API.
+
+openapi: 3.1.1
+info:
+  title: FlowBridge Core API
+  version: 0.1.1
+  description: REVIEW CANDIDATE. Metadata/governance P0; operation/tool registry P1. Single organization.
+  license:
+    name: GNU GPL v3 or later
+    identifier: GPL-3.0-or-later
+x-contract-status: review-candidate
+x-design-date: '2026-10-22'
+servers:
+- url: /
+  description: Same origin; gateway preserves /api/v1 prefixes.
+security:
+- bearerAuth: []
+paths:
+  /api/v1/core/me:
+    get:
+      operationId: getMyContext
+      summary: Resolve current caller identity and memberships
+      description: Verified active caller; resolve binding from trusted Core/IdP.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified active caller; resolve binding from trusted Core/IdP
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: ./resolved-identity-context.schema.json
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/principals:
+    post:
+      operationId: createPrincipal
+      summary: Register Principal
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Principal'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrincipalProvision'
+    get:
+      operationId: listPrincipals
+      summary: List visible principals
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - DISABLED
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrincipalPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/principals/{principal_id}:
+    get:
+      operationId: getPrincipal
+      summary: Get Principal
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: principal_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Principal'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+    patch:
+      operationId: patchPrincipal
+      summary: Update Principal with expected revision
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: principal_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Principal'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrincipalPatch'
+  /api/v1/core/departments:
+    post:
+      operationId: createDepartment
+      summary: Register Department
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentCreate'
+            examples:
+              create-sales-department:
+                summary: Synthetic fixture
+                value:
+                  code: sales
+                  name: Sales
+    get:
+      operationId: listDepartments
+      summary: List visible departments
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/departments/{department_id}:
+    get:
+      operationId: getDepartment
+      summary: Get Department
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: department_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+    patch:
+      operationId: patchDepartment
+      summary: Update Department with expected revision
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: department_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentPatch'
+  /api/v1/core/applications:
+    post:
+      operationId: createApplication
+      summary: Register Application
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationCreate'
+            examples:
+              register-warehouse-application:
+                summary: Synthetic fixture
+                value:
+                  department_id: 5c7adfd9-9e2e-507c-af01-b7aba017c3c3
+                  app_key: warehouse_app
+                  name: Warehouse demo
+                  business_api_base_url: https://warehouse.example.test
+    get:
+      operationId: listApplications
+      summary: List visible applications
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: department_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/applications/{application_id}:
+    get:
+      operationId: getApplication
+      summary: Get Application
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: application_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+    patch:
+      operationId: patchApplication
+      summary: Update Application with expected revision
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited. Changing business_api_base_url
+        or moving ACTIVE to DRAFT is rejected with 409 INVALID_STATE while ACTIVE BUSINESS_API operation versions
+        reference the application. DISABLED blocks new executions immediately; reactivation requires endpoint/dependency
+        validation. Department/app_key ownership is immutable.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: application_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationPatch'
+  /api/v1/core/data-sources:
+    post:
+      operationId: createSource
+      summary: Register Source
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceCreate'
+            examples:
+              register-warehouse-source:
+                summary: Synthetic fixture
+                value:
+                  application_id: 3b43c78e-e80d-595e-8cb1-f634d88685d0
+                  source_key: warehouse_pg
+                  db_type: POSTGRESQL
+                  host: warehouse-db.example.test
+                  port: 5432
+                  database_name: warehouse_demo
+                  db_user: warehouse_reader
+                  secret_ref: secrets/demo/warehouse-reader
+                  ssl_mode: verify-full
+                  hasura_source_name: warehouse_pg
+    get:
+      operationId: listSources
+      summary: List visible data-sources
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or current source
+        department OWNER; policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or current source
+        department OWNER; policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: application_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourcePage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/data-sources/{data_source_id}:
+    get:
+      operationId: getSource
+      summary: Get Source
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or current source
+        department OWNER; policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or current source
+        department OWNER; policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_source_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+    patch:
+      operationId: patchSource
+      summary: Update Source with expected revision
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_source_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourcePatch'
+  /api/v1/core/data-products:
+    post:
+      operationId: createProduct
+      summary: Register Product
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+            examples:
+              create-inventory-product:
+                summary: Synthetic fixture
+                value:
+                  data_source_id: 8a5a83ec-7f8e-5888-aa17-e8997d37c9e6
+                  product_key: warehouse.available_inventory
+                  name: Available inventory
+                  schema_name: public
+                  object_name: stock_available
+                  object_type: VIEW
+                  classification: INTERNAL
+    get:
+      operationId: listProducts
+      summary: List visible data-products
+      description: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: data_source_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/data-products/{data_product_id}:
+    get:
+      operationId: getProduct
+      summary: Get Product
+      description: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+    patch:
+      operationId: patchProduct
+      summary: Update Product with expected revision
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPatch'
+  /api/v1/core/departments/{department_id}/memberships:
+    post:
+      operationId: createMembership
+      summary: Bind a verified principal to a department
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited. Duplicate principal/department
+        requires PATCH existing membership, never blind upsert.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: department_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipUpsert'
+    get:
+      operationId: listMemberships
+      summary: List department memberships
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or current department
+        OWNER.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or current department
+        OWNER
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: department_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/memberships/{membership_id}:
+    patch:
+      operationId: patchMembership
+      summary: Change/revoke membership
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: membership_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipPatch'
+  /api/v1/core/data-sources/{data_source_id}/connect:
+    post:
+      operationId: connectSource
+      summary: Enqueue source validation and Hasura connection
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_source_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '202':
+          description: Accepted; poll Location, not completed.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+            Location:
+              description: Polling URL for the durable job or workflow link.
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              $ref: ./common.openapi.yaml#/components/headers/RetryAfter
+          content:
+            application/json:
+              schema:
+                $ref: ./common.openapi.yaml#/components/schemas/AsyncJobAccepted
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/core/data-sources/{data_source_id}/schema:
+    get:
+      operationId: discoverSourceSchema
+      summary: Discover approved source structure
+      description: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or source department
+        OWNER. CONNECTED source required; bounded read-only discovery, no business rows.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Verified PLATFORM_ADMIN with the explicit administrative capability; audited or source department
+        OWNER
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_source_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSchema'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/data-products/{data_product_id}/contracts:
+    post:
+      operationId: createDataContract
+      summary: Create a draft data contract version
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataContract'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractCreate'
+            examples:
+              create-contract-1-0-0:
+                summary: Synthetic fixture
+                value:
+                  version: 1.0.0
+                  contract_json:
+                    grain: one row per sku
+                    business_key:
+                    - sku
+                    fields:
+                    - name: sku
+                      type: string
+                      nullable: false
+                      description: Shared SKU business key
+                    - name: available_quantity
+                      type: integer
+                      nullable: false
+                      description: Current on_hand minus reserved; not a reservation promise
+                      minimum: 0
+                    classification: INTERNAL
+    get:
+      operationId: listDataContracts
+      summary: List data contract versions
+      description: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataContractPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - created_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/data-contracts/{contract_version_id}:
+    get:
+      operationId: getDataContract
+      summary: Get pinned data contract
+      description: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Any active organization principal can discover ACTIVE product metadata and its current PUBLISHED
+        contract when source is CONNECTED and application/owner department are ACTIVE. Draft/retired/disabled metadata
+        is owner-only. Classification does not grant row access; catalog metadata itself is organization-visible
+        in this MVP.
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: contract_version_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataContract'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+    patch:
+      operationId: patchDataContract
+      summary: Edit draft data contract only
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: contract_version_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataContract'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataContractPatch'
+  /api/v1/core/data-contracts/{contract_version_id}/publish:
+    post:
+      operationId: publishDataContract
+      summary: Publish immutable contract metadata
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+        Publishing the document alone does not publish the product or grant reads.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: contract_version_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataContract'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/core/data-products/{data_product_id}/publish:
+    post:
+      operationId: publishDataProduct
+      summary: Publish product through durable provisioner job
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+        Reject contract switch with live grants; target contract must belong to product and be PUBLISHED.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '202':
+          description: Accepted; poll Location, not completed.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+            Location:
+              description: Polling URL for the durable job or workflow link.
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              $ref: ./common.openapi.yaml#/components/headers/RetryAfter
+          content:
+            application/json:
+              schema:
+                $ref: ./common.openapi.yaml#/components/schemas/AsyncJobAccepted
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishProduct'
+  /api/v1/core/data-products/{data_product_id}/disable:
+    post:
+      operationId: disableDataProduct
+      summary: Disable reads and enqueue policy removal
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+        New reads denied immediately; product DISABLED is desired state, job tracks removal; live grants become
+        REVOKING with jobs in same transaction.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '202':
+          description: Accepted; poll Location, not completed.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+            Location:
+              description: Polling URL for the durable job or workflow link.
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              $ref: ./common.openapi.yaml#/components/headers/RetryAfter
+          content:
+            application/json:
+              schema:
+                $ref: ./common.openapi.yaml#/components/schemas/AsyncJobAccepted
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/ReasonCommand
+  /api/v1/core/access-requests:
+    post:
+      operationId: createAccessRequest
+      summary: Request SELECT access for one consumer
+      description: Self for principal target, or current consumer department OWNER; product/contract visible. Require
+        product ACTIVE, requested contract equal to active_contract_id, and all source/application/department/principal
+        bindings active. Discovery does not grant rows.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Self for principal target, or current consumer department OWNER; product/contract visible
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessRequestCreate'
+            examples:
+              request-sales-inventory:
+                summary: Synthetic fixture
+                value:
+                  data_product_id: 8f026507-3ccf-5434-b2bf-4ace45ada5cd
+                  contract_version_id: bb0c85bd-d487-5fed-a3da-155cea12f6cf
+                  consumer_department_id: 68775ddf-7415-578e-9447-27c1e24305e0
+                  consumer_principal_id: null
+                  requested_scope_json: &id001
+                    action: SELECT
+                    columns:
+                    - sku
+                    - available_quantity
+                    row_scope:
+                      kind: ALL
+                  reason: Check stock before order fulfillment
+    get:
+      operationId: listAccessRequests
+      summary: List visible access requests
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: data_product_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: status
+        in: query
+        required: false
+        schema: &id028
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - CANCELLED
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequestPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - requested_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/access-requests/{access_request_id}:
+    get:
+      operationId: getAccessRequest
+      summary: Get access request
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: access_request_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/access-requests/{access_request_id}/approve:
+    post:
+      operationId: approveAccessRequest
+      summary: Approve and atomically create grant plus apply job
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+        PENDING only; narrower scope only; no live grant duplicate for same product/consumer. In the approval transaction
+        lock/version-check request and product against disable/switch; revalidate product ACTIVE, requested contract
+        == active_contract_id, source CONNECTED, application/owner/consumer departments and principals/memberships
+        ACTIVE and unexpired. Otherwise 409 INVALID_STATE; no grant/job is created.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: access_request_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '202':
+          description: Accepted; poll Location, not completed.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+            Location:
+              description: Polling URL for the durable job or workflow link.
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              $ref: ./common.openapi.yaml#/components/headers/RetryAfter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproveAccepted'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRequest'
+            examples:
+              approve-narrow-inventory:
+                summary: Synthetic fixture
+                value:
+                  expected_revision: 1
+                  scope_json: *id001
+                  expires_at: '2026-10-29T15:00:00Z'
+                  decision_note: Approved demo use
+  /api/v1/core/access-requests/{access_request_id}/reject:
+    post:
+      operationId: rejectAccessRequest
+      summary: Reject a pending request
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: access_request_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideRequest'
+  /api/v1/core/access-requests/{access_request_id}/cancel:
+    post:
+      operationId: cancelAccessRequest
+      summary: Cancel own pending request
+      description: Original requester still authorized for consumer.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Original requester still authorized for consumer
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: access_request_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/core/access-grants:
+    get:
+      operationId: listGrants
+      summary: List visible grants
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: data_product_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: status
+        in: query
+        required: false
+        schema: &id029
+          type: string
+          enum:
+          - PENDING_APPLY
+          - ACTIVE
+          - REVOKING
+          - REVOKED
+          - EXPIRED
+          - ERROR
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - granted_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/access-grants/{access_grant_id}:
+    get:
+      operationId: getGrant
+      summary: Get grant desired/applied status
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: access_grant_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/access-grants/{access_grant_id}/revoke:
+    post:
+      operationId: revokeGrant
+      summary: Deny new reads and enqueue removal
+      description: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Current OWNER of the derived product/source department; no implicit PLATFORM_ADMIN data bypass
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: access_grant_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '202':
+          description: Accepted; poll Location, not completed.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+            Location:
+              description: Polling URL for the durable job or workflow link.
+              schema:
+                type: string
+                format: uri-reference
+            Retry-After:
+              $ref: ./common.openapi.yaml#/components/headers/RetryAfter
+          content:
+            application/json:
+              schema:
+                $ref: ./common.openapi.yaml#/components/schemas/AsyncJobAccepted
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeGrant'
+            examples:
+              revoke-grant:
+                summary: Synthetic fixture
+                value:
+                  expected_desired_revision: 1
+                  reason: Demo permission no longer needed
+  /api/v1/core/publication-jobs/{job_id}:
+    get:
+      operationId: getPublicationJob
+      summary: Poll redacted publication job
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationJob'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/audit-events:
+    get:
+      operationId: listAuditEvents
+      summary: Read scoped audit trail
+      description: Explicit audit capability with resource/department filtering.
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Explicit audit capability with resource/department filtering
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      - name: request_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/RequestId
+      - name: resource_ref
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 500
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - occurred_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/operations:
+    post:
+      operationId: createOperation
+      summary: Register draft Operation version
+      description: Current OWNER of operation target department, derived through product/source/application or business
+        application.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Current OWNER of operation target department, derived through product/source/application
+        or business application
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationCreate'
+            examples:
+              register-stock-lookup-operation:
+                summary: Synthetic fixture
+                value:
+                  operation_key: warehouse.stock_lookup
+                  version: 1
+                  operation_type: HASURA_QUERY
+                  data_product_id: 8f026507-3ccf-5434-b2bf-4ace45ada5cd
+                  contract_version_id: bb0c85bd-d487-5fed-a3da-155cea12f6cf
+                  application_id: null
+                  query_text: 'query Stock($sku: String!) { items: stock_available(where: {sku: {_eq: $sku}}) {
+                    sku available_quantity } }'
+                  request_config_json: null
+                  input_schema_json:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - sku
+                    properties:
+                      sku:
+                        type: string
+                        minLength: 1
+                  output_schema_json:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - sku
+                          - available_quantity
+                          properties:
+                            sku:
+                              type: string
+                            available_quantity:
+                              type: integer
+                              minimum: 0
+  /api/v1/core/operations/{operation_id}:
+    get:
+      operationId: getOperation
+      summary: Read authorized Operation definition
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/operations/{operation_id}/activate:
+    post:
+      operationId: activateOperation
+      summary: Validate and activate immutable version
+      description: Current OWNER of operation target department, derived through product/source/application or business
+        application. Revalidate source/application/owner department and pinned targets. For BUSINESS_API resolve
+        target_operation_id in the canonical Domain specification, compare method/path, validate input mapping/output
+        and credential audience; only synchronous 200/201 JSON targets are supported.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Current OWNER of operation target department, derived through product/source/application
+        or business application
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/core/operations/{operation_id}/disable:
+    post:
+      operationId: disableOperation
+      summary: Disable version for new executions
+      description: Current OWNER of operation target department, derived through product/source/application or business
+        application.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Current OWNER of operation target department, derived through product/source/application
+        or business application
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/ReasonCommand
+  /api/v1/core/tools:
+    post:
+      operationId: createTool
+      summary: Register draft Tool version
+      description: Current OWNER of tool.owner_department_id; target operation must be visible and ACTIVE on activation.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Current OWNER of tool.owner_department_id; target operation must be visible and ACTIVE on
+        activation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCreate'
+  /api/v1/core/tools/{tool_id}:
+    get:
+      operationId: getTool
+      summary: Read authorized Tool definition
+      description: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Authenticated and resource-visible to its owner/consumer/requester; all list results policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+  /api/v1/core/tools/{tool_id}/activate:
+    post:
+      operationId: activateTool
+      summary: Validate and activate immutable version
+      description: Current OWNER of tool.owner_department_id; target operation must be visible and ACTIVE on activation.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Current OWNER of tool.owner_department_id; target operation must be visible and ACTIVE on
+        activation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/RevisionCommand
+  /api/v1/core/tools/{tool_id}/disable:
+    post:
+      operationId: disableTool
+      summary: Disable version for new executions
+      description: Current OWNER of tool.owner_department_id; target operation must be visible and ACTIVE on activation.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Current OWNER of tool.owner_department_id; target operation must be visible and ACTIVE on
+        activation
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./common.openapi.yaml#/components/schemas/ReasonCommand
+  /api/v1/core/operations/{operation_id}/permissions:
+    post:
+      operationId: grantOperationPermission
+      summary: Grant execute for a pinned operation
+      description: Owner of operation target department; consumer binding verified.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Owner of operation target department; consumer binding verified
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationPermission'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationPermissionCreate'
+    get:
+      operationId: listOperationPermissions
+      summary: List visible execute permissions
+      description: Operation target department OWNER or matching consumer; policy-filtered.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Operation target department OWNER or matching consumer; policy-filtered
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationPermissionPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - granted_at
+        - id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/operation-permissions/{permission_id}/revoke:
+    post:
+      operationId: revokeOperationPermission
+      summary: Revoke execute permission
+      description: Owner of operation target department. Atomic ACTIVE-to-REVOKED compare; no revision column exists
+        in database v0.2 for this resource.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Owner of operation target department
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: permission_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationPermission'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+  /api/v1/core/agents/{agent_id}/tools/{tool_id}:
+    put:
+      operationId: bindAgentTool
+      summary: Create/update explicit agent-tool binding
+      description: Agent department OWNER and authorized target Tool; existing Agent required.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Agent department OWNER and authorized target Tool; existing Agent required
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Idempotency-Replayed:
+              $ref: ./common.openapi.yaml#/components/headers/IdempotencyReplayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolBinding'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolBindingPut'
+  /api/v1/core/agents/{agent_id}/tools:
+    get:
+      operationId: listAgentToolBindings
+      summary: List authorized agent tool bindings
+      description: Agent department OWNER or active member allowed to use Agent; binding never grants execute.
+      tags:
+      - core
+      x-priority: P1
+      x-authorization: Agent department OWNER or active member allowed to use Agent; binding never grants execute
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - $ref: ./common.openapi.yaml#/components/parameters/Limit
+      - $ref: ./common.openapi.yaml#/components/parameters/Cursor
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolBindingPage'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        sort:
+        - bound_at
+        - tool_id
+        direction: asc
+        cursor_bound_to_filters: true
+  /api/v1/core/data-products/{data_product_id}/rows:
+    get:
+      operationId: readDataProductRows
+      summary: Read a bounded governed Data Product projection
+      description: 'Active principal and effective bindings; product ACTIVE/current contract; source CONNECTED;
+        application and owner/consumer departments ACTIVE; one ACTIVE unexpired grant with applied_revision == desired_revision
+        covers every requested column and business key. Never an admin-secret runtime query.. Required columns include
+        all business_key fields for deterministic ascending ordering. Omitted keys: 422; insufficient grant: 403.
+        Core compiles a bounded SELECT-only Hasura query from approved metadata; client supplies no raw GraphQL/SQL/role.
+        No snapshot/export promise; concurrent source writes can shift offsets. Check current permissions for every
+        request.'
+      tags:
+      - core
+      x-priority: P0
+      x-authorization: Active principal and effective bindings; product ACTIVE/current contract; source CONNECTED;
+        application and owner/consumer departments ACTIVE; one ACTIVE unexpired grant with applied_revision == desired_revision
+        covers every requested column and business key. Never an admin-secret runtime query.
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: contract_version_id
+        in: query
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      - name: columns
+        in: query
+        required: true
+        style: form
+        explode: false
+        schema: &id036
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^[a-z_][a-z0-9_]*$
+        description: Comma-separated selected columns including all business_key fields; one grant covers the whole
+          projection.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRows'
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/504
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/400
+      x-pagination:
+        mode: bounded-offset
+        order: Pinned contract business_key ascending
+        max_offset: 10000
+        snapshot: false
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Principal:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - issuer
+      - subject
+      - kind
+      - display_name
+      - service_client_id
+      - application_id
+      - platform_role
+      - status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        issuer:
+          type: string
+          format: uri
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 500
+        kind:
+          type: string
+          enum:
+          - human
+          - service
+        display_name:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 200
+          - type: 'null'
+        service_client_id:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 200
+          - type: 'null'
+        application_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        platform_role:
+          type: string
+          enum:
+          - NONE
+          - PLATFORM_ADMIN
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - DISABLED
+      allOf:
+      - if:
+          properties:
+            kind:
+              const: human
+        then:
+          properties:
+            service_client_id:
+              type: 'null'
+            application_id:
+              type: 'null'
+      - if:
+          properties:
+            kind:
+              const: service
+        then:
+          properties:
+            service_client_id:
+              type: string
+              minLength: 1
+    PrincipalProvision:
+      type: object
+      additionalProperties: false
+      required:
+      - issuer
+      - subject
+      - application_id
+      properties:
+        issuer:
+          type: string
+          format: uri
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 500
+        application_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+      description: Admin resolves subject/client/kind against trusted IdP; never accepts a password or unverified
+        kind.
+    PrincipalPatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - DISABLED
+        platform_role:
+          type: string
+          enum:
+          - NONE
+          - PLATFORM_ADMIN
+      minProperties: 2
+    DepartmentCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - name
+      properties:
+        code: &id002
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        name: &id003
+          type: string
+          minLength: 1
+          maxLength: 200
+        description: &id004
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        keycloak_group_ref: &id005
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+          - type: 'null'
+    Department:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - code
+      - name
+      - description
+      - keycloak_group_ref
+      - status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        code: *id002
+        name: *id003
+        description: *id004
+        keycloak_group_ref: *id005
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - DISABLED
+    DepartmentPatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        keycloak_group_ref:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - DISABLED
+      minProperties: 2
+    MembershipUpsert:
+      type: object
+      additionalProperties: false
+      required:
+      - principal_id
+      - membership_role
+      properties:
+        principal_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        membership_role:
+          type: string
+          enum:
+          - STAFF
+          - OWNER
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+    Membership:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - principal_id
+      - department_id
+      - membership_role
+      - status
+      - expires_at
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        principal_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        department_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        membership_role:
+          type: string
+          enum:
+          - STAFF
+          - OWNER
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - REVOKED
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+    MembershipPatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        membership_role:
+          type: string
+          enum:
+          - STAFF
+          - OWNER
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - REVOKED
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+      minProperties: 2
+    ApplicationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - department_id
+      - app_key
+      - name
+      properties:
+        department_id: &id006
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        app_key: &id007
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        name: &id008
+          type: string
+          minLength: 1
+          maxLength: 200
+        description: &id009
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        business_api_base_url: &id010
+          anyOf:
+          - type: string
+            format: uri
+          - type: 'null'
+    Application:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - department_id
+      - app_key
+      - name
+      - description
+      - business_api_base_url
+      - status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        department_id: *id006
+        app_key: *id007
+        name: *id008
+        description: *id009
+        business_api_base_url: *id010
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DISABLED
+    ApplicationPatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        business_api_base_url:
+          anyOf:
+          - type: string
+            format: uri
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DISABLED
+      minProperties: 2
+      description: Changing business_api_base_url or moving ACTIVE to DRAFT is rejected with 409 INVALID_STATE while
+        ACTIVE BUSINESS_API operation versions reference the application. DISABLED blocks new executions immediately;
+        reactivation requires endpoint/dependency validation. Department/app_key ownership is immutable.
+    SourceCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - application_id
+      - source_key
+      - db_type
+      - host
+      - port
+      - database_name
+      - db_user
+      - secret_ref
+      - ssl_mode
+      - hasura_source_name
+      properties:
+        application_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        source_key:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        db_type:
+          const: POSTGRESQL
+        host:
+          type: string
+          minLength: 1
+          maxLength: 253
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        database_name:
+          type: string
+          minLength: 1
+          maxLength: 63
+        db_user:
+          type: string
+          minLength: 1
+          maxLength: 63
+        secret_ref:
+          type: string
+          minLength: 1
+          maxLength: 500
+          writeOnly: true
+        ssl_mode: &id011
+          type: string
+          enum:
+          - verify-full
+          - verify-ca
+          - require
+          - disable
+        hasura_source_name:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^[a-z][a-z0-9_]*$
+      description: Approved admin endpoint only. verify-full default at implementation; disable only explicitly
+        configured local exception. No credential-bearing DSN.
+    SourcePatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        host:
+          type: string
+          minLength: 1
+          maxLength: 253
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        database_name:
+          type: string
+          minLength: 1
+          maxLength: 63
+        db_user:
+          type: string
+          minLength: 1
+          maxLength: 63
+        secret_ref:
+          type: string
+          minLength: 1
+          maxLength: 500
+          writeOnly: true
+        ssl_mode: *id011
+      minProperties: 2
+      description: Connection update invalidates validation; reject while live products/grants depend on it. Reconnect
+        explicitly.
+    Source:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - application_id
+      - source_key
+      - db_type
+      - hasura_source_name
+      - status
+      - last_checked_at
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        application_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        source_key:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        db_type:
+          const: POSTGRESQL
+        hasura_source_name:
+          type: string
+          minLength: 1
+          maxLength: 63
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - VALIDATING
+          - CONNECTED
+          - FAILED
+          - DISABLED
+        last_checked_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+      description: Redacted read DTO; never returns connection coordinates, db_user or secret_ref.
+    DiscoveredColumn:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - source_type
+      - nullable
+      - is_key
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 63
+        source_type:
+          type: string
+          minLength: 1
+          maxLength: 100
+        nullable:
+          type: boolean
+        is_key:
+          type: boolean
+    DiscoveredObject:
+      type: object
+      additionalProperties: false
+      required:
+      - schema_name
+      - object_name
+      - object_type
+      - columns
+      properties:
+        schema_name:
+          type: string
+          minLength: 1
+          maxLength: 63
+        object_name:
+          type: string
+          minLength: 1
+          maxLength: 63
+        object_type:
+          type: string
+          enum:
+          - TABLE
+          - VIEW
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoveredColumn'
+          minItems: 1
+          maxItems: 1000
+    SourceSchema:
+      type: object
+      additionalProperties: false
+      required:
+      - data_source_id
+      - captured_at
+      - objects
+      properties:
+        data_source_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        captured_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoveredObject'
+          minItems: 0
+          maxItems: 1000
+      description: Live bounded discovery, metadata only; no snapshot persistence implied.
+    ProductCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - data_source_id
+      - product_key
+      - name
+      - schema_name
+      - object_name
+      - object_type
+      - classification
+      properties:
+        data_source_id: &id012
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        product_key: &id013
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        name: &id014
+          type: string
+          minLength: 1
+          maxLength: 200
+        description: &id015
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        schema_name: &id016
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^[a-z_][a-z0-9_]*$
+        object_name: &id017
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^[a-z_][a-z0-9_]*$
+        object_type: &id018
+          type: string
+          enum:
+          - TABLE
+          - VIEW
+        classification: &id019
+          type: string
+          enum:
+          - PUBLIC
+          - INTERNAL
+          - CONFIDENTIAL
+    Product:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - data_source_id
+      - product_key
+      - name
+      - description
+      - schema_name
+      - object_name
+      - object_type
+      - classification
+      - owner_department_id
+      - active_contract_id
+      - status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        data_source_id: *id012
+        product_key: *id013
+        name: *id014
+        description: *id015
+        schema_name: *id016
+        object_name: *id017
+        object_type: *id018
+        classification: *id019
+        owner_department_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        active_contract_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - READY
+          - PROVISIONING
+          - ACTIVE
+          - ERROR
+          - DISABLED
+      description: owner_department_id is derived, never written by caller.
+    ProductPatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        classification:
+          type: string
+          enum:
+          - PUBLIC
+          - INTERNAL
+          - CONFIDENTIAL
+      minProperties: 2
+      description: DRAFT only; source/object identity is immutable.
+    ContractField:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - type
+      - nullable
+      - description
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^[a-z_][a-z0-9_]*$
+        type:
+          type: string
+          enum:
+          - string
+          - integer
+          - number
+          - boolean
+          - date
+          - date-time
+        nullable:
+          type: boolean
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        minimum:
+          type: number
+    DataContractDocument:
+      type: object
+      additionalProperties: false
+      required:
+      - grain
+      - business_key
+      - fields
+      - classification
+      properties:
+        grain:
+          type: string
+          minLength: 1
+          maxLength: 500
+        business_key:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 63
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractField'
+          minItems: 1
+          maxItems: 100
+        classification:
+          type: string
+          enum:
+          - PUBLIC
+          - INTERNAL
+          - CONFIDENTIAL
+      description: Service checks unique field names, keys exist and source type compatibility. No quality guarantee
+        implied.
+    ContractCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - contract_json
+      properties:
+        version: &id020
+          type: string
+          minLength: 1
+          maxLength: 30
+          pattern: ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$
+        contract_json: &id021
+          $ref: '#/components/schemas/DataContractDocument'
+    DataContract:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - data_product_id
+      - version
+      - contract_json
+      - status
+      - published_at
+      - published_by
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        data_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        version: *id020
+        contract_json: *id021
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - RETIRED
+        published_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        published_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+    DataContractPatch:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - contract_json
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        contract_json:
+          $ref: '#/components/schemas/DataContractDocument'
+      description: DRAFT only; never modify PUBLISHED content or version identity.
+    PublishProduct:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - contract_version_id
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        contract_version_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+    AccessRequestCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - data_product_id
+      - contract_version_id
+      - consumer_department_id
+      - consumer_principal_id
+      - requested_scope_json
+      - reason
+      properties:
+        data_product_id: &id022
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        contract_version_id: &id023
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        consumer_department_id: &id024
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        consumer_principal_id: &id025
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        requested_scope_json: &id026
+          $ref: ./common.openapi.yaml#/components/schemas/DataScope
+        reason: &id027
+          type: string
+          minLength: 1
+          maxLength: 2000
+      oneOf:
+      - properties:
+          consumer_department_id:
+            type: string
+          consumer_principal_id:
+            type: 'null'
+      - properties:
+          consumer_department_id:
+            type: 'null'
+          consumer_principal_id:
+            type: string
+    AccessRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - data_product_id
+      - contract_version_id
+      - consumer_department_id
+      - consumer_principal_id
+      - requested_scope_json
+      - reason
+      - requested_by
+      - status
+      - requested_at
+      - decided_by
+      - decided_at
+      - decision_note
+      - revision
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        data_product_id: *id022
+        contract_version_id: *id023
+        consumer_department_id: *id024
+        consumer_principal_id: *id025
+        requested_scope_json: *id026
+        reason: *id027
+        requested_by:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        status: *id028
+        requested_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        decided_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        decided_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        decision_note:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+      oneOf:
+      - properties:
+          consumer_department_id:
+            type: string
+          consumer_principal_id:
+            type: 'null'
+      - properties:
+          consumer_department_id:
+            type: 'null'
+          consumer_principal_id:
+            type: string
+    ApproveRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - scope_json
+      - expires_at
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        scope_json:
+          $ref: ./common.openapi.yaml#/components/schemas/DataScope
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        decision_note:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 2000
+          - type: 'null'
+      description: Approved columns must be subset of requested; future expiry or explicit null. Owner policy may
+        require a finite expiry.
+    DecideRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - decision_note
+      properties:
+        expected_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        decision_note:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    Grant:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - data_product_id
+      - contract_version_id
+      - access_request_id
+      - consumer_department_id
+      - consumer_principal_id
+      - scope_json
+      - desired_revision
+      - applied_revision
+      - status
+      - expires_at
+      - granted_by
+      - granted_at
+      - revoked_by
+      - revoked_at
+      - updated_at
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        data_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        contract_version_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        access_request_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        consumer_department_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        consumer_principal_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        scope_json:
+          $ref: ./common.openapi.yaml#/components/schemas/DataScope
+        desired_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        applied_revision:
+          type: integer
+          minimum: 0
+        status: *id029
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        granted_by:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        granted_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        revoked_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revoked_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+      oneOf:
+      - properties:
+          consumer_department_id:
+            type: string
+          consumer_principal_id:
+            type: 'null'
+      - properties:
+          consumer_department_id:
+            type: 'null'
+          consumer_principal_id:
+            type: string
+      description: ACTIVE requires applied_revision == desired_revision at service boundary; enforcement_role remains
+        internal.
+    ApproveAccepted:
+      type: object
+      additionalProperties: false
+      required:
+      - access_request
+      - grant
+      - job_id
+      - job_url
+      properties:
+        access_request:
+          $ref: '#/components/schemas/AccessRequest'
+        grant:
+          $ref: '#/components/schemas/Grant'
+        job_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        job_url:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: ^/api/v1/core/publication-jobs/
+    RevokeGrant:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_desired_revision
+      - reason
+      properties:
+        expected_desired_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    PublicationJob:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - job_type
+      - data_source_id
+      - data_product_id
+      - access_grant_id
+      - target_revision
+      - status
+      - attempt_count
+      - max_attempts
+      - next_attempt_at
+      - last_error_code
+      - last_error_message
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        job_type:
+          type: string
+          enum:
+          - CONNECT_SOURCE
+          - PUBLISH_PRODUCT
+          - APPLY_GRANT
+          - REVOKE_GRANT
+          - DISABLE_PRODUCT
+        data_source_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        data_product_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        access_grant_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        target_revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        status:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - RETRY
+          - SUCCEEDED
+          - FAILED
+        attempt_count:
+          type: integer
+          minimum: 0
+        max_attempts:
+          type: integer
+          minimum: 1
+        next_attempt_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        last_error_code:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 100
+          - type: 'null'
+        last_error_message:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 1000
+          - type: 'null'
+      oneOf:
+      - properties:
+          job_type:
+            const: CONNECT_SOURCE
+          data_source_id:
+            type: string
+          data_product_id:
+            type: 'null'
+          access_grant_id:
+            type: 'null'
+      - properties:
+          job_type:
+            enum:
+            - PUBLISH_PRODUCT
+            - DISABLE_PRODUCT
+          data_source_id:
+            type: 'null'
+          data_product_id:
+            type: string
+          access_grant_id:
+            type: 'null'
+      - properties:
+          job_type:
+            enum:
+            - APPLY_GRANT
+            - REVOKE_GRANT
+          data_source_id:
+            type: 'null'
+          data_product_id:
+            type: 'null'
+          access_grant_id:
+            type: string
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - event_key
+      - occurred_at
+      - recorded_at
+      - actor_principal_id
+      - actor_kind
+      - initiator_principal_id
+      - action
+      - resource_type
+      - resource_ref
+      - outcome
+      - request_id
+      - workflow_run_ref
+      - operation_id
+      - error_code
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        event_key:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 200
+          - type: 'null'
+        occurred_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        recorded_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        actor_principal_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        actor_kind:
+          type: string
+          enum:
+          - human
+          - service
+          - system
+        initiator_principal_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        action:
+          type: string
+          minLength: 1
+          maxLength: 100
+        resource_type:
+          type: string
+          minLength: 1
+          maxLength: 100
+        resource_ref:
+          type: string
+          minLength: 1
+          maxLength: 500
+        outcome:
+          type: string
+          enum:
+          - SUCCESS
+          - FAILURE
+          - DENIED
+        request_id:
+          $ref: ./common.openapi.yaml#/components/schemas/RequestId
+        workflow_run_ref:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+          - type: 'null'
+        operation_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        error_code:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 100
+          - type: 'null'
+      description: Redacted append-only view. Raw diff/result/secrets are not returned.
+    PrincipalPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Principal'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    DepartmentPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    ApplicationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Application'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    SourcePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    ProductPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    MembershipPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Membership'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    DataContractPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataContract'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    AccessRequestPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessRequest'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    GrantPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Grant'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    AuditEventPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    AuthenticationConfig:
+      type: object
+      additionalProperties: false
+      required:
+      - mode
+      - secret_ref
+      properties:
+        mode:
+          type: string
+          enum:
+          - CALLER_TOKEN
+          - SERVICE_CREDENTIAL
+        secret_ref:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+            writeOnly: true
+          - type: 'null'
+      description: CALLER_TOKEN requires null ref and correct downstream audience; SERVICE_CREDENTIAL requires approved
+        ref plus receiver-scoped authorization.
+      oneOf:
+      - properties:
+          mode:
+            const: CALLER_TOKEN
+          secret_ref:
+            type: 'null'
+      - properties:
+          mode:
+            const: SERVICE_CREDENTIAL
+          secret_ref:
+            type: string
+            minLength: 1
+    HttpRequestConfig:
+      type: object
+      additionalProperties: false
+      required:
+      - method
+      - path
+      - timeout_seconds
+      - authentication
+      - target_operation_id
+      properties:
+        method:
+          type: string
+          enum:
+          - GET
+          - POST
+        path:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: ^/api/v1/(sales|warehouse|logistics)/[^?#]*$
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 120
+        authentication:
+          $ref: '#/components/schemas/AuthenticationConfig'
+        target_operation_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z][A-Za-z0-9]*$
+      description: target_operation_id identifies an operationId in domain-api.openapi.yaml. method/path must equal
+        that operation including literal path placeholders. BUSINESS_API variables use {path,query,body}; exact
+        parameters/body are validated against both registered input_schema_json and the target operation. Encode
+        path values as individual URI segments; query uses declared OpenAPI serialization; forward body as JSON.
+        No user-supplied headers/URL/auth and no template/eval DSL. Only synchronous 200/201 JSON response targets;
+        activation rejects redirects/202/204/non-JSON targets.
+    OperationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_key
+      - version
+      - operation_type
+      - data_product_id
+      - contract_version_id
+      - application_id
+      - query_text
+      - request_config_json
+      - input_schema_json
+      - output_schema_json
+      properties:
+        operation_key:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        version:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        operation_type:
+          type: string
+          enum:
+          - HASURA_QUERY
+          - BUSINESS_API
+        data_product_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        contract_version_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        application_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        query_text:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 20000
+          - type: 'null'
+        request_config_json:
+          anyOf:
+          - $ref: '#/components/schemas/HttpRequestConfig'
+          - type: 'null'
+        input_schema_json:
+          type: object
+          additionalProperties: true
+        output_schema_json:
+          type: object
+          additionalProperties: true
+      oneOf:
+      - properties:
+          operation_type:
+            const: HASURA_QUERY
+          data_product_id:
+            type: string
+          contract_version_id:
+            type: string
+          query_text:
+            type: string
+          application_id:
+            type: 'null'
+          request_config_json:
+            type: 'null'
+      - properties:
+          operation_type:
+            const: BUSINESS_API
+          data_product_id:
+            type: 'null'
+          contract_version_id:
+            type: 'null'
+          query_text:
+            type: 'null'
+          application_id:
+            type: string
+          request_config_json:
+            type: object
+      description: JSON Schemas must validate as Draft 2020-12; reject external refs/unsafe features according to
+        supported subset. No eval.
+    Operation:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - operation_key
+      - version
+      - operation_type
+      - data_product_id
+      - contract_version_id
+      - application_id
+      - input_schema_json
+      - output_schema_json
+      - status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        operation_key:
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        version:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        operation_type:
+          type: string
+          enum:
+          - HASURA_QUERY
+          - BUSINESS_API
+        data_product_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        contract_version_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        application_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        input_schema_json:
+          type: object
+          additionalProperties: true
+        output_schema_json:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DISABLED
+      description: Runtime-visible registry view; no query_text, HTTP config or secret refs.
+    OperationPermissionCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - consumer_department_id
+      - consumer_principal_id
+      - expires_at
+      properties:
+        consumer_department_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        consumer_principal_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+      oneOf:
+      - properties:
+          consumer_department_id:
+            type: string
+          consumer_principal_id:
+            type: 'null'
+      - properties:
+          consumer_department_id:
+            type: 'null'
+          consumer_principal_id:
+            type: string
+    OperationPermission:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - operation_id
+      - consumer_department_id
+      - consumer_principal_id
+      - status
+      - expires_at
+      - granted_by
+      - granted_at
+      - revoked_by
+      - revoked_at
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        operation_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        consumer_department_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        consumer_principal_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - REVOKED
+        expires_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        granted_by:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        granted_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        revoked_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revoked_at:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+          - type: 'null'
+      oneOf:
+      - properties:
+          consumer_department_id:
+            type: string
+          consumer_principal_id:
+            type: 'null'
+      - properties:
+          consumer_department_id:
+            type: 'null'
+          consumer_principal_id:
+            type: string
+    ToolCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - owner_department_id
+      - tool_key
+      - version
+      - name
+      - description
+      - operation_id
+      properties:
+        owner_department_id: &id030
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        tool_key: &id031
+          $ref: ./common.openapi.yaml#/components/schemas/StableKey
+        version: &id032
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        name: &id033
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_]{0,63}$
+        description: &id034
+          type: string
+          minLength: 1
+          maxLength: 2000
+        operation_id: &id035
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+    Tool:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      - revision
+      - owner_department_id
+      - tool_key
+      - version
+      - name
+      - description
+      - operation_id
+      - status
+      properties:
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        owner_department_id: *id030
+        tool_key: *id031
+        version: *id032
+        name: *id033
+        description: *id034
+        operation_id: *id035
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DISABLED
+    ToolBindingPut:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - exposed_name
+      - enabled
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 0
+        exposed_name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_]{0,63}$
+        enabled:
+          type: boolean
+      description: expected_revision=0 creates an absent binding; otherwise must match existing revision.
+    ToolBinding:
+      type: object
+      additionalProperties: false
+      required:
+      - agent_id
+      - tool_id
+      - exposed_name
+      - enabled
+      - bound_by
+      - bound_at
+      - updated_by
+      - updated_at
+      - revision
+      properties:
+        agent_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        tool_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        exposed_name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        enabled:
+          type: boolean
+        bound_by:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        bound_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+    OperationPermissionPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationPermission'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    ToolBindingPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolBinding'
+          minItems: 0
+          maxItems: 100
+        next_cursor:
+          $ref: ./common.openapi.yaml#/components/schemas/PageCursor
+    DataRows:
+      type: object
+      additionalProperties: false
+      required:
+      - data_product_id
+      - contract_version_id
+      - columns
+      - rows
+      - limit
+      - offset
+      - has_more
+      properties:
+        data_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        contract_version_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        columns: *id036
+        rows:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties:
+              type:
+              - string
+              - number
+              - boolean
+              - 'null'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        has_more:
+          type: boolean
+      description: 'Each row must match exactly the requested projection of the pinned contract: no extra keys,
+        required keys present, declared types/nullability/ranges. Reject the entire upstream response with 503 if
+        any row is invalid. Dynamic property names are not authorization.'
