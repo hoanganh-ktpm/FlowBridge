@@ -9,6 +9,7 @@
 *.json text eol=lf
 *.sha256 text eol=lf
 *.license text eol=lf
+tests/contracts/fixtures/openapi-LICENSE.txt text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
 *.js text eol=lf
