@@ -86,6 +86,19 @@ class RevokeGrant(DTO):
 
 RESOURCE_METADATA = {"id", "created_at", "updated_at", "created_by", "updated_by", "revision"}
 PUBLIC_FIELDS = {
+    "relationship": RESOURCE_METADATA
+    | {
+        "name",
+        "source_product_id",
+        "target_product_id",
+        "source_contract_id",
+        "target_contract_id",
+        "relationship_type",
+        "field_mapping",
+        "status",
+        "applied_revision",
+        "last_error_code",
+    },
     "application": RESOURCE_METADATA
     | {"department_id", "app_key", "name", "description", "business_api_base_url", "status"},
     "source": RESOURCE_METADATA
@@ -152,6 +165,7 @@ PUBLIC_FIELDS = {
         "data_source_id",
         "data_product_id",
         "access_grant_id",
+        "relationship_id",
         "target_revision",
         "status",
         "attempt_count",

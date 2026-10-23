@@ -12,6 +12,11 @@ x-contract-status: "REVIEW_CANDIDATE"
 x-database-alignment: "PENDING_DB_ALIGNMENT"
 security: [{"bearerAuth":[]}]
 paths:
+  "/api/v1/core/relationships": {"$ref":"./relationships.yaml#/paths/~1api~1v1~1core~1relationships"}
+  "/api/v1/core/relationships/{relationship_id}": {"$ref":"./relationships.yaml#/paths/~1api~1v1~1core~1relationships~1{relationship_id}"}
+  "/api/v1/core/relationships/{relationship_id}/publish": {"$ref":"./relationships.yaml#/paths/~1api~1v1~1core~1relationships~1{relationship_id}~1publish"}
+  "/api/v1/core/relationships/{relationship_id}/disable": {"$ref":"./relationships.yaml#/paths/~1api~1v1~1core~1relationships~1{relationship_id}~1disable"}
+  "/api/v1/core/data-products/{data_product_id}/query": {"$ref":"./relationships.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}~1query"}
   "/api/v1/core/me":
     get:
       operationId: "getMyContext"

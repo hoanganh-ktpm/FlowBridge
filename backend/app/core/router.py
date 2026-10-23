@@ -6,6 +6,8 @@ from starlette.responses import JSONResponse
 
 from app.core.applications.runtime import ImportRequest, OnboardingSubmission, PlanRequest
 from app.core.applications.schemas import ApplicationCreate, ApplicationPatch
+from app.core.data_products.querying import QuerySelection
+from app.core.data_products.relationships import RelationshipDefinition, RelationshipPatch
 from app.core.data_products.schemas import (
     ContractCreate,
     ContractPatch,
@@ -293,4 +295,117 @@ async def read_rows(
             raise CoreError(ErrorCode.VALIDATION_ERROR)
     return await service(request).read_rows(
         actor, data_product_id, contract_version_id, identifiers(columns), limit, offset
+    )
+
+
+@router.post("/relationships", operation_id="createRelationship", status_code=201)
+async def create_relationship(
+    body: RelationshipDefinition, request: Request, actor: Actor, key: Key
+):
+    receipt = await request.app.state.relationships.command(
+        "create",
+        actor,
+        "POST",
+        request.url.path,
+        key,
+        body.model_dump(mode="json"),
+        request.state.correlation_id,
+    )
+    return JSONResponse(receipt.body, status_code=receipt.status)
+
+
+@router.get("/relationships", operation_id="listRelationships")
+async def list_relationships(source_product_id: UUID, request: Request, actor: Actor):
+    return await request.app.state.relationships.list(actor, source_product_id)
+
+
+@router.get("/relationships/{relationship_id}", operation_id="getRelationship")
+async def get_relationship(relationship_id: UUID, request: Request, actor: Actor):
+    return await request.app.state.relationships.get(actor, relationship_id)
+
+
+@router.patch("/relationships/{relationship_id}", operation_id="patchRelationship")
+async def patch_relationship(
+    relationship_id: UUID,
+    body: RelationshipPatch,
+    request: Request,
+    actor: Actor,
+    key: Key,
+):
+    receipt = await request.app.state.relationships.command(
+        "patch",
+        actor,
+        "PATCH",
+        request.url.path,
+        key,
+        body.model_dump(mode="json"),
+        request.state.correlation_id,
+        relationship_id=relationship_id,
+    )
+    return JSONResponse(receipt.body, status_code=receipt.status)
+
+
+@router.post(
+    "/relationships/{relationship_id}/publish", operation_id="publishRelationship", status_code=202
+)
+async def publish_relationship(
+    relationship_id: UUID,
+    body: RevisionCommand,
+    request: Request,
+    actor: Actor,
+    key: Key,
+):
+    receipt = await request.app.state.relationships.command(
+        "publish",
+        actor,
+        "POST",
+        request.url.path,
+        key,
+        body.model_dump(mode="json"),
+        request.state.correlation_id,
+        relationship_id=relationship_id,
+    )
+    return JSONResponse(
+        receipt.body,
+        status_code=receipt.status,
+        headers={"Location": receipt.location, "Retry-After": "1"},
+    )
+
+
+@router.post(
+    "/relationships/{relationship_id}/disable", operation_id="disableRelationship", status_code=202
+)
+async def disable_relationship(
+    relationship_id: UUID,
+    body: ReasonCommand,
+    request: Request,
+    actor: Actor,
+    key: Key,
+):
+    receipt = await request.app.state.relationships.command(
+        "disable",
+        actor,
+        "POST",
+        request.url.path,
+        key,
+        body.model_dump(mode="json"),
+        request.state.correlation_id,
+        relationship_id=relationship_id,
+    )
+    return JSONResponse(
+        receipt.body,
+        status_code=receipt.status,
+        headers={"Location": receipt.location, "Retry-After": "1"},
+    )
+
+
+@router.post("/data-products/{data_product_id}/query", operation_id="queryDataProduct")
+async def query_product(
+    data_product_id: UUID,
+    body: QuerySelection,
+    request: Request,
+    actor: Actor,
+):
+    return await request.app.state.relationship_queries.run(
+        actor, data_product_id, body, request.state.correlation_id
     )

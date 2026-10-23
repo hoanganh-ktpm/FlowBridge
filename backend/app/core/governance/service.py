@@ -65,9 +65,16 @@ async def visible_product(transaction, product_id, contract_id=None):
 
 
 async def enqueue(context: CommandContext, kind: str, target: StoredResource) -> dict:
-    fields = {"data_source_id": None, "data_product_id": None, "access_grant_id": None}
+    fields = {
+        "data_source_id": None,
+        "data_product_id": None,
+        "access_grant_id": None,
+        "relationship_id": None,
+    }
     field = (
-        "data_source_id"
+        "relationship_id"
+        if kind in {"PUBLISH_RELATIONSHIP", "DISABLE_RELATIONSHIP"}
+        else "data_source_id"
         if kind == "CONNECT_SOURCE"
         else "access_grant_id"
         if kind in {"APPLY_GRANT", "REVOKE_GRANT"}
@@ -291,11 +298,11 @@ class DataSharingService:
         await context.transaction.replace("contract", contract)
         return CommandReceipt("", 200, contract.public)
 
-    async def verify_contract(self, transaction, product, contract):
+    async def verify_contract(self, transaction, product, contract, *, snapshot=None):
         source = await transaction.get("source", uuid(product.public["data_source_id"]))
         require_state(source.public["status"] == "CONNECTED")
         await source_affiliation(transaction, source)
-        snapshot = await self.discovery.snapshot(source)
+        snapshot = snapshot or await self.discovery.snapshot(source)
         await require_physical_contract(
             product.public,
             DataContractDocument.model_validate(contract.public["contract_json"]),

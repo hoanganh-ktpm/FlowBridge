@@ -30,6 +30,7 @@ CORE_TABLE_PRIORITIES = {
     "publication_jobs": "P0",
     "audit_events": "P0",
     "core_command_receipts": "P0",
+    "data_product_relationships": "P0",
 }
 
 
@@ -626,6 +627,77 @@ sa.Index(
 )
 
 
+data_product_relationships = sa.Table(
+    "data_product_relationships",
+    CoreBase.metadata,
+    sa.Column("id", sa.Uuid, primary_key=True, server_default=sa.text("gen_random_uuid()")),
+    sa.Column("name", sa.Text, nullable=False),
+    sa.Column(
+        "source_product_id",
+        sa.Uuid,
+        sa.ForeignKey("public.data_products.id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    sa.Column(
+        "target_product_id",
+        sa.Uuid,
+        sa.ForeignKey("public.data_products.id", ondelete="RESTRICT"),
+        nullable=False,
+    ),
+    sa.Column("source_contract_id", sa.Uuid, nullable=False),
+    sa.Column("target_contract_id", sa.Uuid, nullable=False),
+    sa.Column("relationship_type", sa.Text, nullable=False),
+    sa.Column("field_mapping", JSONB, nullable=False),
+    sa.Column("status", sa.Text, nullable=False, server_default="DRAFT"),
+    sa.Column("revision", sa.BigInteger, nullable=False, server_default=sa.text("1")),
+    sa.Column("applied_revision", sa.BigInteger, nullable=False, server_default=sa.text("0")),
+    sa.Column("last_error_code", sa.Text, nullable=True),
+    sa.Column(
+        "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    ),
+    sa.Column(
+        "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    ),
+    sa.Column(
+        "created_by",
+        sa.Uuid,
+        sa.ForeignKey("public.principals.id", ondelete="RESTRICT"),
+        nullable=True,
+    ),
+    sa.Column(
+        "updated_by",
+        sa.Uuid,
+        sa.ForeignKey("public.principals.id", ondelete="RESTRICT"),
+        nullable=True,
+    ),
+    sa.ForeignKeyConstraint(
+        ["source_contract_id", "source_product_id"],
+        ["public.data_contract_versions.id", "public.data_contract_versions.data_product_id"],
+        ondelete="RESTRICT",
+    ),
+    sa.ForeignKeyConstraint(
+        ["target_contract_id", "target_product_id"],
+        ["public.data_contract_versions.id", "public.data_contract_versions.data_product_id"],
+        ondelete="RESTRICT",
+    ),
+    sa.UniqueConstraint("source_product_id", "name"),
+    sa.CheckConstraint("name ~ '^[a-z_][a-z0-9_]{0,62}$' AND left(name, 2) <> '__'", name="name"),
+    sa.CheckConstraint("relationship_type IN ('object', 'array')", name="relationship_type"),
+    sa.CheckConstraint(
+        "jsonb_typeof(field_mapping) = 'object' AND field_mapping <> '{}'::jsonb", name="mapping"
+    ),
+    sa.CheckConstraint(
+        "status IN ('DRAFT','PROVISIONING','ACTIVE','DISABLING','DISABLED','ERROR')", name="status"
+    ),
+    sa.CheckConstraint(
+        "revision >= 1 AND applied_revision BETWEEN 0 AND revision", name="revision"
+    ),
+    sa.CheckConstraint("status <> 'ACTIVE' OR applied_revision = revision", name="active_applied"),
+    schema="public",
+)
+sa.Index("ix_relationship_target", data_product_relationships.c.target_product_id)
+
+
 publication_jobs = sa.Table(
     "publication_jobs",
     CoreBase.metadata,
@@ -650,6 +722,12 @@ publication_jobs = sa.Table(
         nullable=True,
     ),
     sa.Column("target_revision", sa.BigInteger, nullable=False),
+    sa.Column(
+        "relationship_id",
+        sa.Uuid,
+        sa.ForeignKey("public.data_product_relationships.id", ondelete="RESTRICT"),
+        nullable=True,
+    ),
     sa.Column("idempotency_key", sa.Text, nullable=False),
     sa.Column("status", sa.Text, nullable=False, server_default="QUEUED"),
     sa.Column("attempt_count", sa.Integer, nullable=False, server_default=sa.text("0")),
@@ -675,7 +753,7 @@ publication_jobs = sa.Table(
     ),
     sa.Column("correlation_id", sa.Text, nullable=False),
     sa.CheckConstraint(
-        "job_type IN ('CONNECT_SOURCE', 'PUBLISH_PRODUCT', 'APPLY_GRANT', 'REVOKE_GRANT', 'DISABLE_PRODUCT')",
+        "job_type IN ('CONNECT_SOURCE', 'PUBLISH_PRODUCT', 'APPLY_GRANT', 'REVOKE_GRANT', 'DISABLE_PRODUCT', 'PUBLISH_RELATIONSHIP', 'DISABLE_RELATIONSHIP')",
         name="job_type",
     ),
     sa.CheckConstraint(
@@ -683,7 +761,7 @@ publication_jobs = sa.Table(
     ),
     sa.UniqueConstraint("idempotency_key"),
     sa.CheckConstraint(
-        "(job_type = 'CONNECT_SOURCE' AND data_source_id IS NOT NULL AND data_product_id IS NULL AND access_grant_id IS NULL) OR (job_type IN ('PUBLISH_PRODUCT','DISABLE_PRODUCT') AND data_source_id IS NULL AND data_product_id IS NOT NULL AND access_grant_id IS NULL) OR (job_type IN ('APPLY_GRANT','REVOKE_GRANT') AND data_source_id IS NULL AND data_product_id IS NULL AND access_grant_id IS NOT NULL)",
+        "(job_type = 'CONNECT_SOURCE' AND data_source_id IS NOT NULL AND data_product_id IS NULL AND access_grant_id IS NULL AND relationship_id IS NULL) OR (job_type IN ('PUBLISH_PRODUCT','DISABLE_PRODUCT') AND data_source_id IS NULL AND data_product_id IS NOT NULL AND access_grant_id IS NULL AND relationship_id IS NULL) OR (job_type IN ('APPLY_GRANT','REVOKE_GRANT') AND data_source_id IS NULL AND data_product_id IS NULL AND access_grant_id IS NOT NULL AND relationship_id IS NULL) OR (job_type IN ('PUBLISH_RELATIONSHIP','DISABLE_RELATIONSHIP') AND data_source_id IS NULL AND data_product_id IS NULL AND access_grant_id IS NULL AND relationship_id IS NOT NULL)",
         name="target",
     ),
     sa.CheckConstraint(
@@ -702,6 +780,14 @@ publication_jobs = sa.Table(
     schema="public",
 )
 sa.Index("ix_job_due", publication_jobs.c.status, publication_jobs.c.next_attempt_at)
+sa.Index(
+    "uq_job_relationship_revision",
+    publication_jobs.c.job_type,
+    publication_jobs.c.relationship_id,
+    publication_jobs.c.target_revision,
+    unique=True,
+    postgresql_where=sa.text("relationship_id IS NOT NULL"),
+)
 sa.Index("ix_job_lease", publication_jobs.c.status, publication_jobs.c.lease_expires_at)
 sa.Index(
     "uq_job_source_revision",

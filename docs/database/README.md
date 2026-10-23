@@ -6,12 +6,12 @@ FlowBridge triển khai cho **một doanh nghiệp**, với Core metadata và ba
 
 | Khối | Models | Migration history | Bảng hiện hành | Head |
 |---|---|---|---:|---|
-| Core | `backend/app/core/db/models.py` | `backend/app/core/db/migrations/versions/` | 12 | `core_0004` |
+| Core | `backend/app/core/db/models.py` | `backend/app/core/db/migrations/versions/` | 13 | `core_0005` |
 | Sales | `services/sales-api/app/db/models.py` | `services/sales-api/migrations/versions/` | 7 | `sales_0001` |
 | Warehouse | `services/warehouse-api/app/db/models.py` | `services/warehouse-api/migrations/versions/` | 13 | `warehouse_0001` |
 | Logistics | `services/logistics-api/app/db/models.py` | `services/logistics-api/migrations/versions/` | 6 | `logistics_0001` |
 
-Tổng **38 bảng ứng dụng**, không tính bốn bảng alembic_version; có **7 revision files**. Core giữ nguyên ba revisions lịch sử và thêm core_0004 thay thiết kế cũ. Ba migration nghiệp vụ không đổi. Agent/Tool/Operation/Workflow metadata P1/P2 chưa triển khai; không coi proposal 20 bảng là toàn bộ schema phải tạo ngay.
+Models hiện có **39 bảng ứng dụng**, không tính bốn bảng alembic_version; có **8 revision files**. Source head `core_0005` thêm registry quan hệ và job target, không reset Core hay sửa database nghiệp vụ; **chưa áp dụng lên Supabase trong task triển khai**. Core giữ nguyên lịch sử cũ, gồm migration realignment core_0004. Ba migration nghiệp vụ không đổi. Agent/Tool/Operation/Workflow metadata P1/P2 chưa triển khai; không coi proposal 20 bảng là toàn bộ schema phải tạo ngay.
 
 Mỗi Business API import models cục bộ qua app.db.models, tự sở hữu engine/session, transaction và quyền ghi nghiệp vụ. Không import Core, service khác hoặc scripts.database vào runtime. SQL helpers/technical tables cục bộ được giữ độc lập để các nhóm phát triển riêng.
 

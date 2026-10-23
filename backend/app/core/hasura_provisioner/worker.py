@@ -8,7 +8,7 @@ from app.core.data_sources.service import source_record
 from app.core.db.commands import timestamp, uuid
 from app.core.db.ports import StoredResource, TransientTransactionConflict
 from app.core.governance.policy import resolve_principal
-from app.core.governance.service import instant, source_affiliation
+from app.core.governance.service import current_product, instant, source_affiliation
 from app.platform.http.errors import CoreError, ErrorCode
 
 from .errors import HasuraError, HasuraUnavailable, MetadataConflict
@@ -29,6 +29,8 @@ class JobLease:
 
 def target_of(job):
     kind = job["job_type"]
+    if kind in {"PUBLISH_RELATIONSHIP", "DISABLE_RELATIONSHIP"}:
+        return "relationship", uuid(job["relationship_id"])
     if kind == "CONNECT_SOURCE":
         return "source", uuid(job["data_source_id"])
     if kind in {"PUBLISH_PRODUCT", "DISABLE_PRODUCT"}:
@@ -83,12 +85,17 @@ class PublicationWorker:
                         "desired_revision", resource.public.get("revision")
                     )
                     terminal = {
+                        "relationship": ("PROVISIONING", "ERROR"),
                         "source": ("VALIDATING", "FAILED"),
                         "product": ("PROVISIONING", "ERROR"),
                         "grant": ("PENDING_APPLY", "ERROR"),
                     }
                     before, after = terminal[kind]
-                    if revision == job["target_revision"] and resource.public["status"] == before:
+                    if revision == job["target_revision"] and (
+                        resource.public["status"] == before
+                        or kind == "relationship"
+                        and resource.public["status"] == "DISABLING"
+                    ):
                         await transaction.replace(
                             kind,
                             StoredResource(
@@ -272,16 +279,24 @@ class PublicationWorker:
                 retry = retry and lease.attempt < record.public["max_attempts"]
                 if not retry and revision == record.public["target_revision"]:
                     transitions = {
+                        "relationship": ("PROVISIONING", "ERROR"),
                         "source": ("VALIDATING", "FAILED"),
                         "product": ("PROVISIONING", "ERROR"),
                         "grant": ("PENDING_APPLY", "ERROR"),
                     }
                     before, after = transitions[kind]
-                    if resource.public["status"] == before:
+                    if resource.public["status"] == before or (
+                        kind == "relationship" and resource.public["status"] == "DISABLING"
+                    ):
                         await transaction.replace(
                             kind,
                             StoredResource(
-                                {**resource.public, "status": after, "updated_at": timestamp(now)},
+                                {
+                                    **resource.public,
+                                    "status": after,
+                                    "updated_at": timestamp(now),
+                                    **({"last_error_code": code} if kind == "relationship" else {}),
+                                },
                                 resource.private,
                             ),
                         )
@@ -330,7 +345,9 @@ class PublicationWorker:
         grants = WorkerGrants(self, lease)
         contracts = WorkerContracts(self, lease)
         authorization = WorkerIdentity(self, lease)
-        if job["job_type"] == "CONNECT_SOURCE":
+        if job["job_type"] in {"PUBLISH_RELATIONSHIP", "DISABLE_RELATIONSHIP"}:
+            await self.execute_relationship(lease)
+        elif job["job_type"] == "CONNECT_SOURCE":
             source = await sources.get(uuid(job["data_source_id"]))
             async with self.guard(lease) as (transaction, _, _):
                 await source_affiliation(transaction, await transaction.get("source", source.id))
@@ -392,6 +409,78 @@ class PublicationWorker:
                         expected_grant_id=grant.id,
                         expected_revision=job["target_revision"],
                     )
+
+    async def execute_relationship(self, lease):
+        from app.core.data_products.relationships import RelationshipRegistry, table_ref
+        from app.core.hasura_provisioner.relationships import (
+            HasuraRelationships,
+            RelationshipMetadata,
+        )
+
+        async with self.guard(lease) as (transaction, job, _):
+            record = await transaction.get("relationship", uuid(job.public["relationship_id"]))
+            source_id = uuid(record.public["source_product_id"])
+        async with self.store.permission_lock(source_id, UUID(int=0)):
+            async with self.guard(lease) as (transaction, job, _):
+                record = await transaction.get("relationship", uuid(job.public["relationship_id"]))
+                remove = job.public["job_type"] == "DISABLE_RELATIONSHIP"
+                endpoints = []
+                for side in ("source", "target"):
+                    product = await transaction.get(
+                        "product", uuid(record.public[side + "_product_id"])
+                    )
+                    source = await transaction.get("source", uuid(product.public["data_source_id"]))
+                    endpoints.append((product.public, source.public))
+                relation = RelationshipMetadata(
+                    endpoints[0][1]["hasura_source_name"],
+                    table_ref(endpoints[0][0]),
+                    endpoints[1][1]["hasura_source_name"],
+                    table_ref(endpoints[1][0]),
+                    record.public["name"],
+                    record.public["relationship_type"],
+                    record.public["field_mapping"],
+                )
+            if not remove:
+                async with self.store.transaction(read_only=True) as transaction:
+                    await RelationshipRegistry(self.service, self.client).validate(
+                        transaction, record.public
+                    )
+            async with self.guard(lease) as (transaction, _, _):
+                if not remove:
+                    for side in ("source", "target"):
+                        await current_product(
+                            transaction,
+                            record.public[side + "_product_id"],
+                            record.public[side + "_contract_id"],
+                        )
+            await HasuraRelationships(self.client).apply(relation, remove=remove)
+            if not remove:
+                async with self.store.transaction(read_only=True) as transaction:
+                    await RelationshipRegistry(self.service, self.client).validate(
+                        transaction, record.public
+                    )
+            async with self.guard(lease) as (transaction, job, now):
+                record = await transaction.get("relationship", uuid(job.public["relationship_id"]))
+                if not remove:
+                    for side in ("source", "target"):
+                        await current_product(
+                            transaction,
+                            record.public[side + "_product_id"],
+                            record.public[side + "_contract_id"],
+                        )
+                await transaction.replace(
+                    "relationship",
+                    StoredResource(
+                        {
+                            **record.public,
+                            "status": "DISABLED" if remove else "ACTIVE",
+                            "applied_revision": record.public["revision"],
+                            "last_error_code": None,
+                            "updated_at": timestamp(now),
+                        },
+                        record.private,
+                    ),
+                )
 
 
 class WorkerIdentity:

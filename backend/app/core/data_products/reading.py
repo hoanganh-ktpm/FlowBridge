@@ -85,17 +85,6 @@ class HasuraDataReader:
             or context.desired_revision != context.applied_revision
         ):
             raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
-        token = (await self.credentials.issue(context)).get_secret_value()
-        now = datetime.now(UTC)
-        if (
-            not token
-            or "\r" in token
-            or "\n" in token
-            or token == self.settings.admin_secret.get_secret_value()
-            or not 0 <= (now - context.validated_at).total_seconds() <= 10
-            or (context.expires_at is not None and context.expires_at <= now)
-        ):
-            raise CoreError(ErrorCode.FORBIDDEN)
         ordering = ",".join("{" + aliases.get(key, key) + ":asc}" for key in order)
         selection = " ".join(
             column + ":" + aliases[column]
@@ -114,10 +103,34 @@ class HasuraDataReader:
             + selection
             + "}}}"
         )
+        result = await self.execute_graphql(context, query, {"limit": limit, "offset": offset})
+        namespace = result["data"].get(target.namespace)
+        rows = namespace.get("rows") if isinstance(namespace, dict) else None
+        if (
+            not isinstance(rows, list)
+            or len(rows) > limit
+            or any(not isinstance(row, dict) for row in rows)
+        ):
+            raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+        return rows
+
+    async def execute_graphql(self, context, query: str, variables: dict):
+        token = (await self.credentials.issue(context)).get_secret_value()
+        now = datetime.now(UTC)
+        if (
+            not token
+            or "\r" in token
+            or "\n" in token
+            or token == self.settings.admin_secret.get_secret_value()
+            or context.desired_revision != context.applied_revision
+            or not 0 <= (now - context.validated_at).total_seconds() <= 10
+            or (context.expires_at is not None and context.expires_at <= now)
+        ):
+            raise CoreError(ErrorCode.FORBIDDEN)
         request = self.http.build_request(
             "POST",
             self.settings.endpoint + "/v1/graphql",
-            json={"query": query, "variables": {"limit": limit, "offset": offset}},
+            json={"query": query, "variables": variables},
             timeout=self.settings.timeout_seconds,
         )
         for header in list(request.headers):
@@ -149,17 +162,9 @@ class HasuraDataReader:
             not isinstance(result, dict)
             or "errors" in result
             or not isinstance(result.get("data"), dict)
-            or not isinstance(result["data"].get(target.namespace), dict)
         ):
             raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
-        rows = result["data"][target.namespace].get("rows")
-        if (
-            not isinstance(rows, list)
-            or len(rows) > limit
-            or any(not isinstance(row, dict) for row in rows)
-        ):
-            raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
-        return rows
+        return result
 
 
 def validate_rows(

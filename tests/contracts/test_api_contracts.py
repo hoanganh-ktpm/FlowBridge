@@ -164,14 +164,14 @@ def test_preserves_legacy_http_paths_and_operation_ids():
     assert len(legacy) == 84
     for previous in legacy:
         assert actual[(previous["path"], previous["method"])] == previous["operationId"]
-    assert len(actual) == 88
+    assert len(actual) == 95
 
 
 def test_operation_ids_service_boundaries_and_priorities():
     identifiers = [operation["operationId"] for _, _, _, operation, _ in OPERATIONS]
     assert len(identifiers) == len(set(identifiers))
     priorities = Counter(operation["x-priority"] for _, _, _, operation, _ in OPERATIONS)
-    assert priorities == {"P0": 48, "P1": 40}
+    assert priorities == {"P0": 55, "P1": 40}
     for path, route, _, operation, _ in OPERATIONS:
         if path.name in {
             "sales-api.openapi.yaml",
@@ -332,7 +332,10 @@ def test_three_layer_authorization_policy_matrix(item):
         "/api/v1/core/data-products/{data_product_id}/rows": "DATA_GRANT",
     }
     if route.startswith("/api/v1/core/"):
-        expected = consumer_reads.get(route, "IT_ADMIN") if method == "get" else "IT_ADMIN"
+        expected = (
+            "DATA_GRANT" if route.endswith("/query")
+            else consumer_reads.get(route, "IT_ADMIN") if method == "get" else "IT_ADMIN"
+        )
     elif route == "/api/v1/platform/operations/execute":
         expected = "OPERATION_EXECUTE"
     elif route.startswith("/api/v1/platform/workflow-runs"):

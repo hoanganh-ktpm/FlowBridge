@@ -54,6 +54,7 @@ class MemoryStore:
                 "request",
                 "grant",
                 "job",
+                "relationship",
             ]
         }
         self.data["department"][WAREHOUSE] = StoredResource(
@@ -373,6 +374,7 @@ class ContractAssertions:
             "core-api.openapi.yaml",
             "data-governance.yaml",
             "application-onboarding.yaml",
+            "relationships.yaml",
         ]:
             uri = (ROOT / "contracts" / filename).resolve().as_uri()
             for path, item in self.documents[uri]["paths"].items():

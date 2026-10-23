@@ -4,7 +4,7 @@ Core phục vụ **một doanh nghiệp**, theo thiết kế Core v0.2 và API C
 
 ## Phạm vi hiện tại
 
-Head **core_0004** có **12 bảng**: 11 bảng P0 của thiết kế v0.2 và core_command_receipts phục vụ HTTP idempotency. Agent/Operation/Tool, lịch sử schema, workflow references và lineage P1/P2 chưa tạo bảng trong mốc này; bổ sung bằng revision mới khi có implementation.
+Source head **core_0005** có **13 bảng**: 12 bảng ở milestone core_0004 và registry quan hệ. Revision mới chưa áp dụng lên Supabase trong task triển khai. Agent/Operation/Tool, lịch sử schema, workflow references và lineage P1/P2 chưa tạo bảng trong mốc này; bổ sung bằng revision mới khi có implementation.
 
 - Principal là người/service được đối chiếu issuer + subject, không lưu mật khẩu hoặc token.
 - Department và membership mô tả nhân sự; STAFF/OWNER không phải quyền quản trị DX-OS.
@@ -16,6 +16,24 @@ Head **core_0004** có **12 bảng**: 11 bảng P0 của thiết kế v0.2 và c
 - Audit giữ actor/initiator/correlation; receipts chỉ lưu phản hồi metadata của lệnh, không lưu kết quả đọc dữ liệu nghiệp vụ.
 
 ## Data dictionary
+
+### data_product_relationships — core_0005
+
+| Cột | Kiểu | Tác dụng |
+|---|---|---|
+| id | uuid, PK | Định danh quan hệ |
+| name | text | GraphQL field; duy nhất trong source Product |
+| source_product_id, target_product_id | uuid, FK | Hai Products đã công bố; vị trí vật lý suy từ Registry hiện có |
+| source_contract_id, target_contract_id | uuid, FK kép | Pin phiên bản contract đúng Product tương ứng |
+| relationship_type | text | object hoặc array |
+| field_mapping | jsonb object | Ánh xạ cột vật lý; hỗ trợ composite keys |
+| status | text | DRAFT, PROVISIONING, ACTIVE, DISABLING, DISABLED, ERROR |
+| revision, applied_revision | bigint | Optimistic locking và phiên bản Hasura đã xác nhận |
+| last_error_code | text nullable | Mã lỗi đồng bộ; không lưu lỗi/credentials thô |
+| created_at, updated_at | timestamptz | Thời gian tạo/sửa |
+| created_by, updated_by | uuid, FK principals | Chủ thể quản trị thay đổi |
+
+`publication_jobs.relationship_id` là target FK nullable mới; hai job kinds PUBLISH_RELATIONSHIP/DISABLE_RELATIONSHIP dùng cùng lifecycle/lease/retry. Target check đảm bảo mỗi job chỉ trỏ đúng một loại resource. Quan hệ không sinh grant, không tạo bảng JOIN vật lý; [chi tiết thực thi](../RELATIONSHIP-QUERIES.md).
 
 PK là khóa chính; NN là bắt buộc; NULL cho phép vắng. UUID do service hoặc database tạo; thời gian dùng timestamptz. Các trường actor tham chiếu principals; bootstrap chỉ được dùng NULL khi có kiểm soát. Default updated_at không tự cập nhật khi UPDATE: adapter/service phải ghi thời gian mới.
 

@@ -17,6 +17,7 @@ Source precedence: OpenAPI/JSON Schema for wire shape; this document for cross-r
 | application-onboarding.yaml | Stateless validation/planning and atomic draft import; existing Manifest 1.0 reused |
 | data-contracts.yaml | Single canonical Data Contract definition, fields, constraints and relationships |
 | data-governance.yaml | Product/contract lifecycle, discovery, requests/grants, jobs/audit and live read projection |
+| relationships.yaml | Additive IT relationship registry and governed nested queries; implementation/E2E scope in [Relationship Queries](RELATIONSHIP-QUERIES.md) |
 | operation-registry.yaml | P1 Operation/Tool/permission registry and internal executable descriptor |
 | sales-api.openapi.yaml | Proposed P1 Sales business boundary |
 | warehouse-api.openapi.yaml | Proposed P1 Warehouse inventory/reservation boundary |

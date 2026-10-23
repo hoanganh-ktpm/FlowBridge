@@ -6,7 +6,9 @@ from fastapi import FastAPI, Request
 
 from app.core.applications.onboarding import MissingIntegration
 from app.core.applications.runtime import RuntimeOnboarding
+from app.core.data_products.querying import RelationshipQueries
 from app.core.data_products.reading import DataReader
+from app.core.data_products.relationships import RelationshipRegistry
 from app.core.data_sources.service import SourceDiscoveryService
 from app.core.db.ports import CoreStore
 from app.core.governance.service import DataSharingService
@@ -57,6 +59,8 @@ def create_app(dependencies: CoreDependencies | None = None, *, testing: bool = 
         dependencies.store, dependencies.discovery, dependencies.reader, dependencies.evidence
     )
     app.state.onboarding = RuntimeOnboarding(app.state.core, dependencies.metadata)
+    app.state.relationships = RelationshipRegistry(app.state.core, dependencies.metadata)
+    app.state.relationship_queries = RelationshipQueries(app.state.core, dependencies.metadata)
     register_exception_handlers(app)
 
     async def hasura_error(request: Request, error: HasuraError):
