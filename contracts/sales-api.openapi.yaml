@@ -1,0 +1,425 @@
+openapi: "3.1.1"
+info:
+  title: "FlowBridge Sales API"
+  version: "0.2.0"
+  description: >-
+    PROPOSED P1 Order Fulfillment contract. Business DTOs and database schema require owner
+    confirmation. No claim that tables, transactions, migrations or runtime exist.
+  license: {"name":"GPL-3.0-or-later","identifier":"GPL-3.0-or-later"}
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+servers: [{"url":"/"}]
+x-contract-status: "REVIEW_CANDIDATE"
+x-database-alignment: "PENDING_DB_ALIGNMENT"
+security: [{"bearerAuth":[]}]
+paths:
+  "/api/v1/sales/orders":
+    post:
+      operationId: "createOrder"
+      summary: "createOrder"
+      description: "createOrder"
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Current Sales staff/service with order-create permission; actor derived from trusted identity. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/OrderCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listOrders"
+      summary: "listOrders"
+      description: "listOrders"
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Current Sales reader or resource-scoped workflow service; visible orders only. created_at,id
+        ascending. DX-OS PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/OrderPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/sales/orders/{order_id}":
+    parameters:
+      -
+        name: "order_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getOrder"
+      summary: "getOrder"
+      description: "getOrder"
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Current Sales reader or delegated service scoped to this order; cross-service evidence requires
+        trusted receiver authorization. DX-OS PLATFORM_ADMIN management authority does not confer this
+        business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/sales/orders/{order_id}/submit":
+    parameters:
+      -
+        name: "order_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "submitOrder"
+      summary: "submitOrder"
+      description: >-
+        DRAFT -> SUBMITTED, freeze lines, CAS expected_revision. Does not start workflow; start is a
+        separate idempotent command with recovery.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Current Sales staff/service with submit permission. DX-OS PLATFORM_ADMIN management authority does
+        not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/RevisionCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/sales/orders/{order_id}/confirm":
+    parameters:
+      -
+        name: "order_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "confirmOrder"
+      summary: "confirmOrder"
+      description: >-
+        SUBMITTED -> CONFIRMED only after verifying reservation RESERVED for this exact order, quantities
+        and revision history.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Verified scoped workflow service bound to this order and current run; receiver checks delegation,
+        resource ownership, fencing and business evidence. UUIDs in input are not authorization. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/OrderEvidenceCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/sales/orders/{order_id}/reject":
+    parameters:
+      -
+        name: "order_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "rejectOrder"
+      summary: "rejectOrder"
+      description: >-
+        SUBMITTED -> REJECTED before confirmation only after reserve failure is known and no unresolved
+        reservation/create can still commit.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Verified scoped workflow service bound to this order and current run; receiver checks delegation,
+        resource ownership, fencing and business evidence. UUIDs in input are not authorization. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/ReasonCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/sales/orders/{order_id}/cancel":
+    parameters:
+      -
+        name: "order_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "cancelOrder"
+      summary: "cancelOrder"
+      description: >-
+        CAS expected revision and verify reservation RELEASED plus all shipments CANCELLED. No terminal
+        transition while forward outcomes remain unknown.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Sales staff may cancel DRAFT only; otherwise delegated workflow scoped to the order/run and
+        compensation phase. DX-OS PLATFORM_ADMIN management authority does not confer this business
+        permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/OrderCancel"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/sales/orders/{order_id}/fulfill":
+    parameters:
+      -
+        name: "order_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "fulfillOrder"
+      summary: "fulfillOrder"
+      description: >-
+        CONFIRMED -> FULFILLED only after verifying matching shipment DELIVERED and associated reservation
+        CONSUMED. No cross-database FK or distributed atomic transaction.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Verified scoped workflow service bound to this order and current run; receiver checks delegation,
+        resource ownership, fencing and business evidence. UUIDs in input are not authorization. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/OrderFulfill"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+components:
+  securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}
+  schemas:
+    OrderCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["order_code","items"]
+      properties:
+        order_code: {"type":"string","minLength":1,"maxLength":100}
+        items:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/OrderLine"}
+          minItems: 1
+          maxItems: 100
+      description: >-
+        Unique order code and one line per SKU; quantities positive integers. Proposed
+        single-warehouse/no-partial-fulfillment profile.
+    Order:
+      type: "object"
+      additionalProperties: false
+      required: ["id","created_at","updated_at","revision","order_code","items","status","created_by"]
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        order_code: {"type":"string","minLength":1,"maxLength":100}
+        items:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/OrderLine"}
+          minItems: 1
+          maxItems: 100
+        status: {"type":"string","enum":["DRAFT","SUBMITTED","CONFIRMED","REJECTED","CANCELLED","FULFILLED"]}
+        created_by: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    OrderEvidenceCommand:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","reservation_id"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        reservation_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    OrderFulfill:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","shipment_id"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        shipment_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    OrderCancel:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","reason","reservation_id"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        reason: {"type":"string","minLength":1,"maxLength":1000}
+        reservation_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+      description: >-
+        DRAFT requires null reservation. After submit only the scoped workflow service may cancel, after
+        RELEASED reservation and every shipment CANCELLED. Unknown outcomes must be reconciled, not treated
+        as absence.
+    OrderPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./sales-api.openapi.yaml#/components/schemas/Order"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+x-design-status: "PROPOSED"
+tags: [{"name":"Business"}]

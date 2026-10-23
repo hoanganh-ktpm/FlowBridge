@@ -1,0 +1,229 @@
+openapi: "3.1.1"
+info:
+  title: "FlowBridge Shared HTTP Components"
+  version: "0.2.0"
+  description: "Shared components, not a deployable API. Contract-level specification only; see docs/API-CONTRACTS.md."
+  license: {"name":"GPL-3.0-or-later","identifier":"GPL-3.0-or-later"}
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+servers: [{"url":"/"}]
+x-contract-status: "REVIEW_CANDIDATE"
+x-database-alignment: "NOT_APPLICABLE"
+security: [{"bearerAuth":[]}]
+paths: {}
+components:
+  securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}
+  schemas:
+    UUID: {"type":"string","format":"uuid"}
+    Timestamp: {"type":"string","format":"date-time","pattern":"Z$"}
+    Revision: {"type":"integer","minimum":1}
+    StableKey: {"type":"string","minLength":1,"maxLength":127,"pattern":"^[a-z][a-z0-9_.-]*$"}
+    Identifier: {"type":"string","minLength":1,"maxLength":63,"pattern":"^(?!__)[a-z_][a-z0-9_]*$"}
+    SemVer:
+      type: "string"
+      minLength: 5
+      maxLength: 30
+      pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    SecretReference: {"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z][A-Za-z0-9_./-]*$","writeOnly":true}
+    Classification: {"type":"string","enum":["PUBLIC","INTERNAL","CONFIDENTIAL"]}
+    RequestId: {"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9._:-]+$"}
+    Sha256: {"type":"string","pattern":"^[a-f0-9]{64}$"}
+    Error:
+      type: "object"
+      additionalProperties: false
+      required: ["code","message","request_id","retryable"]
+      properties:
+        code:
+          type: "string"
+          enum:
+            - "UNAUTHENTICATED"
+            - "FORBIDDEN"
+            - "NOT_FOUND"
+            - "VALIDATION_ERROR"
+            - "VERSION_CONFLICT"
+            - "IDEMPOTENCY_CONFLICT"
+            - "INVALID_STATE"
+            - "UPSTREAM_UNAVAILABLE"
+            - "UPSTREAM_TIMEOUT"
+            - "RATE_LIMITED"
+            - "TOKEN_EXPIRED"
+            - "TOKEN_INVALID"
+            - "INTERNAL_ERROR"
+        message: {"type":"string","minLength":1,"maxLength":2000}
+        request_id: {"$ref":"./common.openapi.yaml#/components/schemas/RequestId"}
+        retryable: {"type":"boolean"}
+        details:
+          type: "array"
+          items:
+            type: "object"
+            additionalProperties: false
+            required: ["field","reason"]
+            properties:
+              field: {"type":"string","minLength":1,"maxLength":200}
+              reason: {"type":"string","minLength":1,"maxLength":500}
+          minItems: 0
+          maxItems: 100
+      description: >-
+        details is optional for compatibility with the existing error boundary; consumers normalize absence
+        to []. Never include input secrets or raw upstream diagnostics.
+    RevisionCommand:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties: {"expected_revision":{"$ref":"./common.openapi.yaml#/components/schemas/Revision"}}
+    ReasonCommand:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","reason"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        reason: {"type":"string","minLength":1,"maxLength":1000}
+    OperationRef:
+      type: "object"
+      additionalProperties: false
+      required: ["operation_key","version"]
+      properties:
+        operation_key: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        version: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+    DataScope:
+      type: "object"
+      additionalProperties: false
+      required: ["action","columns","row_scope"]
+      properties:
+        action: {"const":"SELECT"}
+        columns:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        row_scope: {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"ALL"}}}
+      description: >-
+        P0 columns are PHYSICAL column names in the pinned Data Contract. No SQL/filter/role input. A
+        runtime read must select one grant covering its entire projection.
+    AsyncJobAccepted:
+      type: "object"
+      additionalProperties: false
+      required: ["job_id","status","status_url"]
+      properties:
+        job_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        status: {"const":"QUEUED"}
+        status_url: {"type":"string","format":"uri-reference"}
+    OrderLine:
+      type: "object"
+      additionalProperties: false
+      required: ["sku","quantity"]
+      properties:
+        sku: {"$ref":"./common.openapi.yaml#/components/schemas/Sku"}
+        quantity: {"$ref":"./common.openapi.yaml#/components/schemas/Quantity"}
+    Sku: {"type":"string","minLength":1,"maxLength":100,"pattern":"^[A-Za-z0-9][A-Za-z0-9._-]*$"}
+    Quantity: {"type":"integer","minimum":1,"maximum":2147483647}
+    JsonSchema:
+      type: "object"
+      maxProperties: 100
+      description: >-
+        Serialized Draft 2020-12 JSON Schema. Activation validates the supported safe subset: local fragment
+        refs only, bounded nesting, no remote refs or executable extensions. This object shape alone is not
+        schema/policy approval.
+      additionalProperties: true
+    LogicalKey: {"type":"string","minLength":1,"maxLength":63,"pattern":"^[a-z][a-z0-9_-]{0,62}$"}
+    QualifiedKey:
+      type: "string"
+      minLength: 3
+      maxLength: 127
+      pattern: "^[a-z][a-z0-9_-]{0,62}\\.[a-z][a-z0-9_-]{0,62}$"
+      description: >-
+        Application-local key qualified as application.key. Owning application must match the registered
+        source/product; no implicit reassignment.
+  parameters:
+    CorrelationId:
+      name: "X-Correlation-Id"
+      in: "header"
+      required: false
+      description: "Invalid or duplicate input is replaced. Normalized value always returned."
+      schema: {"$ref":"./common.openapi.yaml#/components/schemas/RequestId"}
+    IdempotencyKey:
+      name: "Idempotency-Key"
+      in: "header"
+      required: true
+      description: >-
+        Scope: verified issuer+subject, method, canonical path and key. Durable command replay; see
+        semantics document.
+      schema: {"type":"string","minLength":8,"maxLength":128,"pattern":"^[A-Za-z0-9._:-]+$"}
+    Limit:
+      name: "limit"
+      in: "query"
+      required: false
+      schema: {"type":"integer","minimum":1,"maximum":100,"default":20}
+    Cursor: {"name":"cursor","in":"query","required":false,"schema":{"type":"string","minLength":1,"maxLength":2048}}
+  headers:
+    CorrelationId:
+      description: "Normalized correlation ID."
+      schema: {"$ref":"./common.openapi.yaml#/components/schemas/RequestId"}
+    IdempotencyReplayed: {"description":"True for replay of a completed durable command.","schema":{"type":"boolean"}}
+    RetryAfter: {"description":"Seconds before retry or polling.","schema":{"type":"integer","minimum":1}}
+    CacheControl: {"description":"Sensitive responses MUST NOT be cached.","schema":{"type":"string","const":"no-store"}}
+  responses:
+    Error400:
+      description: "Malformed JSON or HTTP"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error401:
+      description: "Missing or invalid authentication"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+        WWW-Authenticate:
+          description: "Bearer challenge without credentials or unsanitized IdP details."
+          schema: {"type":"string","pattern":"^Bearer(?: .*)?$"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error403:
+      description: "Policy denies access"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error404:
+      description: "Not found or not visible"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error409:
+      description: "State, revision or idempotency conflict"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error422:
+      description: "Invalid shape, semantic reference or unsupported declared profile"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error429:
+      description: "Rate limited"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error500:
+      description: "Sanitized internal failure"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error503:
+      description: "Dependency unavailable or invalid upstream response"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}
+    Error504:
+      description: "Timeout; mutation outcome may be unknown"
+      headers:
+        X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+        Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+      content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Error"}}}

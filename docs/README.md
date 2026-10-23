@@ -7,6 +7,7 @@
 | [Repository](REPOSITORY.md) | Nội dung được version-control và nội dung cục bộ |
 | [Hasura Audit](HASURA_AUDIT.md) | Core v0.2 compatibility, security findings, regression tests và P1 integration blockers |
 | [Declarative Onboarding](ONBOARDING.md) | Manifest v1, schema discovery, relationship compiler, CLI và Core/API integration contracts |
+| [API Contracts](API-CONTRACTS.md) | OpenAPI 3.1.1, P0 Data Sharing/P1 boundaries, canonical Data Contract, validation và DB alignment gaps |
 | [Contributing](../CONTRIBUTING.md) | Quy trình phát triển, kiểm tra và review |
 
 Hướng dẫn build/test tại [README gốc](../README.md); tài liệu component nằm cạnh source tương ứng. Tài liệu mô tả rõ kiến trúc đích và trạng thái implementation hiện tại.

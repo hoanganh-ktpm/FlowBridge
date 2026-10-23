@@ -2,6 +2,8 @@
 
 **Application Manifest v1 -> PostgreSQL schema discovery -> validation -> Core drafts/contracts -> Hasura operation preview.**
 
+**Authorization target:** IT/PLATFORM_ADMIN quản trị toàn bộ onboarding, cấu hình, publish và grant/revoke; không bắt buộc department OWNER hoặc read grant để cấu hình. Consumer đọc theo grant, Business API kiểm quyền nghiệp vụ độc lập. [API Contracts](API-CONTRACTS.md) là policy đích. OwnershipResolver/owner_verified/access checks được mô tả phía dưới phản ánh library hiện có và còn phải điều chỉnh; không được diễn giải thành quyền OWNER của phòng ban trong mô hình mới. Runtime code chưa được thay đổi bởi bản cập nhật contract này.
+
 IT khai báo ứng dụng và dữ liệu muốn chia sẻ, không khai báo lại database schema hoặc viết Hasura Metadata JSON. Nền tảng chỉ đọc cấu trúc nguồn và sinh kế hoạch; không tạo table/view/FK, không copy dữ liệu nghiệp vụ, không tự publish hay cấp quyền.
 
 ## Phạm vi hiện tại

@@ -35,6 +35,10 @@ The onboarding module reuses existing locked packages; no dependency/version is 
 
 Official upstream licenses and local pinned distribution metadata/license paths were checked. These permissive licenses do not introduce an identified conflict with this GPL-3.0-or-later module; this is a scoped inventory, not certification of every transitive artifact. No driver/engine source is copied into the project. Existing jsonschema/pytest are used for development validation, not new runtime dependencies. Preserve bundled `.dist-info/licenses` and produce a complete SBOM for releases. Discovery engine itself is not a substitute for database administrator authorization.
 
+## Contract validation fixtures
+
+The contract-only test suite retains the official OpenAPI 3.1 meta-schema from [spec.openapis.org](https://spec.openapis.org/oas/3.1/schema/2022-10-07), with upstream [OpenAPI Specification license](https://github.com/OAI/OpenAPI-Specification/blob/main/LICENSE) (Apache-2.0) alongside it at `tests/contracts/fixtures/openapi-LICENSE.txt`. Source URLs, normalization and committed-byte SHA256 values are recorded in `tests/contracts/fixtures/provenance.json`. Preserve that license/provenance when redistributing the fixture; no engine/tool binary or new dependency is introduced. Project-authored examples are synthetic and do not inherit database/runtime provenance.
+
 ## Competition scope
 
 The locally supplied contest brief was reviewed for its open-source priority, separation of architectural concerns and licensing commitment. Its technology table is a reference example, not an assertion that every named product/version/license is mandatory or approved. This module's implementation choices are project decisions; this audit does not invent organizer rules or constitute certification of the complete submission.

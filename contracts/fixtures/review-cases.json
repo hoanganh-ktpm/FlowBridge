@@ -1,0 +1,1785 @@
+{
+  "provenance": {
+    "kind": "SYNTHETIC",
+    "description": "Contract shape examples only; not database seeds or runtime/policy evidence.",
+    "version": "0.2.0"
+  },
+  "cases": [
+    {
+      "name": "canonical-inventory",
+      "schema": "data-contracts.yaml#/components/schemas/DataContractDocument",
+      "valid": true,
+      "value": {
+        "document_version": "1.0",
+        "grain": "One row per SKU",
+        "business_key": [
+          "sku"
+        ],
+        "classification": "INTERNAL",
+        "description": "Synthetic available stock",
+        "fields": [
+          {
+            "column": "sku",
+            "name": "sku",
+            "physical_type": "TEXT",
+            "wire_type": "string",
+            "nullable": false,
+            "description": "Synthetic published sku"
+          },
+          {
+            "column": "available_quantity",
+            "name": "available_quantity",
+            "physical_type": "INTEGER",
+            "wire_type": "integer",
+            "nullable": false,
+            "description": "Synthetic published available_quantity",
+            "constraints": {
+              "minimum": 0
+            }
+          }
+        ],
+        "relationships": [
+          {
+            "name": "product",
+            "type": "object",
+            "target_product": "warehouse.product_catalog",
+            "strategy": "manual",
+            "mapping": [
+              {
+                "from": "sku",
+                "to": "sku"
+              }
+            ],
+            "uniqueness_ref": "warehouse/catalog-sku-unique",
+            "description": "IT-reviewed uniqueness evidence required"
+          }
+        ]
+      }
+    },
+    {
+      "name": "canonical-alias-and-timestamp",
+      "schema": "data-contracts.yaml#/components/schemas/DataContractDocument",
+      "valid": true,
+      "value": {
+        "document_version": "1.0",
+        "grain": "One row per SKU",
+        "business_key": [
+          "sku"
+        ],
+        "classification": "INTERNAL",
+        "description": "Synthetic catalog",
+        "fields": [
+          {
+            "column": "sku",
+            "name": "sku",
+            "physical_type": "TEXT",
+            "wire_type": "string",
+            "nullable": false,
+            "description": "Synthetic published sku"
+          },
+          {
+            "column": "updated_at",
+            "name": "last_updated",
+            "physical_type": "TIMESTAMP WITH TIME ZONE",
+            "wire_type": "date-time",
+            "nullable": false,
+            "description": "Synthetic published updated_at"
+          }
+        ],
+        "relationships": []
+      }
+    },
+    {
+      "name": "onboard-warehouse",
+      "schema": "application-onboarding.yaml#/components/schemas/OnboardingSubmission",
+      "valid": true,
+      "value": {
+        "manifest": {
+          "manifest_version": "1.0",
+          "application": {
+            "key": "warehouse",
+            "name": "Warehouse Management",
+            "department_key": "warehouse",
+            "description": "Read-only inventory data products"
+          },
+          "sources": [
+            {
+              "key": "warehouse-pg",
+              "kind": "postgres",
+              "host": "warehouse.example.invalid",
+              "database": "warehouse_db",
+              "username": "dxos_reader",
+              "ssl_mode": "verify-full",
+              "secret_ref": "warehouse-reader"
+            }
+          ],
+          "data_products": [
+            {
+              "key": "product_catalog",
+              "source_key": "warehouse-pg",
+              "name": "Product Catalog",
+              "object": {
+                "schema": "public",
+                "name": "product_catalog",
+                "kind": "view"
+              },
+              "fields": [
+                {
+                  "column": "sku",
+                  "expected_type": "text",
+                  "description": "Stable product identifier"
+                },
+                {
+                  "column": "name",
+                  "description": "Product name"
+                }
+              ],
+              "contract_version": "1.0.0",
+              "requested_state": "PUBLISH_REQUESTED"
+            },
+            {
+              "key": "available_inventory",
+              "source_key": "warehouse-pg",
+              "name": "Available Inventory",
+              "object": {
+                "schema": "public",
+                "name": "stock_available",
+                "kind": "view"
+              },
+              "fields": [
+                {
+                  "column": "sku",
+                  "expected_type": "text"
+                },
+                {
+                  "column": "available_quantity",
+                  "expected_type": "integer"
+                }
+              ],
+              "relationships": [
+                {
+                  "name": "product",
+                  "type": "object",
+                  "target_product": "product_catalog",
+                  "strategy": "manual",
+                  "mapping": [
+                    {
+                      "from": "sku",
+                      "to": "sku"
+                    }
+                  ],
+                  "uniqueness_ref": "warehouse/catalog-sku-unique"
+                }
+              ],
+              "contract_version": "1.0.0",
+              "requested_state": "PUBLISH_REQUESTED"
+            }
+          ]
+        },
+        "product_contracts": [
+          {
+            "product_key": "product_catalog",
+            "version": "1.0.0",
+            "contract_json": {
+              "document_version": "1.0",
+              "grain": "One row per SKU",
+              "business_key": [
+                "sku"
+              ],
+              "classification": "INTERNAL",
+              "description": "Synthetic catalog",
+              "fields": [
+                {
+                  "column": "sku",
+                  "name": "sku",
+                  "physical_type": "TEXT",
+                  "wire_type": "string",
+                  "nullable": false,
+                  "description": "Stable product identifier"
+                },
+                {
+                  "column": "name",
+                  "name": "name",
+                  "physical_type": "TEXT",
+                  "wire_type": "string",
+                  "nullable": false,
+                  "description": "Product name"
+                }
+              ],
+              "relationships": []
+            }
+          },
+          {
+            "product_key": "available_inventory",
+            "version": "1.0.0",
+            "contract_json": {
+              "document_version": "1.0",
+              "grain": "One row per SKU",
+              "business_key": [
+                "sku"
+              ],
+              "classification": "INTERNAL",
+              "description": "Synthetic available stock",
+              "fields": [
+                {
+                  "column": "sku",
+                  "name": "sku",
+                  "physical_type": "TEXT",
+                  "wire_type": "string",
+                  "nullable": false,
+                  "description": null
+                },
+                {
+                  "column": "available_quantity",
+                  "name": "available_quantity",
+                  "physical_type": "INTEGER",
+                  "wire_type": "integer",
+                  "nullable": false,
+                  "description": null,
+                  "constraints": {
+                    "minimum": 0
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "name": "product",
+                  "type": "object",
+                  "target_product": "warehouse.product_catalog",
+                  "strategy": "manual",
+                  "mapping": [
+                    {
+                      "from": "sku",
+                      "to": "sku"
+                    }
+                  ],
+                  "uniqueness_ref": "warehouse/catalog-sku-unique"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "onboard-static-plan",
+      "schema": "application-onboarding.yaml#/components/schemas/PlanRequest",
+      "valid": true,
+      "value": {
+        "submission": {
+          "manifest": {
+            "manifest_version": "1.0",
+            "application": {
+              "key": "warehouse",
+              "name": "Warehouse Management",
+              "department_key": "warehouse",
+              "description": "Read-only inventory data products"
+            },
+            "sources": [
+              {
+                "key": "warehouse-pg",
+                "kind": "postgres",
+                "host": "warehouse.example.invalid",
+                "database": "warehouse_db",
+                "username": "dxos_reader",
+                "ssl_mode": "verify-full",
+                "secret_ref": "warehouse-reader"
+              }
+            ],
+            "data_products": [
+              {
+                "key": "product_catalog",
+                "source_key": "warehouse-pg",
+                "name": "Product Catalog",
+                "object": {
+                  "schema": "public",
+                  "name": "product_catalog",
+                  "kind": "view"
+                },
+                "fields": [
+                  {
+                    "column": "sku",
+                    "expected_type": "text",
+                    "description": "Stable product identifier"
+                  },
+                  {
+                    "column": "name",
+                    "description": "Product name"
+                  }
+                ],
+                "contract_version": "1.0.0",
+                "requested_state": "PUBLISH_REQUESTED"
+              },
+              {
+                "key": "available_inventory",
+                "source_key": "warehouse-pg",
+                "name": "Available Inventory",
+                "object": {
+                  "schema": "public",
+                  "name": "stock_available",
+                  "kind": "view"
+                },
+                "fields": [
+                  {
+                    "column": "sku",
+                    "expected_type": "text"
+                  },
+                  {
+                    "column": "available_quantity",
+                    "expected_type": "integer"
+                  }
+                ],
+                "relationships": [
+                  {
+                    "name": "product",
+                    "type": "object",
+                    "target_product": "product_catalog",
+                    "strategy": "manual",
+                    "mapping": [
+                      {
+                        "from": "sku",
+                        "to": "sku"
+                      }
+                    ],
+                    "uniqueness_ref": "warehouse/catalog-sku-unique"
+                  }
+                ],
+                "contract_version": "1.0.0",
+                "requested_state": "PUBLISH_REQUESTED"
+              }
+            ]
+          },
+          "product_contracts": [
+            {
+              "product_key": "product_catalog",
+              "version": "1.0.0",
+              "contract_json": {
+                "document_version": "1.0",
+                "grain": "One row per SKU",
+                "business_key": [
+                  "sku"
+                ],
+                "classification": "INTERNAL",
+                "description": "Synthetic catalog",
+                "fields": [
+                  {
+                    "column": "sku",
+                    "name": "sku",
+                    "physical_type": "TEXT",
+                    "wire_type": "string",
+                    "nullable": false,
+                    "description": "Stable product identifier"
+                  },
+                  {
+                    "column": "name",
+                    "name": "name",
+                    "physical_type": "TEXT",
+                    "wire_type": "string",
+                    "nullable": false,
+                    "description": "Product name"
+                  }
+                ],
+                "relationships": []
+              }
+            },
+            {
+              "product_key": "available_inventory",
+              "version": "1.0.0",
+              "contract_json": {
+                "document_version": "1.0",
+                "grain": "One row per SKU",
+                "business_key": [
+                  "sku"
+                ],
+                "classification": "INTERNAL",
+                "description": "Synthetic available stock",
+                "fields": [
+                  {
+                    "column": "sku",
+                    "name": "sku",
+                    "physical_type": "TEXT",
+                    "wire_type": "string",
+                    "nullable": false,
+                    "description": null
+                  },
+                  {
+                    "column": "available_quantity",
+                    "name": "available_quantity",
+                    "physical_type": "INTEGER",
+                    "wire_type": "integer",
+                    "nullable": false,
+                    "description": null,
+                    "constraints": {
+                      "minimum": 0
+                    }
+                  }
+                ],
+                "relationships": [
+                  {
+                    "name": "product",
+                    "type": "object",
+                    "target_product": "warehouse.product_catalog",
+                    "strategy": "manual",
+                    "mapping": [
+                      {
+                        "from": "sku",
+                        "to": "sku"
+                      }
+                    ],
+                    "uniqueness_ref": "warehouse/catalog-sku-unique"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "discovery_mode": "STATIC"
+      }
+    },
+    {
+      "name": "import-reviewed-drafts",
+      "schema": "application-onboarding.yaml#/components/schemas/ImportRequest",
+      "valid": true,
+      "value": {
+        "submission": {
+          "manifest": {
+            "manifest_version": "1.0",
+            "application": {
+              "key": "warehouse",
+              "name": "Warehouse Management",
+              "department_key": "warehouse",
+              "description": "Read-only inventory data products"
+            },
+            "sources": [
+              {
+                "key": "warehouse-pg",
+                "kind": "postgres",
+                "host": "warehouse.example.invalid",
+                "database": "warehouse_db",
+                "username": "dxos_reader",
+                "ssl_mode": "verify-full",
+                "secret_ref": "warehouse-reader"
+              }
+            ],
+            "data_products": [
+              {
+                "key": "product_catalog",
+                "source_key": "warehouse-pg",
+                "name": "Product Catalog",
+                "object": {
+                  "schema": "public",
+                  "name": "product_catalog",
+                  "kind": "view"
+                },
+                "fields": [
+                  {
+                    "column": "sku",
+                    "expected_type": "text",
+                    "description": "Stable product identifier"
+                  },
+                  {
+                    "column": "name",
+                    "description": "Product name"
+                  }
+                ],
+                "contract_version": "1.0.0",
+                "requested_state": "PUBLISH_REQUESTED"
+              },
+              {
+                "key": "available_inventory",
+                "source_key": "warehouse-pg",
+                "name": "Available Inventory",
+                "object": {
+                  "schema": "public",
+                  "name": "stock_available",
+                  "kind": "view"
+                },
+                "fields": [
+                  {
+                    "column": "sku",
+                    "expected_type": "text"
+                  },
+                  {
+                    "column": "available_quantity",
+                    "expected_type": "integer"
+                  }
+                ],
+                "relationships": [
+                  {
+                    "name": "product",
+                    "type": "object",
+                    "target_product": "product_catalog",
+                    "strategy": "manual",
+                    "mapping": [
+                      {
+                        "from": "sku",
+                        "to": "sku"
+                      }
+                    ],
+                    "uniqueness_ref": "warehouse/catalog-sku-unique"
+                  }
+                ],
+                "contract_version": "1.0.0",
+                "requested_state": "PUBLISH_REQUESTED"
+              }
+            ]
+          },
+          "product_contracts": [
+            {
+              "product_key": "product_catalog",
+              "version": "1.0.0",
+              "contract_json": {
+                "document_version": "1.0",
+                "grain": "One row per SKU",
+                "business_key": [
+                  "sku"
+                ],
+                "classification": "INTERNAL",
+                "description": "Synthetic catalog",
+                "fields": [
+                  {
+                    "column": "sku",
+                    "name": "sku",
+                    "physical_type": "TEXT",
+                    "wire_type": "string",
+                    "nullable": false,
+                    "description": "Stable product identifier"
+                  },
+                  {
+                    "column": "name",
+                    "name": "name",
+                    "physical_type": "TEXT",
+                    "wire_type": "string",
+                    "nullable": false,
+                    "description": "Product name"
+                  }
+                ],
+                "relationships": []
+              }
+            },
+            {
+              "product_key": "available_inventory",
+              "version": "1.0.0",
+              "contract_json": {
+                "document_version": "1.0",
+                "grain": "One row per SKU",
+                "business_key": [
+                  "sku"
+                ],
+                "classification": "INTERNAL",
+                "description": "Synthetic available stock",
+                "fields": [
+                  {
+                    "column": "sku",
+                    "name": "sku",
+                    "physical_type": "TEXT",
+                    "wire_type": "string",
+                    "nullable": false,
+                    "description": null
+                  },
+                  {
+                    "column": "available_quantity",
+                    "name": "available_quantity",
+                    "physical_type": "INTEGER",
+                    "wire_type": "integer",
+                    "nullable": false,
+                    "description": null,
+                    "constraints": {
+                      "minimum": 0
+                    }
+                  }
+                ],
+                "relationships": [
+                  {
+                    "name": "product",
+                    "type": "object",
+                    "target_product": "warehouse.product_catalog",
+                    "strategy": "manual",
+                    "mapping": [
+                      {
+                        "from": "sku",
+                        "to": "sku"
+                      }
+                    ],
+                    "uniqueness_ref": "warehouse/catalog-sku-unique"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_application_revision": 0
+      }
+    },
+    {
+      "name": "draft-contract-update",
+      "schema": "data-contracts.yaml#/components/schemas/DataContractPatch",
+      "valid": true,
+      "value": {
+        "expected_revision": 1,
+        "contract_json": {
+          "document_version": "1.0",
+          "grain": "One row per SKU",
+          "business_key": [
+            "sku"
+          ],
+          "classification": "INTERNAL",
+          "description": "Synthetic available stock",
+          "fields": [
+            {
+              "column": "sku",
+              "name": "sku",
+              "physical_type": "TEXT",
+              "wire_type": "string",
+              "nullable": false,
+              "description": "Synthetic published sku"
+            },
+            {
+              "column": "available_quantity",
+              "name": "available_quantity",
+              "physical_type": "INTEGER",
+              "wire_type": "integer",
+              "nullable": false,
+              "description": "Synthetic published available_quantity",
+              "constraints": {
+                "minimum": 0
+              }
+            }
+          ],
+          "relationships": [
+            {
+              "name": "product",
+              "type": "object",
+              "target_product": "warehouse.product_catalog",
+              "strategy": "manual",
+              "mapping": [
+                {
+                  "from": "sku",
+                  "to": "sku"
+                }
+              ],
+              "uniqueness_ref": "warehouse/catalog-sku-unique",
+              "description": "IT-reviewed uniqueness evidence required"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "grant-active-department",
+      "schema": "data-governance.yaml#/components/schemas/Grant",
+      "valid": true,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "data_product_id": "22222222-2222-4222-8222-222222222222",
+        "contract_version_id": "33333333-3333-4333-8333-333333333333",
+        "access_request_id": null,
+        "consumer_department_id": "11111111-1111-4111-8111-111111111111",
+        "consumer_principal_id": null,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "desired_revision": 1,
+        "applied_revision": 1,
+        "status": "ACTIVE",
+        "expires_at": null,
+        "granted_by": "11111111-1111-4111-8111-111111111111",
+        "granted_at": "2026-10-23T00:00:00Z",
+        "revoked_by": null,
+        "revoked_at": null,
+        "updated_at": "2026-10-23T00:00:00Z"
+      }
+    },
+    {
+      "name": "request-department",
+      "schema": "data-governance.yaml#/components/schemas/AccessRequestCreate",
+      "valid": true,
+      "value": {
+        "data_product_id": "22222222-2222-4222-8222-222222222222",
+        "contract_version_id": "33333333-3333-4333-8333-333333333333",
+        "consumer_department_id": "11111111-1111-4111-8111-111111111111",
+        "consumer_principal_id": null,
+        "requested_scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "reason": "Synthetic data-sharing example"
+      }
+    },
+    {
+      "name": "approve-scope",
+      "schema": "data-governance.yaml#/components/schemas/ApproveRequest",
+      "valid": true,
+      "value": {
+        "expected_revision": 1,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "expires_at": null
+      }
+    },
+    {
+      "name": "rows-public-alias",
+      "schema": "data-governance.yaml#/components/schemas/DataRows",
+      "valid": true,
+      "value": {
+        "data_product_id": "22222222-2222-4222-8222-222222222222",
+        "contract_version_id": "33333333-3333-4333-8333-333333333333",
+        "columns": [
+          "sku",
+          "last_updated"
+        ],
+        "rows": [
+          {
+            "sku": "DEMO-001",
+            "last_updated": "2026-10-23T00:00:00Z"
+          }
+        ],
+        "limit": 20,
+        "offset": 0,
+        "has_more": false
+      }
+    },
+    {
+      "name": "source-approved-proposal",
+      "schema": "core-api.openapi.yaml#/components/schemas/SourceCreate",
+      "valid": true,
+      "value": {
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "source_key": "warehouse.warehouse-pg",
+        "db_type": "POSTGRESQL",
+        "host": "warehouse.example.invalid",
+        "port": 5432,
+        "database_name": "warehouse_db",
+        "db_user": "dxos_reader",
+        "secret_ref": "warehouse-reader",
+        "ssl_mode": "verify-full"
+      }
+    },
+    {
+      "name": "error-existing-boundary",
+      "schema": "common.openapi.yaml#/components/schemas/Error",
+      "valid": true,
+      "value": {
+        "code": "FORBIDDEN",
+        "message": "Access is denied.",
+        "request_id": "synthetic-1",
+        "retryable": false
+      }
+    },
+    {
+      "name": "error-with-details",
+      "schema": "common.openapi.yaml#/components/schemas/Error",
+      "valid": true,
+      "value": {
+        "code": "VALIDATION_ERROR",
+        "message": "Invalid request.",
+        "request_id": "synthetic-2",
+        "retryable": false,
+        "details": [
+          {
+            "field": "columns",
+            "reason": "Unsupported column"
+          }
+        ]
+      }
+    },
+    {
+      "name": "execute-stock",
+      "schema": "platform-api.openapi.yaml#/components/schemas/ExecuteOperation",
+      "valid": true,
+      "value": {
+        "operation_ref": {
+          "operation_key": "warehouse.stock_lookup",
+          "version": 1
+        },
+        "variables": {
+          "sku": "DEMO-001"
+        }
+      }
+    },
+    {
+      "name": "workflow-start",
+      "schema": "platform-api.openapi.yaml#/components/schemas/WorkflowStart",
+      "valid": true,
+      "value": {
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "workflow_key": "order-fulfillment",
+        "business_key": "22222222-2222-4222-8222-222222222222",
+        "run_number": 1
+      }
+    },
+    {
+      "name": "business-variables",
+      "schema": "platform-api.openapi.yaml#/components/schemas/BusinessApiVariables",
+      "valid": true,
+      "value": {
+        "path": {},
+        "query": {},
+        "body": {
+          "order_id": "11111111-1111-4111-8111-111111111111",
+          "order_revision": 2,
+          "items": [
+            {
+              "sku": "DEMO-001",
+              "quantity": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reserve-synthetic",
+      "schema": "warehouse-api.openapi.yaml#/components/schemas/ReservationCreate",
+      "valid": true,
+      "value": {
+        "order_id": "11111111-1111-4111-8111-111111111111",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "DEMO-001",
+            "quantity": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "caller-token-auth",
+      "schema": "operation-registry.yaml#/components/schemas/AuthenticationConfig",
+      "valid": true,
+      "value": {
+        "mode": "CALLER_TOKEN",
+        "secret_ref": null
+      }
+    },
+    {
+      "name": "service-auth",
+      "schema": "operation-registry.yaml#/components/schemas/AuthenticationConfig",
+      "valid": true,
+      "value": {
+        "mode": "SERVICE_CREDENTIAL",
+        "secret_ref": "workflow-credential"
+      }
+    },
+    {
+      "name": "canonical-business-target",
+      "schema": "operation-registry.yaml#/components/schemas/HttpRequestConfig",
+      "valid": true,
+      "value": {
+        "target_operation_id": "reserveStock",
+        "method": "POST",
+        "path_template": "/api/v1/warehouse/reservations",
+        "timeout_seconds": 10,
+        "authentication": {
+          "mode": "SERVICE_CREDENTIAL",
+          "secret_ref": "workflow-credential"
+        }
+      }
+    },
+    {
+      "name": "resolved-identity",
+      "schema": "core-api.openapi.yaml#/components/schemas/ResolvedIdentityContext",
+      "valid": true,
+      "value": {
+        "verified_identity": {
+          "issuer": "https://identity.example.invalid/realms/demo",
+          "subject": "demo-user",
+          "client_id": "portal",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "11111111-1111-4111-8111-111111111111",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": [
+          {
+            "department_id": "22222222-2222-4222-8222-222222222222",
+            "membership_role": "OWNER",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "ACTIVE"
+          }
+        ]
+      }
+    },
+    {
+      "name": "legacy-canonical-shape",
+      "schema": "data-contracts.yaml#/components/schemas/DataContractDocument",
+      "valid": false,
+      "value": {
+        "grain": "SKU",
+        "business_key": [
+          "sku"
+        ],
+        "classification": "INTERNAL",
+        "fields": [
+          {
+            "name": "sku",
+            "type": "string",
+            "nullable": false,
+            "description": "SKU"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown-wire-type",
+      "schema": "data-contracts.yaml#/components/schemas/ContractField",
+      "valid": false,
+      "value": {
+        "column": "sku",
+        "name": "sku",
+        "physical_type": "TEXT",
+        "wire_type": "text",
+        "nullable": false,
+        "description": "Synthetic published sku"
+      }
+    },
+    {
+      "name": "missing-physical-column",
+      "schema": "data-contracts.yaml#/components/schemas/ContractField",
+      "valid": false,
+      "value": {
+        "name": "sku",
+        "physical_type": "TEXT",
+        "wire_type": "string",
+        "nullable": false,
+        "description": null
+      }
+    },
+    {
+      "name": "raw-sql-relationship",
+      "schema": "data-contracts.yaml#/components/schemas/Relationship",
+      "valid": false,
+      "value": {
+        "name": "product",
+        "type": "object",
+        "target_product": "warehouse.product_catalog",
+        "strategy": "manual",
+        "mapping": [
+          {
+            "from": "sku",
+            "to": "sku"
+          }
+        ],
+        "uniqueness_ref": "warehouse/catalog-sku-unique",
+        "description": "IT-reviewed uniqueness evidence required",
+        "sql": "SELECT * FROM private"
+      }
+    },
+    {
+      "name": "principal-grant-not-p0",
+      "schema": "data-governance.yaml#/components/schemas/Grant",
+      "valid": false,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "data_product_id": "22222222-2222-4222-8222-222222222222",
+        "contract_version_id": "33333333-3333-4333-8333-333333333333",
+        "access_request_id": null,
+        "consumer_department_id": null,
+        "consumer_principal_id": "11111111-1111-4111-8111-111111111111",
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "desired_revision": 1,
+        "applied_revision": 1,
+        "status": "ACTIVE",
+        "expires_at": null,
+        "granted_by": "11111111-1111-4111-8111-111111111111",
+        "granted_at": "2026-10-23T00:00:00Z",
+        "revoked_by": null,
+        "revoked_at": null,
+        "updated_at": "2026-10-23T00:00:00Z"
+      }
+    },
+    {
+      "name": "forged-applied-revision",
+      "schema": "data-governance.yaml#/components/schemas/RevokeGrant",
+      "valid": false,
+      "value": {
+        "expected_desired_revision": 1,
+        "reason": "Synthetic revoke",
+        "applied_revision": 2
+      }
+    },
+    {
+      "name": "scope-sql-forbidden",
+      "schema": "common.openapi.yaml#/components/schemas/DataScope",
+      "valid": false,
+      "value": {
+        "action": "SELECT",
+        "columns": [
+          "sku",
+          "available_quantity"
+        ],
+        "row_scope": {
+          "kind": "SQL",
+          "expression": "1=1"
+        }
+      }
+    },
+    {
+      "name": "invalid-contract-version",
+      "schema": "data-contracts.yaml#/components/schemas/ContractCreate",
+      "valid": false,
+      "value": {
+        "version": "01.0.0",
+        "contract_json": {
+          "document_version": "1.0",
+          "grain": "One row per SKU",
+          "business_key": [
+            "sku"
+          ],
+          "classification": "INTERNAL",
+          "description": "Synthetic available stock",
+          "fields": [
+            {
+              "column": "sku",
+              "name": "sku",
+              "physical_type": "TEXT",
+              "wire_type": "string",
+              "nullable": false,
+              "description": "Synthetic published sku"
+            },
+            {
+              "column": "available_quantity",
+              "name": "available_quantity",
+              "physical_type": "INTEGER",
+              "wire_type": "integer",
+              "nullable": false,
+              "description": "Synthetic published available_quantity",
+              "constraints": {
+                "minimum": 0
+              }
+            }
+          ],
+          "relationships": [
+            {
+              "name": "product",
+              "type": "object",
+              "target_product": "warehouse.product_catalog",
+              "strategy": "manual",
+              "mapping": [
+                {
+                  "from": "sku",
+                  "to": "sku"
+                }
+              ],
+              "uniqueness_ref": "warehouse/catalog-sku-unique",
+              "description": "IT-reviewed uniqueness evidence required"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "source-disable-tls",
+      "schema": "core-api.openapi.yaml#/components/schemas/SourceCreate",
+      "valid": false,
+      "value": {
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "source_key": "warehouse.warehouse-pg",
+        "db_type": "POSTGRESQL",
+        "host": "warehouse.example.invalid",
+        "port": 5432,
+        "database_name": "warehouse_db",
+        "db_user": "dxos_reader",
+        "secret_ref": "warehouse-reader",
+        "ssl_mode": "disable"
+      }
+    },
+    {
+      "name": "source-plaintext-password",
+      "schema": "core-api.openapi.yaml#/components/schemas/SourceCreate",
+      "valid": false,
+      "value": {
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "source_key": "warehouse.warehouse-pg",
+        "db_type": "POSTGRESQL",
+        "host": "warehouse.example.invalid",
+        "port": 5432,
+        "database_name": "warehouse_db",
+        "db_user": "dxos_reader",
+        "secret_ref": "warehouse-reader",
+        "ssl_mode": "verify-full",
+        "password": "SYNTHETIC_FORBIDDEN"
+      }
+    },
+    {
+      "name": "caller-chosen-hasura-name",
+      "schema": "core-api.openapi.yaml#/components/schemas/SourceCreate",
+      "valid": false,
+      "value": {
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "source_key": "warehouse.warehouse-pg",
+        "db_type": "POSTGRESQL",
+        "host": "warehouse.example.invalid",
+        "port": 5432,
+        "database_name": "warehouse_db",
+        "db_user": "dxos_reader",
+        "secret_ref": "warehouse-reader",
+        "ssl_mode": "verify-full",
+        "hasura_source_name": "caller_chosen"
+      }
+    },
+    {
+      "name": "raw-executor-url",
+      "schema": "platform-api.openapi.yaml#/components/schemas/ExecuteOperation",
+      "valid": false,
+      "value": {
+        "operation_ref": {
+          "operation_key": "warehouse.stock_lookup",
+          "version": 1
+        },
+        "variables": {},
+        "url": "https://unapproved.example.invalid"
+      }
+    },
+    {
+      "name": "forged-workflow-actor",
+      "schema": "platform-api.openapi.yaml#/components/schemas/WorkflowStart",
+      "valid": false,
+      "value": {
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "workflow_key": "order-fulfillment",
+        "business_key": "22222222-2222-4222-8222-222222222222",
+        "run_number": 1,
+        "initiator_id": "11111111-1111-4111-8111-111111111111"
+      }
+    },
+    {
+      "name": "wrong-target-route",
+      "schema": "operation-registry.yaml#/components/schemas/HttpRequestConfig",
+      "valid": false,
+      "value": {
+        "target_operation_id": "reserveStock",
+        "method": "POST",
+        "path_template": "/api/v1/warehouse/private",
+        "timeout_seconds": 10,
+        "authentication": {
+          "mode": "SERVICE_CREDENTIAL",
+          "secret_ref": "workflow-credential"
+        }
+      }
+    },
+    {
+      "name": "caller-token-with-secret",
+      "schema": "operation-registry.yaml#/components/schemas/AuthenticationConfig",
+      "valid": false,
+      "value": {
+        "mode": "CALLER_TOKEN",
+        "secret_ref": "forbidden"
+      }
+    },
+    {
+      "name": "service-auth-without-secret",
+      "schema": "operation-registry.yaml#/components/schemas/AuthenticationConfig",
+      "valid": false,
+      "value": {
+        "mode": "SERVICE_CREDENTIAL",
+        "secret_ref": null
+      }
+    },
+    {
+      "name": "negative-stock-quantity",
+      "schema": "warehouse-api.openapi.yaml#/components/schemas/ReservationCreate",
+      "valid": false,
+      "value": {
+        "order_id": "11111111-1111-4111-8111-111111111111",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "DEMO-001",
+            "quantity": -1
+          }
+        ]
+      }
+    },
+    {
+      "name": "human-application-binding",
+      "schema": "core-api.openapi.yaml#/components/schemas/ResolvedIdentityContext",
+      "valid": false,
+      "value": {
+        "verified_identity": {
+          "issuer": "https://identity.example.invalid/realms/demo",
+          "subject": "demo-user",
+          "client_id": "portal",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "11111111-1111-4111-8111-111111111111",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "memberships": [
+          {
+            "department_id": "22222222-2222-4222-8222-222222222222",
+            "membership_role": "OWNER",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "ACTIVE"
+          }
+        ]
+      }
+    },
+    {
+      "name": "service-context-without-client",
+      "schema": "core-api.openapi.yaml#/components/schemas/ResolvedIdentityContext",
+      "valid": false,
+      "value": {
+        "verified_identity": {
+          "issuer": "https://identity.example.invalid/realms/demo",
+          "subject": "demo-user",
+          "client_id": null,
+          "account_type": "service",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "11111111-1111-4111-8111-111111111111",
+        "principal_status": "ACTIVE",
+        "platform_role": "NONE",
+        "application_id": null,
+        "memberships": [
+          {
+            "department_id": "22222222-2222-4222-8222-222222222222",
+            "membership_role": "OWNER",
+            "status": "ACTIVE",
+            "expires_at": null,
+            "department_status": "ACTIVE"
+          }
+        ]
+      }
+    },
+    {
+      "name": "manifest-grants-field",
+      "schema": "application-onboarding.yaml#/components/schemas/OnboardingSubmission",
+      "valid": false,
+      "value": {
+        "manifest": {
+          "manifest_version": "1.0",
+          "application": {
+            "key": "warehouse",
+            "name": "Warehouse Management",
+            "department_key": "warehouse",
+            "description": "Read-only inventory data products"
+          },
+          "sources": [
+            {
+              "key": "warehouse-pg",
+              "kind": "postgres",
+              "host": "warehouse.example.invalid",
+              "database": "warehouse_db",
+              "username": "dxos_reader",
+              "ssl_mode": "verify-full",
+              "secret_ref": "warehouse-reader"
+            }
+          ],
+          "data_products": [
+            {
+              "key": "product_catalog",
+              "source_key": "warehouse-pg",
+              "name": "Product Catalog",
+              "object": {
+                "schema": "public",
+                "name": "product_catalog",
+                "kind": "view"
+              },
+              "fields": [
+                {
+                  "column": "sku",
+                  "expected_type": "text",
+                  "description": "Stable product identifier"
+                },
+                {
+                  "column": "name",
+                  "description": "Product name"
+                }
+              ],
+              "contract_version": "1.0.0",
+              "requested_state": "PUBLISH_REQUESTED"
+            },
+            {
+              "key": "available_inventory",
+              "source_key": "warehouse-pg",
+              "name": "Available Inventory",
+              "object": {
+                "schema": "public",
+                "name": "stock_available",
+                "kind": "view"
+              },
+              "fields": [
+                {
+                  "column": "sku",
+                  "expected_type": "text"
+                },
+                {
+                  "column": "available_quantity",
+                  "expected_type": "integer"
+                }
+              ],
+              "relationships": [
+                {
+                  "name": "product",
+                  "type": "object",
+                  "target_product": "product_catalog",
+                  "strategy": "manual",
+                  "mapping": [
+                    {
+                      "from": "sku",
+                      "to": "sku"
+                    }
+                  ],
+                  "uniqueness_ref": "warehouse/catalog-sku-unique"
+                }
+              ],
+              "contract_version": "1.0.0",
+              "requested_state": "PUBLISH_REQUESTED"
+            }
+          ]
+        },
+        "product_contracts": [
+          {
+            "product_key": "product_catalog",
+            "version": "1.0.0",
+            "contract_json": {
+              "document_version": "1.0",
+              "grain": "One row per SKU",
+              "business_key": [
+                "sku"
+              ],
+              "classification": "INTERNAL",
+              "description": "Synthetic catalog",
+              "fields": [
+                {
+                  "column": "sku",
+                  "name": "sku",
+                  "physical_type": "TEXT",
+                  "wire_type": "string",
+                  "nullable": false,
+                  "description": "Stable product identifier"
+                },
+                {
+                  "column": "name",
+                  "name": "name",
+                  "physical_type": "TEXT",
+                  "wire_type": "string",
+                  "nullable": false,
+                  "description": "Product name"
+                }
+              ],
+              "relationships": []
+            }
+          },
+          {
+            "product_key": "available_inventory",
+            "version": "1.0.0",
+            "contract_json": {
+              "document_version": "1.0",
+              "grain": "One row per SKU",
+              "business_key": [
+                "sku"
+              ],
+              "classification": "INTERNAL",
+              "description": "Synthetic available stock",
+              "fields": [
+                {
+                  "column": "sku",
+                  "name": "sku",
+                  "physical_type": "TEXT",
+                  "wire_type": "string",
+                  "nullable": false,
+                  "description": null
+                },
+                {
+                  "column": "available_quantity",
+                  "name": "available_quantity",
+                  "physical_type": "INTEGER",
+                  "wire_type": "integer",
+                  "nullable": false,
+                  "description": null,
+                  "constraints": {
+                    "minimum": 0
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "name": "product",
+                  "type": "object",
+                  "target_product": "warehouse.product_catalog",
+                  "strategy": "manual",
+                  "mapping": [
+                    {
+                      "from": "sku",
+                      "to": "sku"
+                    }
+                  ],
+                  "uniqueness_ref": "warehouse/catalog-sku-unique"
+                }
+              ]
+            }
+          }
+        ],
+        "grants": [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "data_product_id": "22222222-2222-4222-8222-222222222222",
+            "contract_version_id": "33333333-3333-4333-8333-333333333333",
+            "access_request_id": null,
+            "consumer_department_id": "11111111-1111-4111-8111-111111111111",
+            "consumer_principal_id": null,
+            "scope_json": {
+              "action": "SELECT",
+              "columns": [
+                "sku",
+                "available_quantity"
+              ],
+              "row_scope": {
+                "kind": "ALL"
+              }
+            },
+            "desired_revision": 1,
+            "applied_revision": 1,
+            "status": "ACTIVE",
+            "expires_at": null,
+            "granted_by": "11111111-1111-4111-8111-111111111111",
+            "granted_at": "2026-10-23T00:00:00Z",
+            "revoked_by": null,
+            "revoked_at": null,
+            "updated_at": "2026-10-23T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "plan-static-redacted",
+      "schema": "application-onboarding.yaml#/components/schemas/OnboardingPlan",
+      "valid": true,
+      "value": {
+        "manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "discovery_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "application_key": "warehouse",
+        "evidence": "STATIC_UNKNOWN",
+        "metadata_resource_version": null,
+        "valid": true,
+        "ready_for_dispatch": false,
+        "expires_at": "2026-10-23T00:00:00Z",
+        "steps": [
+          {
+            "key": "source:warehouse.warehouse-pg",
+            "layer": "CORE",
+            "action": "BLOCKED",
+            "verification": "UNKNOWN",
+            "operation": "REGISTER_SOURCE",
+            "target_key": "warehouse.warehouse-pg",
+            "depends_on": [],
+            "blockers": [
+              "CORE_STATE_UNKNOWN"
+            ],
+            "summary": "Synthetic unknown Core state"
+          }
+        ],
+        "issues": [],
+        "approval_requirements": [
+          {
+            "kind": "IT_PUBLICATION",
+            "target_key": "warehouse.available_inventory",
+            "satisfied": false
+          }
+        ],
+        "permission_policy": "CORE_GRANTS_REQUIRED_NO_PERMISSIONS_GENERATED"
+      }
+    },
+    {
+      "name": "static-plan-cannot-be-ready",
+      "schema": "application-onboarding.yaml#/components/schemas/OnboardingPlan",
+      "valid": false,
+      "value": {
+        "manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "discovery_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "application_key": "warehouse",
+        "evidence": "STATIC_UNKNOWN",
+        "metadata_resource_version": null,
+        "valid": true,
+        "ready_for_dispatch": true,
+        "expires_at": "2026-10-23T00:00:00Z",
+        "steps": [
+          {
+            "key": "source:warehouse.warehouse-pg",
+            "layer": "CORE",
+            "action": "BLOCKED",
+            "verification": "UNKNOWN",
+            "operation": "REGISTER_SOURCE",
+            "target_key": "warehouse.warehouse-pg",
+            "depends_on": [],
+            "blockers": [
+              "CORE_STATE_UNKNOWN"
+            ],
+            "summary": "Synthetic unknown Core state"
+          }
+        ],
+        "issues": [],
+        "approval_requirements": [
+          {
+            "kind": "IT_PUBLICATION",
+            "target_key": "warehouse.available_inventory",
+            "satisfied": false
+          }
+        ],
+        "permission_policy": "CORE_GRANTS_REQUIRED_NO_PERMISSIONS_GENERATED"
+      }
+    },
+    {
+      "name": "reservation-consumed",
+      "schema": "warehouse-api.openapi.yaml#/components/schemas/Reservation",
+      "valid": true,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "order_id": "11111111-1111-4111-8111-111111111111",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "DEMO-001",
+            "quantity": 2
+          }
+        ],
+        "status": "CONSUMED",
+        "revision": 3,
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z",
+        "reserved_at": "2026-10-23T00:00:00Z",
+        "packed_at": "2026-10-23T00:00:00Z",
+        "released_at": null,
+        "consumed_at": "2026-10-23T00:00:00Z",
+        "handover_shipment_id": "11111111-1111-4111-8111-111111111111"
+      }
+    },
+    {
+      "name": "consumed-without-handover",
+      "schema": "warehouse-api.openapi.yaml#/components/schemas/Reservation",
+      "valid": false,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "order_id": "11111111-1111-4111-8111-111111111111",
+        "order_revision": 2,
+        "items": [
+          {
+            "sku": "DEMO-001",
+            "quantity": 2
+          }
+        ],
+        "status": "CONSUMED",
+        "revision": 3,
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z",
+        "reserved_at": "2026-10-23T00:00:00Z",
+        "packed_at": "2026-10-23T00:00:00Z",
+        "released_at": null,
+        "consumed_at": "2026-10-23T00:00:00Z",
+        "handover_shipment_id": null
+      }
+    },
+    {
+      "name": "shipment-delivered",
+      "schema": "logistics-api.openapi.yaml#/components/schemas/Shipment",
+      "valid": true,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "order_id": "11111111-1111-4111-8111-111111111111",
+        "reservation_id": "11111111-1111-4111-8111-111111111111",
+        "tracking_number": "DEMO-TRACK-001",
+        "revision": 3,
+        "status": "DELIVERED",
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z",
+        "picked_up_at": "2026-10-23T00:00:00Z",
+        "delivered_at": "2026-10-23T00:00:00Z",
+        "cancelled_at": null
+      }
+    },
+    {
+      "name": "delivered-without-pickup",
+      "schema": "logistics-api.openapi.yaml#/components/schemas/Shipment",
+      "valid": false,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "order_id": "11111111-1111-4111-8111-111111111111",
+        "reservation_id": "11111111-1111-4111-8111-111111111111",
+        "tracking_number": "DEMO-TRACK-001",
+        "revision": 3,
+        "status": "DELIVERED",
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z",
+        "picked_up_at": null,
+        "delivered_at": "2026-10-23T00:00:00Z",
+        "cancelled_at": null
+      }
+    },
+    {
+      "name": "source-redacted",
+      "schema": "core-api.openapi.yaml#/components/schemas/Source",
+      "valid": true,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z",
+        "created_by": "11111111-1111-4111-8111-111111111111",
+        "updated_by": "11111111-1111-4111-8111-111111111111",
+        "revision": 1,
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "source_key": "warehouse.warehouse-pg",
+        "db_type": "POSTGRESQL",
+        "hasura_source_name": "warehouse_warehouse_pg_f012345678",
+        "status": "CONNECTED",
+        "last_checked_at": "2026-10-23T00:00:00Z"
+      }
+    },
+    {
+      "name": "source-read-secret-leak",
+      "schema": "core-api.openapi.yaml#/components/schemas/Source",
+      "valid": false,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z",
+        "created_by": "11111111-1111-4111-8111-111111111111",
+        "updated_by": "11111111-1111-4111-8111-111111111111",
+        "revision": 1,
+        "application_id": "11111111-1111-4111-8111-111111111111",
+        "source_key": "warehouse.warehouse-pg",
+        "db_type": "POSTGRESQL",
+        "hasura_source_name": "warehouse_warehouse_pg_f012345678",
+        "status": "CONNECTED",
+        "last_checked_at": "2026-10-23T00:00:00Z",
+        "secret_ref": "forbidden-ref"
+      }
+    },
+    {
+      "name": "job-connect-source",
+      "schema": "data-governance.yaml#/components/schemas/PublicationJob",
+      "valid": true,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "job_type": "CONNECT_SOURCE",
+        "data_source_id": "11111111-1111-4111-8111-111111111111",
+        "data_product_id": null,
+        "access_grant_id": null,
+        "target_revision": 1,
+        "status": "QUEUED",
+        "attempt_count": 0,
+        "max_attempts": 5,
+        "next_attempt_at": "2026-10-23T00:00:00Z",
+        "last_error_code": null,
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z"
+      }
+    },
+    {
+      "name": "job-wrong-target",
+      "schema": "data-governance.yaml#/components/schemas/PublicationJob",
+      "valid": false,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "job_type": "CONNECT_SOURCE",
+        "data_source_id": null,
+        "data_product_id": "11111111-1111-4111-8111-111111111111",
+        "access_grant_id": null,
+        "target_revision": 1,
+        "status": "QUEUED",
+        "attempt_count": 0,
+        "max_attempts": 5,
+        "next_attempt_at": "2026-10-23T00:00:00Z",
+        "last_error_code": null,
+        "created_at": "2026-10-23T00:00:00Z",
+        "updated_at": "2026-10-23T00:00:00Z"
+      }
+    },
+    {
+      "name": "resolved-it-admin-without-department",
+      "schema": "core-api.openapi.yaml#/components/schemas/ResolvedIdentityContext",
+      "valid": true,
+      "value": {
+        "verified_identity": {
+          "issuer": "https://identity.example.invalid/realms/demo",
+          "subject": "demo-user",
+          "client_id": "portal",
+          "account_type": "human",
+          "scopes": [
+            "openid"
+          ]
+        },
+        "principal_id": "11111111-1111-4111-8111-111111111111",
+        "principal_status": "ACTIVE",
+        "platform_role": "PLATFORM_ADMIN",
+        "application_id": null,
+        "memberships": []
+      }
+    },
+    {
+      "name": "forged-admin-role-in-publication",
+      "schema": "data-governance.yaml#/components/schemas/PublishProduct",
+      "valid": false,
+      "value": {
+        "expected_revision": 1,
+        "contract_version_id": "11111111-1111-4111-8111-111111111111",
+        "platform_role": "PLATFORM_ADMIN"
+      }
+    },
+    {
+      "name": "forged-owner-in-approval",
+      "schema": "data-governance.yaml#/components/schemas/ApproveRequest",
+      "valid": false,
+      "value": {
+        "expected_revision": 1,
+        "scope_json": {
+          "action": "SELECT",
+          "columns": [
+            "sku",
+            "available_quantity"
+          ],
+          "row_scope": {
+            "kind": "ALL"
+          }
+        },
+        "expires_at": null,
+        "membership_role": "OWNER"
+      }
+    }
+  ]
+}

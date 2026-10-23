@@ -26,6 +26,8 @@ FlowBridge hướng tới một nền tảng dùng chung để đăng ký ứng 
 
 Sales, Warehouse và Logistics là ba ứng dụng mẫu cho quy trình Order Fulfillment. Agent và Workflow sử dụng các giao diện được cấp quyền để khai thác dữ liệu và thực hiện hành động nghiệp vụ.
 
+Ba lớp quyền độc lập: IT/PLATFORM_ADMIN quản trị DX-OS (gồm publish và cấp/thu quyền); Core + Hasura kiểm quyền đọc dữ liệu theo grant; từng Business API kiểm quyền nghiệp vụ riêng. Vai trò nhân viên/phụ trách phòng ban không tự cấp quyền quản trị nền tảng. Chi tiết tại [API Contracts](docs/API-CONTRACTS.md#authorization-model-three-independent-layers).
+
 ## Phạm vi và trạng thái
 
 Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các module được tách theo trách nhiệm để phát triển và kiểm thử độc lập.
@@ -136,6 +138,7 @@ npm run build
 - [Quản lý nội dung repository](docs/REPOSITORY.md)
 - [Hasura Integration và hướng dẫn phát triển không Docker](backend/app/core/hasura_provisioner/README.md)
 - [Declarative onboarding: JSON → Core Contracts → Hasura plan](docs/ONBOARDING.md)
+- [API Contracts và hướng dẫn triển khai contract-first](docs/API-CONTRACTS.md)
 - [Giấy phép thành phần Hasura Integration](THIRD_PARTY_LICENSES.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
 - [Lịch sử thay đổi](CHANGELOG.md)

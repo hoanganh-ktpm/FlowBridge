@@ -4,6 +4,7 @@
 - core/: Registry, sources/products, Governance, Hasura provisioner và Agent/Tools.
 - platform/: token validation, Keycloak Directory, HTTP/OpenAPI utilities đã port và các adapter Platform sau này.
 - e2e/: quy trình xuyên các khối với engine thật khi tích hợp.
+- contracts/: kiểm tra OpenAPI/JSON Schema, refs, fixtures tổng hợp và consistency của API Contracts; không phụ thuộc database hoặc service thật. Chạy `uv run --locked pytest tests/contracts -q`; xem [API Contracts](../docs/API-CONTRACTS.md).
 
 Từ gốc: `uv run --locked pytest tests/platform tests/core/hasura -q`. Platform và Hasura unit tests chạy bằng HTTP mocks; Hasura dùng fake repositories, không đòi Core DB hoặc database nghiệp vụ. Domain/E2E tests thật chưa triển khai.
 

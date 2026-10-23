@@ -1,0 +1,14 @@
+{
+  "files": {
+    "openapi-3.1.schema.json": {
+      "source": "https://spec.openapis.org/oas/3.1/schema/2022-10-07",
+      "sha256": "da01ba28852cac0de53893797cb8d1942bc3b05084f526dcc216717dec314ed0"
+    },
+    "openapi-LICENSE.txt": {
+      "source": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/LICENSE",
+      "sha256": "4948367c65e1ce06690e2cadc6e86fce1a6a6db55ef874ce4b78c0f472ce5f13"
+    }
+  },
+  "normalization": "Schema JSON reformatted; trailing LF normalized. Hashes identify committed fixture bytes, not HTTP response bytes. Upstream specification/schemas licensed Apache-2.0; retain license alongside fixture.",
+  "scope": "Offline contract validation only; no network retrieval by test suite."
+}

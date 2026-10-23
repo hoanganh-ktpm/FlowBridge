@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### API Contracts
+
+- Thống nhất ba lớp quyền: IT/PLATFORM_ADMIN quản trị DX-OS xuyên phòng ban; consumer đọc theo grant; Business APIs kiểm quyền nghiệp vụ riêng. Bỏ department OWNER khỏi điều kiện quản trị/publish/approval; giữ metadata tổ chức tương thích DB và các technical guards.
+- Đặc tả OpenAPI 3.1.1 phiên bản 0.2.0 cho P0 Data Sharing và các boundary P1; giữ method/path/operationId của catalog v0.1.1.
+- Bổ sung declarative onboarding và canonical Data Contract giữ aliases, physical/wire types và relationships; tách DRAFT editable khỏi PUBLISHED immutable.
+- Giới hạn read grants P0 theo department; đánh dấu Business DTOs và persistence gaps PENDING_DB_ALIGNMENT.
+- Thêm kiểm tra specification/ref/schema/fixtures offline; chưa triển khai hoặc nghiệm thu database/runtime integration.
+
 ### Architecture
 
 - Tổ chức backend theo `app/core` và `app/platform`, tách Business APIs và Portal.

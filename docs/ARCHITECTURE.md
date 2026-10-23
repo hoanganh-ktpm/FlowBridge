@@ -27,6 +27,18 @@ Hasura đọc dữ liệu được công bố; Business APIs thực hiện ghi c
 
 SSO xác minh danh tính, không tự cấp quyền nghiệp vụ. Core/Hasura/Business API/Workflow Adapter kiểm quyền tại receiver. Reservation phải nguyên tử, idempotent và có giải phóng/bù khi bước sau lỗi; không dựa riêng vào lần đọc tồn kho trước đó.
 
+## Ba lớp phân quyền
+
+| Lớp | Quyền | Nơi thực thi |
+|---|---|---|
+| Quản trị DX-OS | IT có PLATFORM_ADMIN quản trị toàn bộ registry, nguồn, contracts, validate/plan, publish, cấp/thu quyền, cấu hình và audit; không cần OWNER của phòng ban duyệt riêng | Core API/backend sau xác thực và resolve principal role đáng tin cậy |
+| Đọc dữ liệu dùng chung | Consumer đọc đúng Data Product/cột theo grant IT cấp; kiểm hiệu lực tại mỗi request | Core kiểm grant, Hasura thực thi read permissions |
+| Nghiệp vụ từng phần mềm | Tạo đơn, giữ hàng, cập nhật tồn kho/vận chuyển theo quyền riêng của ứng dụng | Business API Sales/Warehouse/Logistics |
+
+Phòng ban là thông tin tổ chức/nhóm consumer, không phải nguồn quyền quản trị DX-OS. STAFF/OWNER trong thiết kế DB cũ không cho phép cấu hình, publish, duyệt hoặc cấp quyền. owner_department_id là metadata liên kết, không phải role. Consumer là nhóm sử dụng, không thêm enum role vào DB; principal hiện dùng NONE hoặc PLATFORM_ADMIN.
+
+IT toàn quyền quản trị không bỏ qua schema/state/revision/verification và không biến token quản trị thành quyền ghi nghiệp vụ hay quyền đọc hàng dữ liệu bằng Hasura admin secret. Khi dùng endpoint dữ liệu/execute thông thường, IT vẫn theo grant/execute/receiver policy tương ứng; IT có thể cấp quyền đó qua thao tác quản trị có audit. Service account không tự có quyền chỉ vì là service. Chi tiết normative tại [API Contracts](API-CONTRACTS.md).
+
 ## Mã đã chuyển và phần còn thiếu
 
 Đã port: IdentitySettings độc lập, token introspection, Keycloak Directory, generic HTTP utilities và test tương ứng; UI/theme/PKCE; template Keycloak/config APISIX.

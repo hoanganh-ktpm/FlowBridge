@@ -1,0 +1,1681 @@
+paths:
+  "/api/v1/core/data-products":
+    post:
+      operationId: "createProduct"
+      summary: "Create a draft Data Product"
+      description: "One source/schema/object is one product. No DDL and no automatic read permission."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/ProductCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/Product"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listProducts"
+      summary: "Discover the organization catalog"
+      description: >-
+        Catalog metadata is organization-visible, including classification labels; this is not permission to
+        read rows. Cursor bound to filters/caller; created_at,id ascending.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "CATALOG_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect all registry metadata. Other ACTIVE organization principals may inspect
+        only visible ACTIVE products/current PUBLISHED contracts with CONNECTED sources and active
+        affiliated applications/departments. Catalog visibility grants no row access or management
+        authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        -
+          name: "application_id"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/ProductPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/data-products/{data_product_id}":
+    parameters:
+      -
+        name: "data_product_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getProduct"
+      summary: "getProduct"
+      description: "getProduct"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "CATALOG_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect all registry metadata. Other ACTIVE organization principals may inspect
+        only visible ACTIVE products/current PUBLISHED contracts with CONNECTED sources and active
+        affiliated applications/departments. Catalog visibility grants no row access or management
+        authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/Product"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    patch:
+      operationId: "patchProduct"
+      summary: "patchProduct"
+      description: "patchProduct"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/ProductPatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/Product"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-products/{data_product_id}/publish":
+    parameters:
+      -
+        name: "data_product_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "publishDataProduct"
+      summary: "publishDataProduct"
+      description: >-
+        Pin a PUBLISHED contract belonging to this product. Same active contract is safe no-op. Switching is
+        blocked while PENDING_APPLY/ACTIVE/REVOKING/ERROR grants exist; serialize against concurrent
+        approval. READY/PROVISIONING/ACTIVE are server transitions only.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/PublishProduct"}}}
+      responses:
+        "202":
+          description: "Accepted; poll durable resource or job. Not verified success."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Location:
+              schema: {"type":"string","format":"uri-reference"}
+              description: "Pollable resource or publication job URI."
+            Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/AsyncJobAccepted"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-products/{data_product_id}/disable":
+    parameters:
+      -
+        name: "data_product_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "disableDataProduct"
+      summary: "disableDataProduct"
+      description: >-
+        Deny new reads immediately, then enqueue DISABLE_PRODUCT to reconcile all dependent permissions. Do
+        not report enforcement complete before verification.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/ReasonCommand"}}}
+      responses:
+        "202":
+          description: "Accepted; poll durable resource or job. Not verified success."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Location:
+              schema: {"type":"string","format":"uri-reference"}
+              description: "Pollable resource or publication job URI."
+            Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/AsyncJobAccepted"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-sources/{data_source_id}/connect":
+    parameters:
+      -
+        name: "data_source_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "connectSource"
+      summary: "connectSource"
+      description: >-
+        Enqueue CONNECT_SOURCE atomically with desired source revision. Verify approved secret binding in
+        Hasura and backend; metadata consistency is not a continuous health guarantee.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/RevisionCommand"}}}
+      responses:
+        "202":
+          description: "Accepted; poll durable resource or job. Not verified success."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Location:
+              schema: {"type":"string","format":"uri-reference"}
+              description: "Pollable resource or publication job URI."
+            Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/AsyncJobAccepted"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-sources/{data_source_id}/schema":
+    parameters:
+      -
+        name: "data_source_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "discoverSourceSchema"
+      summary: "discoverSourceSchema"
+      description: >-
+        CONNECTED source required. Requested scope must be within the IT source allowlist; no scope means
+        the configured bounded default, never unrestricted discovery. Maximum 1000 objects/1000 columns
+        each, bounded timeout and response size. No SQL or business rows.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        -
+          name: "schema_name"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        -
+          name: "object_names"
+          in: "query"
+          required: false
+          schema:
+            type: "array"
+            items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+            minItems: 1
+            maxItems: 100
+            uniqueItems: true
+          style: "form"
+          explode: false
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/SourceSchema"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-products/{data_product_id}/contracts":
+    parameters:
+      -
+        name: "data_product_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "createDataContract"
+      summary: "createDataContract"
+      description: "Version identity unique per product; creates DRAFT only. Canonical document is not raw Hasura metadata."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/ContractCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContract"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listDataContracts"
+      summary: "listDataContracts"
+      description: "listDataContracts"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "CATALOG_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect all registry metadata. Other ACTIVE organization principals may inspect
+        only visible ACTIVE products/current PUBLISHED contracts with CONNECTED sources and active
+        affiliated applications/departments. Catalog visibility grants no row access or management
+        authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContractPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/data-contracts/{contract_version_id}":
+    parameters:
+      -
+        name: "contract_version_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getDataContract"
+      summary: "getDataContract"
+      description: "getDataContract"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "CATALOG_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect all registry metadata. Other ACTIVE organization principals may inspect
+        only visible ACTIVE products/current PUBLISHED contracts with CONNECTED sources and active
+        affiliated applications/departments. Catalog visibility grants no row access or management
+        authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContract"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    patch:
+      operationId: "patchDataContract"
+      summary: "patchDataContract"
+      description: >-
+        Only DRAFT content is editable with CAS revision. Published/retired versions remain immutable; do
+        not impose published immutability on draft editing.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContractPatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContract"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-contracts/{contract_version_id}/publish":
+    parameters:
+      -
+        name: "contract_version_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "publishDataContract"
+      summary: "publishDataContract"
+      description: >-
+        Freeze validated canonical contents as PUBLISHED. This is contract publication, not tracking a
+        product or granting data access. Audit actor/time are server generated.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/RevisionCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContract"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/access-requests":
+    post:
+      operationId: "createAccessRequest"
+      summary: "createAccessRequest"
+      description: "createAccessRequest"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AccessRequestCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AccessRequest"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listAccessRequests"
+      summary: "listAccessRequests"
+      description: "Cursor ordered requested_at,id ascending and bound to caller/filters."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        -
+          name: "data_product_id"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AccessRequestPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["requested_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/access-requests/{access_request_id}":
+    parameters:
+      -
+        name: "access_request_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getAccessRequest"
+      summary: "getAccessRequest"
+      description: "getAccessRequest"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AccessRequest"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/access-requests/{access_request_id}/approve":
+    parameters:
+      -
+        name: "access_request_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "approveAccessRequest"
+      summary: "approveAccessRequest"
+      description: >-
+        Within one Core transaction lock/version-check request AND product/current contract plus effective
+        bindings. Require PENDING, ACTIVE product, CONNECTED source, current contract and scope subset.
+        Write APPROVED decision, PENDING_APPLY grant and APPLY_GRANT job atomically. Duplicate request
+        cannot create another grant. Not ACTIVE until verify.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/ApproveRequest"}}}
+      responses:
+        "202":
+          description: "Accepted; poll durable resource or job. Not verified success."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Location:
+              schema: {"type":"string","format":"uri-reference"}
+              description: "Pollable resource or publication job URI."
+            Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/ApproveAccepted"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/access-requests/{access_request_id}/reject":
+    parameters:
+      -
+        name: "access_request_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "rejectAccessRequest"
+      summary: "rejectAccessRequest"
+      description: "PENDING only, CAS revision and audit. No grant/job created."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/DecideRequest"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AccessRequest"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/access-requests/{access_request_id}/cancel":
+    parameters:
+      -
+        name: "access_request_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "cancelAccessRequest"
+      summary: "cancelAccessRequest"
+      description: "PENDING only, CAS revision and audit. No grant/job created."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/DecideRequest"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AccessRequest"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/access-grants":
+    get:
+      operationId: "listGrants"
+      summary: "listGrants"
+      description: "Cursor ordered granted_at,id ascending; recheck current visibility on replay/page."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "GRANT_STATUS"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect all grant metadata. Other ACTIVE consumers may inspect only grants for
+        their own currently verified department memberships; no grant creation, approval, update or revoke
+        authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        -
+          name: "data_product_id"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/GrantPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["granted_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/access-grants/{access_grant_id}":
+    parameters:
+      -
+        name: "access_grant_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getGrant"
+      summary: "getGrant"
+      description: "getGrant"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "GRANT_STATUS"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect all grant metadata. Other ACTIVE consumers may inspect only grants for
+        their own currently verified department memberships; no grant creation, approval, update or revoke
+        authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/Grant"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/access-grants/{access_grant_id}/revoke":
+    parameters:
+      -
+        name: "access_grant_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "revokeGrant"
+      summary: "revokeGrant"
+      description: >-
+        CAS expected_desired_revision; increment desired revision, write REVOKING and enqueue REVOKE_GRANT
+        atomically. New reads denied immediately; REVOKED only after verified cleanup. Do not remove other
+        subjects' permissions.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/RevokeGrant"}}}
+      responses:
+        "202":
+          description: "Accepted; poll durable resource or job. Not verified success."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Location:
+              schema: {"type":"string","format":"uri-reference"}
+              description: "Pollable resource or publication job URI."
+            Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/AsyncJobAccepted"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/publication-jobs/{job_id}":
+    parameters:
+      -
+        name: "job_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getPublicationJob"
+      summary: "getPublicationJob"
+      description: "getPublicationJob"
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/PublicationJob"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/audit-events":
+    get:
+      operationId: "listAuditEvents"
+      summary: "listAuditEvents"
+      description: "Append-only read projection; cursor ordered occurred_at,id ascending."
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        - {"name":"resource_ref","in":"query","required":false,"schema":{"type":"string","minLength":1,"maxLength":200}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/AuditEventPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["occurred_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/data-products/{data_product_id}/rows":
+    parameters:
+      -
+        name: "data_product_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "readDataProductRows"
+      summary: "Read a governed live Data Product projection"
+      description: >-
+        Public column names, including all public business_key fields, are required (missing keys:422,
+        insufficient grant:403). Query only approved metadata through Hasura v2 CE with trusted non-admin
+        identity. Recheck policy every request; never SQL/GraphQL/role input. Use verified
+        public-to-physical mapping, deterministic business-key order and limit+1 for has_more without
+        leaking extra data. Reject partial/errors/invalid rows (503). Source updates committed before a new
+        query are visible subject to DB isolation; no copying, caching, snapshot/export guarantee. P0
+        bigint/numeric must be JSON-safe exact values or exposed as text by an approved view, otherwise
+        publication/read fails; no rounding.
+      tags: ["DataGovernance"]
+      x-priority: "P0"
+      x-authorization-policy: "DATA_GRANT"
+      x-authorization: >-
+        Every caller, including IT when using the normal data endpoint, needs an ACTIVE principal and
+        effective bindings; ACTIVE product/current PUBLISHED contract; CONNECTED source; active affiliated
+        applications/departments; one ACTIVE unexpired department grant with
+        applied_revision=desired_revision covering every requested physical column. PLATFORM_ADMIN and
+        legacy OWNER membership alone are not a row-read grant; Core checks current policy and Hasura
+        enforces columns.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        -
+          name: "contract_version_id"
+          in: "query"
+          required: true
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        -
+          name: "columns"
+          in: "query"
+          required: true
+          schema:
+            type: "array"
+            items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+            minItems: 1
+            maxItems: 100
+            uniqueItems: true
+          style: "form"
+          explode: false
+        -
+          name: "limit"
+          in: "query"
+          required: false
+          schema: {"type":"integer","minimum":1,"maximum":100,"default":20}
+        -
+          name: "offset"
+          in: "query"
+          required: false
+          schema: {"type":"integer","minimum":0,"maximum":10000,"default":0}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-governance.yaml#/components/schemas/DataRows"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"mode":"bounded-offset","sort":"Pinned public business_key ascending","max_offset":10000,"snapshot":false}
+  "/api/v1/core/data-contracts/{contract_version_id}/retire":
+    parameters:
+      -
+        name: "contract_version_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "retireDataContract"
+      summary: "Retire an unused published Data Contract"
+      description: >-
+        PUBLISHED -> RETIRED only when not the active product contract and no live grants or ACTIVE
+        operations reference this version. Lock/check references atomically. Content remains immutable; no
+        destructive delete.
+      tags: ["DataGovernance"]
+      x-priority: "P1"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/ReasonCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./data-contracts.yaml#/components/schemas/DataContract"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+components:
+  schemas:
+    ProductCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["data_source_id","product_key","name","schema_name","object_name","object_type","classification"]
+      properties:
+        data_source_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        product_key: {"$ref":"./common.openapi.yaml#/components/schemas/QualifiedKey"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        schema_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        object_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        object_type: {"type":"string","enum":["TABLE","VIEW"]}
+        classification: {"$ref":"./common.openapi.yaml#/components/schemas/Classification"}
+    Product:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "data_source_id"
+        - "product_key"
+        - "name"
+        - "description"
+        - "schema_name"
+        - "object_name"
+        - "object_type"
+        - "classification"
+        - "owner_department_id"
+        - "active_contract_id"
+        - "status"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        data_source_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        product_key: {"$ref":"./common.openapi.yaml#/components/schemas/QualifiedKey"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        schema_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        object_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        object_type: {"type":"string","enum":["TABLE","VIEW"]}
+        classification: {"$ref":"./common.openapi.yaml#/components/schemas/Classification"}
+        owner_department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        active_contract_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        status: {"type":"string","enum":["DRAFT","READY","PROVISIONING","ACTIVE","ERROR","DISABLED"]}
+      description: >-
+        owner_department_id is derived organizational affiliation through source/application, not an
+        administrator role or publication approval authority. ACTIVE does not imply public data access.
+    ProductPatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        classification: {"$ref":"./common.openapi.yaml#/components/schemas/Classification"}
+      minProperties: 2
+      description: >-
+        DRAFT only. Source/object identity immutable. A published contract classification cannot be changed
+        through this DTO.
+    PublishProduct:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","contract_version_id"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        contract_version_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    DiscoveredColumn:
+      type: "object"
+      additionalProperties: false
+      required: ["name","physical_type","nullable"]
+      properties:
+        name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        physical_type: {"type":"string","minLength":1,"maxLength":100}
+        nullable: {"type":"boolean"}
+    DiscoveredForeignKey:
+      type: "object"
+      additionalProperties: false
+      required: ["name","columns","target_schema","target_object","target_columns"]
+      properties:
+        name: {"anyOf":[{"type":"string","minLength":1,"maxLength":63},{"type":"null"}]}
+        columns:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+          minItems: 1
+          maxItems: 20
+        target_schema: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        target_object: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        target_columns:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+          minItems: 1
+          maxItems: 20
+    DiscoveredObject:
+      type: "object"
+      additionalProperties: false
+      required: ["schema_name","object_name","object_type","columns","primary_key","unique_constraints","foreign_keys"]
+      properties:
+        schema_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        object_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        object_type: {"type":"string","enum":["TABLE","VIEW"]}
+        columns:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/DiscoveredColumn"}
+          minItems: 1
+          maxItems: 1000
+        primary_key:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+          minItems: 0
+          maxItems: 20
+        unique_constraints:
+          type: "array"
+          items:
+            type: "array"
+            items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+            minItems: 1
+            maxItems: 20
+          minItems: 0
+          maxItems: 100
+        foreign_keys:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/DiscoveredForeignKey"}
+          minItems: 0
+          maxItems: 100
+      description: >-
+        Confirmed physical metadata only. Equal names never imply FK. Missing view keys are empty, not
+        inferred uniqueness. Partial unique indexes do not prove whole-object uniqueness.
+    SourceSchema:
+      type: "object"
+      additionalProperties: false
+      required: ["data_source_id","captured_at","schema_hash","objects"]
+      properties:
+        data_source_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        captured_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        schema_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        objects:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/DiscoveredObject"}
+          minItems: 0
+          maxItems: 1000
+      description: >-
+        Live bounded read-only discovery; no business rows. Caller/IT-approved schema/object scope required.
+        Truncation or timeout returns an error, never an apparently complete partial snapshot.
+    AccessRequestCreate:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "data_product_id"
+        - "contract_version_id"
+        - "consumer_department_id"
+        - "consumer_principal_id"
+        - "requested_scope_json"
+        - "reason"
+      properties:
+        data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        contract_version_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        consumer_department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        consumer_principal_id: {"type":"null"}
+        requested_scope_json: {"$ref":"./common.openapi.yaml#/components/schemas/DataScope"}
+        reason: {"type":"string","minLength":1,"maxLength":2000}
+      description: >-
+        P0 department-only profile. Only IT PLATFORM_ADMIN creates an administrative access request on
+        behalf of a consumer department; consumers do not submit or approve requests. Principal grants are
+        deferred P1; non-null consumer_principal_id is rejected, not widened to department scope.
+    AccessRequest:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "data_product_id"
+        - "contract_version_id"
+        - "consumer_department_id"
+        - "consumer_principal_id"
+        - "requested_scope_json"
+        - "reason"
+        - "requested_by"
+        - "requested_at"
+        - "status"
+        - "decision_note"
+        - "decided_by"
+        - "decided_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        contract_version_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        consumer_department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        consumer_principal_id: {"type":"null"}
+        requested_scope_json: {"$ref":"./common.openapi.yaml#/components/schemas/DataScope"}
+        reason: {"type":"string","minLength":1,"maxLength":2000}
+        requested_by: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        requested_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        status: {"type":"string","enum":["PENDING","APPROVED","REJECTED","CANCELLED"]}
+        decision_note: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        decided_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        decided_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+    ApproveRequest:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","scope_json","expires_at"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        scope_json: {"$ref":"./common.openapi.yaml#/components/schemas/DataScope"}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        decision_note: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+    DecideRequest:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","decision_note"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        decision_note: {"type":"string","minLength":1,"maxLength":2000}
+    Grant:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "data_product_id"
+        - "contract_version_id"
+        - "access_request_id"
+        - "consumer_department_id"
+        - "consumer_principal_id"
+        - "scope_json"
+        - "desired_revision"
+        - "applied_revision"
+        - "status"
+        - "expires_at"
+        - "granted_by"
+        - "granted_at"
+        - "revoked_by"
+        - "revoked_at"
+        - "updated_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        contract_version_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        access_request_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        consumer_department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        consumer_principal_id: {"type":"null"}
+        scope_json: {"$ref":"./common.openapi.yaml#/components/schemas/DataScope"}
+        desired_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        applied_revision: {"type":"integer","minimum":0}
+        status: {"type":"string","enum":["PENDING_APPLY","ACTIVE","REVOKING","REVOKED","EXPIRED","ERROR"]}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        granted_by: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        granted_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        revoked_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revoked_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+      description: >-
+        Department-only P0 projection, not the complete DB consumer XOR. ACTIVE requires applied=desired and
+        current effective policy. enforcement_role remains internal.
+    ApproveAccepted:
+      type: "object"
+      additionalProperties: false
+      required: ["access_request","grant","job"]
+      properties:
+        access_request: {"$ref":"./data-governance.yaml#/components/schemas/AccessRequest"}
+        grant: {"$ref":"./data-governance.yaml#/components/schemas/Grant"}
+        job: {"$ref":"./common.openapi.yaml#/components/schemas/AsyncJobAccepted"}
+    RevokeGrant:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_desired_revision","reason"]
+      properties:
+        expected_desired_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        reason: {"type":"string","minLength":1,"maxLength":1000}
+    PublicationJob:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "job_type"
+        - "data_source_id"
+        - "data_product_id"
+        - "access_grant_id"
+        - "target_revision"
+        - "status"
+        - "attempt_count"
+        - "max_attempts"
+        - "next_attempt_at"
+        - "last_error_code"
+        - "created_at"
+        - "updated_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        job_type: {"type":"string","enum":["CONNECT_SOURCE","PUBLISH_PRODUCT","APPLY_GRANT","REVOKE_GRANT","DISABLE_PRODUCT"]}
+        data_source_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        data_product_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        access_grant_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        target_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        status: {"type":"string","enum":["QUEUED","RUNNING","RETRY","SUCCEEDED","FAILED"]}
+        attempt_count: {"type":"integer","minimum":0}
+        max_attempts: {"type":"integer","minimum":1}
+        next_attempt_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        last_error_code: {"anyOf":[{"type":"string","minLength":1,"maxLength":100},{"type":"null"}]}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+      allOf:
+        -
+          if: {"properties":{"job_type":{"const":"CONNECT_SOURCE"}}}
+          then:
+            properties:
+              data_source_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+              data_product_id: {"type":"null"}
+              access_grant_id: {"type":"null"}
+        -
+          if: {"properties":{"job_type":{"enum":["PUBLISH_PRODUCT","DISABLE_PRODUCT"]}}}
+          then:
+            properties:
+              data_source_id: {"type":"null"}
+              data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+              access_grant_id: {"type":"null"}
+        -
+          if: {"properties":{"job_type":{"enum":["APPLY_GRANT","REVOKE_GRANT"]}}}
+          then:
+            properties:
+              data_source_id: {"type":"null"}
+              data_product_id: {"type":"null"}
+              access_grant_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      description: >-
+        Read-only redacted job projection. Lease/worker/secret state is internal. SUCCEEDED requires target
+        revision CAS and enforcement verification; superseded jobs fail with STALE_REVISION.
+    AuditEvent:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "occurred_at"
+        - "recorded_at"
+        - "actor_principal_id"
+        - "actor_kind"
+        - "initiator_principal_id"
+        - "action"
+        - "resource_type"
+        - "resource_ref"
+        - "outcome"
+        - "request_id"
+        - "workflow_run_ref"
+        - "operation_id"
+        - "error_code"
+        - "summary"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        occurred_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        recorded_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        actor_principal_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        actor_kind: {"type":"string","enum":["human","service","system"]}
+        initiator_principal_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        action: {"type":"string","minLength":1,"maxLength":100}
+        resource_type: {"type":"string","minLength":1,"maxLength":100}
+        resource_ref: {"type":"string","minLength":1,"maxLength":200}
+        outcome: {"type":"string","enum":["SUCCESS","FAILURE","DENIED"]}
+        request_id: {"$ref":"./common.openapi.yaml#/components/schemas/RequestId"}
+        workflow_run_ref: {"anyOf":[{"type":"string","minLength":1,"maxLength":200},{"type":"null"}]}
+        operation_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        error_code: {"anyOf":[{"type":"string","minLength":1,"maxLength":100},{"type":"null"}]}
+        summary: {"type":"string","minLength":1,"maxLength":1000}
+      description: >-
+        Policy-visible append-only projection, not raw diff_json. Never business rows, source coordinates,
+        secret refs, bearer tokens or unsanitized exception bodies.
+    DataRows:
+      type: "object"
+      additionalProperties: false
+      required: ["data_product_id","contract_version_id","columns","rows","limit","offset","has_more"]
+      properties:
+        data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        contract_version_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        columns:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        rows:
+          type: "array"
+          items:
+            type: "object"
+            minProperties: 1
+            maxProperties: 100
+            additionalProperties: {"type":["string","number","boolean","null"]}
+          minItems: 0
+          maxItems: 100
+        limit: {"type":"integer","minimum":1,"maximum":100}
+        offset: {"type":"integer","minimum":0,"maximum":10000}
+        has_more: {"type":"boolean"}
+      description: >-
+        P0 scalar wire profile. columns and row keys use PUBLIC names; access-grant columns use PHYSICAL
+        names and are resolved through the pinned contract. Exact row shape, types/nullability/constraints
+        and precision are checked dynamically. Reject the entire response on upstream errors or any invalid
+        row.
+    ProductPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/Product"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    AccessRequestPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/AccessRequest"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    GrantPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/Grant"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    AuditEventPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./data-governance.yaml#/components/schemas/AuditEvent"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    TrustedHasuraContext:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "principal_id"
+        - "department_id"
+        - "data_product_id"
+        - "contract_version_id"
+        - "grant_id"
+        - "desired_revision"
+        - "applied_revision"
+        - "enforcement_role"
+        - "validated_at"
+        - "expires_at"
+      properties:
+        principal_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        contract_version_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        grant_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        desired_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        applied_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        enforcement_role: {"type":"string","pattern":"^dxos_department_[a-f0-9]{32}$"}
+        validated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+      readOnly: true
+      description: >-
+        INTERNAL trusted policy result, never client input or HTTP read response. Resolver verifies current
+        principal/membership/application/product/contract/grant and applied=desired. Hook/adapter rejects
+        any role outside this derived context. Does not contain admin secret or a bearer credential.

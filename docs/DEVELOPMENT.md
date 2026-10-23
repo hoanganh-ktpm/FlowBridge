@@ -39,6 +39,8 @@ Mỗi mốc có assertion và bằng chứng kiểm tra. Không coi scaffold, pr
 
 Identity xác minh caller; Core quản lý quyền chia sẻ; Hasura thực thi quyền đọc; Business APIs kiểm quyền ghi và nghiệp vụ; Workflow Adapter kiểm quyền task. Reservation được kiểm trong transaction và phải idempotent.
 
+Quản trị Core do IT với PLATFORM_ADMIN thực hiện xuyên phòng ban, gồm publish và cấp/thu quyền, không cần OWNER của phòng ban phê duyệt. Nhân viên/phụ trách phòng ban chỉ có quyền nghiệp vụ theo từng Business API và quyền đọc được IT cấp; membership STAFF/OWNER không cấp quyền quản trị Core. Admin role không tự thay thế grant đọc hoặc quyền ghi ở Business API. Contracts khai báo x-authorization-policy để các nhóm giữ đúng ba boundary này khi triển khai.
+
 Core DB có một migration chain tại backend/app/core/db/migrations. Mỗi domain quản lý migrations riêng. Thay đổi contract, baseline, root lockfile và deployment được review cùng người tích hợp.
 
 Agent và Portal cần người sở hữu cụ thể khi lập kế hoạch triển khai; có thể chuyển người đã bàn giao Business APIs sang các phần này để phân bổ tải công việc.
