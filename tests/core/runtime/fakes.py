@@ -102,7 +102,7 @@ class MemoryStore:
         }
 
     @asynccontextmanager
-    async def transaction(self):
+    async def transaction(self, *, read_only=False):
         async with self.mutex:
             snapshot = deepcopy((self.data, self.receipts, self.audits))
             try:

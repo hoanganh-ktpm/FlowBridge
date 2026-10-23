@@ -11,7 +11,7 @@
 
 ## Giữ cục bộ
 
-- _archive và ghi chú vận hành cục bộ như docs/CHECKPOINT.md.
+- _archive, hướng dẫn agent tại AGENTS.md và ghi chú vận hành cục bộ như docs/CHECKPOINT.md, docs/HASURA_AUDIT.md.
 - .env thực, private keys, certificates và credential runtime.
 - .venv, node_modules, công cụ tải về và cache.
 - Build output, test reports, logs và coverage.

@@ -20,4 +20,6 @@ _archive
 **/*.key
 **/*.pem
 docs/CHECKPOINT.md
+AGENTS.md
+docs/HASURA_AUDIT.md
 docs/reference

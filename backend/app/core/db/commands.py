@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,7 +10,13 @@ from app.core.governance.policy import PrincipalContext, resolve_principal
 from app.platform.http.errors import CoreError, ErrorCode
 from app.platform.identity.authentication import VerifiedIdentity
 
-from .ports import CommandReceipt, CoreStore, CoreTransaction, StoredResource
+from .ports import (
+    CommandReceipt,
+    CoreStore,
+    CoreTransaction,
+    StoredResource,
+    TransientTransactionConflict,
+)
 
 
 def timestamp(value: datetime) -> str:
@@ -68,7 +75,19 @@ class CommandExecutor:
     def __init__(self, store: CoreStore) -> None:
         self.store = store
 
-    async def execute(
+    async def execute(self, identity, method, path, key, payload, correlation_id, operation):
+        for attempt in range(3):
+            try:
+                return await self._execute_once(
+                    identity, method, path, key, payload, correlation_id, operation
+                )
+            except TransientTransactionConflict:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.02 * (attempt + 1))
+        raise AssertionError("Unreachable")
+
+    async def _execute_once(
         self,
         identity: VerifiedIdentity,
         method: str,

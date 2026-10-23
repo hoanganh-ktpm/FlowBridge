@@ -1,11 +1,50 @@
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from uuid import UUID
 
 import pytest
 
 from app.core.db.ports import StoredResource
+from app.core.hasura_provisioner.worker import JobLease
 
 from .fakes import ISSUER, SALES, WAREHOUSE, MemoryStore, granted, published, read
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_and_execution_open_worker_transactions_sequentially(harness, monkeypatch):
+    worker = harness.worker
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    entries = []
+
+    @asynccontextmanager
+    async def transaction(lease, **kwargs):
+        entries.append(lease.worker_id)
+        entered.set()
+        yield (None, None, None)
+
+    monkeypatch.setattr(worker, "_guard_transaction", transaction)
+    lease = JobLease(UUID(int=10), "first", 1)
+
+    async def execution():
+        async with worker.guard(lease):
+            await release.wait()
+
+    async def heartbeat():
+        async with worker.guard(lease):
+            pass
+
+    operation = asyncio.create_task(execution())
+    await entered.wait()
+    renewal = asyncio.create_task(heartbeat())
+    try:
+        await asyncio.sleep(0)
+        assert entries == ["first"]
+    finally:
+        release.set()
+        await asyncio.gather(operation, renewal)
+    assert entries == ["first", "first"]
 
 
 async def queue_source(harness):

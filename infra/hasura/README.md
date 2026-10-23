@@ -2,7 +2,7 @@
 
 **Configuration boundary cho engine; không chứa application code hoặc credentials.**
 
-Python adapter nằm tại [Core Hasura Provisioner](../../backend/app/core/hasura_provisioner/README.md). Hiện chưa có Docker, Compose, Kubernetes, Hasura CLI project hoặc metadata database được triển khai trong thư mục này.
+Python adapter nằm tại [Core Hasura Provisioner](../../backend/app/core/hasura_provisioner/README.md). Profile Docker thử ở ../docker-compose.yml, dùng metadata PostgreSQL local riêng và image v2.48.16 pin digest; xem [Docker integration](../../docs/DOCKER.md). Không có Kubernetes hoặc Hasura CLI project trong thư mục này.
 
 ## Baseline và runtime
 

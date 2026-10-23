@@ -1,13 +1,13 @@
 # Khối công việc và ranh giới
 
-## Phân chia
+## Thành phần
 
-| Khối | Người phụ trách dự kiến | Có thể code độc lập bằng |
+| Khối | Trách nhiệm | Kiểm thử độc lập |
 |---|---|---|
-| services | Người 1 | Database fixture, identity/API mock |
-| core | Người 2 | Metadata DB fixture, mock IdP/Hasura và sources thử nghiệm |
-| platform | Người 3 | IdP/HTTP mock, Flowable và mock Business APIs |
-| portal | Giao theo nhân lực/mốc | Fixtures và contracts frontend |
+| services | Nghiệp vụ và transaction của từng ứng dụng | Database fixture, identity/API mock |
+| core | Registry, chia sẻ dữ liệu và governance | Metadata DB fixture, mock IdP/Hasura và sources thử nghiệm |
+| platform | Identity, HTTP và adapter hạ tầng | IdP/HTTP mock, Flowable và mock Business APIs |
+| portal | Giao diện và truy cập API | Fixtures và contracts frontend |
 
 Core quản lý tích hợp dữ liệu, Platform cung cấp năng lực kỹ thuật dùng chung, Services sở hữu nghiệp vụ. Backend dùng package app, chia app.core và app.platform theo trách nhiệm. Mỗi Business API có package app và môi trường chạy độc lập. Module Core được tổ chức trong cùng backend để đơn giản hóa composition và quản lý dependency.
 
@@ -45,8 +45,10 @@ IT toàn quyền quản trị không bỏ qua schema/state/revision/verification
 
 Hasura provisioner đã có Metadata Client và services đăng ký nguồn, publish table/view, reconcile SELECT permissions; fake repositories và HTTP mock cho phép phát triển không cần database/engine. Source tại app/core/hasura_provisioner, cấu hình baseline duy nhất ở infra/hasura. Core DB models/migrations và authorization adapters được ghép qua Protocols, không bị module Hasura định nghĩa lại.
 
-Core P0 hiện có FastAPI composition, HTTP handlers cho vertical slice Data Sharing, canonical onboarding, trusted principal/grant policy và worker claim/lease/retry/revision verification. Đây là runtime logic đã kiểm offline, không phải durable database integration; chi tiết và persistence boundary tại [Core Backend P0](CORE-P0.md).
+Core P0 có FastAPI composition, HTTP handlers cho vertical slice Data Sharing, canonical onboarding, trusted principal/grant policy và worker claim/lease/retry/revision verification. PostgreSQL CoreStore và native HTTP/worker composition đã được kiểm trên cluster thử riêng; identity boundary trong integration tests được override có chủ đích, không thay bằng chứng SSO/Hasura E2E. Chi tiết tại [Automated Onboarding](AUTOMATED-ONBOARDING.md).
 
-Chưa triển khai/tích hợp: Core DB baseline/PostgreSQL adapters, domain APIs, Hasura/Keycloak live enforcement và non-admin credential provider, Agent Runtime, Flowable adapter/BPMN và Compose mới. Không giữ code v1 còn phụ thuộc SupplierPolicy/Settings mua hàng trong cây active. Langflow/ML/RAG/Agent Hub backend cũ vẫn trong archive để bảo toàn source; chỉ port tiếp phần thực sự cần.
+Database models/migrations của Core và ba domain được đặt tại module sở hữu; CLI quản trị/seed ở scripts/database không được import từ runtime nghiệp vụ. Core head core_0004 theo mô hình P0 một doanh nghiệp: principals, phòng ban/memberships, applications/sources, products/contracts, department grants, jobs/audit/receipts. Adapter nằm trong app/core/db, không đọc schema nội bộ nghiệp vụ. Ba history nghiệp vụ giữ nguyên. Xem [Database Setup](database/README.md).
+
+Profile tích hợp hiện hành chỉ Docker hóa Keycloak/Hasura v2 CE; Core/worker chạy Windows .venv, PostgreSQL dùng Supabase hiện có. Metadata Hasura tách trong postgres/hdb_catalog, không nằm trong Core schema. Đã kiểm luồng onboarding → publication → grant → đọc catalog → cập nhật nguồn → revoke bằng token Keycloak và Hasura thật; xem phạm vi, quyền reader và evidence tại [Docker Integration](DOCKER.md). Internal JWT chỉ bật sau khi xác minh auth profile/ingress. Chưa triển khai/nghiệm thu domain APIs, inventory NUMERIC end-to-end, Agent Runtime, Flowable/BPMN hoặc production stack. Không giữ code v1 còn phụ thuộc SupplierPolicy/Settings mua hàng trong cây active. Langflow/ML/RAG/Agent Hub backend cũ vẫn trong archive; chỉ port tiếp phần thực sự cần.
 
 Mã active không import source lưu trữ cục bộ. Template cấu hình được quản lý trong Git; credentials và runtime state được cung cấp riêng khi triển khai.

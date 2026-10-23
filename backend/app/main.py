@@ -27,7 +27,7 @@ from app.platform.identity.settings import IdentitySettings
 class CoreDependencies:
     store: CoreStore
     discovery: SourceDiscoveryService
-    reader: DataReader
+    reader: DataReader | None
     http: httpx.AsyncClient
     identity_settings: IdentitySettings
     evidence: object | None = None

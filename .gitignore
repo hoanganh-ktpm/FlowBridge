@@ -32,7 +32,11 @@ Thumbs.db
 
 # Local operational notes and externally supplied reference documents.
 /docs/CHECKPOINT.md
+/AGENTS.md
+/docs/HASURA_AUDIT.md
 /docs/reference/
+/infra/postgres/*.local.json
+/.venv-dxos/
 
 # Credentials, certificates and runtime data.
 *.key

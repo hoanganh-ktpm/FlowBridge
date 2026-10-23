@@ -1,0 +1,179 @@
+// Design artifact only. Target database: logistics_db. No SQL/app/live database changes.
+// Import separately. public here is logistics_db.public, not a shared business schema.
+Project dxos_logistics_demo {
+  database_type: 'PostgreSQL'
+  Note: '''Logistics owns carrier assignment, shipping-label preparation and manifest acceptance. The demo ends at verified handoff to the carrier; Warehouse owns the physical handoff and inventory facts. Sales/warehouse/product/dispatch identifiers are opaque references across databases. Every row is org-scoped. Carrier code/name are configuration-backed snapshots for the MVP; no carrier master table or payment subsystem is required. DBML notes define future checks/transactions; no aggregate rule or event transport is implemented by this artifact.'''
+}
+
+Table public.shipments {
+  id uuid [pk]
+  org_id uuid [not null]
+  shipment_number varchar(50) [not null]
+  sales_order_ref uuid [not null, note: 'Opaque Sales order UUID; no cross-database FK.']
+  sales_order_number varchar(50) [not null]
+  warehouse_ref uuid [not null, note: 'Opaque Warehouse UUID from the verified dispatch manifest.']
+  warehouse_dispatch_ref uuid [not null]
+  warehouse_dispatch_number varchar(50) [not null]
+  manifest_version integer [not null]
+  manifest_hash char(64) [not null]
+  carrier_code_snapshot varchar(50) [not null]
+  carrier_name_snapshot varchar(200) [not null]
+  tracking_number varchar(100) [note: 'Optional carrier consignment/label number; not evidence that the customer received anything.']
+  recipient_name_snapshot varchar(200) [not null]
+  recipient_phone_snapshot varchar(40) [not null]
+  delivery_address_snapshot text [not null]
+  delivery_instructions_snapshot text
+  planned_handoff_at timestamptz [not null, note: 'Immutable after ACCEPTED; snapshot of the confirmed Sales requested_handoff_at. This is the original carrier handoff deadline, not a customer delivery promise.']
+  status varchar(30) [not null, default: 'DRAFT']
+  acceptance_ref uuid [note: 'Stable Logistics acceptance reference returned for this exact manifest.']
+  handed_over_event_ref uuid [note: 'Stable verified Warehouse handoff event UUID.']
+  handed_over_source_version bigint
+  accepted_at timestamptz
+  handed_over_at timestamptz
+  cancelled_at timestamptz
+  workflow_instance_ref varchar(128)
+  version bigint [not null, default: 1]
+  created_by_subject varchar(255) [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, shipment_number) [unique]
+    (org_id, warehouse_dispatch_ref) [unique]
+    (org_id, acceptance_ref) [unique]
+    (org_id, handed_over_event_ref) [unique]
+    (org_id, sales_order_ref, status)
+  }
+  Note: '''One shipment corresponds to one prepared Warehouse dispatch, one Sales order and one warehouse in the MVP. An order can have multiple dispatches/shipments. States DRAFT, ACCEPTED, HANDED_OVER, CANCELLED, EXCEPTION. Accept a nonempty frozen manifest only from an authorized same-org Warehouse source; verify version/hash and source order, assign the carrier and freeze its code/name with the manifest. Recipient snapshots come from an authorized Sales fulfillment interface and are used only to prepare shipping labels. ACCEPTED is planning, not proof that stock left the warehouse. Only verified, deduplicated Warehouse HANDED_OVER evidence enables final HANDED_OVER status, handed_over_at and line handover quantities. The event must match this exact dispatch, manifest version/hash, carrier and Sales order; Logistics cannot independently mark a physical handoff. Cancel before handoff only in coordination with authoritative Warehouse cancellation. Prepare/accept and dispatch-cancel handlers serialize on (org_id, warehouse_dispatch_ref), even when no shipment exists yet, using a transaction-scoped advisory lock or equivalent. A verified cancellation received before prepare is retained as an inbox fence; later prepare/accept checks that fence and cannot recreate a shipment. A cancellation closes the corresponding Logistics workflow if it exists. A mismatched handoff remains EXCEPTION and is reconciled against Warehouse; do not fabricate quantities or decrement stock again. The Logistics workflow ends when the verified handoff is projected. Carrier changes require cancellation/reacceptance of an unhanded dispatch and cannot silently alter an accepted manifest. Customer receipt, delivery attempts, redelivery, returns and claims are outside the demo.'''
+}
+
+Table public.shipment_lines {
+  id uuid [pk]
+  org_id uuid [not null]
+  shipment_id uuid [not null]
+  line_no integer [not null]
+  warehouse_dispatch_line_ref uuid [not null, note: 'Opaque source dispatch-line UUID from the frozen manifest.']
+  sales_order_line_ref uuid [not null]
+  product_ref uuid [not null]
+  sku varchar(80) [not null]
+  product_name_snapshot varchar(255) [not null]
+  uom varchar(30) [not null]
+  planned_quantity numeric(18,3) [not null]
+  handed_over_quantity numeric(18,3) [not null, default: 0]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, shipment_id, id) [unique]
+    (org_id, shipment_id, line_no) [unique]
+    (org_id, warehouse_dispatch_line_ref) [unique]
+  }
+  Note: '''Require line_no > 0, planned_quantity > 0 and 0 <= handed_over_quantity <= planned_quantity. Freeze planned quantities, SKU/UOM and source refs at acceptance. Before verified Warehouse handoff, handed_over_quantity = 0; the MVP accepts a complete frozen dispatch so it becomes planned_quantity on verified handoff. Any mismatched physical manifest is an exception, not an invented quantity update. The whole shipment and its lines update atomically with the inbox receipt, business event and local outbox. No independent editable physical-handoff counter exists in Logistics. Keep each original Sales line reference, even if several lines share a SKU. No summing quantities across different units.'''
+}
+
+Table public.shipment_events {
+  id uuid [pk]
+  org_id uuid [not null]
+  shipment_id uuid [not null]
+  event_type varchar(80) [not null]
+  from_status varchar(30)
+  to_status varchar(30)
+  source_app varchar(50) [not null]
+  source_event_id uuid
+  source_aggregate_version bigint
+  actor_subject varchar(255)
+  details jsonb [note: 'Minimal auditable references/result. Avoid unapproved PII propagation.']
+  correlation_id uuid [not null]
+  occurred_at timestamptz [not null]
+  recorded_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, source_app, source_event_id) [unique]
+    (org_id, shipment_id, occurred_at)
+  }
+  Note: '''Append-only shipment business timeline, not Flowable engine history. Require source_event_id for external handoff/cancellation inputs and correlate it to a validated inbox receipt. Publish a local handoff-projection outcome after committing verified Warehouse evidence. External event ordering is checked against aggregate/version/state. Defer gaps or fetch an authorized authoritative snapshot rather than ignoring unapplied handoff quantities. A chat answer or manually changed Logistics status is never physical handoff evidence.'''
+}
+
+Table public.command_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  scope varchar(180) [not null, note: 'Operation plus target resource, e.g. logistics.accept_manifest:<dispatch UUID>.']
+  idempotency_key varchar(128) [not null]
+  actor_subject varchar(255) [not null]
+  request_hash char(64) [not null]
+  status varchar(20) [not null, default: 'PROCESSING']
+  resource_type varchar(80)
+  resource_id uuid
+  response_status integer
+  response_body jsonb
+  error_code varchar(80)
+  created_at timestamptz [not null]
+  completed_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, scope, idempotency_key) [unique]
+  }
+  Note: '''Technical table owned by Logistics. States PROCESSING, SUCCEEDED, FAILED. Request hash covers canonical command input and its resource identity. Authorize the caller before returning a cached response; bind reuse to the authorized actor/scope. Same key with a different hash is a conflict. Final command receipt, business writes and outbox creation commit in one local transaction. A retry returns the same committed result. Concurrent duplicate work must lock/claim the receipt. Do not expose response_body through public datasets; it may contain customer data.'''
+}
+
+Table public.outbox_events {
+  id uuid [pk, note: 'Stable event ID reused across every integration retry.']
+  org_id uuid [not null]
+  event_type varchar(100) [not null]
+  event_schema_version integer [not null, default: 1]
+  aggregate_type varchar(80) [not null]
+  aggregate_id uuid [not null]
+  aggregate_version bigint [not null]
+  business_key varchar(150) [not null]
+  correlation_id uuid [not null]
+  causation_id uuid
+  payload jsonb [not null]
+  payload_hash char(64) [not null]
+  status varchar(20) [not null, default: 'PENDING']
+  attempt_count integer [not null, default: 0]
+  next_attempt_at timestamptz
+  locked_by varchar(128)
+  locked_until timestamptz
+  last_error_code varchar(80)
+  occurred_at timestamptz [not null]
+  published_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, aggregate_type, aggregate_id, aggregate_version, event_type) [unique]
+    (status, next_attempt_at)
+  }
+  Note: '''At-least-once integration delivery, not a cross-database transaction. Insert with the business mutation, then a polling worker publishes/retries using a lease. PUBLISHED means destination accepted the event, not that every business process completed. Persist organization, stable IDs, schema/version and only authorized minimal payload. Require positive versions and nonnegative attempt_count. No secrets in payload. Recovery must reconcile unresolved commands and must not generate new event IDs for retries.'''
+}
+
+Table public.inbox_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  producer_app varchar(50) [not null]
+  event_id uuid [not null]
+  event_type varchar(100) [not null]
+  event_schema_version integer [not null, default: 1]
+  consumer varchar(100) [not null]
+  payload jsonb [not null, note: 'Private, scoped minimal event body for durable DEFERRED/FAILED retry; never a public dataset.']
+  payload_hash char(64) [not null]
+  aggregate_type varchar(80) [not null]
+  aggregate_id uuid [not null]
+  aggregate_version bigint [not null]
+  status varchar(20) [not null, default: 'RECEIVED']
+  attempt_count integer [not null, default: 0]
+  next_attempt_at timestamptz
+  last_error_code varchar(80)
+  received_at timestamptz [not null]
+  processed_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, producer_app, event_id, consumer) [unique]
+    (org_id, producer_app, aggregate_type, aggregate_id, aggregate_version)
+    (status, next_attempt_at)
+  }
+  Note: '''Verify sender, org_id, schema, payload hash and consumer permission before handling. Persist the minimal authorized payload and receipt before acknowledging acceptance; this allows durable DEFERRED/FAILED retry after the producer marks its outbox PUBLISHED. Acceptance is not business completion. Payload is private, contains no credentials, and follows a defined retention/access policy; do not copy unrestricted remote data. States RECEIVED, PROCESSING, PROCESSED, DEFERRED, FAILED. Duplicate event ID with identical hash returns the existing outcome; a different hash is rejected. Deduplication, domain writes, derived local outbox and PROCESSED marker commit atomically. An event/version gap is deferred or reconciled; never silently discard an unapplied quantity delta. Receipt status alone does not establish event ordering. For a verified Warehouse dispatch-cancel, retain org/producer/event_type/dispatch aggregate ID/version as a durable cancellation fence even if shipment creation has not arrived. Serialize cancellation with prepare on that external dispatch identity and check the fence before creating/accepting a shipment. Generic inbox cleanup must not erase an unresolved or still-replayable cancellation fence.'''
+}
+
+
+
+Ref: public.shipment_lines.(org_id, shipment_id) > public.shipments.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.shipment_events.(org_id, shipment_id) > public.shipments.(org_id, id) [delete: restrict, update: restrict]

@@ -1,14 +1,18 @@
 # Phát triển và tích hợp
 
-## Phân chia công việc
+## Môi trường hiện hành
 
-| Khối | Công việc ban đầu | Đầu ra tiếp theo |
+Keycloak/Hasura chạy bằng [Docker integration profile](DOCKER.md); Core/worker tiếp tục dùng Python .venv, Core và ba domain dùng Supabase hiện tại. Không cần JDK host, không tự tạo/reset database Supabase khi dựng engines. Secrets/TLS và realm thử được render cục bộ, không đưa vào Git. Engine health không đồng nghĩa publication/read/revoke E2E đạt.
+
+## Phạm vi implementation
+
+| Khối | Đã có | Phần cần triển khai |
 |---|---|---|
 | Business | Schema ba database, migration và seed tổng hợp | Sales/Warehouse/Logistics APIs, transaction, idempotency và business authorization |
-| DX-OS Data Core | Core schema, models, Application/Source Registry | Data Products/Contracts, Governance, Hasura provisioning và quyền đọc |
-| Contracts & Platform | Điều phối hợp đồng API, cấu hình môi trường | Identity, Gateway, Flowable, audit và ghép hệ thống |
+| DX-OS Data Core | PostgreSQL runtime, Registry, Data Products/Contracts, Governance, Hasura provisioning và quyền đọc P0 | Agent/Tool runtime và mở rộng các boundary P1 |
+| Contracts & Platform | API contracts, Identity adapters, HTTP utilities và cấu hình engine | Gateway runtime, Flowable, audit adapter và ghép hệ thống |
 
-Người điều phối contracts tổng hợp specification; chủ sở hữu nghiệp vụ/dữ liệu xác nhận DTO, trạng thái và quyền. Sau bước thiết kế, mỗi khối bàn giao implementation và kiểm thử có thể sử dụng được.
+Mỗi thay đổi cần giữ DTO, trạng thái và quyền nhất quán với contracts, kèm implementation và kiểm thử có thể chạy độc lập.
 
 ## Contracts trước integration
 
@@ -25,7 +29,7 @@ Business APIs dùng database fixture và identity mock. Data Core dùng nguồn 
 
 Mocks chỉ nằm trong test/development phù hợp; không tạo endpoint giả danh để bỏ qua quyền. Các khối không import repository hoặc đọc database nội bộ của nhau.
 
-## Các mốc bàn giao
+## Tiêu chí tích hợp
 
 1. Contracts/fixtures thống nhất; từng khối có kiểm thử độc lập và cấu hình môi trường rõ.
 2. Đăng ký nguồn → publish một Data Product → đọc đúng quyền → thu hồi quyền được kiểm tra thực tế.
@@ -41,6 +45,4 @@ Identity xác minh caller; Core quản lý quyền chia sẻ; Hasura thực thi 
 
 Quản trị Core do IT với PLATFORM_ADMIN thực hiện xuyên phòng ban, gồm publish và cấp/thu quyền, không cần OWNER của phòng ban phê duyệt. Nhân viên/phụ trách phòng ban chỉ có quyền nghiệp vụ theo từng Business API và quyền đọc được IT cấp; membership STAFF/OWNER không cấp quyền quản trị Core. Admin role không tự thay thế grant đọc hoặc quyền ghi ở Business API. Contracts khai báo x-authorization-policy để các nhóm giữ đúng ba boundary này khi triển khai.
 
-Core DB có một migration chain tại backend/app/core/db/migrations. Mỗi domain quản lý migrations riêng. Thay đổi contract, baseline, root lockfile và deployment được review cùng người tích hợp.
-
-Agent và Portal cần người sở hữu cụ thể khi lập kế hoạch triển khai; có thể chuyển người đã bàn giao Business APIs sang các phần này để phân bổ tải công việc.
+Core DB có một migration chain tại backend/app/core/db/migrations. Mỗi domain quản lý migrations riêng. Thay đổi contract, baseline, root lockfile và deployment cần kiểm tra tương thích với các module sử dụng.

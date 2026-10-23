@@ -472,7 +472,7 @@ class DataSharingService:
         return CommandReceipt("", 202, job, job["status_url"])
 
     async def get(self, identity: VerifiedIdentity, kind: str, resource_id: UUID) -> dict[str, Any]:
-        async with self.store.transaction() as transaction:
+        async with self.store.transaction(read_only=True) as transaction:
             principal = await resolve_principal(transaction, identity)
             if principal.platform_role != "PLATFORM_ADMIN" and kind not in {
                 "product",

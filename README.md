@@ -34,13 +34,13 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 
 | Thành phần | Vai trò | Trạng thái |
 |---|---|---|
-| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Core HTTP P0, canonical onboarding, grant/read policy và publication worker đã kiểm thử offline; PostgreSQL adapters và live integration còn thiếu |
+| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Core HTTP/worker và PostgreSQL adapter; đã kiểm luồng onboarding, publish, đọc theo grant và revoke với Keycloak/Hasura/Supabase thật |
 | Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Đã có Identity adapters và HTTP utilities; các tích hợp còn lại đang phát triển |
-| Business APIs | Đơn hàng, tồn kho và vận chuyển | Khung ứng dụng và migration directories |
+| Business APIs | Đơn hàng, tồn kho và vận chuyển | Có models và migrations cho 3 database; chưa có endpoints/transaction nghiệp vụ |
 | Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
-| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | Có template Keycloak và cấu hình APISIX nền; chưa có stack tích hợp hoàn chỉnh |
+| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | Docker test chỉ Keycloak/Hasura; metadata và dữ liệu ở Supabase hiện có; Core/worker chạy native; chưa triển khai toàn hệ thống |
 
-Đã có FastAPI composition tại `backend/app/main.py`, chỉ khởi tạo Core khi được cung cấp adapters phù hợp; không có persistence memory mặc định. Chưa có baseline database hoặc quy trình BPMN tích hợp hoàn chỉnh. Kiểm thử adapter bằng mock và preview UI không thay thế kiểm thử E2E với engine thật. Xem [Core Backend P0](docs/CORE-P0.md) về handlers, wiring và điều kiện tích hợp.
+Native factory `app.core.runtime:create_app` ghép Core HTTP với PostgreSQL thật; worker chạy thành process riêng, không có persistence memory fallback hoặc migration khi startup. Bốn database ứng dụng có tổng 38 bảng hiện hành/7 revision files: Core P0 12 bảng và nghiệp vụ 26 bảng. Schema Core theo principal/phòng ban/Data Product/grant. Manifest đăng ký draft và discovery nguồn thật mà không sửa Core theo tên ứng dụng. Profile [Docker Integration & Real E2E](docs/DOCKER.md) kiểm chứng Data Sharing với fixture catalog; không đồng nghĩa nghiệm thu Business APIs, inventory NUMERIC hoặc BPMN. Xem thêm [Automated Onboarding](docs/AUTOMATED-ONBOARDING.md), [Core Backend P0](docs/CORE-P0.md) và [Database Setup](docs/database/README.md).
 
 ## Kiến trúc định hướng
 
@@ -75,6 +75,7 @@ FlowBridge/
 ├── contracts/                  Schema, giao diện chung và fixtures
 ├── workflows/                  Quy trình BPMN nghiệp vụ
 ├── infra/                      Cấu hình triển khai engine
+├── scripts/database/           Công cụ quản trị, Alembic bootstrap và demo fixtures
 ├── tests/                      Domain, Core, Platform và E2E
 └── docs/                       Tài liệu kỹ thuật
 ```
@@ -134,12 +135,15 @@ npm run build
 ## Tài liệu
 
 - [Kiến trúc và ranh giới module](docs/ARCHITECTURE.md)
-- [Phát triển song song và tiêu chí bàn giao](docs/DEVELOPMENT.md)
+- [Môi trường phát triển và tiêu chí tích hợp](docs/DEVELOPMENT.md)
 - [Quản lý nội dung repository](docs/REPOSITORY.md)
 - [Hasura Integration và hướng dẫn phát triển không Docker](backend/app/core/hasura_provisioner/README.md)
 - [Declarative onboarding: JSON → Core Contracts → Hasura plan](docs/ONBOARDING.md)
+- [Automated onboarding: PostgreSQL runtime, native setup và bằng chứng kiểm thử](docs/AUTOMATED-ONBOARDING.md)
+- [Docker integration: Keycloak/Hasura và Supabase hiện có](docs/DOCKER.md)
 - [API Contracts và hướng dẫn triển khai contract-first](docs/API-CONTRACTS.md)
 - [Core Backend P0 và database integration checklist](docs/CORE-P0.md)
+- [Database ownership, migrations và khác biệt schema cần tích hợp](docs/database/README.md)
 - [Giấy phép thành phần Hasura Integration](THIRD_PARTY_LICENSES.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
 - [Lịch sử thay đổi](CHANGELOG.md)

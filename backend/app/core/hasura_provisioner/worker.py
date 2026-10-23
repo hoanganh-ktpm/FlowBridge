@@ -6,7 +6,7 @@ from uuid import UUID
 
 from app.core.data_sources.service import source_record
 from app.core.db.commands import timestamp, uuid
-from app.core.db.ports import StoredResource
+from app.core.db.ports import StoredResource, TransientTransactionConflict
 from app.core.governance.policy import resolve_principal
 from app.core.governance.service import instant, source_affiliation
 from app.platform.http.errors import CoreError, ErrorCode
@@ -45,8 +45,19 @@ class PublicationWorker:
         self.client = client
         self.settings = settings
         self.lease_seconds = lease_seconds
+        self._guard_lock = asyncio.Lock()
 
     async def claim(self, worker_id: str) -> JobLease | None:
+        for attempt in range(3):
+            try:
+                return await self._claim_once(worker_id)
+            except TransientTransactionConflict:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.02 * (attempt + 1))
+        raise AssertionError("Unreachable")
+
+    async def _claim_once(self, worker_id: str) -> JobLease | None:
         if not worker_id or len(worker_id) > 100:
             raise ValueError("Worker identity required")
         async with self.store.transaction() as transaction:
@@ -131,6 +142,12 @@ class PublicationWorker:
 
     @asynccontextmanager
     async def guard(self, lease: JobLease, *, target=True, actor=True):
+        async with self._guard_lock:
+            async with self._guard_transaction(lease, target=target, actor=actor) as state:
+                yield state
+
+    @asynccontextmanager
+    async def _guard_transaction(self, lease: JobLease, *, target=True, actor=True):
         async with self.store.transaction() as transaction:
             now = await transaction.now()
             record = await transaction.get("job", lease.job_id)
@@ -218,6 +235,8 @@ class PublicationWorker:
                 )
         except LeaseLost:
             pass
+        except TransientTransactionConflict:
+            await self.fail(lease, "CORE_TRANSACTION_RETRY", retry=True)
         except CoreError as error:
             code = (
                 "STALE_REVISION" if error.code == ErrorCode.VERSION_CONFLICT else error.code.value
@@ -234,6 +253,15 @@ class PublicationWorker:
         return True
 
     async def fail(self, lease, code, *, retry):
+        for attempt in range(3):
+            try:
+                return await self._fail_once(lease, code, retry=retry)
+            except TransientTransactionConflict:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.02 * (attempt + 1))
+
+    async def _fail_once(self, lease, code, *, retry):
         try:
             async with self.guard(lease, target=False, actor=False) as (transaction, record, now):
                 kind, resource_id = target_of(record.public)

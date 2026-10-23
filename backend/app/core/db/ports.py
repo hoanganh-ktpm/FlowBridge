@@ -4,7 +4,14 @@ from datetime import datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID
 
+from app.platform.http.errors import CoreError, ErrorCode
 from app.platform.identity.authentication import VerifiedIdentity
+
+
+class TransientTransactionConflict(CoreError):
+    def __init__(self):
+        super().__init__(ErrorCode.VERSION_CONFLICT)
+
 
 ResourceKind = Literal[
     "department", "application", "source", "product", "contract", "request", "grant", "job"
@@ -64,7 +71,9 @@ class CoreTransaction(Protocol):
 class CoreStore(Protocol):
     durable: bool
 
-    def transaction(self) -> AbstractAsyncContextManager[CoreTransaction]: ...
+    def transaction(
+        self, *, read_only: bool = False
+    ) -> AbstractAsyncContextManager[CoreTransaction]: ...
 
     def permission_lock(
         self, product_id: UUID, department_id: UUID

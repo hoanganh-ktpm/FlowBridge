@@ -4,7 +4,7 @@
 
 Module độc lập với SQLAlchemy models, Alembic và database nghiệp vụ. Có thể phát triển và chạy unit tests khi chưa có Core DB, Hasura hoặc Docker. Không có server entrypoint, admin endpoint công khai hay worker chạy nền trong module này.
 
-Đã đối chiếu boundary với Core Database v0.2; xem [báo cáo audit](../../../../docs/HASURA_AUDIT.md) cho findings, bằng chứng kiểm thử và deployment blockers. Tương thích DTO/contract không đồng nghĩa đã ghép persistence hoặc chạy Hasura thật.
+Boundary tuân theo Core Database v0.2. Xem [Core Backend P0](../../../../docs/CORE-P0.md) và [Docker Integration](../../../../docs/DOCKER.md) để kiểm tra phạm vi runtime, quyền truy cập và giới hạn tích hợp.
 
 ## Kiến trúc và giao diện
 

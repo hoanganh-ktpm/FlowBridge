@@ -200,9 +200,8 @@ class RuntimeOnboarding:
             department_id, entities, state_hash = await self.state(transaction, manifest)
         context = PlanContext(admin_verified=True, existing_core={} if mode == "LIVE" else None)
         if mode == "LIVE":
-            if self.metadata is None:
-                raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
-            context.metadata = await self.metadata.export_metadata()
+            if self.metadata is not None:
+                context.metadata = await self.metadata.export_metadata()
             for source in manifest.sources:
                 proposal = StoredResource(
                     {

@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Docker Integration Profile
+
+- Chuyển Keycloak/Hasura test runtime sang Compose với image version/digest pin, loopback ports và Hasura metadata schema riêng; không tạo thêm database Supabase.
+- Thêm generator secrets/TLS/test realm cục bộ, giữ runtime state khi chạy lại; bỏ yêu cầu JDK/Keycloak portable trên host.
+- Core outbound HTTP sử dụng OIDC CA bundle đã cấu hình thay vì bỏ qua trust configuration; không tắt certificate verification.
+
+### Automated Onboarding
+
+- Bổ sung PostgreSQL CoreStore và native Core API/worker composition; dùng schema/contracts hiện hành, không memory fallback hoặc migration khi startup.
+- Giữ LIVE PostgreSQL discovery/draft import độc lập với Hasura; không tự publish hoặc cấp quyền khi nhập manifest.
+- Thêm bounded serialization retries, durable idempotency, worker lease fencing và internal short-lived Hasura JWT provider mặc định tắt tới khi xác minh auth/ingress.
+- Kiểm PostgreSQL thật trên cluster TLS local riêng không Docker; thêm opt-in E2E harness và ghi rõ Hasura/SSO enforcement chưa nghiệm thu.
+
+### Database và Migrations
+
+- Bổ sung core_0004 thay metadata multi-organization bằng Core P0 một doanh nghiệp: principal/phòng ban, product/contract, department grant, publication jobs/audit và HTTP receipts.
+- Thêm guarded realign-core với xác minh đích, khóa bảng, logical backup và schema check trong transaction; không thay history/schema/dữ liệu ba database nghiệp vụ.
+- Core seed tùy chọn chỉ tạo draft registry; không tự cấp principal/admin/grant hoặc triển khai engine.
+
+- Tiếp nhận 48 bảng và 6 Alembic revisions, tách models/migrations theo Core và từng Business API; giữ nguyên DDL và migration history.
+- Hợp nhất CLI quản trị, fixtures tổng hợp, dependency group và CI database vào cấu trúc repository hiện hành; không đưa credential/PDF tham chiếu vào source phát hành.
+- Tách kiểm thử cấu trúc offline và PostgreSQL integration/E2E; ghi rõ chênh lệch schema bàn giao với Core P0 và chưa ghép production persistence.
+
 ### Core Backend P0
 
 - Thêm FastAPI composition và HTTP handlers cho vertical slice Data Sharing, không thay baseline API Contracts 0.2.0.
@@ -38,6 +61,6 @@
 
 ### Pending Integration
 
-- Core/Domain APIs, database baselines và Hasura provisioning.
+- Business APIs, transaction nghiệp vụ và các quan hệ chia sẻ dữ liệu xuyên domain.
 - Agent Runtime, Flowable adapter, BPMN Order Fulfillment và deployment stack.
 - Chuyển API client của Portal sang contract mới và kiểm thử E2E với engine thật.

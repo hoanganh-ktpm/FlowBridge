@@ -2,6 +2,8 @@
 
 Runtime cho một vertical slice Data Sharing, theo API Contracts 0.2.0 hiện hành. Không thay endpoint/DTO baseline, không tạo ORM/migration và không triển khai Agent, Workflow hoặc Business APIs.
 
+**Cập nhật sau milestone:** Core head core_0004 theo 11 bảng P0 + command receipts. PostgreSQL adapter và native composition app.core.runtime đã triển khai; profile [Docker Integration & Real E2E](DOCKER.md) kiểm Data Sharing với Keycloak/Hasura và Supabase thật. Command/worker giữ SERIALIZABLE/CAS; GET resource/status dùng transaction read-only không giữ row lock để tránh ảnh hưởng provisioning. Bảng khảo sát, bằng chứng offline và checklist bên dưới giữ bối cảnh milestone runtime ban đầu, không phải toàn bộ trạng thái hiện tại. [Automated Onboarding](AUTOMATED-ONBOARDING.md) ghi nhận thêm milestone native trước đó.
+
 ## Trạng thái
 
 | Thành phần | Khảo sát đầu milestone | Kết quả |
@@ -62,7 +64,7 @@ List/cursor APIs, principal/membership administration, request reject/cancel và
 - `HasuraDataReader` với `HasuraCredentialProvider` thật; auth/naming profile phải được kiểm chứng trước khi bật `verified_auth_profile`.
 - `PublicationEvidence` thật nếu công bố view không có PK/global UNIQUE evidence.
 
-Đặt wiring cụ thể tại deployment composition của nhóm tích hợp, trả về app từ factory đó và chạy `uvicorn <composition_module>:create_app --factory`. Chưa có factory production mặc định: gọi `app.main.create_app()` không có adapters sẽ từ chối, không khởi tạo database/memory store. `testing=True` chỉ dùng khi chủ động xây app trong test; không có environment switch tự bật fake mode.
+Native wiring hiện nằm tại `app.core.runtime:create_app`; chạy API/worker theo [hướng dẫn integration](AUTOMATED-ONBOARDING.md). Gọi `app.main.create_app()` không có adapters vẫn từ chối, không khởi tạo database/memory store. `testing=True` chỉ dùng khi chủ động xây app trong test; không có environment switch tự bật fake mode.
 
 Composition sở hữu vòng đời HTTPX clients: đóng chúng trong lifecycle của deployment. Không dùng client có credential của người dùng làm Metadata Client. Không có default user, token, credential hoặc route bypass xác thực.
 
@@ -90,7 +92,7 @@ Interface tại `backend/app/core/db/ports.py` là **projection/unit-of-work bou
 
 ### Transaction/locking requirements
 
-1. `transaction()` là serializable unit-of-work, hoặc dùng explicit aggregate locks + CAS tương đương. `replace()` không phải blind UPDATE. Đọc resource được đổi, grant approval, contract switch, disable và HTTP receipt phải được serialize đúng graph. Concurrent key reservation/uniqueness phải được DB bảo đảm, không chỉ check-then-insert trong Python.
+1. `transaction()` là serializable unit-of-work, hoặc dùng explicit aggregate locks + CAS tương đương. `replace()` không phải blind UPDATE. Đọc resource được đổi, grant approval, contract switch, disable và HTTP receipt phải được serialize đúng graph. Concurrent key reservation/uniqueness phải được DB bảo đảm, không chỉ check-then-insert trong Python. `transaction(read_only=True)` dành cho GET resource/status: snapshot REPEATABLE READ, READ ONLY, không FOR UPDATE và không dùng để thực hiện command.
 2. Atomic commands: desired-state changes + request decision/grant + job + audit + HTTP receipt cùng commit/rollback. Import lưu tất cả drafts hoặc không lưu gì; bảo toàn resource active không đổi và chặn active drift.
 3. HTTP namespace ràng buộc verified issuer/subject, method, canonical path và key. Replay phải resolve quyền hiện hành trước khi trả receipt; payload khác ->409. Completed replay không chạy lại revision guard cũ.
 4. `claimable_jobs(now,limit=10)` phải dùng bounded indexed query với `FOR UPDATE SKIP LOCKED` hoặc cơ chế tương đương, bao gồm RUNNING hết lease. Thời gian từ DB; claim/renew/finish kiểm owner + attempt + expiry. Cần indexes cho due/reclaim và unique target/type/revision job key.
@@ -99,7 +101,7 @@ Interface tại `backend/app/core/db/ports.py` là **projection/unit-of-work bou
 7. FKs, unique keys, immutable contract version và một live department grant cho product phải được kiểm trong schema/transaction. Adapter chuyển uniqueness/serialization conflicts sang lỗi Core đã chuẩn hóa; không trả lỗi SQL/DSN thô.
 8. Bootstrap departments, principals, IT role và service client bindings là operator/database handoff, không được tự cấp theo token group. Runtime không tự provision tài khoản hay chạy migration.
 
-Các bảo đảm SQL ở trên là **requirements chưa được xác minh trên PostgreSQL**. FakeStore chỉ mô phỏng transaction rollback/serialization để test application logic.
+Tại milestone runtime ban đầu, các bảo đảm SQL trên chỉ được mô phỏng bởi FakeStore. Milestone onboarding bổ sung PostgreSQL integration cho transaction/rollback/receipts/restart/advisory locks và concurrent claims/lease fencing; chưa thay kiểm deployment privileges, crash sau external commit hoặc engine enforcement thật.
 
 ## Read/auth profile và giới hạn
 
@@ -112,7 +114,7 @@ Các bảo đảm SQL ở trên là **requirements chưa được xác minh trê
 - Pattern constraints chỉ chạy với profile tuyến tính: anchored literal prefix/suffix và một character class có tối đa một quantifier, ví dụ `^SKU-[A-Z0-9]+$`. Pattern phức tạp vẫn giữ trong draft nhưng chặn publication/read tới khi có validator an toàn phù hợp; không chạy regex backtracking tùy ý trên dữ liệu nguồn.
 - Views cần uniqueness evidence provider đáng tin cậy, ràng buộc product/columns/schema hash và thời hạn. Chưa có provider production. Relationship definitions được giữ trong canonical drafts và compiler preview; publication/dispatch relationships vẫn bị chặn cho tới khi có runtime capability/evidence integration. Không coi preview payload là cấu hình đã áp dụng.
 - Read transport chỉ nhận credential do trusted provider cấp theo TrustedHasuraContext. Nó không gửi admin secret, caller role header hoặc arbitrary GraphQL. [Hasura v2 hỗ trợ JWT/webhook authentication](https://hasura.io/docs/2.0/auth/authentication/index/); phải kiểm issuer/audience/claims hoặc hook policy trên deployment thật, không chỉ đặt cờ verified.
-- Hasura Metadata API phải private; GraphQL ingress phải chặn truy cập trực tiếp không có policy tương đương. Nếu không, token department có thể đi vòng qua current Core checks. Credential provider/auth hook/ingress chưa được triển khai hoặc kiểm chứng bởi mock tests.
+- Hasura Metadata API phải private; GraphQL ingress phải chặn truy cập trực tiếp không có policy tương đương. Nếu không, token department có thể đi vòng qua current Core checks. Internal short-lived JWT provider đã có unit tests; auth profile/ingress thật chưa được nghiệm thu và mặc định chưa bật.
 - New reads bị revoke/expiry/disable từ chối ngay; in-flight requests có thể hoàn tất trong timeout. Chưa có expiry sweep scheduler sau các job đã SUCCEEDED; expiry vẫn deny ở Core, engine cleanup định kỳ là integration backlog.
 
 ## Kiểm thử và nghiệm thu

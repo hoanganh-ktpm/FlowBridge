@@ -1,0 +1,182 @@
+// Design artifact only. Target database: sales_db. No application or live database changes.
+// Import this file separately in dbdiagram.io; public belongs to sales_db only.
+Project dxos_sales_demo {
+  database_type: 'PostgreSQL'
+  Note: '''Sales owns customers and sales orders. Warehouse and Logistics references are opaque UUIDs, never physical foreign keys across databases. org_id is an isolation boundary. Flowable/Keycloak/Core own workflow definitions, identities and roles; only references are stored here. DBML notes describe required checks and transactions; they do not implement aggregate validation or workflow automation.'''
+}
+
+Table public.customers {
+  id uuid [pk]
+  org_id uuid [not null]
+  customer_code varchar(50) [not null]
+  name varchar(200) [not null]
+  email varchar(254)
+  phone varchar(40)
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_by_subject varchar(255) [not null, note: 'OIDC subject; no local password or role table.']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, customer_code) [unique]
+  }
+  Note: '''Customer PII remains Sales-owned. A published fulfillment dataset must omit email/phone unless separately authorized. No physical deletion when referenced by confirmed orders. Enforce status and normalized nonblank customer_code in a future migration/API.'''
+}
+
+Table public.sales_orders {
+  id uuid [pk]
+  org_id uuid [not null]
+  order_number varchar(50) [not null]
+  customer_id uuid [not null]
+  status varchar(30) [not null, default: 'DRAFT']
+  requested_handoff_at timestamptz [note: 'Required at confirmation; original deadline to hand the complete order to the carrier becomes immutable. This is not a promised customer delivery time.']
+  recipient_name varchar(200)
+  recipient_phone varchar(40)
+  delivery_address_snapshot text
+  delivery_instructions text
+  currency char(3) [not null, default: 'VND']
+  fulfillment_warehouse_ref uuid [note: 'Opaque selected Warehouse UUID; required at confirmation for the one-warehouse MVP.']
+  input_revision bigint [not null, default: 1, note: 'Business input revision frozen at confirmation; distinct from optimistic status version.']
+  workflow_instance_ref varchar(128) [note: 'Opaque Flowable instance reference; definition/config remains Core/Flowable-owned.']
+  version bigint [not null, default: 1]
+  created_by_subject varchar(255) [not null]
+  confirmed_at timestamptz
+  completed_at timestamptz [note: 'Latest verified Warehouse physical handoff time when every original order line has been handed to the carrier in full; not customer receipt time.']
+  cancelled_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, order_number) [unique]
+    (org_id, customer_id, created_at)
+    (org_id, status, created_at)
+  }
+  Note: '''Proposed domain states: DRAFT, SUBMITTED, CONFIRMED, WAITING_STOCK, RESERVED, FULFILLING, PARTIALLY_HANDED_OVER, COMPLETED, CANCEL_PENDING, CANCELLED, EXCEPTION. The configurable BPMN process references these business outcomes; task/history tables are not duplicated here. Draft shipping-label fields may be absent. Confirmation requires requested_handoff_at, a selected same-org warehouse, nonblank recipient name/phone/address and at least one positive line, then freezes these snapshots, SKU/UOM/quantity/price snapshots, currency and input_revision. Recipient fields are shipping-label data, not customer delivery evidence. Migration/API must enforce the conditional required fields; these notes do not generate CHECK constraints automatically. version > 0 and input_revision > 0. Status/projection updates increment version, never input_revision, so workflow retries cannot allocate a new hold for unchanged input. Warehouse HANDED_OVER evidence is the only completion basis: sum each original Sales line quantity over distinct verified handoff dispatches, prevent cumulative quantities exceeding the ordered quantity, and set COMPLETED only when every line is fulfilled. Set completed_at to MAX(handed_over_at) from that verified evidence. Logistics acceptance or its delayed projection alone does not prove physical handoff. MVP cancellation is whole-order and only before the first Warehouse handoff. Set CANCELLED only after Warehouse atomically confirms cancellation/release for this source order/input revision, including a durable zero-line cancellation tombstone if allocation has not happened. A timeout stays pending and is reconciled. External handoff events update status only through authorized, deduplicated integration handling. Customer delivery, delivery attempts and returns are outside this demo. Sales does not create its own stock/physical-handoff truth.'''
+}
+
+Table public.sales_order_lines {
+  id uuid [pk]
+  org_id uuid [not null]
+  order_id uuid [not null]
+  line_no integer [not null]
+  product_ref uuid [not null, note: 'Opaque Warehouse product UUID, validated through the approved catalog; no cross-database FK.']
+  sku varchar(80) [not null]
+  product_name_snapshot varchar(255) [not null]
+  uom varchar(30) [not null]
+  ordered_quantity numeric(18,3) [not null]
+  unit_price numeric(18,2) [not null]
+  created_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, order_id, line_no) [unique]
+    (org_id, order_id, id) [unique]
+    (org_id, sku)
+  }
+  Note: '''Require line_no > 0, ordered_quantity > 0, unit_price >= 0. Currency is inherited from the parent order. A SKU has one approved UOM in the MVP; no implicit unit conversion or name-based SKU matching. Freeze lines after confirmation. Do not sum quantities across different UOMs; monetary totals are sums of quantity * unit_price within the same currency. product_ref and sku must resolve to the same Warehouse product in the same organization.'''
+}
+
+Table public.sales_order_events {
+  id uuid [pk]
+  org_id uuid [not null]
+  order_id uuid [not null]
+  event_type varchar(80) [not null]
+  from_status varchar(30)
+  to_status varchar(30)
+  source_app varchar(50) [not null]
+  source_event_id uuid [note: 'Required for an imported external event; nullable for local actor actions.']
+  source_aggregate_version bigint
+  actor_subject varchar(255)
+  correlation_id uuid [not null]
+  details jsonb [note: 'Minimal business evidence/references. No credentials or copied remote operational tables.']
+  occurred_at timestamptz [not null]
+  recorded_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, source_app, source_event_id) [unique]
+    (org_id, order_id, occurred_at)
+  }
+  Note: '''Append-only business timeline. For external events require source_event_id and a successful inbox receipt in the same local transaction. For a Warehouse handoff, details retains the verified dispatch ID, frozen manifest identity, source Sales line references, handed-over quantities/UOM and physical handed_over_at. Count each physical dispatch once even if integrations resend it; a conflicting duplicate is an exception. Apply only a valid transition from current business state. An out-of-order event must be deferred or reconciled against an authorized source snapshot; never skip an unapplied handoff quantity delta solely because a newer event arrived. This table is not a substitute for Flowable engine history.'''
+}
+
+Table public.command_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  scope varchar(180) [not null, note: 'Operation plus target resource, e.g. sales.confirm_order:<UUID>.']
+  idempotency_key varchar(128) [not null]
+  actor_subject varchar(255) [not null]
+  request_hash char(64) [not null]
+  status varchar(20) [not null, default: 'PROCESSING']
+  resource_type varchar(80)
+  resource_id uuid
+  response_status integer
+  response_body jsonb
+  error_code varchar(80)
+  created_at timestamptz [not null]
+  completed_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, scope, idempotency_key) [unique]
+  }
+  Note: '''Technical table owned by Sales. States PROCESSING, SUCCEEDED, FAILED. Request hash covers canonical command input and its resource identity. Authorize the caller before returning a cached response; bind reuse to the authorized actor/scope. Same key with a different hash is a conflict. Final command receipt, business writes and outbox creation commit in one local transaction. A retry returns the same committed result. Concurrent duplicate work must lock/claim the receipt. Do not expose response_body through public datasets; it may contain customer data.'''
+}
+
+Table public.outbox_events {
+  id uuid [pk, note: 'Stable event ID reused across every integration retry.']
+  org_id uuid [not null]
+  event_type varchar(100) [not null]
+  event_schema_version integer [not null, default: 1]
+  aggregate_type varchar(80) [not null]
+  aggregate_id uuid [not null]
+  aggregate_version bigint [not null]
+  business_key varchar(150) [not null]
+  correlation_id uuid [not null]
+  causation_id uuid
+  payload jsonb [not null]
+  payload_hash char(64) [not null]
+  status varchar(20) [not null, default: 'PENDING']
+  attempt_count integer [not null, default: 0]
+  next_attempt_at timestamptz
+  locked_by varchar(128)
+  locked_until timestamptz
+  last_error_code varchar(80)
+  occurred_at timestamptz [not null]
+  published_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, aggregate_type, aggregate_id, aggregate_version, event_type) [unique]
+    (status, next_attempt_at)
+  }
+  Note: '''At-least-once integration delivery, not a cross-database transaction. Insert with the business mutation, then a polling worker publishes/retries using a lease. PUBLISHED means destination accepted the event, not that every business process completed. Persist organization, stable IDs, schema/version and only authorized minimal payload. Require positive versions and nonnegative attempt_count. No secrets in payload. Recovery must reconcile unresolved commands and must not generate new event IDs for retries.'''
+}
+
+Table public.inbox_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  producer_app varchar(50) [not null]
+  event_id uuid [not null]
+  event_type varchar(100) [not null]
+  event_schema_version integer [not null, default: 1]
+  consumer varchar(100) [not null]
+  payload jsonb [not null, note: 'Private, scoped minimal event body for durable DEFERRED/FAILED retry; never a public dataset.']
+  payload_hash char(64) [not null]
+  aggregate_type varchar(80) [not null]
+  aggregate_id uuid [not null]
+  aggregate_version bigint [not null]
+  status varchar(20) [not null, default: 'RECEIVED']
+  attempt_count integer [not null, default: 0]
+  next_attempt_at timestamptz
+  last_error_code varchar(80)
+  received_at timestamptz [not null]
+  processed_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, producer_app, event_id, consumer) [unique]
+    (org_id, producer_app, aggregate_type, aggregate_id, aggregate_version)
+    (status, next_attempt_at)
+  }
+  Note: '''Verify sender, org_id, schema, payload hash and consumer permission before handling. Persist the minimal authorized payload and receipt before acknowledging acceptance; this allows durable DEFERRED/FAILED retry after the producer marks its outbox PUBLISHED. Acceptance is not business completion. Payload is private, contains no credentials, and follows a defined retention/access policy; do not copy unrestricted remote data. States RECEIVED, PROCESSING, PROCESSED, DEFERRED, FAILED. Duplicate event ID with identical hash returns the existing outcome; a different hash is rejected. Deduplication, domain writes, derived local outbox and PROCESSED marker commit atomically. An event/version gap is deferred or reconciled; never silently discard an unapplied quantity delta. Receipt status alone does not establish event ordering.'''
+}
+
+Ref: public.sales_orders.(org_id, customer_id) > public.customers.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.sales_order_lines.(org_id, order_id) > public.sales_orders.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.sales_order_events.(org_id, order_id) > public.sales_orders.(org_id, id) [delete: restrict, update: restrict]
