@@ -77,13 +77,13 @@ class UniquenessApproval(DTO):
 class PlanContext:
     snapshots: dict[str, SourceSnapshot] = field(default_factory=dict)
     existing_core: dict[str, str] | None = None
+    contract_states: dict[str, str] = field(default_factory=dict)
     metadata: MetadataSnapshot | None = None
     environment_refs: dict[str, str] = field(default_factory=dict)
-    owner_verified: bool = False
+    admin_verified: bool = False
     approved_sources: frozenset[str] = frozenset()
     approved_products: frozenset[str] = frozenset()
     published_products: frozenset[str] = frozenset()
-    accessible_products: frozenset[str] = frozenset()
     external_products: dict[str, ExternalProduct] = field(default_factory=dict)
     uniqueness: dict[str, UniquenessApproval] = field(default_factory=dict)
     engine_profile: Literal["unknown", "hasura-v2.48.16-ce"] = "unknown"
@@ -174,7 +174,7 @@ def cardinality_proven(
     proof = context.uniqueness.get(relationship.uniqueness_ref or "")
     return bool(
         proof is not None
-        and context.owner_verified
+        and context.admin_verified
         and proof.product_key == key
         and set(proof.columns) == columns
         and proof.expires_at.utcoffset() is not None
@@ -209,7 +209,11 @@ def compile_manifest(
             else "UPDATE"
         )
         blockers = () if known else ("CORE_STATE_UNKNOWN",)
-        if key.startswith("contract:") and action == "UPDATE":
+        if (
+            key.startswith("contract:")
+            and action == "UPDATE"
+            and context.contract_states.get(key) != "DRAFT"
+        ):
             blockers += (
                 issue("IMMUTABLE_CONTRACT", key, "Bump contract version for changed content"),
             )
@@ -236,8 +240,8 @@ def compile_manifest(
         known = context.metadata is not None
         if not known:
             blockers.append("HASURA_STATE_UNKNOWN")
-        if not context.owner_verified:
-            blockers.append("OWNER_NOT_VERIFIED")
+        if not context.admin_verified:
+            blockers.append("IT_ADMIN_NOT_VERIFIED")
         action = "NO_CHANGE" if same else "UPDATE" if existing else "CREATE"
         if existing and not same:
             blockers.append("CONFIG_DRIFT_REQUIRES_REVIEW")
@@ -542,7 +546,7 @@ def compile_manifest(
                         issue(
                             "CARDINALITY_UNPROVEN",
                             path,
-                            "Object target must be unique; owner verification required",
+                            "Object target must be unique; IT-reviewed evidence required",
                             "APPROVAL",
                         )
                     )
@@ -559,8 +563,6 @@ def compile_manifest(
                 external and external.published
             ):
                 blockers.append("TARGET_PUBLICATION_REQUIRED")
-            if target_key not in context.accessible_products:
-                blockers.append("TARGET_ACCESS_REQUIRED")
             registered_target = (
                 source_in(context.metadata, target_engine) if context.metadata else None
             )

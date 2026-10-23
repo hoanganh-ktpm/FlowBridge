@@ -48,15 +48,12 @@ def context_for(value=None, snapshot_value=None):
             },
         ),
         environment_refs={key: "WAREHOUSE_READ_DATABASE_URL"},
-        owner_verified=True,
+        admin_verified=True,
         approved_sources=frozenset({key}),
         approved_products=frozenset(
             f"{app}.{product['key']}" for product in value["data_products"]
         ),
         published_products=frozenset(
-            f"{app}.{product['key']}" for product in value["data_products"]
-        ),
-        accessible_products=frozenset(
             f"{app}.{product['key']}" for product in value["data_products"]
         ),
         engine_profile="hasura-v2.48.16-ce",
@@ -301,7 +298,6 @@ def test_cross_source_remote_relationship_and_capability_gate():
         columns=("sku", "name"),
         published=True,
     )
-    context.accessible_products = context.accessible_products | {"external.catalog"}
     context.metadata.metadata["sources"].append(
         {
             "name": "external_pg",
@@ -380,10 +376,26 @@ def test_untracked_remote_target_is_blocked_even_if_core_says_published():
     assert "TARGET_NOT_TRACKED" in relationship_step(plan).blockers
 
 
-def test_published_target_is_not_proof_of_access():
+def test_it_can_configure_a_verified_target_without_a_consumer_read_grant():
     context = context_for()
     approve_view_uniqueness(context)
-    context.accessible_products = frozenset()
     plan = compile_manifest(parse_manifest(json.dumps(warehouse())), context)
-    assert "TARGET_ACCESS_REQUIRED" in relationship_step(plan).blockers
-    assert not plan.ready_for_dispatch
+    assert "TARGET_ACCESS_REQUIRED" not in relationship_step(plan).blockers
+    assert relationship_step(plan).action == "CREATE"
+
+
+def test_same_version_contract_draft_is_editable_but_published_is_not():
+    value = warehouse()
+    context = context_for(value)
+    original = compile_manifest(parse_manifest(json.dumps(value)), context)
+    context.existing_core = {
+        step.key: fingerprint(step.payload) for step in original.steps if step.layer == "CORE"
+    }
+    key = next(step.key for step in original.steps if step.key.startswith("contract:"))
+    value["data_products"][0]["fields"][0]["description"] = "Revised draft description"
+    context.contract_states[key] = "DRAFT"
+    edited = compile_manifest(parse_manifest(json.dumps(value)), context)
+    assert next(step.action for step in edited.steps if step.key == key) == "UPDATE"
+    context.contract_states[key] = "PUBLISHED"
+    immutable = compile_manifest(parse_manifest(json.dumps(value)), context)
+    assert next(step.action for step in immutable.steps if step.key == key) == "BLOCKED"

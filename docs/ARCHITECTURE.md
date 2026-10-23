@@ -45,6 +45,8 @@ IT toàn quyền quản trị không bỏ qua schema/state/revision/verification
 
 Hasura provisioner đã có Metadata Client và services đăng ký nguồn, publish table/view, reconcile SELECT permissions; fake repositories và HTTP mock cho phép phát triển không cần database/engine. Source tại app/core/hasura_provisioner, cấu hình baseline duy nhất ở infra/hasura. Core DB models/migrations và authorization adapters được ghép qua Protocols, không bị module Hasura định nghĩa lại.
 
-Chưa triển khai: API/Core DB baseline, domain APIs, Hasura live integration/Core adapters/publication worker, Agent Runtime, Flowable adapter/BPMN và Compose mới. Không giữ code v1 còn phụ thuộc SupplierPolicy/Settings mua hàng trong cây active. Langflow/ML/RAG/Agent Hub backend cũ vẫn trong archive để bảo toàn source; chỉ port tiếp phần thực sự cần.
+Core P0 hiện có FastAPI composition, HTTP handlers cho vertical slice Data Sharing, canonical onboarding, trusted principal/grant policy và worker claim/lease/retry/revision verification. Đây là runtime logic đã kiểm offline, không phải durable database integration; chi tiết và persistence boundary tại [Core Backend P0](CORE-P0.md).
+
+Chưa triển khai/tích hợp: Core DB baseline/PostgreSQL adapters, domain APIs, Hasura/Keycloak live enforcement và non-admin credential provider, Agent Runtime, Flowable adapter/BPMN và Compose mới. Không giữ code v1 còn phụ thuộc SupplierPolicy/Settings mua hàng trong cây active. Langflow/ML/RAG/Agent Hub backend cũ vẫn trong archive để bảo toàn source; chỉ port tiếp phần thực sự cần.
 
 Mã active không import source lưu trữ cục bộ. Template cấu hình được quản lý trong Git; credentials và runtime state được cung cấp riêng khi triển khai.

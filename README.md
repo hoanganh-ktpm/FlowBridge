@@ -34,13 +34,13 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 
 | Thành phần | Vai trò | Trạng thái |
 |---|---|---|
-| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Manifest onboarding, schema discovery và Hasura planning có unit/contract tests; Core adapters và live integration đang phát triển |
+| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Core HTTP P0, canonical onboarding, grant/read policy và publication worker đã kiểm thử offline; PostgreSQL adapters và live integration còn thiếu |
 | Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Đã có Identity adapters và HTTP utilities; các tích hợp còn lại đang phát triển |
 | Business APIs | Đơn hàng, tồn kho và vận chuyển | Khung ứng dụng và migration directories |
 | Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
 | Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | Có template Keycloak và cấu hình APISIX nền; chưa có stack tích hợp hoàn chỉnh |
 
-Chưa có backend server entrypoint, baseline database hoặc quy trình BPMN tích hợp hoàn chỉnh cho kiến trúc mới. Kiểm thử adapter bằng mock và preview UI không thay thế kiểm thử E2E với engine thật.
+Đã có FastAPI composition tại `backend/app/main.py`, chỉ khởi tạo Core khi được cung cấp adapters phù hợp; không có persistence memory mặc định. Chưa có baseline database hoặc quy trình BPMN tích hợp hoàn chỉnh. Kiểm thử adapter bằng mock và preview UI không thay thế kiểm thử E2E với engine thật. Xem [Core Backend P0](docs/CORE-P0.md) về handlers, wiring và điều kiện tích hợp.
 
 ## Kiến trúc định hướng
 
@@ -139,6 +139,7 @@ npm run build
 - [Hasura Integration và hướng dẫn phát triển không Docker](backend/app/core/hasura_provisioner/README.md)
 - [Declarative onboarding: JSON → Core Contracts → Hasura plan](docs/ONBOARDING.md)
 - [API Contracts và hướng dẫn triển khai contract-first](docs/API-CONTRACTS.md)
+- [Core Backend P0 và database integration checklist](docs/CORE-P0.md)
 - [Giấy phép thành phần Hasura Integration](THIRD_PARTY_LICENSES.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
 - [Lịch sử thay đổi](CHANGELOG.md)

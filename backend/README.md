@@ -22,4 +22,4 @@ uv run --locked ruff check backend tests
 uv build --no-build-isolation
 ```
 
-Identity adapters, HTTP utilities và [Hasura Client/services](app/core/hasura_provisioner/README.md) đã có implementation kiểm thử bằng mock. Chưa có app server entrypoint, Core DB adapters hoặc Core/Domain API runtime hoàn chỉnh. Khi phát triển endpoint mới, thêm composition/lifecycle tại app boundary và giữ logic trong module sở hữu.
+Identity adapters, HTTP utilities và [Hasura Client/services](app/core/hasura_provisioner/README.md) được tái sử dụng bởi Core P0. `app/main.py` cung cấp FastAPI composition qua dependency injection; HTTP handlers, application services, read policies và worker đã có offline tests. Chưa có PostgreSQL persistence adapters hoặc runtime/E2E hoàn chỉnh. Không dùng memory persistence production; xem [Core P0](../docs/CORE-P0.md) để ghép adapters và lifecycle thật.

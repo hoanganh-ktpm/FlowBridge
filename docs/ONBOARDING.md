@@ -2,7 +2,7 @@
 
 **Application Manifest v1 -> PostgreSQL schema discovery -> validation -> Core drafts/contracts -> Hasura operation preview.**
 
-**Authorization target:** IT/PLATFORM_ADMIN quản trị toàn bộ onboarding, cấu hình, publish và grant/revoke; không bắt buộc department OWNER hoặc read grant để cấu hình. Consumer đọc theo grant, Business API kiểm quyền nghiệp vụ độc lập. [API Contracts](API-CONTRACTS.md) là policy đích. OwnershipResolver/owner_verified/access checks được mô tả phía dưới phản ánh library hiện có và còn phải điều chỉnh; không được diễn giải thành quyền OWNER của phòng ban trong mô hình mới. Runtime code chưa được thay đổi bởi bản cập nhật contract này.
+**Authorization:** IT/PLATFORM_ADMIN quản trị onboarding, cấu hình, publish và grant/revoke; không bắt buộc department OWNER hoặc consumer read grant để cấu hình. Compiler dùng `admin_verified`; affiliation resolver chỉ resolve phòng ban, không cấp quyền. Consumer đọc theo grant, Business API kiểm quyền độc lập. HTTP runtime và điều kiện PostgreSQL/Hasura integration được mô tả tại [Core Backend P0](CORE-P0.md).
 
 IT khai báo ứng dụng và dữ liệu muốn chia sẻ, không khai báo lại database schema hoặc viết Hasura Metadata JSON. Nền tảng chỉ đọc cấu trúc nguồn và sinh kế hoạch; không tạo table/view/FK, không copy dữ liệu nghiệp vụ, không tự publish hay cấp quyền.
 
@@ -12,11 +12,11 @@ IT khai báo ứng dụng và dữ liệu muốn chia sẻ, không khai báo l�
 |---|---|
 | Pydantic v2 manifest, JSON Schema, reference/duplicate validation | Core SQLAlchemy adapters và persistence |
 | SQLAlchemy Inspector qua asyncpg, transaction read-only, timeout và secret/host policy | Kiểm chứng PostgreSQL/Hasura thật |
-| Typed discovery DTO, normalized IR và FK suggestions | Trusted owner/authorization implementation |
-| Core registration/contracts + Hasura source/table/relationship plan | Durable publication dispatcher/worker và audit transaction |
+| Typed discovery DTO, normalized IR và FK suggestions | Trusted principal resolver PostgreSQL adapter |
+| Core registration/contracts + Hasura source/table/relationship plan; P0 worker logic | Durable publication/receipt/audit transactions trên PostgreSQL |
 | CLI validate/discover/plan và schema export | CLI apply/status intentionally disabled |
 
-Không có public HTTP API mới; API team tiếp tục sở hữu OpenAPI. Service/DTO là integration boundary, không phải ORM hoặc một deployment/service mới.
+Đã ghép ba HTTP operations onboarding hiện có trong baseline: validate, plans và imports; không thêm API contract. HTTP submission giữ Manifest v1 và canonical product_contracts riêng, không làm mất aliases/physical types/relationships. Service/DTO là integration boundary, không phải ORM hoặc deployment/service mới.
 
 ## Source và bố cục
 
@@ -76,7 +76,7 @@ Discovery reuse `FLOWBRIDGE_HASURA_ALLOWED_DATABASE_HOSTS` và `FLOWBRIDGE_HASUR
 
 Inspector liệt kê schemas và table/view names trong schemas được yêu cầu, chỉ reflect objects được manifest chọn: columns/types/nullable, PK, unique constraints và FK/composite FK. Chỉ chạy hai session commands cố định `SET TRANSACTION READ ONLY` và statement timeout; không nhận SQL từ JSON. Không SELECT dữ liệu nghiệp vụ, không scan uniqueness bằng dữ liệu. Snapshot không phải data-quality certificate. Engine được dispose sau từng discovery, kể cả khi lỗi; NullPool, timeout và sanitized errors được áp dụng. OS CA trust được dùng cho TLS; custom CA/IPv6/quoted identifiers là phần cần mở rộng có kiểm thử.
 
-`apply` và `status` trả Missing Integration hiện tại. CLI không có cờ fake adapter hay bypass authorization. Library orchestration có ports để Core team ghép thật, nhưng không có production adapters/entrypoint được wiring trong task này.
+`apply` và `status` trả Missing Integration hiện tại. CLI không có cờ fake adapter hay bypass authorization. Library orchestration có ports để Core team ghép thật; FastAPI composition đã có nhưng không tự cung cấp PostgreSQL adapter hoặc wiring production cho CLI.
 
 ## Relationship semantics
 
@@ -87,11 +87,11 @@ Inspector liệt kê schemas và table/view names trong schemas được yêu c�
 | Same-source `manual` object/array | Columns/types hợp lệ; object còn cần unique proof | `manual_configuration` cho table/view |
 | Cross-source `remote` object/array | Core-resolved published target, tracked metadata, discovered columns/types; engine profile xác minh | `pg_create_remote_relationship.definition.to_source` |
 
-Object relationship cần target PK/global unique constraint, matching physical FK, hoặc cardinality evidence từ trusted Core/owner resolver. `uniqueness_ref` trong manifest **không phải** sự xác nhận. Views thường không có FK/unique constraints, nên ví dụ Warehouse mặc định báo `CARDINALITY_UNPROVEN` tới khi có bằng chứng được kiểm chứng. Proof phải khớp product/column set/schema snapshot hash và chưa hết hạn. Owner attestation là assumption có quản trị, không được mô tả thành ràng buộc PostgreSQL đã tự thực thi.
+Object relationship cần target PK/global unique constraint, matching physical FK, hoặc cardinality evidence do IT review qua trusted policy provider. `uniqueness_ref` trong manifest **không phải** sự xác nhận. Views thường không có FK/unique constraints, nên ví dụ Warehouse mặc định báo `CARDINALITY_UNPROVEN` tới khi có bằng chứng được kiểm chứng. Proof phải khớp product/column set/schema snapshot hash và chưa hết hạn. Attestation là assumption có quản trị, không phải ràng buộc PostgreSQL đã tự thực thi.
 
 Array không đòi target unique. Partial unique indexes không được coi là bảo đảm unique toàn tập. Không suy FK từ tên cột giống nhau. Join keys phải nằm trong fields của hai contracts ở MVP. Type comparison bảo thủ theo canonical PostgreSQL type, không tự thêm cast hay quan hệ ngữ nghĩa.
 
-Remote source relationships được đối chiếu với Hasura v2 CE profile `v2.48.16` và official API; compiler chỉ bật branch này khi trusted context xác nhận profile đó, không lấy version/capabilities từ manifest. Profile unknown -> BLOCKED. Cross-source không phải FK vật lý hoặc transaction xuyên DB. Target ngoài app chưa resolve/publish/track -> BLOCKED. Trusted Core adapter phải xác minh quyền tương ứng của actor và cung cấp `accessible_products`; thiếu bằng chứng này -> `TARGET_ACCESS_REQUIRED`, kể cả khi target đã published. Compiler không tự thêm SELECT permissions; runtime caller vẫn cần quyền phù hợp ở cả source/target theo Core/Hasura authorization.
+Remote source relationships được đối chiếu với Hasura v2 CE profile `v2.48.16` và official API; compiler chỉ bật branch này khi trusted context xác nhận profile đó, không lấy version/capabilities từ manifest. Profile unknown -> BLOCKED. Cross-source không phải FK vật lý hoặc transaction xuyên DB. Target ngoài app chưa resolve/publish/track -> BLOCKED. IT authority cho phép cấu hình xuyên phòng ban, không cần consumer read grant. Compiler không tự thêm SELECT permissions; runtime caller vẫn cần quyền phù hợp ở cả source/target. Relationship execution/publication chưa được ghép trong HTTP P0 profile.
 
 ## Plan và idempotency
 
@@ -107,22 +107,22 @@ Plan giữ metadata resource version và discovery/manifest hashes như precondi
 
 ## Orchestration và Core v0.2 contract
 
-`ApplicationOnboardingService.plan/import_drafts/apply` yêu cầu VerifiedIdentity, IdentityResolver và OwnershipResolver. Không có provider thì fail closed trước network discovery. `import_drafts` hoàn tất discovery/validation trước ghi; save_drafts là một aggregate port cho atomic Core transaction, không phải một database mới. Receipt chỉ DRAFT/WAITING_APPROVAL; fake repository trả `durable=false`, không báo persistence thật.
+`ApplicationOnboardingService.plan/import_drafts/apply` yêu cầu VerifiedIdentity, IdentityResolver và AffiliationResolver. IT được kiểm trước network discovery; affiliation chỉ resolve department. `import_drafts` hoàn tất discovery/validation trước ghi; save_drafts là aggregate port cho atomic Core transaction. Receipt library chỉ DRAFT/WAITING_APPROVAL; fake repository trả `durable=false`. HTTP `RuntimeOnboarding` bổ sung canonical mapping, plan_hash/revision guards và atomic drafts/audit/receipt qua CoreStore; production app từ chối memory adapter.
 
 `apply` còn yêu cầu durable Core/dispatcher, Core definitions đã persist đúng hash, không BLOCKED, approval hợp lệ. Service chỉ enqueue và chấp nhận receipt QUEUED, **không** báo ACTIVE. Concrete dispatcher hiện chưa có. P1 implementation phải tái sử dụng `SourceRegistrationService`, `DataProductPublisher`, `HasuraPermissionService` và PublicationJobRepository guards hiện hữu; không xây RBAC hay Metadata Client thứ hai.
 
 | Core v0.2 | Adapter cần cung cấp |
 |---|---|
-| departments/applications | Resolve department reference, kiểm ownership hiện hữu/đích; map application key -> app_key/UUID |
+| departments/applications | Resolve department reference/affiliation hiện hữu/đích; map application key -> app_key/UUID; không suy quyền từ OWNER |
 | data_sources | Namespace source_key; map kind/database/username sang db_type/database_name/db_user; secret_ref, TLS, generated hasura_source_name; không lưu DSN/password |
 | schema_snapshots | Canonical physical metadata/hash nếu cần lưu; không thêm bảng discovery mới |
 | data_products | Resolve source UUID, schema_name/object_name/object_type; draft lifecycle/revision; không coi requested_state là cột mới |
 | data_contract_versions | Immutable version, fields (physical column/public name/type/nullable), relationship declarations trong contract_json; dùng physical column để generate permissions |
 | access_requests/access_grants | Approval và quyền đọc độc lập, không được tạo từ manifest fields |
 | publication_jobs | Atomic enqueue theo target revision/idempotency; relationship/naming work có thể nằm trong PUBLISH_PRODUCT job, không tự thêm job_type/migration |
-| audit_events | Actor/owner/correlation + hashes/outcome/idempotency trong cùng Core transaction thích hợp; không raw secrets/DSN |
+| audit_events | Actor/initiator/correlation + hashes/outcome/idempotency trong cùng Core transaction thích hợp; không raw secrets/DSN |
 
-Aggregate `OnboardingRepository` bổ sung `plan_context`, `save_drafts`, `status`; compose các Core repositories trong cùng unit-of-work để tránh partial registry. `OwnershipResolver.require_owner` trả UUID đã xác minh, không dùng department_key trong JSON làm quyền. `ApprovedPlanDispatcher.enqueue` chịu trách nhiệm revision/approval CAS, durable jobs và audit. Không có transaction chung Core/Hasura.
+Aggregate `OnboardingRepository` bổ sung `plan_context`, `save_drafts`, `status`; compose Core repositories trong cùng unit-of-work để tránh partial registry. `AffiliationResolver.resolve_department` trả department UUID đã xác minh, không dùng department_key làm quyền. `ApprovedPlanDispatcher.enqueue` là library port; HTTP P0 dùng các resource commands và PublicationWorker thay vì blanket import-to-publish. Không có transaction chung Core/Hasura.
 
 Gaps cần thống nhất với Core/API team, không sửa migrations: JSON shape của contract field types/aliases; cách lưu và xác minh cardinality evidence (có thể nằm trong contract_json với version review); representation requested publication và relationship job scheduling; discovery freshness và policy chứng chỉ. Typed DTO ở đây không định nghĩa lại 20 bảng Core.
 
@@ -148,7 +148,7 @@ Kết quả kiểm tra cục bộ của thay đổi này:
 | CLI console entry point | `validate` hợp lệ; offline `plan` trả `ready_for_dispatch=false` đúng blockers |
 | Build và kiểm nội dung wheel/sdist | Passed; có code, CLI entry point, schema/examples/docs; không có cache, secret runtime hoặc reference cục bộ |
 
-P1: Core/authorization adapters, durable registry/audit/job transactions, physical validator và runtime grants integration, dispatcher execution/verification cho relationships/custom naming, live engine capability checks, stale-plan/concurrent worker/timeout E2E. Không triển khai Docker/Portal/Keycloak/API endpoints trong phần này. OSS inventory tại [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES.md).
+Pending integration: PostgreSQL/Core adapters, durable registry/audit/job transactions, trusted uniqueness evidence và credential provider production, relationship dispatch, live capability checks và concurrent-worker/timeout E2E. Scalar P0 HTTP/policy/worker đã có offline tests; không triển khai Docker/Portal/Keycloak deployment. OSS inventory tại [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES.md).
 
 ## Tài liệu chính thức
 

@@ -45,8 +45,8 @@ class CoreFixture:
     async def plan_context(self, application_key, actor):
         return context_for()
 
-    async def save_drafts(self, manifest, plan, owner_id, actor):
-        assert owner_id == UUID(int=1)
+    async def save_drafts(self, manifest, plan, department_id, actor):
+        assert department_id == UUID(int=1)
         assert plan.manifest_hash == fingerprint(manifest.model_dump(mode="json", by_alias=True))
         self.imports.setdefault(plan.manifest_hash, len(self.imports) + 1)
         return DraftReceipt(
@@ -64,7 +64,7 @@ class TrustedIdentityFixture:
 
 
 class OwnershipFixture:
-    async def require_owner(self, actor, application_key, department_key):
+    async def resolve_department(self, department_key):
         assert department_key == "warehouse"
         return UUID(int=1)
 

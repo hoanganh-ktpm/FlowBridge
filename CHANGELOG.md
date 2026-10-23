@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Core Backend P0
+
+- Thêm FastAPI composition và HTTP handlers cho vertical slice Data Sharing, không thay baseline API Contracts 0.2.0.
+- Ghép canonical manifest validation/planning/atomic draft import; sửa legacy OWNER/target-read gate thành trusted IT administration và giữ guards cho published contracts.
+- Triển khai command/repository transaction ports, current principal binding/grant policy, non-admin GraphQL read adapter và publication worker có lease/attempt/retry/CAS.
+- Thêm component/HTTP tests qua adapters giả lập và database integration checklist. Chưa có ORM/migration/PostgreSQL adapter, credential provider production hoặc engine E2E; không dùng memory persistence production.
+
 ### API Contracts
 
 - Thống nhất ba lớp quyền: IT/PLATFORM_ADMIN quản trị DX-OS xuyên phòng ban; consumer đọc theo grant; Business APIs kiểm quyền nghiệp vụ riêng. Bỏ department OWNER khỏi điều kiện quản trị/publish/approval; giữ metadata tổ chức tương thích DB và các technical guards.

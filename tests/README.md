@@ -11,3 +11,5 @@ Từ gốc: `uv run --locked pytest tests/platform tests/core/hasura -q`. Platfo
 Hasura payload fixtures nằm tại `tests/core/hasura/fixtures/metadata-api.json`. Live smoke test chỉ kiểm health/metadata, không mutate, mặc định bị loại bởi integration marker; xem [Hasura Integration](../backend/app/core/hasura_provisioner/README.md) để opt-in khi có engine.
 
 Integration/E2E cần marker và môi trường tường minh. Không lấy mock hoặc thư mục trống làm bằng chứng hệ thống đã chạy.
+
+`tests/core/runtime/` kiểm vertical slice qua HTTP, verifier/policy/services/worker và Hasura clients với injected doubles; response shape/status/headers được đối chiếu baseline OpenAPI. Chạy `uv run --locked pytest tests/core/runtime -q`. Không có database hoặc upstream thật; SQL transaction/lease durability, engine permissions và fresh-data visibility sau commit vẫn DEFERRED tại [Core P0](../docs/CORE-P0.md).

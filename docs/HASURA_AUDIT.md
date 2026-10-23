@@ -4,6 +4,8 @@
 
 Module giữ đúng hướng kiến trúc và không cần viết lại. Sau hardening, P0 có projection/guards tương thích với phần source, product, SELECT grant và publication job của tài liệu **DXOS Core Database v0.2**. Chưa đủ điều kiện gọi là tích hợp persistence/authorization/Hasura runtime hoàn chỉnh.
 
+Báo cáo này giữ bằng chứng của lần hardening ban đầu. Các phần HTTP/policy/worker bổ sung sau đó và blockers production hiện hành được cập nhật tại [Core Backend P0](CORE-P0.md); không suy rằng các mục chưa làm trong snapshot này vẫn hoàn toàn thiếu implementation.
+
 Tài liệu đầu vào: `DXOS_Core_Database_v02.pdf`, 29 trang, do nhóm cung cấp; đây là data dictionary đề xuất, không phải migration đã chạy. Đối chiếu trọng tâm trang 3-4, 10, 12-16, 23, 26-29. Không chỉnh sửa PDF, Core models hoặc migration của thành viên khác.
 
 ## A. Audit Findings

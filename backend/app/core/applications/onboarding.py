@@ -24,10 +24,8 @@ class DraftReceipt(DTO):
     durable: bool
 
 
-class OwnershipResolver(Protocol):
-    async def require_owner(
-        self, actor: VerifiedIdentity, application_key: str, department_key: str
-    ) -> UUID: ...
+class AffiliationResolver(Protocol):
+    async def resolve_department(self, department_key: str) -> UUID: ...
 
 
 class OnboardingRepository(Protocol):
@@ -39,7 +37,7 @@ class OnboardingRepository(Protocol):
         self,
         manifest: ApplicationManifest,
         plan: OnboardingPlan,
-        owner_id: UUID,
+        department_id: UUID,
         actor: VerifiedIdentity,
     ) -> DraftReceipt: ...
 
@@ -53,7 +51,7 @@ class ApprovedPlanDispatcher(Protocol):
         self,
         manifest: ApplicationManifest,
         plan: OnboardingPlan,
-        owner_id: UUID,
+        department_id: UUID,
         actor: VerifiedIdentity,
     ) -> DraftReceipt: ...
 
@@ -81,22 +79,20 @@ class ApplicationOnboardingService:
         discovery: SchemaDiscovery,
         repository: OnboardingRepository | None = None,
         identity: IdentityResolver | None = None,
-        ownership: OwnershipResolver | None = None,
+        affiliation: AffiliationResolver | None = None,
         dispatcher: ApprovedPlanDispatcher | None = None,
     ) -> None:
         self._discovery = discovery
         self._repository = repository
         self._identity = identity
-        self._ownership = ownership
+        self._affiliation = affiliation
         self._dispatcher = dispatcher
 
     async def _authorize(self, manifest: ApplicationManifest, actor: VerifiedIdentity) -> UUID:
-        if self._identity is None or self._ownership is None:
+        if self._identity is None or self._affiliation is None:
             raise ProvisioningDenied()
         await self._identity.require_admin(actor, "application.onboard")
-        return await self._ownership.require_owner(
-            actor, manifest.application.key, manifest.application.department_key
-        )
+        return await self._affiliation.resolve_department(manifest.application.department_key)
 
     async def _prepare(
         self, manifest: ApplicationManifest, actor: VerifiedIdentity
@@ -104,6 +100,7 @@ class ApplicationOnboardingService:
         if self._repository is None:
             raise MissingIntegration("Core repository adapter is not configured")
         context = await self._repository.plan_context(manifest.application.key, actor)
+        context.admin_verified = True
         for source in manifest.sources:
             context.snapshots[source.key] = await self._discovery.discover(
                 discovery_source(manifest, source)
@@ -117,11 +114,11 @@ class ApplicationOnboardingService:
     async def import_drafts(
         self, manifest: ApplicationManifest, actor: VerifiedIdentity
     ) -> DraftReceipt:
-        owner = await self._authorize(manifest, actor)
+        department = await self._authorize(manifest, actor)
         plan = await self._prepare(manifest, actor)
         if not plan.valid:
             raise ValueError("Manifest does not match physical schema; review plan issues")
-        receipt = await self._repository.save_drafts(manifest, plan, owner, actor)
+        receipt = await self._repository.save_drafts(manifest, plan, department, actor)
         if receipt.state not in {"DRAFT", "WAITING_APPROVAL"}:
             raise ValueError("Draft import must not publish or grant access")
         if receipt.durable != self._repository.durable:
@@ -129,7 +126,7 @@ class ApplicationOnboardingService:
         return receipt
 
     async def apply(self, manifest: ApplicationManifest, actor: VerifiedIdentity) -> DraftReceipt:
-        owner = await self._authorize(manifest, actor)
+        department = await self._authorize(manifest, actor)
         if (
             self._repository is None
             or not self._repository.durable
@@ -142,7 +139,7 @@ class ApplicationOnboardingService:
         plan = await self._prepare(manifest, actor)
         if not plan.ready_for_dispatch:
             raise ProvisioningDenied()
-        receipt = await self._dispatcher.enqueue(manifest, plan, owner, actor)
+        receipt = await self._dispatcher.enqueue(manifest, plan, department, actor)
         if not receipt.durable or receipt.state != "QUEUED":
             raise ValueError("Publication can only acknowledge a durable QUEUED job, never ACTIVE")
         return receipt

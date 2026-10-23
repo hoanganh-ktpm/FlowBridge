@@ -247,6 +247,42 @@ class HasuraMetadataClient:
             raise MetadataConflict()
         return snapshot, existing
 
+    async def configure_read_mapping(
+        self, source: str, table: TableRef, aliases: dict[str, str]
+    ) -> None:
+        snapshot = await self.export_metadata()
+        registered = source_in(snapshot, source)
+        tracked = table_in(registered, table) if registered else None
+        if (
+            registered is None
+            or tracked is None
+            or registered.get("customization", {}).get("root_fields") != {"namespace": source}
+        ):
+            raise InvalidConfiguration()
+        configuration = tracked.get("configuration", {})
+        if any(value for key, value in configuration.items() if key != "column_config"):
+            raise MetadataConflict()
+        desired = {
+            "column_config": {
+                column: {"custom_name": name} for column, name in aliases.items() if column != name
+            }
+        }
+        if configuration.get("column_config", {}) != desired["column_config"]:
+            if configuration.get("column_config"):
+                raise MetadataConflict()
+            await self._write(
+                "pg_set_table_customization",
+                {"source": source, "table": table.payload(), "configuration": desired},
+                snapshot,
+            )
+        verified = source_in(await self.export_metadata(), source)
+        tracked = table_in(verified, table) if verified else None
+        if (
+            tracked is None
+            or tracked.get("configuration", {}).get("column_config", {}) != desired["column_config"]
+        ):
+            raise InvalidMetadata()
+
     async def create_select_permission(
         self, source: str, table: TableRef, department_id: UUID, permission: SelectPermission
     ) -> None:

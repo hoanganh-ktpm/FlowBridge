@@ -13,7 +13,7 @@ from uuid import uuid4
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+ID_PATTERN = r"^[A-Za-z0-9._:-]+$"
 ID_MAX_LENGTH = 128
 HEADER_NAME = "X-Correlation-Id"
 # Documentation only: middleware normalizes malformed/duplicate input before routing.

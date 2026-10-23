@@ -14,7 +14,7 @@ Khối của nhóm Data Core/Hasura. Source: backend/app/core; test: tests/core;
 | hasura_provisioner | Apply/reconcile metadata và permissions Hasura |
 | agents | Agent/Operation/Tool Registry và executor |
 
-[Hasura Provisioner](hasura_provisioner/README.md) đã có Metadata Client, source registration, product publication và SELECT permission reconciliation; kiểm thử độc lập bằng HTTP mock/fake repositories. Chưa có Core DB adapters, trusted admin authorization provider hoặc live engine integration. Các module Core còn lại vẫn là scaffold. Khi viết mới, đặt router/schema/service/repository/model trong đúng module; không tạo một service deploy riêng cho mỗi dòng.
+[Hasura Provisioner](hasura_provisioner/README.md) có Metadata Client, source registration, product publication, SELECT reconciliation và publication worker. Core HTTP P0, canonical onboarding, current principal/grant policy và non-admin GraphQL adapter đã kiểm thử bằng injected HTTP/repository doubles. PostgreSQL adapter và Hasura credential provider/auth profile production chưa được ghép. Agents và phần P0/P1 ngoài vertical slice còn chờ triển khai; xem [Core Backend P0](../../../docs/CORE-P0.md). Không tạo một service deploy riêng cho mỗi dòng.
 
 Core lưu metadata, không chứa dữ liệu nghiệp vụ Sales/Warehouse/Logistics. Module dùng Platform cho identity/HTTP boundary và adapter công khai; không import database nghiệp vụ. Có thể phát triển với PostgreSQL fixture, identity mock và mock engine APIs.
 
