@@ -1,80 +1,36 @@
-# Hợp đồng API FlowBridge
+# Contracts
 
-## Agent Hub cho Web/App và Langflow ver2
+Hợp đồng chung là điểm nối các khối. Bộ API contract 0.2.0 dùng OpenAPI 3.1.1, theo phương pháp contract-first; trạng thái REVIEW CANDIDATE, database alignment và runtime integration chưa hoàn tất.
 
-[Agent Hub OpenAPI 1.0.1](agent-hub-api.yaml) và [hướng dẫn tích hợp](agent-hub/README.md)
-mô tả 12 operation: thư viện ba agent, hội thoại/lựa chọn agent, chat bất đồng bộ,
-kết quả JSON, metadata, Activities SSE và hủy run. Langflow tự điều phối và gọi
-phụ thuộc; API truyền/lưu yêu cầu và kết quả theo quyền người dùng.
+- identity-context.schema.json: shape VerifiedIdentity sau xác thực, tương ứng adapter Platform hiện có. Đây là dữ liệu nội bộ tin cậy, không phải JSON client tự khai để nhận quyền.
+- portal/schemas/: JSON presentation/event schema được giữ cho UI; không đại diện API registry/domain mới.
+- fixtures/review-cases.json: request/response tổng hợp, ca hợp lệ và sai có chủ đích; không phải seed hoặc dữ liệu DB thật.
+- onboarding/: Application Manifest v1 JSON Schema, Warehouse/cross-source examples và offline schema fixture. Đây là declarative input, không phải HTTP/OpenAPI contract; xem [Onboarding](../docs/ONBOARDING.md).
 
-[Schema kết quả 1.0](agent-hub/schemas/run-result.schema.json) giữ khung mẫu người
-dùng cung cấp, dùng chung dataset cho bảng và biểu đồ. Có quy tắc cột chồng/100%,
-tiền decimal, mẫu số tỷ lệ, provenance, lỗi, idempotency, revision và reconnect.
-Ví dụ nằm trong [agent-hub/examples](agent-hub/examples/PROVENANCE.md).
+## OpenAPI entrypoints
 
-Đã có **backend bật tùy chọn sau migration0006**, xem [cách chạy](../docs/AGENT-HUB.md). Không thay snapshot
-App/AI/Core hoặc manifest checksum hiện tại. Nguồn chuẩn Agent Hub nằm tại đây;
-không đưa vào script đồng bộ upstream của App/AI/Core. Khi phân phối giữ nguyên
-`agent-hub-api.yaml` và cây `agent-hub/` vì OpenAPI dùng external schema/reference.
+| File | Phạm vi |
+|---|---|
+| [core-api.openapi.yaml](core-api.openapi.yaml) | P0 Registry, onboarding, Data Sharing; P1 Operation/Tool registry |
+| [sales-api.openapi.yaml](sales-api.openapi.yaml) | Sales P1, PROPOSED / PENDING_DB_ALIGNMENT |
+| [warehouse-api.openapi.yaml](warehouse-api.openapi.yaml) | Warehouse P1, PROPOSED / PENDING_DB_ALIGNMENT |
+| [logistics-api.openapi.yaml](logistics-api.openapi.yaml) | Logistics P1, PROPOSED / PENDING_DB_ALIGNMENT |
+| [platform-api.openapi.yaml](platform-api.openapi.yaml) | Executor/workflow P1, public boundary độc lập engine |
+| [common.openapi.yaml](common.openapi.yaml) | Thư viện HTTP components; không phải service |
 
-## Hợp đồng nghiệp vụ hiện có
+Core entrypoint tham chiếu các bounded-context fragments: [application-onboarding](application-onboarding.yaml), [data-contracts](data-contracts.yaml), [data-governance](data-governance.yaml), [operation-registry](operation-registry.yaml). Không mở fragment như một server riêng. Mỗi schema có một nơi sở hữu; tests bundle entrypoints trong bộ nhớ và validate hoàn toàn offline.
 
-Runtime dùng `app-api.yaml` (40 operation) và `ai-tools-api.yaml` (6 operation)
-trong `backend/flowbridge/contracts/`, version 0.4.1. Hai snapshot có chung DTO;
-router/validator/Swagger và gateway mapping đọc cùng nguồn trong package.
-[Mapping database](supplier-assistant-v0.4.1.md) giải thích UUID, tiền, role và lineage.
+88 operations: 48 P0 Data Sharing và 40 P1. Giữ method/path/operationId của 84 operation v0.1.1, nhưng có thay đổi DTO/semantics có chủ đích; không tuyên bố tương thích payload hay runtime. Canonical Data Contract giữ physical/public names, PostgreSQL/wire types và relationships. P0 read grants theo department; principal grants chưa được cam kết enforcement.
 
-Nguồn chuẩn trong workspace là `ho-so-olp/03-api/contracts/{app-api,ai-tools-api}.yaml`.
-Sửa nguồn trước, rồi kiểm tra hoặc đồng bộ từ root FlowBridge:
+Ba lớp quyền độc lập: IT/PLATFORM_ADMIN quản trị toàn bộ DX-OS; Core + Hasura kiểm quyền đọc theo grant; Business API kiểm quyền nghiệp vụ riêng. STAFF/legacy OWNER không cấp quyền quản trị, publish hay duyệt trong Core. Mọi operation có x-authorization-policy để phân biệt admin, consumer và receiver; access requests là hồ sơ IT quản lý thay consumer, không phải luồng phòng ban tự xin/duyệt.
 
-```sh
-uv run --locked python scripts/sync_application_contracts.py --source ../ho-so-olp/03-api/contracts
-uv run --locked python scripts/sync_application_contracts.py --source ../ho-so-olp/03-api/contracts --write
-```
-
-Script nhận `--source` tường minh. Source archive độc lập đã có snapshot và manifest
-`application-contracts.sha256`, không cần workspace cha để chạy/test. Cung cấp directory
-nguồn contract đã quản lý version khi muốn đồng bộ từ archive độc lập.
-`tests/unit/test_database_api_contract.py` kiểm checksum, route coverage, security và
-source drift khi workspace có nguồn tương ứng. Chạy `uv run --locked pytest tests/unit -q`.
-
-Swagger database giữ yêu cầu bearer/supplier confirmation token của contract. Các chức
-năng cần engine chưa tích hợp trả 503 theo [phạm vi hiện tại](../docs/SUPABASE-API.md).
-Không có schema sample bỏ security. Các ví dụ request trong contract chỉ minh họa shape,
-không bảo đảm record/ID/token đó tồn tại trong database đang chạy.
-
-`contracts/opencore-api.yaml` mô tả 28 operation thiết kế; hai operation Identity được
-triển khai khi bật binding theo [Identity core](../docs/IDENTITY-CORE.md). DTO Python và
-HTTP response được kiểm với schema core; không phục dựng sample hoặc mount 26 operation
-còn lại. `supplier-assistant-layer2-api.yaml` vẫn là thiết kế. Không suy ra engine
-Gateway/Storage/Workflow đã tích hợp từ các file này. License code/config theo
-notice từng file; dữ liệu và nguồn bên ngoài có điều kiện sử dụng riêng.
-
-## Core canonical và provenance
-
-Nguồn chuẩn Core là `ho-so-olp/03-api/contracts/opencore-api.yaml` trong workspace;
-`contracts/opencore-api.yaml` là bản sao phân phối trong source archive. Core dùng
-dialect mặc định OpenAPI 3.1, cùng cách công bố của app/AI. Không đổi wire/version 0.2.0.
+Quy ước, lifecycle, ownership, database gaps và thay đổi tương thích tại [API Contracts](../docs/API-CONTRACTS.md). Các giả định Business còn chờ owner xác nhận, không phải ORM đã tồn tại.
 
 ```sh
-uv run --locked python scripts/sync_core_contracts.py --source ../ho-so-olp/03-api/contracts
-uv run --locked python scripts/sync_core_contracts.py --source ../ho-so-olp/03-api/contracts --write
-# Archive độc lập: kiểm bản sao, manifest và draft mà không cần workspace cha.
-uv run --locked python scripts/sync_core_contracts.py --source contracts
+uv run --locked pytest tests/contracts -q
+uv run --locked ruff check tests/contracts
 ```
 
-`core-contracts.sha256` khóa đúng byte upstream; `x-upstream.sha256` trong draft Tầng 2
-phải trỏ cùng bản đó. Script kiểm version và sáu shared schema trước khi ghi. `--write`
-chỉ cho phép sửa khác biệt metadata dialect/byte/provenance đã review; nếu contract đổi
-ngữ nghĩa phải review và nâng bản sao/schema draft phù hợp trước khi sync. Không đổi
-hash để bỏ qua schema drift. Script mặc định chỉ kiểm và không sửa file.
+Các kiểm tra này chỉ xác minh specification, refs và fixture shape; không gọi PostgreSQL, Hasura, Keycloak hoặc Workflow Engine.
 
-## Nguồn OpenAPI runtime
-
-`shared/openapi.py` sở hữu composition và cache. App/AI dùng snapshot 0.4.1; Identity
-và ML đóng góp schema sinh từ router/DTO với namespace `Core*` và `ML*`; RAG development
-có fragment riêng theo profile. Trùng path+method, operationId hoặc component khác nghĩa
-làm việc xuất OpenAPI thất bại. Component giống hệt nhau có thể dùng chung.
-
-Hai API Identity có kiểm parity URI, correlation, security, response/error schema
-và header 409 với Core YAML.
+Không import hoặc đồng bộ tự động contract v1 trong archive. Portal hiện vẫn có boundary API/fixtures v1 ở portal/src/lib và portal/src/fixtures; cần chuyển sang contract mới khi API được triển khai.

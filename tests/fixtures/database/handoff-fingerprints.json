@@ -1,0 +1,92 @@
+{
+  "migrations": {
+    "core_0001.py": "49ee84fda0b972d1794a63c578b6889bbdaf1daafdabd53e7e24c4033bf92eaa",
+    "core_0002.py": "0d282faa3a2ef7bf2917c511fcd7217399a81893c0ec9880b4e965bff0126b39",
+    "core_0003.py": "7edb6b91fe3a18203d13618400cf5e2695ab00a9ef8c8b7700b2924638b355ab",
+    "logistics_0001.py": "9c61ed926ac6a1134004147147c1d6a4194c08385bf8742a4f2b0a7895e353c4",
+    "sales_0001.py": "9674634319ef13594bd82343dfbc75fc69eb49ca148fc76eaef0eeffbf577176",
+    "warehouse_0001.py": "2f9957fe6917a012c8f715c283ebb03b443b401e6442a3dd5cdd0277472cf9f6"
+  },
+  "tables": {
+    "core": {
+      "agent_configs": "cc8c598263c956e62e2b6290f74a0365cf7fbdc41b67aea1c07c9e770ea6c200",
+      "agent_dataset_bindings": "c2d497611878547d9b059a57a8531b3fbe174c525b90048229e4fb0c44d320d7",
+      "agent_query_traces": "768acede687ff6da8aef90fdcc462d52c1df653eb5ec7f000b3bd8d9774b2d2d",
+      "application_memberships": "a67cc4fc26c710495bec79a8cfab134deb82cc18204a6a607134fa58427bc5cd",
+      "applications": "9116ebd5094c03d4d2b149b07ee498aea12d444b911d79b8fd62638db8f72849",
+      "audit_events": "a1a7f3b726f1c5bec4909c9649f93124b16da560662ca278ee99363aa6c2da0d",
+      "contract_grants": "94f114716b2109761b2626f29b41f55132809263db37c1d992737a9a444f6fb6",
+      "contract_relationships": "e02df6a72b020361bc4c07142cb0ca604373284cbdbe3e954dd248959588bc03",
+      "core_command_receipts": "2b1f883b30383c336ec671d21bd79e4499bdd216f72abb32338032daa8cc7760",
+      "data_contracts": "c7d18113303cdecfad1e093c3d87c02e3dfceceeaf34b115e325aeac3368c0c2",
+      "data_sources": "12a86c8ee6c8477193d8458017f606fdb7b6712a6c1f56c9fed397fa62bd5127",
+      "discovered_datasets": "426566e27d8586ec07531459299bada6ede7f9701b98af24cd1564fbdd5ae2b9",
+      "document_grants": "aa9bb977607119139a7f5ae06994f6add806fc2159eb789f3e6b7a8ad63a1db0",
+      "document_versions": "77f44b551c1ff17de3560fbccff6e9dd1e37cfc1e2567c602ac989a1aca1b475",
+      "documents": "40cb14a33416dcda1555d42821e22dd901a6fedf993cd5a386af16c7e1dc2c5b",
+      "organization_memberships": "5fea11bb9598a9dbf6655e38cf25435b0f6c64841bd90adc88d7e9931ea5a33b",
+      "organizations": "0e9ffcb338702f8794ee96423f40fde5e53b2f794e0c87c5bc887a175caccda3",
+      "provisioning_jobs": "3373e544e6d00bff88609a0cc295c536beca0ed0ed669f7bf29f7a6afcabf9a3",
+      "provisioning_steps": "5c7de4765d3c16a5943de611b0404e8f31fb90f6178c666a4825d8d76fcc4849",
+      "schema_drift_checks": "78d225d6503be4fae79a9a49b67e2f3a62b038afd7fe4df9b3a1c636e0eede46",
+      "workflow_bindings": "1b8b4206ecacdcf59112f4c9e9d8442ecebda452cb2b5b9cffe91302456b254d",
+      "workflow_runs": "779d35f10ea9511c3594e48005ba53c4b0db47107c30aadb560f9c095feacf8c"
+    },
+    "logistics": {
+      "command_receipts": "68a066735f8ad2bb834cfb3d157d5158dd1393e03ddbe5479ae816ad0b39b153",
+      "inbox_receipts": "ce83e4c5410f2cc285efe79410796dae36d3c04acf3bf1b0bdb62787a823db9b",
+      "outbox_events": "3e991cf2360034ee105e73c74813dc7d35b77cceaaf9fb909daab3c0791bbfee",
+      "shipment_events": "675d7adbaf2fcfb9553b7349e2ec221a58c4443aa26f0ecb3325ddeaf61a6818",
+      "shipment_lines": "52a59197a5844c552e3b7f1c6a8dea9a933f9514b3eb7c7c383c88c32163fcd1",
+      "shipments": "2c006cf160750f73fccff6b996d0e42152c1660b3b1af8e95d3855916edd2be8"
+    },
+    "sales": {
+      "command_receipts": "68a066735f8ad2bb834cfb3d157d5158dd1393e03ddbe5479ae816ad0b39b153",
+      "customers": "81f38c3ab30cb7a94b08d4f933040936b353a5948ccaa7f35bdfcc319a4b2c7c",
+      "inbox_receipts": "ce83e4c5410f2cc285efe79410796dae36d3c04acf3bf1b0bdb62787a823db9b",
+      "outbox_events": "3e991cf2360034ee105e73c74813dc7d35b77cceaaf9fb909daab3c0791bbfee",
+      "sales_order_events": "ac203158af5072a38099da237ccb4710d456cc2e600003d6c91a43b043c2b00d",
+      "sales_order_lines": "6121200b8294474e50ca91bbd1c76d60b824293781e0da51483a310fb2ba32a2",
+      "sales_orders": "e3919fcc20838a04e8f1310bbbc236c9aa720a2d37b6f1034e266946d17b0ca4"
+    },
+    "warehouse": {
+      "command_receipts": "68a066735f8ad2bb834cfb3d157d5158dd1393e03ddbe5479ae816ad0b39b153",
+      "dispatch_lines": "e676f1de781bd147d726a0c47793a254f35fbe1fc5ffab3ba872dd46a02609b4",
+      "dispatches": "bae13e0a6145243c30105c3eb8ef0bbdd60777c613bb510576ad7edaf91a0f3e",
+      "goods_receipt_lines": "5cf56c427761a877949db1880049c0cd38c754f741ae3c813f711d3e8b36192e",
+      "goods_receipts": "292546d98f8368d8c56c50afd5b1f92672dfbfab93930328992d194cfda28813",
+      "inbox_receipts": "ce83e4c5410f2cc285efe79410796dae36d3c04acf3bf1b0bdb62787a823db9b",
+      "inventory_balances": "571e8b0957960c76458f2af9771d195ba50b980a7c55b1da4237f234fa0e1745",
+      "outbox_events": "3e991cf2360034ee105e73c74813dc7d35b77cceaaf9fb909daab3c0791bbfee",
+      "products": "499507961f3fb7d09f413ef7399002b1616e0b58daa4fa7955ef04e604511c77",
+      "reservation_lines": "e9bceab1ec0a7e064843dca59ebba2ba931e434bc2615f7a89100337b2cbc306",
+      "reservations": "b0464cd9b1dcca512eb5ddcce4d8e4a596120f1dc9554e95c361cfe695a687bb",
+      "stock_movements": "51b47341fdf1c70d81ddd79953f35a2ee9f4cee90ffb0a15abb4dabee3da0924",
+      "warehouses": "52bd741d639339f0138288ede06b215a25a00559baece224c0458c2e83765ccc"
+    }
+  },
+  "legacy_core_priorities": {
+    "organizations": "P0",
+    "applications": "P0",
+    "data_sources": "P0",
+    "discovered_datasets": "P0",
+    "data_contracts": "P0",
+    "contract_grants": "P0",
+    "contract_relationships": "P0",
+    "provisioning_jobs": "P0",
+    "provisioning_steps": "P0",
+    "agent_configs": "P0",
+    "agent_dataset_bindings": "P0",
+    "workflow_bindings": "P0",
+    "workflow_runs": "P0",
+    "core_command_receipts": "P0",
+    "organization_memberships": "P1",
+    "application_memberships": "P1",
+    "documents": "P1",
+    "document_versions": "P1",
+    "document_grants": "P1",
+    "audit_events": "P1",
+    "schema_drift_checks": "P2",
+    "agent_query_traces": "P2"
+  }
+}

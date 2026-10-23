@@ -1,0 +1,52 @@
+{
+  "design_date": "2026-10-22",
+  "version": "0.2",
+  "scope": "End at verified Warehouse handoff to carrier; customer delivery not tracked.",
+  "parser": "@dbml/core 10.3.1 (dbmlv2)",
+  "status": "passed",
+  "total_tables": 26,
+  "business_tables": 17,
+  "technical_tables": 9,
+  "schemas": [
+    {
+      "file": "sales.dbml",
+      "database": "sales_db",
+      "tables": 7,
+      "local_foreign_keys": 3,
+      "sha256": "09fcf3ce8ead871dd128ab727ca288d744ac909220b5d6b6409f9a237e65ae81",
+      "dbml_parse": "passed",
+      "org_fk_and_unique_targets": "passed",
+      "sql_export_in_memory": "passed"
+    },
+    {
+      "file": "warehouse.dbml",
+      "database": "warehouse_db",
+      "tables": 13,
+      "local_foreign_keys": 14,
+      "sha256": "c1efda2aa02fe09a399da010135ee7a3f463510603258dadb747eed2f94f7a20",
+      "dbml_parse": "passed",
+      "org_fk_and_unique_targets": "passed",
+      "sql_export_in_memory": "passed"
+    },
+    {
+      "file": "logistics.dbml",
+      "database": "logistics_db",
+      "tables": 6,
+      "local_foreign_keys": 2,
+      "sha256": "b44f9ac9893ffc766a65b5d41d89e8d7e49536d792f44767334655cfd78469a6",
+      "dbml_parse": "passed",
+      "org_fk_and_unique_targets": "passed",
+      "sql_export_in_memory": "passed"
+    }
+  ],
+  "demo_stock_and_handoff_arithmetic": "passed",
+  "customer_delivery_tables_and_fields_removed": true,
+  "v1_schema_hashes_unchanged": true,
+  "executed_sql": false,
+  "live_database_accessed": false,
+  "application_or_repo_modified": false,
+  "limitations": [
+    "Structural design validation only; no database/API/Hasura/BPMN integration run.",
+    "CHECK, partial unique indexes, aggregate caps, state transitions and locking in notes must be implemented and tested in migrations/Business APIs."
+  ]
+}

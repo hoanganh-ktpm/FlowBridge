@@ -1,0 +1,145 @@
+components:
+  schemas:
+    FieldConstraints:
+      type: "object"
+      additionalProperties: false
+      required: []
+      properties:
+        minimum: {"type":"number"}
+        maximum: {"type":"number"}
+        min_length: {"type":"integer","minimum":0,"maximum":1000000}
+        max_length: {"type":"integer","minimum":0,"maximum":1000000}
+        pattern: {"type":"string","minLength":1,"maxLength":500}
+      description: >-
+        Optional wire constraints, not a claim that matching PostgreSQL constraints exist. Validator rejects
+        bounds inconsistent with wire_type.
+    ContractField:
+      type: "object"
+      additionalProperties: false
+      required: ["column","name","physical_type","wire_type","nullable","description"]
+      properties:
+        column: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        physical_type: {"type":"string","minLength":1,"maxLength":100}
+        wire_type: {"type":"string","enum":["string","integer","number","boolean","date","date-time","object","array"]}
+        nullable: {"type":"boolean"}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        constraints: {"$ref":"./data-contracts.yaml#/components/schemas/FieldConstraints"}
+        wire_schema: {"$ref":"./common.openapi.yaml#/components/schemas/JsonSchema"}
+      description: >-
+        column is the PostgreSQL identifier; name is the public GraphQL/HTTP name. Alias-free fields still
+        set name=column. object/array and wire_schema are reserved for the P1 structured-value profile; P0
+        publication blocks them rather than dropping data.
+    JoinColumn:
+      type: "object"
+      additionalProperties: false
+      required: ["from","to"]
+      properties:
+        from: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        to: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+    Relationship:
+      type: "object"
+      additionalProperties: false
+      required: ["name","type","target_product","strategy","mapping"]
+      properties:
+        name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        type: {"type":"string","enum":["object","array"]}
+        target_product: {"$ref":"./common.openapi.yaml#/components/schemas/QualifiedKey"}
+        strategy: {"type":"string","enum":["fk","manual","remote"]}
+        mapping:
+          type: "array"
+          items: {"$ref":"./data-contracts.yaml#/components/schemas/JoinColumn"}
+          minItems: 1
+          maxItems: 20
+        uniqueness_ref:
+          anyOf: [{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z][A-Za-z0-9_./-]*$"},{"type":"null"}]
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+      description: >-
+        Target is a fully qualified application.product key. Mapping uses PHYSICAL columns and is bijective.
+        Same-source fk/manual; cross-source remote to_source with verified Hasura v2 CE capabilities. Object
+        cardinality requires trusted, fresh uniqueness evidence; a submitted reference is never approval.
+    DataContractDocument:
+      type: "object"
+      additionalProperties: false
+      required: ["document_version","grain","business_key","classification","description","fields","relationships"]
+      properties:
+        document_version: {"const":"1.0"}
+        grain: {"type":"string","minLength":1,"maxLength":500}
+        business_key:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+        classification: {"$ref":"./common.openapi.yaml#/components/schemas/Classification"}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        fields:
+          type: "array"
+          items: {"$ref":"./data-contracts.yaml#/components/schemas/ContractField"}
+          minItems: 1
+          maxItems: 100
+        relationships:
+          type: "array"
+          items: {"$ref":"./data-contracts.yaml#/components/schemas/Relationship"}
+          minItems: 0
+          maxItems: 50
+      description: >-
+        Canonical document for manifest enrichment, Core contract_json and provisioning. Unique
+        physical/public fields; relationship names cannot collide. business_key contains PUBLIC names, must
+        be non-null and unique with verified source evidence or reviewed attestation. Semantic keys are not
+        inferred from equal column names. Approval and evidence freshness are runtime policy.
+    ContractCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["version","contract_json"]
+      properties:
+        version: {"$ref":"./common.openapi.yaml#/components/schemas/SemVer"}
+        contract_json: {"$ref":"./data-contracts.yaml#/components/schemas/DataContractDocument"}
+    DataContractPatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","contract_json"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        contract_json: {"$ref":"./data-contracts.yaml#/components/schemas/DataContractDocument"}
+      description: "DRAFT only; version/product identity immutable. PUBLISHED/RETIRED content cannot change."
+    DataContract:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "data_product_id"
+        - "version"
+        - "contract_json"
+        - "status"
+        - "published_at"
+        - "published_by"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        data_product_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        version: {"$ref":"./common.openapi.yaml#/components/schemas/SemVer"}
+        contract_json: {"$ref":"./data-contracts.yaml#/components/schemas/DataContractDocument"}
+        status: {"type":"string","enum":["DRAFT","PUBLISHED","RETIRED"]}
+        published_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        published_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+    DataContractPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./data-contracts.yaml#/components/schemas/DataContract"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}

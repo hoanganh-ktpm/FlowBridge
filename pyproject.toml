@@ -10,8 +10,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "flowbridge"
-version = "0.1.0"
-description = "Headless OpenCore service adapters for FlowBridge"
+version = "0.2.0.dev0"
+description = "Modular Open-Core adapters for FlowBridge DX-OS"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = "GPL-3.0-or-later"
@@ -31,134 +31,65 @@ dependencies = [
     "uvicorn==0.54.0",
 ]
 
-[project.optional-dependencies]
-ml = [
-    "tabicl==2.2.0",
-    "pandas==2.3.3",
-]
-rag = [
-    "chromadb==1.5.9",
-    "sentence-transformers==6.1.0",
-    "rank-bm25==0.2.2",
-]
-
 [dependency-groups]
 build = ["hatchling==1.32.4"]
-dev = [
-    "numpy==2.5.4",
-    "rank-bm25==0.2.2",
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
-    "ruff==0.17.0",
-]
+dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "ruff==0.17.0"]
+database = ["psycopg[binary]==3.3.6", "python-dotenv==1.2.4"]
+
+[project.scripts]
+flowbridge = "app.core.applications.cli:main"
 
 [tool.uv]
 required-version = "==0.13.1"
 
-[tool.hatch.build.targets.wheel]
-packages = ["backend/flowbridge"]
+[tool.hatch.build]
+dev-mode-dirs = ["backend"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"contracts/agent-hub-api.yaml" = "flowbridge/agent_hub/contracts/agent-hub-api.yaml"
-"contracts/agent-hub" = "flowbridge/agent_hub/contracts/agent-hub"
+[tool.hatch.build.targets.wheel]
+packages = ["backend/app"]
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "/backend/flowbridge",
-    "/tests",
-    "/contracts",
-    "/infra/gateway",
-    "/docs/GATEWAY.md",
-    "/examples/rag",
-    "/examples/ml",
-    "/langflow/components/supplier_ml",
-    "/langflow/components/supplier_rag",
-    "/langflow/rag",
-    "/langflow/components/flowbridge",
-    "/langflow/runtime",
-    "/langflow/flows",
-    "/langflow/tests",
-    "/langflow/setup_agent.py",
-    "/langflow/setup_ver2.py",
-    "/langflow/setup_ver3.py",
-    "/langflow/verify_ver3.py",
-    "/langflow/add_frontend_response.py",
-    "/langflow/install_ver2_exports.py",
-    "/langflow/FRONTEND-JSON.md",
-    "/langflow/DELIVERY-ORDERS.md",
-    "/langflow/schemas",
-    "/langflow/examples/frontend_response",
-    "/langflow/repair_ver3_routes.py",
-    "/langflow/VER3.md",
-    "/langflow/upgrade_ver2_data.py",
-    "/langflow/upgrade_ver2_coordination.py",
-    "/langflow/add_ver2_protocol_nodes.py",
-    "/langflow/repair_ver2_model.py",
-    "/langflow/repair_ver2_structured.py",
-    "/langflow/VER2.md",
-    "/langflow/evaluate.py",
-    "/langflow/scenarios.json",
-    "/langflow/scenarios.json.license",
-    "/langflow/agent.env.example",
-    "/langflow/README.md",
-    "/langflow/requirements.txt",
-    "/langflow/requirements.lock.txt",
-    "/langflow/start.cmd",
-    "/langflow/start.ps1",
-    "/langflow/start-sso.ps1",
-    "/langflow/start-sso.cmd",
-    "/docs/LANGFLOW-SSO.md",
-    "/docs/AGENT-HUB.md",
-    "/docs/MOBILE-PLAN.md",
-    "/docs/ML-SERVICE.md",
-    "/docs/RAG.md",
-    "/infra/identity",
-    "/infra/dev",
-    "/infra/chat",
-    "/chat-docker.cmd",
-    "/HUONG-DAN-CHAY.md",
-    "/HUONG-DAN-SU-DUNG-BACKEND.md",
-    "/docs/DOCKER-CHAT.md",
-    "/Dockerfile",
-    "/compose.yaml",
-    "/compose.env",
-    "/.dockerignore",
-    "/docs/DEV-CONTAINERS.md",
-    "/clients/sso",
-    "/scripts",
-    "/alembic",
-    "/alembic.ini",
-    "/pyproject.toml",
-    "/uv.lock",
-    "/uv.lock.license",
-    "/.python-version",
-    "/.python-version.license",
-    "/.env.example",
-    "/.gitignore",
-    "/.gitattributes",
-    "/README.md",
-    "/docs/SUPABASE-API.md",
-    "/docs/SSO.md",
-    "/docs/IDENTITY-CORE.md",
-    "/CHANGELOG.md",
-    "/LICENSE",
+only-include = [
+    "backend", "services", "portal/src", "portal/server",
+    "portal/public/favicon.png", "portal/public/logo-flowbridge.png",
+    "portal/tests", "portal/package.json", "portal/package-lock.json",
+    "portal/components.json", "portal/tsconfig.json", "portal/vite.config.ts",
+    "portal/vitest.config.ts", "portal/playwright.config.ts", "portal/index.html",
+    "portal/flowbridge-tokens.css", "portal/server.mjs", "portal/start.ps1",
+    "portal/README.md", "portal/THIRD-PARTY-NOTICES.md",
+    "portal/.env.example", "portal/.gitignore", "contracts", "workflows", "infra",
+    "tests", "docs", "scripts", "alembic.ini", "README.md",
+    "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "THIRD_PARTY_LICENSES.md", "pyproject.toml",
+    "uv.lock", "uv.lock.license", ".python-version", ".python-version.license",
+    ".env.example", ".gitignore", ".gitattributes", ".dockerignore",
 ]
+exclude = ["/_archive", "/docs/reference", "/docs/CHECKPOINT.md", "/docs/HASURA_AUDIT.md", "/AGENTS.md", "**/__pycache__", "**/*.pyc", "**/node_modules"]
 
 [tool.ruff]
-extend-exclude = ["scripts/supplier_demo_source.py"]
 target-version = "py312"
 line-length = 100
 src = ["backend"]
+extend-exclude = ["_archive"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+"backend/app/core/db/models.py" = ["E501"]
+"services/*/app/db/models.py" = ["E501"]
+"**/migrations/versions/*.py" = ["E501", "I"]
+
+[tool.ruff.format]
+exclude = ["**/migrations/versions/*.py"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["backend", "."]
+norecursedirs = ["_archive", ".venv", ".tools", ".cache", "node_modules"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "--strict-markers -m 'not integration'"
+addopts = "--strict-markers -m 'not integration and not e2e'"
 markers = [
-    "integration: requires the real upstream services named by the test profile",
-    "e2e: exercises the application across OpenCore service boundaries",
+    "integration: requires the explicitly configured upstream engine",
+    "e2e: exercises multiple real module/service boundaries",
 ]

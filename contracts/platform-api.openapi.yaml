@@ -1,0 +1,336 @@
+openapi: "3.1.1"
+info:
+  title: "FlowBridge Platform Execution API"
+  version: "0.2.0"
+  description: >-
+    P1 operation execution and engine-neutral workflow boundary. Registry belongs to Core; executors
+    consume injected trusted resolver ports and do not import Core repositories. No Agent/LLM/chat
+    runtime promised.
+  license: {"name":"GPL-3.0-or-later","identifier":"GPL-3.0-or-later"}
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+servers: [{"url":"/"}]
+x-contract-status: "REVIEW_CANDIDATE"
+x-database-alignment: "PENDING_DB_ALIGNMENT"
+security: [{"bearerAuth":[]}]
+paths:
+  "/api/v1/platform/operations/execute":
+    post:
+      operationId: "executeRegisteredOperation"
+      summary: "executeRegisteredOperation"
+      description: >-
+        Resolve immutable approved descriptor through an internal port by operation key+version; recheck
+        ACTIVE target application/department and allowlist. HASURA_QUERY is single SELECT-only query; reject
+        errors/partial data and validate the entire data object. Never use admin secret. BUSINESS_API uses
+        approved base URL and exact Domain operation mapping; no redirects, runtime URLs or eval.
+        CALLER_TOKEN audience verified at receiver; SERVICE_CREDENTIAL never elevates caller rights. Only
+        synchronous 200/201 JSON targets supported; normalize validated output to 200. Preserve sanitized
+        downstream 400/403/404/409/422/429; receiver credential rejection becomes 503, input caller
+        authentication remains 401. Upstream invalid/5xx ->503; timeout ->504 with mutation outcome UNKNOWN.
+        Mutation downstream key derives from verified caller+operation version+incoming key and is stable
+        across retry. Read operations dedup in-flight attempts only; replay rechecks rights and queries
+        fresh data, never replays cached rows.
+      tags: ["Execution"]
+      x-priority: "P1"
+      x-authorization-policy: "OPERATION_EXECUTE"
+      x-authorization: >-
+        Current ACTIVE principal/bindings and IT-issued execute permission for the exact operation version.
+        HASURA_QUERY additionally requires an effective data grant; BUSINESS_API additionally requires
+        receiver business/resource/run authorization. PLATFORM_ADMIN and a Tool binding alone do not grant
+        execution or downstream write/read authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "OPERATION_DEPENDENT"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/ExecuteOperation"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/OperationResult"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/platform/workflow-runs":
+    post:
+      operationId: "startWorkflowRun"
+      summary: "startWorkflowRun"
+      description: >-
+        Persist PENDING_START link and durable engine intent before external start; unique
+        application/workflow/business/run tuple. Timeout stays pending for reconciliation by provider
+        correlation key; do not start a second instance blindly. START_FAILED only with evidence no start
+        can still commit. LINKED is not workflow completion. Engine tasks/history remain engine-owned.
+        Durable intent/compensation/fencing storage is PENDING_DB_ALIGNMENT and cannot be replaced by
+        process-local BackgroundTasks.
+      tags: ["Workflow"]
+      x-priority: "P1"
+      x-authorization-policy: "WORKFLOW_RESOURCE"
+      x-authorization: >-
+        Authorized business-resource initiator or delegated workflow service scoped to this
+        application/order/current run. Receivers verify delegation and business permissions; PLATFORM_ADMIN
+        management authority alone does not authorize business mutations.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/WorkflowStart"}}}
+      responses:
+        "202":
+          description: "Accepted; poll durable resource or job. Not verified success."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Location:
+              schema: {"type":"string","format":"uri-reference"}
+              description: "Pollable resource or publication job URI."
+            Retry-After: {"$ref":"./common.openapi.yaml#/components/headers/RetryAfter"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/WorkflowLink"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "findWorkflowLink"
+      summary: "findWorkflowLink"
+      description: >-
+        Recover link after lost 202 without changing run_number. A 404 does not prove an already accepted
+        start will never commit; retry the same tuple/key and reconcile.
+      tags: ["Workflow"]
+      x-priority: "P1"
+      x-authorization-policy: "WORKFLOW_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect DX-OS workflow-link/runtime metadata; otherwise only the authorized
+        initiator, business-resource reader or service scoped to this run. No engine admin credential or
+        business-row access is conferred.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        -
+          name: "application_id"
+          in: "query"
+          required: true
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        -
+          name: "workflow_key"
+          in: "query"
+          required: true
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        - {"name":"business_key","in":"query","required":true,"schema":{"type":"string","minLength":1,"maxLength":200}}
+        -
+          name: "run_number"
+          in: "query"
+          required: true
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/WorkflowLink"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/platform/workflow-runs/{link_id}":
+    parameters:
+      -
+        name: "link_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getWorkflowLink"
+      summary: "getWorkflowLink"
+      description: "getWorkflowLink"
+      tags: ["Workflow"]
+      x-priority: "P1"
+      x-authorization-policy: "WORKFLOW_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect DX-OS workflow-link/runtime metadata; otherwise only the authorized
+        initiator, business-resource reader or service scoped to this run. No engine admin credential or
+        business-row access is conferred.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/WorkflowLink"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/platform/workflow-runs/{link_id}/runtime":
+    parameters:
+      -
+        name: "link_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getWorkflowRuntime"
+      summary: "getWorkflowRuntime"
+      description: "getWorkflowRuntime"
+      tags: ["Workflow"]
+      x-priority: "P1"
+      x-authorization-policy: "WORKFLOW_READ"
+      x-authorization: >-
+        PLATFORM_ADMIN may inspect DX-OS workflow-link/runtime metadata; otherwise only the authorized
+        initiator, business-resource reader or service scoped to this run. No engine admin credential or
+        business-row access is conferred.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./platform-api.openapi.yaml#/components/schemas/WorkflowRuntime"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+components:
+  securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}
+  schemas:
+    ExecuteOperation:
+      type: "object"
+      additionalProperties: false
+      required: ["operation_ref","variables"]
+      properties:
+        operation_ref: {"$ref":"./common.openapi.yaml#/components/schemas/OperationRef"}
+        variables: {"type":"object","maxProperties":100,"additionalProperties":true}
+      description: >-
+        Variables are additionally validated against the exact pinned operation input schema; BUSINESS_API
+        also validates the canonical Domain request. No top-level URL, query text, role, secret or caller
+        identity context.
+    BusinessApiVariables:
+      type: "object"
+      additionalProperties: false
+      required: ["path","query","body"]
+      properties:
+        path: {"type":"object","additionalProperties":{"type":"string"},"maxProperties":20}
+        query: {"type":"object","additionalProperties":true,"maxProperties":30}
+        body: {"anyOf":[{"type":"object","additionalProperties":true,"maxProperties":100},{"type":"null"}]}
+      description: >-
+        Target operation defines exact path/query/body names, types and serialization. GET body must be
+        null. Validate canonical target DTO as well as registry input schema; never infer variable mapping.
+    OperationResult:
+      type: "object"
+      additionalProperties: false
+      required: ["operation_ref","request_id","result"]
+      properties:
+        operation_ref: {"$ref":"./common.openapi.yaml#/components/schemas/OperationRef"}
+        request_id: {"$ref":"./common.openapi.yaml#/components/schemas/RequestId"}
+        result: {"type":"object","additionalProperties":true}
+      description: >-
+        result is the whole validated non-partial GraphQL data object or target Domain JSON DTO, not raw
+        upstream envelope. Its dynamic shape must satisfy the pinned output schema.
+    WorkflowStart:
+      type: "object"
+      additionalProperties: false
+      required: ["application_id","workflow_key","business_key","run_number"]
+      properties:
+        application_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        workflow_key: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        business_key: {"type":"string","minLength":1,"maxLength":200}
+        run_number: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+      description: >-
+        Engine/ref/definition/service identity resolved from backend configuration. No caller-selected
+        engine URL, actor or execution principal. Rerun is policy-gated and fences/reconciles old runs;
+        increasing run_number is not a bypass.
+    WorkflowLink:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "application_id"
+        - "engine_ref"
+        - "workflow_key"
+        - "external_definition_ref"
+        - "business_key"
+        - "run_number"
+        - "external_run_id"
+        - "started_by"
+        - "execution_principal_id"
+        - "link_status"
+        - "created_at"
+        - "updated_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        application_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        engine_ref: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        workflow_key: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        external_definition_ref: {"anyOf":[{"type":"string","minLength":1,"maxLength":200},{"type":"null"}]}
+        business_key: {"type":"string","minLength":1,"maxLength":200}
+        run_number: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        external_run_id: {"anyOf":[{"type":"string","minLength":1,"maxLength":200},{"type":"null"}]}
+        started_by: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        execution_principal_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        link_status: {"type":"string","enum":["PENDING_START","LINKED","START_FAILED"]}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+      description: >-
+        Core business link, not an engine runtime copy. LINKED means verified correlation, not success.
+        Provider requiring a run ID must supply it before LINKED; a provider without IDs needs declared
+        alternate verification.
+    WorkflowRuntime:
+      type: "object"
+      additionalProperties: false
+      required: ["link_id","runtime_status","phase","observed_at"]
+      properties:
+        link_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        runtime_status: {"type":"string","enum":["UNKNOWN","RUNNING","WAITING","COMPLETED","FAILED","CANCELLED"]}
+        phase: {"type":"string","enum":["UNKNOWN","FORWARD","COMPENSATING","TERMINAL"]}
+        observed_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+      description: >-
+        Read-through adapter observation; not a new workflow runtime table. UNKNOWN preserves uncertain
+        outcomes and must not be interpreted as failed/not started.
+tags: [{"name":"Execution"},{"name":"Workflow"}]

@@ -1,0 +1,14 @@
+{
+  "snapshots": [{
+    "source_key": "warehouse-pg", "schemas": ["public"],
+    "objects": [{
+      "table": {"schema": "public", "name": "product_catalog"}, "kind": "view",
+      "columns": [{"name": "sku", "pg_type": "TEXT", "nullable": false},
+                  {"name": "name", "pg_type": "TEXT", "nullable": false}]
+    }, {
+      "table": {"schema": "public", "name": "stock_available"}, "kind": "view",
+      "columns": [{"name": "sku", "pg_type": "TEXT", "nullable": false},
+                  {"name": "available_quantity", "pg_type": "INTEGER", "nullable": false}]
+    }]
+  }]
+}

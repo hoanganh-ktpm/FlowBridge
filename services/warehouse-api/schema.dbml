@@ -1,0 +1,310 @@
+// Design artifact only. Target database: warehouse_db. No SQL/app/live database changes.
+// Import separately. Foreign keys below are local to warehouse_db.public.
+Project dxos_warehouse_demo {
+  database_type: 'PostgreSQL'
+  Note: '''Warehouse owns product identity, stock, reservations, goods receipts and physical dispatch. Hasura/Agents publish/read approved views; stock mutations belong to the Warehouse Business API. org_id is required in joins and local composite foreign keys. Cross-database UUIDs are opaque references checked through authorized interfaces. DBML notes are design requirements, not executable aggregate constraints.'''
+}
+
+Table public.products {
+  id uuid [pk]
+  org_id uuid [not null]
+  sku varchar(80) [not null]
+  name varchar(255) [not null]
+  uom varchar(30) [not null]
+  unit_cost numeric(18,2) [note: 'Private Warehouse field. Never included in the Sales stock-availability contract.']
+  currency char(3) [not null, default: 'VND']
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, sku) [unique]
+  }
+  Note: '''Warehouse is the authoritative SKU/UOM owner. Require nonblank SKU/UOM, unit_cost >= 0 if present, and approved currency. SKU and UOM cannot be reinterpreted while referenced by stock/reservations; use a new product identity or an explicit future migration. A product name is not a join key. Inactivation preserves historic references. Price/cost never leaves Warehouse merely because stock is shared.'''
+}
+
+Table public.warehouses {
+  id uuid [pk]
+  org_id uuid [not null]
+  warehouse_code varchar(50) [not null]
+  name varchar(200) [not null]
+  address text
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, warehouse_code) [unique]
+  }
+  Note: 'The MVP fulfills one Sales order from one warehouse. Multi-warehouse optimization and transfers are outside scope.'
+}
+
+Table public.inventory_balances {
+  id uuid [pk]
+  org_id uuid [not null]
+  warehouse_id uuid [not null]
+  product_id uuid [not null]
+  on_hand_quantity numeric(18,3) [not null, default: 0]
+  reserved_quantity numeric(18,3) [not null, default: 0]
+  version bigint [not null, default: 1]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, warehouse_id, product_id) [unique]
+  }
+  Note: '''CHECK on_hand_quantity >= reserved_quantity >= 0 and version > 0. available_quantity = on_hand_quantity - reserved_quantity is a view expression, not a manually editable column. All stock/hold commands lock balance rows in a stable product-ID order (or use equivalent guarded updates) and commit atomically. reserved_quantity must equal SUM(allocated_quantity - released_quantity - dispatched_quantity) of corresponding reservation lines; a row CHECK cannot enforce this aggregate. Initial stock also enters through a posted goods receipt and movement. No direct UI/Agent UPDATE of balances.'''
+}
+
+Table public.goods_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  warehouse_id uuid [not null]
+  receipt_number varchar(50) [not null]
+  source_type varchar(30) [not null, note: 'MVP: OPENING_BALANCE or REPLENISHMENT; Procurement is not another demo DB.']
+  source_document_ref varchar(150)
+  status varchar(20) [not null, default: 'DRAFT']
+  received_at timestamptz [not null, note: 'Physical receiving time.']
+  posted_at timestamptz
+  received_by_subject varchar(255) [not null]
+  notes text
+  version bigint [not null, default: 1]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, receipt_number) [unique]
+    (org_id, warehouse_id, received_at)
+  }
+  Note: '''States DRAFT, POSTED, CANCELLED. Posting is one local transaction: lock/create balances, validate lines, increase on_hand by accepted quantities, insert one movement per accepted line, mark POSTED, create outbox and finalize command receipt. Reposting/retrying cannot increase stock twice. Confirmed receiving records are immutable. Cancelling is allowed only while DRAFT. Multiple receipt documents may represent separate physical replenishment arrivals. Customer returns, inspection reversals and adjustments require an explicit future process and are outside the MVP.'''
+}
+
+Table public.goods_receipt_lines {
+  id uuid [pk]
+  org_id uuid [not null]
+  receipt_id uuid [not null]
+  line_no integer [not null]
+  product_id uuid [not null]
+  received_quantity numeric(18,3) [not null]
+  accepted_quantity numeric(18,3) [not null]
+  unit_cost_snapshot numeric(18,2) [note: 'Private receipt cost, in the product currency; optional in demo.']
+  rejection_reason text
+  created_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, receipt_id, line_no) [unique]
+  }
+  Note: '''Require line_no > 0, received_quantity > 0, 0 <= accepted_quantity <= received_quantity, and nonnegative optional cost. Rejected quantity is received minus accepted and does not increase usable stock. Use the product UOM. Only a positive accepted quantity creates a positive stock movement. Freeze all lines when the receipt is POSTED.'''
+}
+
+Table public.reservations {
+  id uuid [pk]
+  org_id uuid [not null]
+  reservation_number varchar(50) [not null]
+  sales_order_ref uuid [not null, note: 'Opaque Sales order UUID; no cross-database FK.']
+  sales_order_number varchar(50) [not null]
+  source_order_revision bigint [not null, note: 'Frozen Sales input_revision, not a changing Sales status/projection version.']
+  warehouse_id uuid [not null]
+  status varchar(30) [not null, default: 'HELD']
+  expires_at timestamptz [note: 'Nullable; default policy for MVP is no automatic expiry.']
+  cancelled_at timestamptz
+  requested_by_subject varchar(255) [not null]
+  version bigint [not null, default: 1]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, reservation_number) [unique]
+    (org_id, sales_order_ref, source_order_revision) [unique]
+    (org_id, sales_order_ref, status)
+  }
+  Note: '''MVP allocation is all-or-nothing, all order lines from the Sales-selected warehouse: validate the authorized confirmed Sales snapshot, lock every balance, and allocate the complete request or roll back everything. A failed insufficient-stock attempt may be recorded in command_receipts without creating a partial reservation. Unique (org_id, sales_order_ref, source_order_revision) is also a cancellation fence: if cancel arrives before reserve, create a CANCELLED tombstone with zero lines. Concurrent reserve/cancel must lock/serialize that unique identity even before a row exists. A late reserve must return cancelled and never add lines to this tombstone. Source input revision remains stable across Sales status changes. Enforce at most one active reservation for (org_id, sales_order_ref) with a future partial unique index over active states as an extra guard against later amendment workflows. Proposed states HELD, PARTIALLY_DISPATCHED, DISPATCHED, RELEASED, EXPIRED, CANCELLED. Full cancellation before any handoff locks reservation and dispatches, cancels DRAFT/PREPARED dispatches, releases remaining holds and emits events in one transaction. No whole-order cancel after the first handoff. Optional expiry needs the same locking/release discipline and must never expire dispatched stock or race a prepared handoff; reallocation after expiry requires a future explicit lifecycle, not a silent new reservation for the same input revision.'''
+}
+
+Table public.reservation_lines {
+  id uuid [pk]
+  org_id uuid [not null]
+  reservation_id uuid [not null]
+  sales_order_line_ref uuid [not null, note: 'Opaque line UUID from the authorized Sales order snapshot.']
+  product_id uuid [not null]
+  requested_quantity numeric(18,3) [not null]
+  allocated_quantity numeric(18,3) [not null]
+  released_quantity numeric(18,3) [not null, default: 0]
+  dispatched_quantity numeric(18,3) [not null, default: 0]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, reservation_id, id) [unique]
+    (org_id, reservation_id, sales_order_line_ref) [unique]
+    (org_id, product_id)
+  }
+  Note: '''Require requested_quantity > 0, allocated_quantity = requested_quantity in the all-or-nothing MVP, released_quantity >= 0, dispatched_quantity >= 0, and released_quantity + dispatched_quantity <= allocated_quantity. Remaining hold = allocated - released - dispatched. Validate every Sales line belongs to the same source order and matches its approved product/SKU/UOM/quantity. Dispatching fewer units is supported without reducing the original allocation. Do not decrement a balance hold independently from these counters. Cross-row sums need atomic service logic, not only CHECK constraints.'''
+}
+
+Table public.dispatches {
+  id uuid [pk]
+  org_id uuid [not null]
+  dispatch_number varchar(50) [not null]
+  reservation_id uuid [not null]
+  status varchar(30) [not null, default: 'DRAFT']
+  manifest_version integer [not null, default: 1]
+  manifest_hash char(64) [note: 'Frozen canonical lines/SKU/UOM/quantities after PREPARED.']
+  logistics_shipment_ref uuid [note: 'Opaque Logistics shipment UUID received after acceptance of this exact manifest.']
+  logistics_acceptance_ref uuid [note: 'Opaque acceptance/command reference, correlated to the frozen manifest.']
+  carrier_code_snapshot varchar(50) [note: 'Required for handoff; must match the carrier identity from the accepted Logistics manifest.']
+  carrier_name_snapshot varchar(200) [note: 'Carrier business name at the physical handoff, not the customer recipient.']
+  carrier_receiver_name varchar(200) [note: 'Required for handoff; carrier representative who physically accepts the goods.']
+  handoff_proof_document_ref uuid [note: 'Optional opaque Core Document Service reference to a signed handoff record/photo; document ACL still applies.']
+  handoff_event_id uuid [note: 'Stable Warehouse event ID, retained as business evidence; not a cross-database FK.']
+  prepared_at timestamptz
+  handed_over_at timestamptz
+  cancelled_at timestamptz
+  prepared_by_subject varchar(255)
+  handed_over_by_subject varchar(255)
+  version bigint [not null, default: 1]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, reservation_id, id) [unique]
+    (org_id, dispatch_number) [unique]
+    (org_id, logistics_shipment_ref) [unique]
+    (org_id, reservation_id, status)
+  }
+  Note: '''States DRAFT -> PREPARED -> HANDED_OVER, or DRAFT/PREPARED -> CANCELLED. PREPARED freezes a nonempty manifest; Logistics may create/accept a draft but acceptance does not prove physical handoff. While locking the reservation/lines, enforce SUM(PREPARED dispatch-line quantities) + dispatched + released <= allocated for every line. This prevents two prepared manifests claiming the same remaining hold. A changed prepared manifest requires cancellation and a new dispatch. Handoff requires a real authorized Warehouse actor, current state, organization, accepted Logistics reference, exact manifest hash/version, matching nonblank carrier code/name, carrier_receiver_name and a nonfuture physical handed_over_at. Store the carrier snapshots, actor and any handoff proof, then atomically reduce on_hand and reserved, increase dispatched counters, insert negative stock movements, mark HANDED_OVER and write outbox/command receipt. This Warehouse commit is the authoritative physical handoff fact. The event includes the exact dispatch, Sales line references, quantities, carrier identity and physical time; Logistics and Sales only project that evidence. Freeze handoff facts after commit. Lock reservation/dispatch/balances consistently across prepare/cancel/handoff. A repeated handoff never reduces stock again. Logistics becomes HANDED_OVER only after verifying the Warehouse event. Customer delivery tracking is outside this demo. No distributed ACID transaction is claimed; incomplete cross-app acceptance is reconciled.'''
+}
+
+Table public.dispatch_lines {
+  id uuid [pk]
+  org_id uuid [not null]
+  dispatch_id uuid [not null]
+  reservation_id uuid [not null, note: 'Repeated intentionally to enforce same-reservation parent/line membership with composite FKs.']
+  reservation_line_id uuid [not null]
+  line_no integer [not null]
+  quantity numeric(18,3) [not null]
+  created_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, dispatch_id, line_no) [unique]
+    (org_id, dispatch_id, reservation_line_id) [unique]
+  }
+  Note: '''Require line_no > 0 and quantity > 0. Product, UOM and source Sales line resolve through the referenced reservation line. Composite FKs ensure the dispatch and reservation line belong to the same reservation and organization. Enforce preparation/handoff quantity caps while locking the relevant reservation lines; a sum across multiple dispatches cannot be enforced by this row alone. DRAFT lines may change; PREPARED/HANDED_OVER lines are immutable.'''
+}
+
+Table public.stock_movements {
+  id uuid [pk]
+  org_id uuid [not null]
+  warehouse_id uuid [not null]
+  product_id uuid [not null]
+  movement_type varchar(20) [not null]
+  quantity_delta numeric(18,3) [not null]
+  goods_receipt_line_id uuid
+  dispatch_line_id uuid
+  actor_subject varchar(255) [not null]
+  correlation_id uuid [not null]
+  occurred_at timestamptz [not null]
+  recorded_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, goods_receipt_line_id) [unique]
+    (org_id, dispatch_line_id) [unique]
+    (org_id, warehouse_id, product_id, occurred_at)
+  }
+  Note: '''Append-only on-hand ledger. RECEIPT: quantity_delta > 0, receipt line required, dispatch line null; quantity equals accepted receipt quantity. DISPATCH: quantity_delta < 0, dispatch line required, receipt line null; absolute quantity equals handed-over dispatch quantity. Validate line product/warehouse against its parent document; require referenced document to become POSTED/HANDED_OVER in the same transaction. Unique origin-line keys prevent duplicate physical stock effects. With all opening stock recorded as receipts, balance on_hand equals SUM(quantity_delta). Hold/release changes reserved only and do not create on-hand movements. Direct corrections/returns/reversals need a future explicit process, never UPDATE/DELETE of this ledger.'''
+}
+
+Table public.command_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  scope varchar(180) [not null, note: 'Operation plus target resource, e.g. warehouse.handoff_dispatch:<UUID>.']
+  idempotency_key varchar(128) [not null]
+  actor_subject varchar(255) [not null]
+  request_hash char(64) [not null]
+  status varchar(20) [not null, default: 'PROCESSING']
+  resource_type varchar(80)
+  resource_id uuid
+  response_status integer
+  response_body jsonb
+  error_code varchar(80)
+  created_at timestamptz [not null]
+  completed_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, scope, idempotency_key) [unique]
+  }
+  Note: '''Technical table owned by Warehouse. States PROCESSING, SUCCEEDED, FAILED. Request hash covers canonical command input and its resource identity. Authorize the caller before returning a cached response; bind reuse to the authorized actor/scope. Same key with a different hash is a conflict. Final command receipt, business writes and outbox creation commit in one local transaction. A retry returns the same committed result. Concurrent duplicate work must lock/claim the receipt. Do not expose response_body through public datasets; it may contain customer data.'''
+}
+
+Table public.outbox_events {
+  id uuid [pk, note: 'Stable event ID reused across every integration retry.']
+  org_id uuid [not null]
+  event_type varchar(100) [not null]
+  event_schema_version integer [not null, default: 1]
+  aggregate_type varchar(80) [not null]
+  aggregate_id uuid [not null]
+  aggregate_version bigint [not null]
+  business_key varchar(150) [not null]
+  correlation_id uuid [not null]
+  causation_id uuid
+  payload jsonb [not null]
+  payload_hash char(64) [not null]
+  status varchar(20) [not null, default: 'PENDING']
+  attempt_count integer [not null, default: 0]
+  next_attempt_at timestamptz
+  locked_by varchar(128)
+  locked_until timestamptz
+  last_error_code varchar(80)
+  occurred_at timestamptz [not null]
+  published_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, aggregate_type, aggregate_id, aggregate_version, event_type) [unique]
+    (status, next_attempt_at)
+  }
+  Note: '''At-least-once integration delivery, not a cross-database transaction. Insert with the business mutation, then a polling worker publishes/retries using a lease. PUBLISHED means destination accepted the event, not that every business process completed. Persist organization, stable IDs, schema/version and only authorized minimal payload. Require positive versions and nonnegative attempt_count. No secrets in payload. Recovery must reconcile unresolved commands and must not generate new event IDs for retries.'''
+}
+
+Table public.inbox_receipts {
+  id uuid [pk]
+  org_id uuid [not null]
+  producer_app varchar(50) [not null]
+  event_id uuid [not null]
+  event_type varchar(100) [not null]
+  event_schema_version integer [not null, default: 1]
+  consumer varchar(100) [not null]
+  payload jsonb [not null, note: 'Private, scoped minimal event body for durable DEFERRED/FAILED retry; never a public dataset.']
+  payload_hash char(64) [not null]
+  aggregate_type varchar(80) [not null]
+  aggregate_id uuid [not null]
+  aggregate_version bigint [not null]
+  status varchar(20) [not null, default: 'RECEIVED']
+  attempt_count integer [not null, default: 0]
+  next_attempt_at timestamptz
+  last_error_code varchar(80)
+  received_at timestamptz [not null]
+  processed_at timestamptz
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, producer_app, event_id, consumer) [unique]
+    (org_id, producer_app, aggregate_type, aggregate_id, aggregate_version)
+    (status, next_attempt_at)
+  }
+  Note: '''Verify sender, org_id, schema, payload hash and consumer permission before handling. Persist the minimal authorized payload and receipt before acknowledging acceptance; this allows durable DEFERRED/FAILED retry after the producer marks its outbox PUBLISHED. Acceptance is not business completion. Payload is private, contains no credentials, and follows a defined retention/access policy; do not copy unrestricted remote data. States RECEIVED, PROCESSING, PROCESSED, DEFERRED, FAILED. Duplicate event ID with identical hash returns the existing outcome; a different hash is rejected. Deduplication, domain writes, derived local outbox and PROCESSED marker commit atomically. An event/version gap is deferred or reconciled; never silently discard an unapplied quantity delta. Receipt status alone does not establish event ordering.'''
+}
+
+
+
+Ref: public.inventory_balances.(org_id, warehouse_id) > public.warehouses.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.inventory_balances.(org_id, product_id) > public.products.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.goods_receipts.(org_id, warehouse_id) > public.warehouses.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.goods_receipt_lines.(org_id, receipt_id) > public.goods_receipts.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.goods_receipt_lines.(org_id, product_id) > public.products.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.reservations.(org_id, warehouse_id) > public.warehouses.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.reservation_lines.(org_id, reservation_id) > public.reservations.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.reservation_lines.(org_id, product_id) > public.products.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.dispatches.(org_id, reservation_id) > public.reservations.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.dispatch_lines.(org_id, reservation_id, dispatch_id) > public.dispatches.(org_id, reservation_id, id) [delete: restrict, update: restrict]
+Ref: public.dispatch_lines.(org_id, reservation_id, reservation_line_id) > public.reservation_lines.(org_id, reservation_id, id) [delete: restrict, update: restrict]
+Ref: public.stock_movements.(org_id, warehouse_id, product_id) > public.inventory_balances.(org_id, warehouse_id, product_id) [delete: restrict, update: restrict]
+Ref: public.stock_movements.(org_id, goods_receipt_line_id) > public.goods_receipt_lines.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.stock_movements.(org_id, dispatch_line_id) > public.dispatch_lines.(org_id, id) [delete: restrict, update: restrict]

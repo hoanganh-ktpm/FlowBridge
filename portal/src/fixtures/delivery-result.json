@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "run_id": "demo_delivery_001",
+  "answer": "Dữ liệu giả lập: DEMO-S01 có 3/15 đơn đã nhận đủ bị trễ, tương đương 20%. Chỉ dùng để xem giao diện.",
+  "datasets": [
+    {
+      "id": "delivery_counts",
+      "title": "Tiến độ giao hàng — DEMO-S01",
+      "columns": [
+        {
+          "field": "delivery_status",
+          "label": "Tình trạng giao hàng",
+          "type": "string"
+        },
+        {
+          "field": "order_count",
+          "label": "Số đơn đặt hàng",
+          "type": "integer",
+          "unit": "đơn đặt hàng"
+        }
+      ],
+      "rows": [
+        {
+          "delivery_status": "Nhận đủ đúng hạn",
+          "order_count": 12
+        },
+        {
+          "delivery_status": "Nhận đủ trễ hạn",
+          "order_count": 3
+        },
+        {
+          "delivery_status": "Chưa nhận đủ, quá hạn",
+          "order_count": 1
+        },
+        {
+          "delivery_status": "Chưa nhận đủ, chưa quá hạn",
+          "order_count": 2
+        },
+        {
+          "delivery_status": "Thiếu dữ liệu lịch giao",
+          "order_count": 0
+        }
+      ],
+      "context": {
+        "as_of": "2026-10-08T00:00:00Z",
+        "period_from": "2026-10-01",
+        "period_to": "2026-10-07",
+        "complete": true,
+        "count_unit": "đơn đặt hàng",
+        "metric_definition": "Dữ liệu tổng hợp phục vụ preview. Mỗi đơn giả lập chỉ thuộc một nhóm trạng thái.",
+        "denominator_definition": "Tỷ lệ trễ = đơn nhận đủ trễ / tổng đơn đã nhận đủ."
+      },
+      "source_ids": [
+        "delivery_source"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "id": "delivery_table",
+      "title": "Số đơn theo tình trạng",
+      "dataset_id": "delivery_counts",
+      "fields": [
+        "delivery_status",
+        "order_count"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "delivery_chart",
+      "title": "Tiến độ giao hàng — DEMO-S01",
+      "dataset_id": "delivery_counts",
+      "type": "bar",
+      "orientation": "horizontal",
+      "stacking": "none",
+      "x_field": "delivery_status",
+      "x_label": "Tình trạng",
+      "y_label": "Số đơn đặt hàng",
+      "y_unit": "đơn đặt hàng",
+      "series": [
+        {
+          "field": "order_count",
+          "label": "Số đơn đặt hàng"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "delivery_source",
+      "kind": "tool",
+      "tool": "demo_delivery_statistics",
+      "title": "Nguồn giả lập cho giao diện"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "EXAMPLE_DATA",
+      "message": "Dữ liệu tổng hợp, không phải kết quả truy vấn hoặc dữ liệu nghiệp vụ thực."
+    }
+  ],
+  "questions": [],
+  "error": null
+}

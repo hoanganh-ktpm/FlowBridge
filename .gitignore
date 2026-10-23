@@ -1,7 +1,7 @@
 # FlowBridge project configuration: GPL-3.0-or-later; see LICENSE.
+/_archive/
 .venv/
 .tools/
-langflow/data/
 .codegraph/
 .cache/
 .tmp/
@@ -27,10 +27,38 @@ test-results/
 .DS_Store
 Thumbs.db
 
-# Local RAG verification reports and generated results.
-docs/rag-*-report.md
-docs/rag-supabase-verification.md
-examples/rag/*_results.json
-examples/rag/supabase_http_readiness.json
-examples/rag/supabase_retrieval_latency.json
-examples/rag/seed_validation.json
+# Local web references and design experiments; excluded from source submissions.
+/portal/ref/
+
+# Local operational notes and externally supplied reference documents.
+/docs/CHECKPOINT.md
+/AGENTS.md
+/docs/HASURA_AUDIT.md
+/docs/reference/
+/infra/postgres/*.local.json
+/.venv-dxos/
+
+# Credentials, certificates and runtime data.
+*.key
+*.pem
+*.p12
+*.pfx
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+backups/
+uploads/
+
+# Model weights and generated coverage.
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+coverage/
+.nyc_output/
+
+# Generated contract manuals; distributed separately from source.
+/output/pdf/

@@ -1,0 +1,1206 @@
+openapi: "3.1.1"
+info:
+  title: "FlowBridge Core API"
+  version: "0.2.0"
+  description: >-
+    P0 identity bindings and registry, declarative onboarding, governed data sharing; P1 Operation/Tool
+    registry. No business rows are stored centrally. Specification, not runtime evidence.
+  license: {"name":"GPL-3.0-or-later","identifier":"GPL-3.0-or-later"}
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+servers: [{"url":"/"}]
+x-contract-status: "REVIEW_CANDIDATE"
+x-database-alignment: "PENDING_DB_ALIGNMENT"
+security: [{"bearerAuth":[]}]
+paths:
+  "/api/v1/core/me":
+    get:
+      operationId: "getMyContext"
+      summary: "Resolve current caller identity and memberships"
+      description: >-
+        Authentication does not infer department or authorize resources. This endpoint does not accept
+        caller-chosen context.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "SELF_IDENTITY"
+      x-authorization: >-
+        Verified ACTIVE caller may read only their own resolved identity context. Core resolves
+        platform_role from trusted principal state; request headers/body, group names and membership_role
+        cannot assert DX-OS management authority.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/ResolvedIdentityContext"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/principals":
+    post:
+      operationId: "createPrincipal"
+      summary: "Register principal"
+      description: "Register principal"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/PrincipalProvision"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Principal"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listPrincipals"
+      summary: "List visible principals"
+      description: >-
+        Opaque cursor bound to current caller/filter/sort, ordered by created_at,id ascending. Authorization
+        rechecked on every page.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/PrincipalPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/principals/{principal_id}":
+    parameters:
+      -
+        name: "principal_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getPrincipal"
+      summary: "Get visible principal"
+      description: "Get visible principal"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Principal"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    patch:
+      operationId: "patchPrincipal"
+      summary: "Update principal with revision guard"
+      description: >-
+        Durable idempotency, compare-and-set expected_revision and audit in the owning Core transaction.
+        Resource identity cannot be reassigned.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/PrincipalPatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Principal"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/departments":
+    post:
+      operationId: "createDepartment"
+      summary: "Register department"
+      description: "Register department"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/DepartmentCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Department"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listDepartments"
+      summary: "List visible departments"
+      description: >-
+        Opaque cursor bound to current caller/filter/sort, ordered by created_at,id ascending. Authorization
+        rechecked on every page.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/DepartmentPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/departments/{department_id}":
+    parameters:
+      -
+        name: "department_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getDepartment"
+      summary: "Get visible department"
+      description: "Get visible department"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Department"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    patch:
+      operationId: "patchDepartment"
+      summary: "Update department with revision guard"
+      description: >-
+        Durable idempotency, compare-and-set expected_revision and audit in the owning Core transaction.
+        Resource identity cannot be reassigned.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/DepartmentPatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Department"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/applications":
+    post:
+      operationId: "createApplication"
+      summary: "Register application"
+      description: "Register application"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/ApplicationCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Application"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listApplications"
+      summary: "List visible applications"
+      description: >-
+        Opaque cursor bound to current caller/filter/sort, ordered by created_at,id ascending. Authorization
+        rechecked on every page.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/ApplicationPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/applications/{application_id}":
+    parameters:
+      -
+        name: "application_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getApplication"
+      summary: "Get visible application"
+      description: "Get visible application"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Application"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    patch:
+      operationId: "patchApplication"
+      summary: "Update application with revision guard"
+      description: >-
+        Durable idempotency, compare-and-set expected_revision and audit in the owning Core transaction.
+        Resource identity cannot be reassigned.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/ApplicationPatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Application"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/data-sources":
+    post:
+      operationId: "createSource"
+      summary: "Register source"
+      description: "Register source"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/SourceCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Source"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listSources"
+      summary: "List visible data-sources"
+      description: >-
+        Opaque cursor bound to current caller/filter/sort, ordered by created_at,id ascending. Authorization
+        rechecked on every page.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/SourcePage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/data-sources/{data_source_id}":
+    parameters:
+      -
+        name: "data_source_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getSource"
+      summary: "Get visible source"
+      description: "Get visible source"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Source"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    patch:
+      operationId: "patchSource"
+      summary: "Update source with revision guard"
+      description: >-
+        Durable idempotency, compare-and-set expected_revision and audit in the owning Core transaction.
+        Resource identity cannot be reassigned.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/SourcePatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Source"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/departments/{department_id}/memberships":
+    parameters:
+      -
+        name: "department_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "createMembership"
+      summary: "Create a department membership"
+      description: >-
+        Unique principal/department. Existing pair returns 409 regardless of state; restore a revoked
+        membership through PATCH with expected_revision. Membership labels and caller-provided group names
+        do not grant DX-OS administration rights.
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/MembershipUpsert"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Membership"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listMemberships"
+      summary: "List visible department memberships"
+      description: "List visible department memberships"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/MembershipPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/core/memberships/{membership_id}":
+    parameters:
+      -
+        name: "membership_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    patch:
+      operationId: "patchMembership"
+      summary: "Update membership with revision guard"
+      description: "Update membership with revision guard"
+      tags: ["Registry"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/MembershipPatch"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./core-api.openapi.yaml#/components/schemas/Membership"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/application-onboarding/validate": {"$ref":"./application-onboarding.yaml#/paths/~1api~1v1~1core~1application-onboarding~1validate"}
+  "/api/v1/core/application-onboarding/plans": {"$ref":"./application-onboarding.yaml#/paths/~1api~1v1~1core~1application-onboarding~1plans"}
+  "/api/v1/core/application-onboarding/imports": {"$ref":"./application-onboarding.yaml#/paths/~1api~1v1~1core~1application-onboarding~1imports"}
+  "/api/v1/core/data-products": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products"}
+  "/api/v1/core/data-products/{data_product_id}": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}"}
+  "/api/v1/core/data-products/{data_product_id}/publish": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}~1publish"}
+  "/api/v1/core/data-products/{data_product_id}/disable": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}~1disable"}
+  "/api/v1/core/data-sources/{data_source_id}/connect": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-sources~1{data_source_id}~1connect"}
+  "/api/v1/core/data-sources/{data_source_id}/schema": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-sources~1{data_source_id}~1schema"}
+  "/api/v1/core/data-products/{data_product_id}/contracts": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}~1contracts"}
+  "/api/v1/core/data-contracts/{contract_version_id}": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-contracts~1{contract_version_id}"}
+  "/api/v1/core/data-contracts/{contract_version_id}/publish": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-contracts~1{contract_version_id}~1publish"}
+  "/api/v1/core/access-requests": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-requests"}
+  "/api/v1/core/access-requests/{access_request_id}": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-requests~1{access_request_id}"}
+  "/api/v1/core/access-requests/{access_request_id}/approve": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-requests~1{access_request_id}~1approve"}
+  "/api/v1/core/access-requests/{access_request_id}/reject": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-requests~1{access_request_id}~1reject"}
+  "/api/v1/core/access-requests/{access_request_id}/cancel": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-requests~1{access_request_id}~1cancel"}
+  "/api/v1/core/access-grants": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-grants"}
+  "/api/v1/core/access-grants/{access_grant_id}": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-grants~1{access_grant_id}"}
+  "/api/v1/core/access-grants/{access_grant_id}/revoke": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1access-grants~1{access_grant_id}~1revoke"}
+  "/api/v1/core/publication-jobs/{job_id}": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1publication-jobs~1{job_id}"}
+  "/api/v1/core/audit-events": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1audit-events"}
+  "/api/v1/core/data-products/{data_product_id}/rows": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}~1rows"}
+  "/api/v1/core/operations": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operations"}
+  "/api/v1/core/operations/{operation_id}": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operations~1{operation_id}"}
+  "/api/v1/core/operations/{operation_id}/activate": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operations~1{operation_id}~1activate"}
+  "/api/v1/core/operations/{operation_id}/disable": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operations~1{operation_id}~1disable"}
+  "/api/v1/core/tools": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1tools"}
+  "/api/v1/core/tools/{tool_id}": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1tools~1{tool_id}"}
+  "/api/v1/core/tools/{tool_id}/activate": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1tools~1{tool_id}~1activate"}
+  "/api/v1/core/tools/{tool_id}/disable": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1tools~1{tool_id}~1disable"}
+  "/api/v1/core/operations/{operation_id}/permissions": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operations~1{operation_id}~1permissions"}
+  "/api/v1/core/operation-permissions/{permission_id}/revoke": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operation-permissions~1{permission_id}~1revoke"}
+  "/api/v1/core/agents/{agent_id}/tools/{tool_id}": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1agents~1{agent_id}~1tools~1{tool_id}"}
+  "/api/v1/core/agents/{agent_id}/tools": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1agents~1{agent_id}~1tools"}
+  "/api/v1/core/data-contracts/{contract_version_id}/retire": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-contracts~1{contract_version_id}~1retire"}
+components:
+  securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}
+  schemas:
+    PrincipalProvision:
+      type: "object"
+      additionalProperties: false
+      required: ["issuer","subject"]
+      properties: {"issuer":{"type":"string","format":"uri"},"subject":{"type":"string","minLength":1,"maxLength":255}}
+    Principal:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "issuer"
+        - "subject"
+        - "kind"
+        - "display_name"
+        - "service_client_id"
+        - "application_id"
+        - "platform_role"
+        - "status"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        issuer: {"type":"string","format":"uri"}
+        subject: {"type":"string","minLength":1,"maxLength":255}
+        kind: {"type":"string","enum":["human","service"]}
+        display_name: {"anyOf":[{"type":"string","minLength":1,"maxLength":200},{"type":"null"}]}
+        service_client_id: {"anyOf":[{"type":"string","minLength":1,"maxLength":200},{"type":"null"}]}
+        application_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        platform_role: {"type":"string","enum":["NONE","PLATFORM_ADMIN"]}
+        status: {"type":"string","enum":["ACTIVE","DISABLED"]}
+      allOf:
+        -
+          if: {"properties":{"kind":{"const":"human"}}}
+          then: {"properties":{"service_client_id":{"type":"null"},"application_id":{"type":"null"}}}
+        -
+          if: {"properties":{"kind":{"const":"service"}}}
+          then: {"properties":{"service_client_id":{"type":"string","minLength":1,"maxLength":200}}}
+    PrincipalPatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        display_name: {"anyOf":[{"type":"string","minLength":1,"maxLength":200},{"type":"null"}]}
+        status: {"type":"string","enum":["ACTIVE","DISABLED"]}
+        platform_role: {"type":"string","enum":["NONE","PLATFORM_ADMIN"]}
+        application_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+      minProperties: 2
+      description: >-
+        Trusted admin only. Issuer/subject/kind/client binding immutable. Service application binding is
+        IdP/config validated; human application_id must remain null.
+    DepartmentCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["code","name"]
+      properties:
+        code: {"$ref":"./common.openapi.yaml#/components/schemas/LogicalKey"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+    Department:
+      type: "object"
+      additionalProperties: false
+      required: ["id","created_at","updated_at","created_by","updated_by","revision","code","name","description","status"]
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        code: {"$ref":"./common.openapi.yaml#/components/schemas/LogicalKey"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        status: {"type":"string","enum":["ACTIVE","DISABLED"]}
+    DepartmentPatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        status: {"type":"string","enum":["ACTIVE","DISABLED"]}
+      minProperties: 2
+    MembershipUpsert:
+      type: "object"
+      additionalProperties: false
+      required: ["principal_id","membership_role"]
+      properties:
+        principal_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        membership_role: {"type": "string", "enum": ["STAFF", "OWNER"], "description": "Organizational label retained for Core DB v0.2 compatibility. STAFF and legacy OWNER confer no DX-OS management, publication or approval rights."}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+    Membership:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "principal_id"
+        - "department_id"
+        - "membership_role"
+        - "status"
+        - "expires_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        principal_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        membership_role: {"type": "string", "enum": ["STAFF", "OWNER"], "description": "Organizational label retained for Core DB v0.2 compatibility. STAFF and legacy OWNER confer no DX-OS management, publication or approval rights."}
+        status: {"type":"string","enum":["ACTIVE","REVOKED"]}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+    MembershipPatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        membership_role: {"type": "string", "enum": ["STAFF", "OWNER"], "description": "Organizational label retained for Core DB v0.2 compatibility. STAFF and legacy OWNER confer no DX-OS management, publication or approval rights."}
+        status: {"type":"string","enum":["ACTIVE","REVOKED"]}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+      minProperties: 2
+    ApplicationCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["department_id","app_key","name"]
+      properties:
+        department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        app_key: {"$ref":"./common.openapi.yaml#/components/schemas/LogicalKey"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        business_api_base_url: {"anyOf":[{"type":"string","format":"uri","pattern":"^https://"},{"type":"null"}]}
+    Application:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "department_id"
+        - "app_key"
+        - "name"
+        - "description"
+        - "business_api_base_url"
+        - "status"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        app_key: {"$ref":"./common.openapi.yaml#/components/schemas/LogicalKey"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        business_api_base_url: {"anyOf":[{"type":"string","format":"uri"},{"type":"null"}]}
+        status: {"type":"string","enum":["DRAFT","ACTIVE","DISABLED"]}
+    ApplicationPatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        name: {"type":"string","minLength":1,"maxLength":200}
+        description: {"anyOf":[{"type":"string","minLength":1,"maxLength":2000},{"type":"null"}]}
+        business_api_base_url: {"anyOf":[{"type":"string","format":"uri","pattern":"^https://"},{"type":"null"}]}
+        status: {"type":"string","enum":["DRAFT","ACTIVE","DISABLED"]}
+      minProperties: 2
+      description: >-
+        Cannot change base URL or move ACTIVE to DRAFT while ACTIVE BUSINESS_API operations reference it.
+        DISABLED denies new execution; reactivation revalidates endpoint policy.
+    SourceCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["application_id","source_key","db_type","host","port","database_name","db_user","secret_ref"]
+      properties:
+        application_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        source_key: {"$ref":"./common.openapi.yaml#/components/schemas/QualifiedKey"}
+        db_type: {"const":"POSTGRESQL"}
+        host: {"type":"string","minLength":1,"maxLength":253,"pattern":"^[A-Za-z0-9][A-Za-z0-9.-]*$"}
+        port: {"type":"integer","minimum":1,"maximum":65535}
+        database_name: {"type":"string","minLength":1,"maxLength":63,"pattern":"^[A-Za-z0-9_-]+$"}
+        db_user: {"type":"string","minLength":1,"maxLength":100,"pattern":"^[A-Za-z0-9_.-]+$"}
+        secret_ref: {"$ref":"./common.openapi.yaml#/components/schemas/SecretReference"}
+        ssl_mode: {"type":"string","enum":["verify-full","verify-ca","require"],"default":"verify-full"}
+      description: >-
+        Admin-only approved connection proposal. No password/DSN. Server generates hasura_source_name; P0
+        rejects disable TLS, validates host/egress and complete connection tuple against secret binding.
+    SourcePatch:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        host: {"type":"string","minLength":1,"maxLength":253,"pattern":"^[A-Za-z0-9][A-Za-z0-9.-]*$"}
+        port: {"type":"integer","minimum":1,"maximum":65535}
+        database_name: {"type":"string","minLength":1,"maxLength":63}
+        db_user: {"type":"string","minLength":1,"maxLength":100}
+        secret_ref: {"$ref":"./common.openapi.yaml#/components/schemas/SecretReference"}
+        ssl_mode: {"type":"string","enum":["verify-full","verify-ca","require"]}
+      minProperties: 2
+      description: >-
+        Connection changes require explicit reconnect and invalidate discovery/plan approval. Reject while
+        live products/grants depend on the source. Server-generated source identity is immutable.
+    Source:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "created_at"
+        - "updated_at"
+        - "created_by"
+        - "updated_by"
+        - "revision"
+        - "application_id"
+        - "source_key"
+        - "db_type"
+        - "hasura_source_name"
+        - "status"
+        - "last_checked_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        created_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        updated_by: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        application_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        source_key: {"$ref":"./common.openapi.yaml#/components/schemas/QualifiedKey"}
+        db_type: {"const":"POSTGRESQL"}
+        hasura_source_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
+        status: {"type":"string","enum":["DRAFT","VALIDATING","CONNECTED","FAILED","DISABLED"]}
+        last_checked_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+      description: "Redacted read DTO: never return host, port, database_name, db_user, secret_ref or environment bindings."
+    ResolvedMembership:
+      type: "object"
+      additionalProperties: false
+      required: ["department_id","membership_role","status","expires_at","department_status"]
+      properties:
+        department_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        membership_role: {"type": "string", "enum": ["STAFF", "OWNER"], "description": "Organizational label retained for Core DB v0.2 compatibility. STAFF and legacy OWNER confer no DX-OS management, publication or approval rights."}
+        status: {"type":"string","enum":["ACTIVE","REVOKED"]}
+        expires_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        department_status: {"type":"string","enum":["ACTIVE","DISABLED"]}
+    ResolvedIdentityContext:
+      type: "object"
+      additionalProperties: false
+      required: ["verified_identity","principal_id","principal_status","platform_role","application_id","memberships"]
+      properties:
+        verified_identity: {"$ref":"./identity-context.schema.json"}
+        principal_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        principal_status: {"type":"string","enum":["ACTIVE","DISABLED"]}
+        platform_role: {"type":"string","enum":["NONE","PLATFORM_ADMIN"]}
+        application_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+        memberships:
+          type: "array"
+          items: {"$ref":"./core-api.openapi.yaml#/components/schemas/ResolvedMembership"}
+          minItems: 0
+          maxItems: 100
+      description: >-
+        Trusted resolver output only, never request authorization input. Core resolves platform_role from
+        trusted principal state. PLATFORM_ADMIN controls DX-OS management; STAFF/OWNER memberships are
+        organization/read-grant bindings only, never management authority. Data access and business
+        operations remain independently authorized.
+      allOf:
+        -
+          if: {"properties":{"verified_identity":{"properties":{"account_type":{"const":"human"}}}}}
+          then: {"properties":{"application_id":{"type":"null"}}}
+        -
+          if: {"properties":{"verified_identity":{"properties":{"account_type":{"const":"service"}}}}}
+          then:
+            properties: {"verified_identity":{"properties":{"client_id":{"type":"string","minLength":1,"maxLength":200}}}}
+    PrincipalPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./core-api.openapi.yaml#/components/schemas/Principal"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    DepartmentPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./core-api.openapi.yaml#/components/schemas/Department"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    ApplicationPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./core-api.openapi.yaml#/components/schemas/Application"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    SourcePage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./core-api.openapi.yaml#/components/schemas/Source"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    MembershipPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./core-api.openapi.yaml#/components/schemas/Membership"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+tags: [{"name":"Registry"},{"name":"ApplicationOnboarding"},{"name":"DataGovernance"},{"name":"Operations"}]

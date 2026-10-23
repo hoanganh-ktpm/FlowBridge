@@ -1,0 +1,347 @@
+openapi: "3.1.1"
+info:
+  title: "FlowBridge Logistics API"
+  version: "0.2.0"
+  description: >-
+    PROPOSED P1 Order Fulfillment contract. Business DTOs and database schema require owner
+    confirmation. No claim that tables, transactions, migrations or runtime exist.
+  license: {"name":"GPL-3.0-or-later","identifier":"GPL-3.0-or-later"}
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+servers: [{"url":"/"}]
+x-contract-status: "REVIEW_CANDIDATE"
+x-database-alignment: "PENDING_DB_ALIGNMENT"
+security: [{"bearerAuth":[]}]
+paths:
+  "/api/v1/logistics/shipments":
+    post:
+      operationId: "createShipment"
+      summary: "createShipment"
+      description: >-
+        Durable run fencing before accepting create; coordinator drains/reconciles already accepted creates
+        during compensation. A preflight run-status check alone cannot cancel a request that will commit
+        later.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Verified scoped workflow service bound to this order and current run; receiver checks delegation,
+        resource ownership, fencing and business evidence. UUIDs in input are not authorization. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/ShipmentCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/Shipment"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listShipments"
+      summary: "listShipments"
+      description: "created_at,id ascending. Empty lookup does not prove absence of an in-flight create."
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Logistics reader or scoped workflow service; exact filters support outcome lookup. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        -
+          name: "reservation_id"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        -
+          name: "order_id"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/ShipmentPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/logistics/shipments/{shipment_id}":
+    parameters:
+      -
+        name: "shipment_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getShipment"
+      summary: "getShipment"
+      description: "getShipment"
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Logistics reader or resource-scoped evidence consumer. DX-OS PLATFORM_ADMIN management authority
+        does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/Shipment"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/logistics/shipments/{shipment_id}/pickup":
+    parameters:
+      -
+        name: "shipment_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "pickupShipment"
+      summary: "pickupShipment"
+      description: >-
+        CREATED -> IN_TRANSIT only after Warehouse CONSUMED with matching handover_shipment_id. Verify
+        evidence through trusted API boundary.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Authorized Logistics staff/service scoped to this shipment. DX-OS PLATFORM_ADMIN management
+        authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/RevisionCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/Shipment"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/logistics/shipments/{shipment_id}/deliver":
+    parameters:
+      -
+        name: "shipment_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "deliverShipment"
+      summary: "deliverShipment"
+      description: "IN_TRANSIT -> DELIVERED; immutable server timestamps and expected revision guard."
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Authorized Logistics staff/service scoped to this shipment. DX-OS PLATFORM_ADMIN management
+        authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/RevisionCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/Shipment"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/logistics/shipments/{shipment_id}/cancel":
+    parameters:
+      -
+        name: "shipment_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "cancelShipment"
+      summary: "cancelShipment"
+      description: >-
+        CREATED -> CANCELLED only after verified Warehouse RELEASED. No cancel/release after handover;
+        returns outside this profile.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Authorized Logistics compensation capability plus matching resource/run scope. DX-OS PLATFORM_ADMIN
+        management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/ReasonCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./logistics-api.openapi.yaml#/components/schemas/Shipment"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+components:
+  securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}
+  schemas:
+    ShipmentCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["order_id","reservation_id"]
+      properties:
+        order_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        reservation_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      description: >-
+        Workflow service only. Verify Sales CONFIRMED and matching RESERVED/packed reservation. Unique
+        reservation_id across keys, no partial shipments in this proposed profile.
+    Shipment:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "order_id"
+        - "reservation_id"
+        - "tracking_number"
+        - "revision"
+        - "status"
+        - "created_at"
+        - "updated_at"
+        - "picked_up_at"
+        - "delivered_at"
+        - "cancelled_at"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        order_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        reservation_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        tracking_number: {"type":"string","minLength":1,"maxLength":100}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        status: {"type":"string","enum":["CREATED","IN_TRANSIT","DELIVERED","CANCELLED"]}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        picked_up_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        delivered_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        cancelled_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+      allOf:
+        -
+          if: {"properties":{"status":{"const":"IN_TRANSIT"}}}
+          then:
+            properties:
+              picked_up_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              delivered_at: {"type":"null"}
+              cancelled_at: {"type":"null"}
+        -
+          if: {"properties":{"status":{"const":"DELIVERED"}}}
+          then:
+            properties:
+              picked_up_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              delivered_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              cancelled_at: {"type":"null"}
+        -
+          if: {"properties":{"status":{"const":"CANCELLED"}}}
+          then:
+            properties:
+              cancelled_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              picked_up_at: {"type":"null"}
+              delivered_at: {"type":"null"}
+        -
+          if: {"properties":{"status":{"const":"CREATED"}}}
+          then: {"properties":{"picked_up_at":{"type":"null"},"delivered_at":{"type":"null"},"cancelled_at":{"type":"null"}}}
+    ShipmentPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./logistics-api.openapi.yaml#/components/schemas/Shipment"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+x-design-status: "PROPOSED"
+tags: [{"name":"Business"}]

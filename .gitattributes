@@ -9,10 +9,16 @@
 *.json text eol=lf
 *.sha256 text eol=lf
 *.license text eol=lf
+tests/contracts/fixtures/openapi-LICENSE.txt text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
 *.js text eol=lf
 *.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.gitkeep text eol=lf
 *.mjs text eol=lf
 *.sql text eol=lf
 .env.example text eol=lf

@@ -1,0 +1,45 @@
+{
+  "manifest_version": "1.0",
+  "application": {
+    "key": "warehouse",
+    "name": "Warehouse Management",
+    "department_key": "warehouse",
+    "description": "Read-only inventory data products"
+  },
+  "sources": [{
+    "key": "warehouse-pg",
+    "kind": "postgres",
+    "host": "warehouse.example.invalid",
+    "database": "warehouse_db",
+    "username": "dxos_reader",
+    "ssl_mode": "verify-full",
+    "secret_ref": "warehouse-reader"
+  }],
+  "data_products": [{
+    "key": "product_catalog",
+    "source_key": "warehouse-pg",
+    "name": "Product Catalog",
+    "object": {"schema": "public", "name": "product_catalog", "kind": "view"},
+    "fields": [{"column": "sku", "expected_type": "text", "description": "Stable product identifier"},
+               {"column": "name", "description": "Product name"}],
+    "contract_version": "1.0.0",
+    "requested_state": "PUBLISH_REQUESTED"
+  }, {
+    "key": "available_inventory",
+    "source_key": "warehouse-pg",
+    "name": "Available Inventory",
+    "object": {"schema": "public", "name": "stock_available", "kind": "view"},
+    "fields": [{"column": "sku", "expected_type": "text"},
+               {"column": "available_quantity", "expected_type": "integer"}],
+    "relationships": [{
+      "name": "product",
+      "type": "object",
+      "target_product": "product_catalog",
+      "strategy": "manual",
+      "mapping": [{"from": "sku", "to": "sku"}],
+      "uniqueness_ref": "warehouse/catalog-sku-unique"
+    }],
+    "contract_version": "1.0.0",
+    "requested_state": "PUBLISH_REQUESTED"
+  }]
+}

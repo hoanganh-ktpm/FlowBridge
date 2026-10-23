@@ -1,0 +1,425 @@
+{
+  "source": "User-provided DXOS_FlowBridge_API_Contracts_v0.1.1.md endpoint catalog",
+  "operations": [
+    {
+      "method": "get",
+      "path": "/api/v1/core/me",
+      "operationId": "getMyContext"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/principals",
+      "operationId": "createPrincipal"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/principals",
+      "operationId": "listPrincipals"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/principals/{principal_id}",
+      "operationId": "getPrincipal"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/principals/{principal_id}",
+      "operationId": "patchPrincipal"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/departments",
+      "operationId": "createDepartment"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/departments",
+      "operationId": "listDepartments"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/departments/{department_id}",
+      "operationId": "getDepartment"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/departments/{department_id}",
+      "operationId": "patchDepartment"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/applications",
+      "operationId": "createApplication"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/applications",
+      "operationId": "listApplications"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/applications/{application_id}",
+      "operationId": "getApplication"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/applications/{application_id}",
+      "operationId": "patchApplication"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-sources",
+      "operationId": "createSource"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-sources",
+      "operationId": "listSources"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-sources/{data_source_id}",
+      "operationId": "getSource"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/data-sources/{data_source_id}",
+      "operationId": "patchSource"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-products",
+      "operationId": "createProduct"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-products",
+      "operationId": "listProducts"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-products/{data_product_id}",
+      "operationId": "getProduct"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/data-products/{data_product_id}",
+      "operationId": "patchProduct"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/departments/{department_id}/memberships",
+      "operationId": "createMembership"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/departments/{department_id}/memberships",
+      "operationId": "listMemberships"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/memberships/{membership_id}",
+      "operationId": "patchMembership"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-sources/{data_source_id}/connect",
+      "operationId": "connectSource"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-sources/{data_source_id}/schema",
+      "operationId": "discoverSourceSchema"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-products/{data_product_id}/contracts",
+      "operationId": "createDataContract"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-products/{data_product_id}/contracts",
+      "operationId": "listDataContracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-contracts/{contract_version_id}",
+      "operationId": "getDataContract"
+    },
+    {
+      "method": "patch",
+      "path": "/api/v1/core/data-contracts/{contract_version_id}",
+      "operationId": "patchDataContract"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-contracts/{contract_version_id}/publish",
+      "operationId": "publishDataContract"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-products/{data_product_id}/publish",
+      "operationId": "publishDataProduct"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/data-products/{data_product_id}/disable",
+      "operationId": "disableDataProduct"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/access-requests",
+      "operationId": "createAccessRequest"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/access-requests",
+      "operationId": "listAccessRequests"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/access-requests/{access_request_id}",
+      "operationId": "getAccessRequest"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/access-requests/{access_request_id}/approve",
+      "operationId": "approveAccessRequest"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/access-requests/{access_request_id}/reject",
+      "operationId": "rejectAccessRequest"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/access-requests/{access_request_id}/cancel",
+      "operationId": "cancelAccessRequest"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/access-grants",
+      "operationId": "listGrants"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/access-grants/{access_grant_id}",
+      "operationId": "getGrant"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/access-grants/{access_grant_id}/revoke",
+      "operationId": "revokeGrant"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/publication-jobs/{job_id}",
+      "operationId": "getPublicationJob"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/audit-events",
+      "operationId": "listAuditEvents"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/operations",
+      "operationId": "createOperation"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/operations/{operation_id}",
+      "operationId": "getOperation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/operations/{operation_id}/activate",
+      "operationId": "activateOperation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/operations/{operation_id}/disable",
+      "operationId": "disableOperation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/tools",
+      "operationId": "createTool"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/tools/{tool_id}",
+      "operationId": "getTool"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/tools/{tool_id}/activate",
+      "operationId": "activateTool"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/tools/{tool_id}/disable",
+      "operationId": "disableTool"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/operations/{operation_id}/permissions",
+      "operationId": "grantOperationPermission"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/operations/{operation_id}/permissions",
+      "operationId": "listOperationPermissions"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/core/operation-permissions/{permission_id}/revoke",
+      "operationId": "revokeOperationPermission"
+    },
+    {
+      "method": "put",
+      "path": "/api/v1/core/agents/{agent_id}/tools/{tool_id}",
+      "operationId": "bindAgentTool"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/agents/{agent_id}/tools",
+      "operationId": "listAgentToolBindings"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/core/data-products/{data_product_id}/rows",
+      "operationId": "readDataProductRows"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/sales/orders",
+      "operationId": "createOrder"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/sales/orders",
+      "operationId": "listOrders"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/sales/orders/{order_id}",
+      "operationId": "getOrder"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/sales/orders/{order_id}/submit",
+      "operationId": "submitOrder"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/sales/orders/{order_id}/confirm",
+      "operationId": "confirmOrder"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/sales/orders/{order_id}/reject",
+      "operationId": "rejectOrder"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/sales/orders/{order_id}/cancel",
+      "operationId": "cancelOrder"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/sales/orders/{order_id}/fulfill",
+      "operationId": "fulfillOrder"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/warehouse/inventory",
+      "operationId": "listWarehouseInventory"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/warehouse/reservations",
+      "operationId": "reserveStock"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/warehouse/reservations",
+      "operationId": "listReservations"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/warehouse/reservations/{reservation_id}",
+      "operationId": "getReservation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/warehouse/reservations/{reservation_id}/release",
+      "operationId": "releaseReservation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/warehouse/reservations/{reservation_id}/pack",
+      "operationId": "packReservation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/warehouse/reservations/{reservation_id}/handover",
+      "operationId": "handoverReservation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/logistics/shipments",
+      "operationId": "createShipment"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/logistics/shipments",
+      "operationId": "listShipments"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/logistics/shipments/{shipment_id}",
+      "operationId": "getShipment"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/logistics/shipments/{shipment_id}/pickup",
+      "operationId": "pickupShipment"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/logistics/shipments/{shipment_id}/deliver",
+      "operationId": "deliverShipment"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/logistics/shipments/{shipment_id}/cancel",
+      "operationId": "cancelShipment"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/platform/operations/execute",
+      "operationId": "executeRegisteredOperation"
+    },
+    {
+      "method": "post",
+      "path": "/api/v1/platform/workflow-runs",
+      "operationId": "startWorkflowRun"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/platform/workflow-runs",
+      "operationId": "findWorkflowLink"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/platform/workflow-runs/{link_id}",
+      "operationId": "getWorkflowLink"
+    },
+    {
+      "method": "get",
+      "path": "/api/v1/platform/workflow-runs/{link_id}/runtime",
+      "operationId": "getWorkflowRuntime"
+    }
+  ]
+}

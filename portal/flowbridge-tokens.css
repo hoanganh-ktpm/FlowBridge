@@ -1,0 +1,127 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * FlowBridge design tokens, sampled from the project brand logo.
+ * Canonical color specification for the web client and login theme. */
+:root {
+  --fb-brand-navy: #010B2E;
+  --fb-brand-blue: #0865F8;
+  --fb-brand-blue-hover: #0754D8;
+  --fb-brand-blue-pressed: #0647B8;
+  --fb-brand-sky: #088DFB;
+  --fb-brand-cyan: #12B4FB;
+  --fb-brand-purple: #6935FA;
+  --fb-brand-soft-violet: #A887FA;
+  --fb-gradient-brand: linear-gradient(120deg, #12B4FB 0%, #0865F8 52%, #6935FA 100%);
+  --fb-gradient-brand-dark: linear-gradient(120deg, #4AD6FF 0%, #74AAFF 52%, #B396FF 100%);
+  --fb-radius-sm: 8px;
+  --fb-radius-md: 12px;
+  --fb-radius-lg: 18px;
+  --fb-radius-xl: 24px;
+}
+:root, [data-theme="light"] {
+  --fb-background: #F7F7F8;
+  --fb-surface: #FFFFFF;
+  --fb-surface-alt: #F0F0F0;
+  --fb-border: #E5E5E5;
+  --fb-border-strong: #CDCDCD;
+  --fb-text: #242424;
+  --fb-text-muted: #727272;
+  --fb-primary: #252525;
+  --fb-primary-hover: #404040;
+  --fb-primary-pressed: #111111;
+  --fb-on-primary: #FFFFFF;
+  --fb-secondary: #6935FA;
+  --fb-on-secondary: #FFFFFF;
+  --fb-accent: #12B4FB;
+  --fb-on-accent: #0D1A35;
+  --fb-link: #0754D8;
+  --fb-focus-ring: #0865F8;
+  --fb-success: #0F7A43;
+  --fb-warning: #A35A00;
+  --fb-danger: #C62F42;
+  --fb-info: #0754D8;
+  --fb-success-bg: #E8F8F0;
+  --fb-warning-bg: #FFF5E6;
+  --fb-danger-bg: #FDEBEE;
+  --fb-info-bg: #F0F0F0;
+  --fb-on-success-bg: #0F7A43;
+  --fb-on-warning-bg: #8A4B00;
+  --fb-on-danger-bg: #B42338;
+  --fb-on-info-bg: #333333;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --fb-background: #171717;
+  --fb-surface: #212121;
+  --fb-surface-alt: #2F2F2F;
+  --fb-border: #383838;
+  --fb-border-strong: #565656;
+  --fb-text: #ECECEC;
+  --fb-text-muted: #A5A5A5;
+  --fb-primary: #ECECEC;
+  --fb-primary-hover: #FFFFFF;
+  --fb-primary-pressed: #D1D1D1;
+  --fb-on-primary: #171717;
+  --fb-secondary: #B396FF;
+  --fb-on-secondary: #07132D;
+  --fb-accent: #4AD6FF;
+  --fb-on-accent: #07132D;
+  --fb-link: #8AB9FF;
+  --fb-focus-ring: #74AAFF;
+  --fb-success: #4FE29A;
+  --fb-warning: #FFCA72;
+  --fb-danger: #FF8F9E;
+  --fb-info: #8AB9FF;
+  --fb-success-bg: #133C38;
+  --fb-warning-bg: #423018;
+  --fb-danger-bg: #482638;
+  --fb-info-bg: #303030;
+  --fb-on-success-bg: #7CECB2;
+  --fb-on-warning-bg: #FFD79A;
+  --fb-on-danger-bg: #FFB5BF;
+  --fb-on-info-bg: #ECECEC;
+  color-scheme: dark;
+}
+/* Automatic OS preference unless a manual data-theme is chosen. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+  --fb-background: #171717;
+  --fb-surface: #212121;
+  --fb-surface-alt: #2F2F2F;
+  --fb-border: #383838;
+  --fb-border-strong: #565656;
+  --fb-text: #ECECEC;
+  --fb-text-muted: #A5A5A5;
+  --fb-primary: #ECECEC;
+  --fb-primary-hover: #FFFFFF;
+  --fb-primary-pressed: #D1D1D1;
+  --fb-on-primary: #171717;
+  --fb-secondary: #B396FF;
+  --fb-on-secondary: #07132D;
+  --fb-accent: #4AD6FF;
+  --fb-on-accent: #07132D;
+  --fb-link: #8AB9FF;
+  --fb-focus-ring: #74AAFF;
+  --fb-success: #4FE29A;
+  --fb-warning: #FFCA72;
+  --fb-danger: #FF8F9E;
+  --fb-info: #8AB9FF;
+  --fb-success-bg: #133C38;
+  --fb-warning-bg: #423018;
+  --fb-danger-bg: #482638;
+  --fb-info-bg: #303030;
+  --fb-on-success-bg: #7CECB2;
+  --fb-on-warning-bg: #FFD79A;
+  --fb-on-danger-bg: #FFB5BF;
+  --fb-on-info-bg: #ECECEC;
+    color-scheme: dark;
+  }
+}
+/* Minimal optional example classes. Adapt freely to the framework. */
+.fb-app { background: var(--fb-background); color: var(--fb-text); }
+.fb-card { background: var(--fb-surface); border: 1px solid var(--fb-border); border-radius: var(--fb-radius-lg); }
+.fb-button-primary { background: var(--fb-primary); color: var(--fb-on-primary); border: 0; border-radius: var(--fb-radius-md); }
+.fb-button-primary:hover { background: var(--fb-primary-hover); }
+.fb-button-primary:active { background: var(--fb-primary-pressed); }
+.fb-button-primary:focus-visible { outline: 3px solid var(--fb-focus-ring); outline-offset: 3px; }
+.fb-link { color: var(--fb-link); }
+.fb-hero { background: var(--fb-gradient-brand); color: #fff; }

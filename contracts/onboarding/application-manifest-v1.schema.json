@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowbridge.example.invalid/schemas/application-manifest/1.0",
+  "$defs": {
+    "Application": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "department_key": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Department Key",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "department_key"
+      ],
+      "title": "Application",
+      "type": "object"
+    },
+    "JoinColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "title": "JoinColumn",
+      "type": "object"
+    },
+    "PhysicalObject": {
+      "additionalProperties": false,
+      "properties": {
+        "schema": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Schema",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "table",
+            "view"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "name",
+        "kind"
+      ],
+      "title": "PhysicalObject",
+      "type": "object"
+    },
+    "Product": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "source_key": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Source Key",
+          "type": "string"
+        },
+        "object": {
+          "$ref": "#/$defs/PhysicalObject"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/PublishedField"
+          },
+          "minItems": 1,
+          "title": "Fields",
+          "type": "array"
+        },
+        "relationships": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Relationship"
+          },
+          "title": "Relationships",
+          "type": "array"
+        },
+        "contract_version": {
+          "default": "1.0.0",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "requested_state": {
+          "default": "DRAFT",
+          "enum": [
+            "DRAFT",
+            "PUBLISH_REQUESTED"
+          ],
+          "title": "Requested State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "source_key",
+        "object",
+        "fields"
+      ],
+      "title": "Product",
+      "type": "object"
+    },
+    "PublishedField": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Column",
+          "type": "string"
+        },
+        "alias": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alias"
+        },
+        "expected_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "text",
+                "integer",
+                "bigint",
+                "smallint",
+                "numeric",
+                "double precision",
+                "real",
+                "boolean",
+                "uuid",
+                "date",
+                "timestamp",
+                "timestamptz",
+                "json",
+                "jsonb"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Type"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "column"
+      ],
+      "title": "PublishedField",
+      "type": "object"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "object",
+            "array"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "target_product": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}(\\.[a-z][a-z0-9_-]{0,62})?$",
+          "title": "Target Product",
+          "type": "string"
+        },
+        "strategy": {
+          "enum": [
+            "fk",
+            "manual",
+            "remote"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        },
+        "mapping": {
+          "items": {
+            "$ref": "#/$defs/JoinColumn"
+          },
+          "minItems": 1,
+          "title": "Mapping",
+          "type": "array"
+        },
+        "uniqueness_ref": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_./-]{0,199}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uniqueness Ref"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "target_product",
+        "strategy",
+        "mapping"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "const": "postgres",
+          "default": "postgres",
+          "title": "Kind",
+          "type": "string"
+        },
+        "host": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 5432,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "database": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Database",
+          "type": "string"
+        },
+        "username": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.-]+$",
+          "title": "Username",
+          "type": "string"
+        },
+        "ssl_mode": {
+          "default": "verify-full",
+          "enum": [
+            "require",
+            "verify-ca",
+            "verify-full"
+          ],
+          "title": "Ssl Mode",
+          "type": "string"
+        },
+        "secret_ref": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./-]{0,199}$",
+          "title": "Secret Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "host",
+        "database",
+        "username",
+        "secret_ref"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": {
+      "const": "1.0",
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "application": {
+      "$ref": "#/$defs/Application"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    },
+    "data_products": {
+      "items": {
+        "$ref": "#/$defs/Product"
+      },
+      "minItems": 1,
+      "title": "Data Products",
+      "type": "array"
+    }
+  },
+  "required": [
+    "manifest_version",
+    "application",
+    "sources",
+    "data_products"
+  ],
+  "title": "ApplicationManifest",
+  "type": "object"
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VerifiedIdentity",
+  "description": "Internal result of trusted token verification. Client input cannot assert an identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "issuer",
+    "subject",
+    "client_id",
+    "account_type",
+    "scopes"
+  ],
+  "properties": {
+    "issuer": {
+      "type": "string",
+      "format": "uri"
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "client_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "account_type": {
+      "enum": [
+        "human",
+        "service"
+      ]
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  }
+}

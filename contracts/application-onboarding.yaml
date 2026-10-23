@@ -1,0 +1,316 @@
+paths:
+  "/api/v1/core/application-onboarding/validate":
+    post:
+      operationId: "validateApplicationOnboarding"
+      summary: "Validate manifest and canonical contract declarations"
+      description: >-
+        No DB/network/write required. Pydantic semantic rules plus canonical annotations are checked; errors
+        are sanitized and contain no input values. No idempotency record for validation.
+      tags: ["ApplicationOnboarding"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      requestBody:
+        required: true
+        content:
+          "application/json": {"schema":{"$ref":"./application-onboarding.yaml#/components/schemas/OnboardingSubmission"}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./application-onboarding.yaml#/components/schemas/ValidationResult"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/application-onboarding/plans":
+    post:
+      operationId: "planApplicationOnboarding"
+      summary: "Discover and compile a redacted onboarding plan"
+      description: >-
+        STATIC reports unknown facts without network; LIVE requires approved source/secret/host policy and
+        read-only bounded discovery. No registry mutation, tracking or grants.
+        Relationship/cardinality/target publication/access/capability failures remain BLOCKED; equal column
+        names never infer FK. Raw engine plans remain internal.
+      tags: ["ApplicationOnboarding"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./application-onboarding.yaml#/components/schemas/PlanRequest"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./application-onboarding.yaml#/components/schemas/OnboardingPlan"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/core/application-onboarding/imports":
+    post:
+      operationId: "importApplicationDrafts"
+      summary: "Atomically import reviewed application drafts"
+      description: >-
+        Recompile LIVE evidence and compare plan hash before a single Core unit-of-work writes
+        application/source/product/contract drafts and audit plus HTTP idempotency. Any failure rolls back.
+        Repeated key replays safely; a new key with identical declarations is idempotent at resource
+        uniqueness boundaries. IT approves and publishes through contract/product publication commands;
+        source connect and product publish enqueue ordinary publication_jobs. No new onboarding state
+        table/job_type is assumed.
+      tags: ["ApplicationOnboarding"]
+      x-priority: "P0"
+      x-authorization-policy: "IT_ADMIN"
+      x-authorization: >-
+        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
+        across departments: registration, configuration, publish, grant/revoke and audit. No department
+        OWNER membership or separate department approval required. Technical validation, resource state,
+        revision and verification guards still apply; this role does not bypass normal data grants or
+        Business API authorization.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./application-onboarding.yaml#/components/schemas/ImportRequest"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./application-onboarding.yaml#/components/schemas/ImportReceipt"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+components:
+  schemas:
+    ProductContractProposal:
+      type: "object"
+      additionalProperties: false
+      required: ["product_key","version","contract_json"]
+      properties:
+        product_key: {"$ref":"./common.openapi.yaml#/components/schemas/LogicalKey"}
+        version: {"$ref":"./common.openapi.yaml#/components/schemas/SemVer"}
+        contract_json: {"$ref":"./data-contracts.yaml#/components/schemas/DataContractDocument"}
+      description: >-
+        product_key is local to the manifest application and version must match its contract_version.
+        Exactly one proposal per declared product; no silent omission or override.
+    OnboardingSubmission:
+      type: "object"
+      additionalProperties: false
+      required: ["manifest","product_contracts"]
+      properties:
+        manifest: {"$ref":"./onboarding/application-manifest-v1.schema.json"}
+        product_contracts:
+          type: "array"
+          items: {"$ref":"./application-onboarding.yaml#/components/schemas/ProductContractProposal"}
+          minItems: 1
+          maxItems: 100
+      description: >-
+        Unmodified Manifest 1.0 plus explicit semantic/wire annotations; not a new incompatible manifest
+        parser. Canonical fields match manifest column/alias/description and relationships after fully
+        qualifying targets. Physical types are verified by discovery. Enrichment adds grain/business
+        keys/classification, never actor/owner/roles/approval. Unknown or contradictory declarations
+        rejected.
+    ValidationIssue:
+      type: "object"
+      additionalProperties: false
+      required: ["code","path","message","severity"]
+      properties:
+        code: {"type":"string","minLength":1,"maxLength":100}
+        path: {"type":"string","minLength":1,"maxLength":500}
+        message: {"type":"string","minLength":1,"maxLength":1000}
+        severity: {"type":"string","enum":["ERROR","UNKNOWN","APPROVAL"]}
+    ValidationResult:
+      type: "object"
+      additionalProperties: false
+      required: ["valid","manifest_hash","issues"]
+      properties:
+        valid: {"type":"boolean"}
+        manifest_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        issues:
+          type: "array"
+          items: {"$ref":"./application-onboarding.yaml#/components/schemas/ValidationIssue"}
+          minItems: 0
+          maxItems: 1000
+      description: >-
+        Static shape, references and declaration consistency only. valid does not imply schema discovery, IT
+        authorization, persistence or publication.
+    PlanRequest:
+      type: "object"
+      additionalProperties: false
+      required: ["submission"]
+      properties:
+        submission: {"$ref":"./application-onboarding.yaml#/components/schemas/OnboardingSubmission"}
+        discovery_mode: {"type":"string","enum":["STATIC","LIVE"],"default":"STATIC"}
+    PlanStep:
+      type: "object"
+      additionalProperties: false
+      required: ["key","layer","action","verification","operation","target_key","depends_on","blockers","summary"]
+      properties:
+        key: {"$ref":"./application-onboarding.yaml#/components/schemas/PlanKey"}
+        layer: {"type":"string","enum":["CORE","HASURA"]}
+        action: {"type":"string","enum":["CREATE","UPDATE","NO_CHANGE","BLOCKED"]}
+        verification: {"type":"string","enum":["KNOWN","UNKNOWN"]}
+        operation:
+          type: "string"
+          enum:
+            - "REGISTER_APPLICATION"
+            - "REGISTER_SOURCE"
+            - "REGISTER_PRODUCT"
+            - "REGISTER_CONTRACT"
+            - "TRACK_OBJECT"
+            - "CUSTOMIZE_NAMES"
+            - "CREATE_RELATIONSHIP"
+            - "VERIFY_METADATA"
+        target_key: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        depends_on:
+          type: "array"
+          items: {"$ref":"./application-onboarding.yaml#/components/schemas/PlanKey"}
+          minItems: 0
+          maxItems: 100
+        blockers: {"type":"array","items":{"type":"string","minLength":1,"maxLength":200},"minItems":0,"maxItems":100}
+        summary: {"type":"string","minLength":1,"maxLength":1000}
+      description: >-
+        Redacted declarative diff. No raw Hasura commands, connection coordinates, secret refs, env names,
+        admin payload or arbitrary SQL in HTTP plan responses. Internal provisioner retains engine-specific
+        payload.
+    ApprovalRequirement:
+      type: "object"
+      additionalProperties: false
+      required: ["kind","target_key","satisfied"]
+      properties:
+        kind: {"type":"string","enum":["IT_SOURCE_REVIEW","IT_PUBLICATION","TARGET_CONFIGURATION_ACCESS","CARDINALITY_EVIDENCE"]}
+        target_key: {"$ref":"./common.openapi.yaml#/components/schemas/StableKey"}
+        satisfied: {"type":"boolean"}
+      description: "Computed from trusted policy, not a field accepted in submission."
+    OnboardingPlan:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "manifest_hash"
+        - "discovery_hash"
+        - "plan_hash"
+        - "application_key"
+        - "evidence"
+        - "metadata_resource_version"
+        - "valid"
+        - "ready_for_dispatch"
+        - "expires_at"
+        - "steps"
+        - "issues"
+        - "approval_requirements"
+        - "permission_policy"
+      properties:
+        manifest_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        discovery_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        plan_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        application_key: {"$ref":"./common.openapi.yaml#/components/schemas/LogicalKey"}
+        evidence: {"type":"string","enum":["STATIC_UNKNOWN","LIVE_VERIFIED"]}
+        metadata_resource_version: {"anyOf":[{"type":"integer","minimum":1},{"type":"null"}]}
+        valid: {"type":"boolean"}
+        ready_for_dispatch: {"type":"boolean"}
+        expires_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        steps:
+          type: "array"
+          items: {"$ref":"./application-onboarding.yaml#/components/schemas/PlanStep"}
+          minItems: 1
+          maxItems: 1000
+        issues:
+          type: "array"
+          items: {"$ref":"./application-onboarding.yaml#/components/schemas/ValidationIssue"}
+          minItems: 0
+          maxItems: 1000
+        approval_requirements:
+          type: "array"
+          items: {"$ref":"./application-onboarding.yaml#/components/schemas/ApprovalRequirement"}
+          minItems: 0
+          maxItems: 200
+        permission_policy: {"const":"CORE_GRANTS_REQUIRED_NO_PERMISSIONS_GENERATED"}
+      description: >-
+        Plan is not a capability or durable job. Hash binds submission, physical evidence, canonical
+        versions and target revisions. STATIC_UNKNOWN may be structurally valid but is never ready.
+        Import/publication recompile and recheck fresh evidence/policy; expired/stale plan conflicts.
+      allOf:
+        -
+          if: {"properties":{"evidence":{"const":"STATIC_UNKNOWN"}}}
+          then: {"properties":{"ready_for_dispatch":{"const":false}}}
+        - {"if":{"properties":{"valid":{"const":false}}},"then":{"properties":{"ready_for_dispatch":{"const":false}}}}
+    ImportRequest:
+      type: "object"
+      additionalProperties: false
+      required: ["submission","plan_hash","expected_application_revision"]
+      properties:
+        submission: {"$ref":"./application-onboarding.yaml#/components/schemas/OnboardingSubmission"}
+        plan_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        expected_application_revision: {"type":"integer","minimum":0}
+      description: >-
+        0 means create an absent app key; otherwise CAS existing application. Requires a matching fresh LIVE
+        plan and resource policies. Import only drafts; do not execute engine operations or grants.
+    ImportReceipt:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "application_id"
+        - "application_revision"
+        - "manifest_hash"
+        - "data_source_ids"
+        - "data_product_ids"
+        - "contract_version_ids"
+        - "result"
+      properties:
+        application_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        application_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        manifest_hash: {"$ref":"./common.openapi.yaml#/components/schemas/Sha256"}
+        data_source_ids: {"type":"array","items":{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},"minItems":1,"maxItems":100}
+        data_product_ids: {"type":"array","items":{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},"minItems":1,"maxItems":100}
+        contract_version_ids: {"type":"array","items":{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},"minItems":1,"maxItems":100}
+        result: {"const":"DRAFTS_SAVED"}
+      description: >-
+        Durable atomic Core acknowledgement only. Existing unchanged active records are preserved; active
+        configuration drift is blocked. New product/contracts are drafts. No mock persistence success.
+    PlanKey: {"type":"string","minLength":1,"maxLength":250,"pattern":"^[a-z][a-z0-9_.:-]*$"}

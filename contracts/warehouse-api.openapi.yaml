@@ -1,0 +1,420 @@
+openapi: "3.1.1"
+info:
+  title: "FlowBridge Warehouse API"
+  version: "0.2.0"
+  description: >-
+    PROPOSED P1 Order Fulfillment contract. Business DTOs and database schema require owner
+    confirmation. No claim that tables, transactions, migrations or runtime exist.
+  license: {"name":"GPL-3.0-or-later","identifier":"GPL-3.0-or-later"}
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+servers: [{"url":"/"}]
+x-contract-status: "REVIEW_CANDIDATE"
+x-database-alignment: "PENDING_DB_ALIGNMENT"
+security: [{"bearerAuth":[]}]
+paths:
+  "/api/v1/warehouse/inventory":
+    get:
+      operationId: "listWarehouseInventory"
+      summary: "listWarehouseInventory"
+      description: "SKU cursor order; current inventory only, not a reservation guarantee."
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Warehouse-internal reader only; cross-department readers use governed Data Product, not this
+        endpoint. DX-OS PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        - {"name":"sku","in":"query","required":false,"schema":{"$ref":"./common.openapi.yaml#/components/schemas/Sku"}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/InventoryItemPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["sku"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/warehouse/reservations":
+    post:
+      operationId: "reserveStock"
+      summary: "reserveStock"
+      description: >-
+        Transaction locks/conditional updates in stable SKU order; insufficient any SKU rolls back all rows.
+        Verify order lines via Sales API or an equivalent trusted command. No name-based or LLM-supplied
+        business evidence.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Verified scoped workflow service bound to this order and current run; receiver checks delegation,
+        resource ownership, fencing and business evidence. UUIDs in input are not authorization. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/ReservationCreate"}}}
+      responses:
+        "201":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Reservation"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+    get:
+      operationId: "listReservations"
+      summary: "listReservations"
+      description: "Exact order filter supports recovery; an empty list does not prove an in-flight reserve will never commit."
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Warehouse reader or workflow service scoped to the order; include server-visible matches for outcome
+        reconciliation. DX-OS PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
+        -
+          name: "order_id"
+          in: "query"
+          required: false
+          schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/ReservationPage"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+      x-pagination: {"sort":["created_at","id"],"direction":"asc","cursor_bound_to_filters":true}
+  "/api/v1/warehouse/reservations/{reservation_id}":
+    parameters:
+      -
+        name: "reservation_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    get:
+      operationId: "getReservation"
+      summary: "getReservation"
+      description: "getReservation"
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Warehouse reader or delegated service scoped to this reservation/order. DX-OS PLATFORM_ADMIN
+        management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "NONE_READ_ONLY"
+      parameters: [{"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}]
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Reservation"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/warehouse/reservations/{reservation_id}/release":
+    parameters:
+      -
+        name: "reservation_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "releaseReservation"
+      summary: "releaseReservation"
+      description: >-
+        RESERVED -> RELEASED in one local transaction; restore reserved stock exactly once. Race with
+        handover is serialized; never release CONSUMED. Failed retry/new key cannot duplicate stock
+        restoration.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Verified scoped workflow service bound to this order and current run; receiver checks delegation,
+        resource ownership, fencing and business evidence. UUIDs in input are not authorization. DX-OS
+        PLATFORM_ADMIN management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/ReasonCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Reservation"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/warehouse/reservations/{reservation_id}/pack":
+    parameters:
+      -
+        name: "reservation_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "packReservation"
+      summary: "packReservation"
+      description: "RESERVED only; set packed_at server-side with revision CAS. No stock consumption."
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Authorized Warehouse staff or scoped workflow service. DX-OS PLATFORM_ADMIN management authority
+        does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./common.openapi.yaml#/components/schemas/RevisionCommand"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Reservation"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+  "/api/v1/warehouse/reservations/{reservation_id}/handover":
+    parameters:
+      -
+        name: "reservation_id"
+        in: "path"
+        required: true
+        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    post:
+      operationId: "handoverReservation"
+      summary: "handoverReservation"
+      description: >-
+        Require RESERVED, packed_at, verified Sales CONFIRMED and matching shipment CREATED. Atomically mark
+        CONSUMED, decrement on_hand/reserved and bind shipment. Compete atomically with release.
+      tags: ["Business"]
+      x-priority: "P1"
+      x-authorization-policy: "BUSINESS_RECEIVER"
+      x-authorization: >-
+        Authorized Warehouse handover capability plus current order/run scope. DX-OS PLATFORM_ADMIN
+        management authority does not confer this business permission.
+      x-database-alignment: "PENDING_DB_ALIGNMENT"
+      x-idempotency: "DURABLE_COMMAND"
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: true
+        content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Handover"}}}
+      responses:
+        "200":
+          description: "Validated JSON response."
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content: {"application/json":{"schema":{"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Reservation"}}}
+        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
+        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
+        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
+        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
+        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
+        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
+components:
+  securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}
+  schemas:
+    InventoryItem:
+      type: "object"
+      additionalProperties: false
+      required: ["sku","on_hand","reserved","available_quantity","updated_at"]
+      properties:
+        sku: {"$ref":"./common.openapi.yaml#/components/schemas/Sku"}
+        on_hand: {"type":"integer","minimum":0,"maximum":2147483647}
+        reserved: {"type":"integer","minimum":0,"maximum":2147483647}
+        available_quantity: {"type":"integer","minimum":0,"maximum":2147483647}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+      description: >-
+        available_quantity = on_hand - reserved, both nonnegative and reserved <= on_hand. A prior read
+        never reserves stock.
+    InventoryItemPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./warehouse-api.openapi.yaml#/components/schemas/InventoryItem"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+    ReservationCreate:
+      type: "object"
+      additionalProperties: false
+      required: ["order_id","order_revision","items"]
+      properties:
+        order_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        order_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        items:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/OrderLine"}
+          minItems: 1
+          maxItems: 100
+      description: >-
+        One reservation for the whole order, unique order_id even under new HTTP keys. Verify Sales
+        SUBMITTED exact revision/lines and active scoped run before atomic stock changes. All-or-nothing
+        across SKUs.
+    Reservation:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "order_id"
+        - "order_revision"
+        - "items"
+        - "status"
+        - "revision"
+        - "created_at"
+        - "updated_at"
+        - "reserved_at"
+        - "packed_at"
+        - "released_at"
+        - "consumed_at"
+        - "handover_shipment_id"
+      properties:
+        id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        order_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+        order_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        items:
+          type: "array"
+          items: {"$ref":"./common.openapi.yaml#/components/schemas/OrderLine"}
+          minItems: 1
+          maxItems: 100
+        status: {"type":"string","enum":["RESERVED","RELEASED","CONSUMED"]}
+        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        created_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        reserved_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+        packed_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        released_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        consumed_at: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"},{"type":"null"}]}
+        handover_shipment_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
+      allOf:
+        -
+          if: {"properties":{"status":{"const":"CONSUMED"}}}
+          then:
+            properties:
+              packed_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              consumed_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              handover_shipment_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+              released_at: {"type":"null"}
+        -
+          if: {"properties":{"status":{"const":"RELEASED"}}}
+          then:
+            properties:
+              released_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
+              consumed_at: {"type":"null"}
+              handover_shipment_id: {"type":"null"}
+        -
+          if: {"properties":{"status":{"const":"RESERVED"}}}
+          then:
+            properties: {"released_at":{"type":"null"},"consumed_at":{"type":"null"},"handover_shipment_id":{"type":"null"}}
+    Handover:
+      type: "object"
+      additionalProperties: false
+      required: ["expected_revision","shipment_id"]
+      properties:
+        expected_revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
+        shipment_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
+    ReservationPage:
+      type: "object"
+      additionalProperties: false
+      required: ["items","next_cursor"]
+      properties:
+        items:
+          type: "array"
+          items: {"$ref":"./warehouse-api.openapi.yaml#/components/schemas/Reservation"}
+          minItems: 0
+          maxItems: 100
+        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
+x-design-status: "PROPOSED"
+tags: [{"name":"Business"}]
