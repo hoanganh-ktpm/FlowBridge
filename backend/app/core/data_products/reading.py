@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import re
 from dataclasses import dataclass
@@ -163,6 +164,26 @@ class HasuraDataReader:
             or "errors" in result
             or not isinstance(result.get("data"), dict)
         ):
+            if isinstance(result, dict) and isinstance(result.get("errors"), list):
+                known_codes = {
+                    "invalid-jwt",
+                    "jwt-invalid-claims",
+                    "jwt-missing-role-claims",
+                    "validation-failed",
+                    "access-denied",
+                    "permission-error",
+                    "postgres-error",
+                    "internal",
+                    "invalid-headers",
+                }
+                codes = []
+                for error in result["errors"][:5]:
+                    extensions = error.get("extensions") if isinstance(error, dict) else None
+                    code = extensions.get("code") if isinstance(extensions, dict) else None
+                    codes.append(
+                        code if isinstance(code, str) and code in known_codes else "upstream-error"
+                    )
+                logging.getLogger(__name__).warning("Hasura read rejected codes=%s", codes)
             raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
         return result
 

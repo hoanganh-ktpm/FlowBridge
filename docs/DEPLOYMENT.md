@@ -1,5 +1,19 @@
 # Deployment configuration (Phase A)
 
+## Scope after Layer 2 integration
+
+The installer manages Layer 1 engines: PostgreSQL, Keycloak, Hasura and Flowable,
+with the seven databases listed in `deployment.example.yaml`. It does not start
+Core/worker, Business APIs, Data Workspace or Portal. Data Workspace remains a
+separate native service with its own database and migration history; its setup
+and start commands are documented in [Data Workspace](DATA-WORKSPACE.md).
+The local Workspace helper targets the existing local development profile in
+`.tmp/local-postgres`; it does not consume the installer's `deployment.yaml`.
+The installer's backup/restore commands cover its seven configured databases;
+they do not cover a separately created Workspace database.
+
+## Configuration
+
 Copy `deployment.example.yaml` to `deployment.yaml` and customize the name, environment, domain, published host ports, database names/user, admin user names, URLs, TLS, and named volumes. `database.names` lists Core, Sales, Warehouse, Logistics, Hasura metadata, Flowable, and Keycloak databases. `database.role_password_env` supplies separate owner/reader credentials without placing values in YAML. The old single `database.name` remains accepted for Phase A validation only; Phase B rendering requires `database.names`. Legacy PostgreSQL bootstrap is unchanged.
 
 Keep `public_url` (browser-facing) distinct from `internal_url` (Docker network). By default, an internal URL must use the matching Docker service name; set `external: true` on that service only when its internal endpoint is externally managed. `identity.issuer` must equal the public Keycloak URL plus `/realms/<realm>`. For Flowable, `port` is the host-published port, `container_port` is the listener port, and `internal_url` ends in `/flowable-rest/service`. Enabled Keycloak, Hasura, and Flowable currently require enabled PostgreSQL.

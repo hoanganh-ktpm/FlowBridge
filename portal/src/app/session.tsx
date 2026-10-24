@@ -27,11 +27,12 @@ interface Session {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   reconnect: () => void;
+  invalidate: () => void;
 }
 const Context = createContext<Session | null>(null);
 const returnKey = "flowbridge.return-view";
 const safeView = (value: string) =>
-  /^#(?:agents|chat\/[A-Za-z0-9._:%-]{1,384})$/.test(value);
+  /^#(?:data|agents|chat(?:\/[A-Za-z0-9._:%-]{1,384})?)$/.test(value);
 function rememberView() {
   if (safeView(location.hash)) sessionStorage.setItem(returnKey, location.hash);
 }
@@ -87,6 +88,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [generation, setGeneration] = useState(0);
   const keycloak = useRef<Keycloak | null>(null);
+  const invalidate = useCallback(() => {
+    keycloak.current?.clearToken?.();
+    setAuthenticated(false);
+    setProfile(null);
+    setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+  }, []);
   const getToken = useCallback(async () => {
     const kc = keycloak.current;
     if (!kc?.authenticated)
@@ -94,14 +101,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       await kc.updateToken(30);
     } catch {
-      setAuthenticated(false);
-      setProfile(null);
-      setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      invalidate();
       throw new ApiError(401, "Phiên đăng nhập đã hết hạn.");
     }
     if (!kc.token) throw new ApiError(401, "Không có phiên đăng nhập hợp lệ.");
     return kc.token;
-  }, []);
+  }, [invalidate]);
   const liveApi = useMemo(
     () => createApi(config?.apiUrl || location.origin, getToken),
     [config?.apiUrl, getToken],
@@ -159,7 +164,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     rememberView();
     void kc
       .init({
-        onLoad: "check-sso",
+        onLoad: "login-required",
         pkceMethod: "S256",
         checkLoginIframe: false,
         redirectUri: location.origin + "/",
@@ -169,7 +174,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         restoreView();
         if (!signedIn) return;
-        const currentProfile = await liveApi.profile();
+        const legacy = location.hash === "#agents" || location.hash === "#chat" || location.hash.startsWith("#chat/");
+        const currentProfile = legacy ? await liveApi.profile() : await liveApi.request<{
+          principal_id: string; platform_role: string;
+          verified_identity: { subject: string };
+        }>("/api/v1/core/me").then(me => ({
+          user: { user_id: me.principal_id, display_name: String(kc.tokenParsed?.name || kc.tokenParsed?.preferred_username || "Người dùng"), email: null },
+          roles: [{ role_code: me.platform_role }],
+        }));
         if (active) {
           setProfile(currentProfile);
           setAuthenticated(true);
@@ -231,6 +243,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         reconnect,
+        invalidate,
       }}
     >
       {children}

@@ -10,9 +10,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
 def test_six_product_views_and_gross_confirmed_demand(databases):
     expected = {
-        "sales": {"v_confirmed_demand_daily", "v_open_orders"},
-        "warehouse": {"v_stock_availability", "v_inbound_schedule"},
-        "logistics": {"v_handoff_capacity", "v_accepted_shipments_daily"},
+        "sales": {"v_confirmed_demand_daily", "v_open_orders", "v_planning_demand_daily"},
+        "warehouse": {
+            "v_stock_availability",
+            "v_inbound_schedule",
+            "v_order_commitments",
+            "v_planning_catalog",
+            "v_receipts_daily",
+        },
+        "logistics": {"v_handoff_capacity", "v_accepted_shipments_daily", "v_handoff_schedule"},
     }
     for domain, views in expected.items():
         assert set(sa.inspect(databases[domain]).get_view_names()) == views

@@ -826,6 +826,61 @@ paths:
   "/api/v1/core/application-onboarding/validate": {"$ref":"./application-onboarding.yaml#/paths/~1api~1v1~1core~1application-onboarding~1validate"}
   "/api/v1/core/application-onboarding/plans": {"$ref":"./application-onboarding.yaml#/paths/~1api~1v1~1core~1application-onboarding~1plans"}
   "/api/v1/core/application-onboarding/imports": {"$ref":"./application-onboarding.yaml#/paths/~1api~1v1~1core~1application-onboarding~1imports"}
+  "/api/v1/core/authorized-data-products":
+    get:
+      operationId: listAuthorizedDataProducts
+      summary: Discover contracts covered by current applied department grants
+      description: >-
+        Requires an ACTIVE trusted principal. Includes only current ACTIVE products,
+        PUBLISHED contracts and CONNECTED affiliated sources for which one current,
+        unexpired applied grant covers the business key. IT role never substitutes
+        for a data grant. Columns from different grants are never combined.
+        Single-enterprise deployment; bounded by the caller's department memberships.
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-idempotency: NONE_READ_ONLY
+      x-authorization-policy: DATA_GRANT
+      x-authorization: >-
+        ACTIVE trusted principal with a current applied Data Product grant. PLATFORM_ADMIN
+        does not bypass grants, department membership, source state or contract projection.
+      parameters:
+        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
+      responses:
+        "200":
+          description: Current readable projections; no source credentials.
+          headers:
+            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
+            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [id, name, contract_version_id, fields, business_key]
+                      properties:
+                        id: {type: string, format: uuid}
+                        name: {type: string}
+                        contract_version_id: {type: string, format: uuid}
+                        fields: {type: array, items: {type: object}}
+                        business_key: {type: array, items: {type: string}}
+                        application:
+                          type: object
+                          additionalProperties: false
+                          required: [id, name, key]
+                          properties:
+                            id: {type: string, format: uuid}
+                            name: {type: string}
+                            key: {type: string}
+        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
+        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
+        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
   "/api/v1/core/data-products": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products"}
   "/api/v1/core/data-products/{data_product_id}": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}"}
   "/api/v1/core/data-products/{data_product_id}/publish": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-products~1{data_product_id}~1publish"}

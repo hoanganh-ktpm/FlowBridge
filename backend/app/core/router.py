@@ -179,6 +179,11 @@ async def create_product(body: ProductCreate, request: Request, actor: Actor, ke
     return await command(request, actor, key, "create_product", body)
 
 
+@router.get("/authorized-data-products", operation_id="listAuthorizedDataProducts")
+async def list_authorized_products(request: Request, actor: Actor):
+    return await service(request).authorized_products(actor)
+
+
 @router.get("/data-products/{data_product_id}", operation_id="getProduct")
 async def get_product(data_product_id: UUID, request: Request, actor: Actor):
     return await service(request).get(actor, "product", data_product_id)

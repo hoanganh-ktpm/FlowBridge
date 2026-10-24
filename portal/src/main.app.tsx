@@ -6,6 +6,7 @@ import { SessionProvider, useSession } from "@/app/session";
 import { Login } from "@/app/login";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { DataWorkspace } from "@/features/data-workspace/data-workspace";
 
 class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -29,14 +30,16 @@ class ErrorBoundary extends Component<
 }
 function Workspace() {
   const session = useSession();
-  if (session.mode !== "demo" && !session.authenticated) return <Login />;
   if (session.pending)
     return (
       <div className="grid h-svh place-items-center text-sm text-muted-foreground">
         Đang tải…
       </div>
     );
-  return <App key={`${session.mode}:${session.profile?.user.user_id}`} />;
+  if (session.mode !== "demo" && !session.authenticated) return <Login />;
+  const legacy = location.hash === "#agents" || location.hash === "#chat" || location.hash.startsWith("#chat/")
+    || (session.mode === "demo" && location.hash !== "#data");
+  return legacy ? <App key={`${session.mode}:${session.profile?.user.user_id}`} /> : <DataWorkspace />;
 }
 export default function AppEntrypoint() {
   return (

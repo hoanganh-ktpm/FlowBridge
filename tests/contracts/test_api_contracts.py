@@ -174,14 +174,14 @@ def test_preserves_supported_legacy_http_paths_and_operation_ids():
             assert previous["operationId"] == retired[key]
             continue
         assert actual[(previous["path"], previous["method"])] == previous["operationId"]
-    assert len(actual) == 93
+    assert len(actual) == 94  # 93 Layer 1 operations + grant-filtered Workspace discovery.
 
 
 def test_operation_ids_service_boundaries_and_priorities():
     identifiers = [operation["operationId"] for _, _, _, operation, _ in OPERATIONS]
     assert len(identifiers) == len(set(identifiers))
     priorities = Counter(operation["x-priority"] for _, _, _, operation, _ in OPERATIONS)
-    assert priorities == {"P0": 55, "P1": 38}
+    assert priorities == {"P0": 56, "P1": 38}
     for path, route, _, operation, _ in OPERATIONS:
         if path.name in {
             "sales-api.openapi.yaml",
@@ -333,6 +333,7 @@ def test_three_layer_authorization_policy_matrix(item):
     _, route, method, operation, _ = item
     consumer_reads = {
         "/api/v1/core/me": "SELF_IDENTITY",
+        "/api/v1/core/authorized-data-products": "DATA_GRANT",
         "/api/v1/core/data-products": "CATALOG_READ",
         "/api/v1/core/data-products/{data_product_id}": "CATALOG_READ",
         "/api/v1/core/data-products/{data_product_id}/contracts": "CATALOG_READ",

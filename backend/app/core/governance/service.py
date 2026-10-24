@@ -520,6 +520,62 @@ class DataSharingService:
             str(source_id), await self.discovery.snapshot(source, schema, names), captured
         )
 
+    async def authorized_products(self, identity):
+        """Discover readable contracts through existing grants, including for IT callers."""
+        items = []
+        async with self.store.transaction(read_only=True) as transaction:
+            principal = await resolve_principal(transaction, identity)
+            now = await transaction.now()
+            candidates = {}
+            for department_id in principal.departments(now):
+                for grant in await transaction.find(
+                    "grant", consumer_department_id=str(department_id), status="ACTIVE"
+                ):
+                    data = grant.public
+                    if (
+                        data["consumer_principal_id"] is not None
+                        or data["desired_revision"] != data["applied_revision"]
+                        or (data["expires_at"] and instant(data["expires_at"]) <= now)
+                    ):
+                        continue
+                    try:
+                        product, source, contract = await current_product(
+                            transaction,
+                            uuid(data["data_product_id"]),
+                            uuid(data["contract_version_id"]),
+                        )
+                    except CoreError:
+                        continue
+                    document = contract.public["contract_json"]
+                    fields = [
+                        f
+                        for f in document["fields"]
+                        if f["column"] in data["scope_json"]["columns"]
+                    ]
+                    if not set(document["business_key"]) <= {f["name"] for f in fields}:
+                        continue
+                    key = (product.public["id"], contract.public["id"])
+                    application = await transaction.get(
+                        "application", uuid(source.public["application_id"])
+                    )
+                    # Do not combine columns from different grants: rows requires one grant.
+                    candidate = {
+                        "id": product.public["id"],
+                        "name": product.public["name"],
+                        "contract_version_id": contract.public["id"],
+                        "fields": fields,
+                        "business_key": document["business_key"],
+                        "application": {
+                            "id": application.public["id"],
+                            "name": application.public["name"],
+                            "key": application.public["app_key"],
+                        },
+                    }
+                    if key not in candidates or len(fields) > len(candidates[key]["fields"]):
+                        candidates[key] = candidate
+            items = sorted(candidates.values(), key=lambda p: (p["name"], p["id"]))
+        return {"items": items}
+
     async def read_rows(self, identity, product_id, contract_id, columns, limit, offset):
         async with self.store.transaction() as transaction:
             principal = await resolve_principal(transaction, identity)

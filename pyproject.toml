@@ -59,7 +59,7 @@ only-include = [
     "portal/README.md", "portal/THIRD-PARTY-NOTICES.md",
     "portal/.env.example", "portal/.gitignore", "contracts", "workflows", "infra",
     "tests", "docs", "scripts", "alembic.ini", "README.md",
-    "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "THIRD_PARTY_LICENSES.md", "pyproject.toml",
+    "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "THIRD_PARTY_LICENSES.md", "MODEL_LICENSES.md", "pyproject.toml",
     "uv.lock", "uv.lock.license", ".python-version", ".python-version.license",
     ".env.example", "deployment.example.yaml", ".gitignore", ".gitattributes", ".dockerignore",
 ]

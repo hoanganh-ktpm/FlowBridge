@@ -56,8 +56,8 @@ test('SSO login uses PKCE and a same-origin callback', async ({ page }) => {
   await page.getByRole('button', { name: 'Đăng nhập với SSO' }).click()
   const state = await page.evaluate(() => ({ config: (window as any).__oidcConfig, init: (window as any).__oidcInit, redirect: (window as any).__loginRedirect }))
   expect(state.config.clientId).toBe('flowbridge-web-a')
-  expect(state.init).toMatchObject({ pkceMethod: 'S256', checkLoginIframe: false, onLoad: 'check-sso' })
-  expect(state.redirect).toBe('http://127.0.0.1:5174/')
+  expect(state.init).toMatchObject({ pkceMethod: 'S256', checkLoginIframe: false, onLoad: 'login-required' })
+  expect(state.redirect).toBe(new URL('/', page.url()).href)
   expect(await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].some(key => /token/i.test(key)))).toBe(false)
 })
 
@@ -100,7 +100,7 @@ test('real API client preserves idempotency after a lost response and resumes SS
     }
     return route.fulfill({ status: 404, json: { message: 'Unknown test endpoint' } })
   })
-  await page.goto('/')
+  await page.goto('/#chat')
   await expect(page.getByRole('heading', { name: /Tôi là FlowBridge, tôi có thể giúp bạn/ })).toBeVisible()
   await page.getByRole('textbox', { name: 'Tin nhắn', exact: true }).fill('Phân tích giao hàng')
   await page.getByRole('button', { name: 'Gửi tin nhắn' }).click()
@@ -136,7 +136,7 @@ test('send appears immediately before API admission and a rejected message can b
     }
     return route.fulfill({ json: { items: [], next_cursor: null } })
   })
-  await page.goto('/')
+  await page.goto('/#chat')
   await expect(page.getByRole('heading', { name: /Tôi là FlowBridge, tôi có thể giúp bạn/ })).toBeVisible()
   const composer = page.getByRole('textbox', { name: 'Tin nhắn', exact: true })
   await composer.fill('Tra cứu đơn hàng của tôi')

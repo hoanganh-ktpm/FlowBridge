@@ -21,6 +21,7 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -28,21 +29,23 @@ export class ApiError extends Error {
 const errors: Record<number, string> = {
   401: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
   403: "Bạn chưa được cấp quyền xem dữ liệu này.",
-  404: "Không tìm thấy dữ liệu. Agent Hub có thể chưa được bật trên backend.",
+  404: "Không tìm thấy dữ liệu hoặc dịch vụ chưa được cấu hình.",
   409: "Hội thoại đã thay đổi hoặc có lượt xử lý đang chạy. Tải lại trước khi gửi tiếp.",
   412: "Lựa chọn đã thay đổi ở một phiên khác. Tải lại hội thoại.",
   422: "Thông tin chưa hợp lệ. Kiểm tra lại các trường đã nhập.",
-  503: "Dịch vụ chưa sẵn sàng. Kiểm tra cấu hình Agent Hub, ML hoặc RAG.",
+  503: "Dịch vụ chưa sẵn sàng. Kiểm tra Core và các dịch vụ phụ thuộc.",
 };
 export async function responseError(response: Response): Promise<ApiError> {
   const problem = await response.json().catch(() => ({}));
+  const detail = problem.detail;
+  const structured = detail && typeof detail === "object" && !Array.isArray(detail) ? detail : undefined;
   return new ApiError(
     response.status,
-    errors[response.status] ??
-      problem.detail ??
-      problem.message ??
+    (typeof detail === "string" ? detail : typeof structured?.message === "string" ? structured.message : undefined) ?? errors[response.status] ??
+      (typeof problem.message === "string" ? problem.message : undefined) ??
       `Yêu cầu thất bại (HTTP ${response.status}).`,
-    problem.code,
+    structured?.code ?? problem.code,
+    structured,
   );
 }
 export function createApi(origin: string, token: () => Promise<string>) {

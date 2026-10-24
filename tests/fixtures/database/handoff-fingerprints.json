@@ -10,7 +10,12 @@
     "warehouse_0002_add_replenishment_and_capacity_products.py": "14ffcaf182422861debc2e47bc714d8cd4109bafc497b483bac016cfb0af3834",
     "logistics_0002_add_replenishment_and_capacity_products.py": "7eefaefe4ad1a600d8adb785d7b22b6b6d8adf7a4e7609a62f5ccb8d451bc2b2",
     "sales_0003_add_isolated_business_delivery_workflow_.py": "3ef3707dd2477cd4bda9f99ee21c7f61a928bbc2a7c8d6b901b8f18c2e989bc4",
-    "logistics_0003_add_isolated_business_delivery_workflow_.py": "ab1e4956ab75cbee4d2c9f22dea8e73303e80ad1c29a47761da443652108a334"
+    "logistics_0003_add_isolated_business_delivery_workflow_.py": "ab1e4956ab75cbee4d2c9f22dea8e73303e80ad1c29a47761da443652108a334",
+    "sales_0004_workspace_order_warehouse.py": "56ffbcd0ea9d92f342ba9a082c2baaa94619a9553b7ebf69ed5cbe709613e6ec",
+    "warehouse_0003_workspace_commitments.py": "ff30c34e80427fbaaddf36cd8842becdc0c5b530c45d3d263af92f30832132ca",
+    "warehouse_0004_planning_read_models.py": "874c44656f0dd7917936e5aaa35d6ea37788b94a44d94a968aea008ad1d1e99c",
+    "logistics_0004_planning_schedule.py": "261c55cb69e6a5fc3fe8836c31be77a978c3d9a819fe1607aa9e1797633b8c1a",
+    "sales_0005_planning_demand.py": "1232bb19045e1112c81f415af8d014f4fc3b6809d27a4fa640c80f749d07cd90"
   },
   "tables": {
     "core": {

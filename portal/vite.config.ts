@@ -41,6 +41,7 @@ export default defineConfig(async ({ command }) => {
       port: 5174,
       strictPort: true,
       proxy: backend ? {
+        "/api/v1/data-workspace": { target: process.env.FLOWBRIDGE_WORKSPACE_API_URL || "http://127.0.0.1:18090", changeOrigin: true },
         "/api/v1": { target: backend.apiUrl, changeOrigin: true },
       } : undefined,
     },
