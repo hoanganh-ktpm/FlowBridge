@@ -1,5 +1,7 @@
 # Docker integration environment
 
+Demo mới dùng [PostgreSQL 16 local](database/README.md), project `flowbridge-local`, năm DB riêng và Hasura ở 18082. Các bước dưới đây lưu lại profile Supabase cũ; không chạy chúng để dựng demo mới. Keycloak hiện có được tái sử dụng cho smoke test local mà không sửa realm.
+
 ## Phạm vi
 
 Profile development/test hiện hành từ 23/10/2026: Keycloak và Hasura chạy Docker; Core API/worker vẫn dùng Python .venv để phát triển độc lập. Không cần JDK hoặc Keycloak portable trên Windows. Không phải production deployment; không bật Portal, Business APIs, Workflow hoặc Agent.

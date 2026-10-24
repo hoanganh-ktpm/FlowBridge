@@ -123,7 +123,7 @@ class HasuraDataReader:
             or "\n" in token
             or token == self.settings.admin_secret.get_secret_value()
             or context.desired_revision != context.applied_revision
-            or not 0 <= (now - context.validated_at).total_seconds() <= 10
+            or not -1 <= (now - context.validated_at).total_seconds() <= 10
             or (context.expires_at is not None and context.expires_at <= now)
         ):
             raise CoreError(ErrorCode.FORBIDDEN)

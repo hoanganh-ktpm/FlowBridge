@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Isolated Business Workflow action payloads",
+  "$comment": "Additive workflow slice, not an implementation claim for the broader proposed P1 OpenAPI contracts.",
+  "$defs": {
+    "order_ref": {
+      "type": "object",
+      "required": ["org_id", "order_id"],
+      "properties": {
+        "org_id": {"type": "string", "format": "uuid"},
+        "order_id": {"type": "string", "format": "uuid"}
+      },
+      "additionalProperties": false
+    },
+    "order_status": {
+      "type": "object",
+      "required": ["org_id", "order_id", "status"],
+      "properties": {
+        "org_id": {"type": "string", "format": "uuid"},
+        "order_id": {"type": "string", "format": "uuid"},
+        "status": {"enum": ["WAITING_STOCK", "RESERVED", "PACKED", "SHIPPED", "DELIVERED", "FAILED"]}
+      },
+      "additionalProperties": false
+    },
+    "record": {
+      "type": "object",
+      "required": ["id", "org_id", "status"],
+      "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "org_id": {"type": "string", "format": "uuid"},
+        "status": {"type": "string"}
+      }
+    }
+  }
+}

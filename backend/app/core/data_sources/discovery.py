@@ -92,7 +92,10 @@ class SchemaDiscovery(Protocol):
 
 
 def inspect_schema(
-    connection: Connection, source: DiscoverySource, inspector_factory: Callable = inspect
+    connection: Connection,
+    source: DiscoverySource,
+    inspector_factory: Callable = inspect,
+    view_keys: dict[str, tuple[str, ...]] | None = None,
 ) -> SourceSnapshot:
     inspector: Inspector = inspector_factory(connection)
     schemas = sorted(inspector.get_schema_names())
@@ -106,11 +109,40 @@ def inspect_schema(
             if table.schema_name != schema or table.name not in tables | views:
                 continue
             columns = tuple(
-                Column(name=item["name"], pg_type=str(item["type"]), nullable=item["nullable"])
+                Column(
+                    name=item["name"],
+                    pg_type=item["type"].compile(dialect=getattr(connection, "dialect", None)),
+                    nullable=item["nullable"],
+                )
                 for item in inspector.get_columns(table.name, schema=schema)
             )
             primary = inspector.get_pk_constraint(table.name, schema=schema)
             unique = inspector.get_unique_constraints(table.name, schema=schema)
+            # PostgreSQL views expose neither NOT NULL nor UNIQUE constraints.
+            # IT may configure their grain explicitly. Verify it from the approved
+            # source on every snapshot (publish and governed reads), never infer it
+            # from a name or from one sampled row. A null/duplicate fails closed.
+            keys = (view_keys or {}).get(f"{schema}.{table.name}", ())
+            if table.name in views and keys:
+                names = {column.name for column in columns}
+                if len(set(keys)) != len(keys) or not set(keys) <= names:
+                    raise DiscoveryError()
+                quote = connection.dialect.identifier_preparer.quote_identifier
+                key_sql = ",".join(quote(key) for key in keys)
+                null_sql = " OR ".join(f"{quote(key)} IS NULL" for key in keys)
+                violation = connection.execute(
+                    text(
+                        f"SELECT 1 FROM {quote(schema)}.{quote(table.name)} "
+                        f"GROUP BY {key_sql} HAVING COUNT(*) > 1 OR {null_sql} LIMIT 1"
+                    )
+                ).first()
+                if violation is not None:
+                    raise DiscoveryError()
+                columns = tuple(
+                    column.model_copy(update={"nullable": False}) if column.name in keys else column
+                    for column in columns
+                )
+                unique = [*unique, {"column_names": list(keys)}]
             foreign = inspector.get_foreign_keys(
                 table.name, schema=schema, postgresql_ignore_search_path=True
             )
@@ -141,9 +173,15 @@ def inspect_schema(
 
 
 class PostgresSchemaDiscovery:
-    def __init__(self, secrets: SecretResolver, allowed_hosts: frozenset[str]) -> None:
+    def __init__(
+        self,
+        secrets: SecretResolver,
+        allowed_hosts: frozenset[str],
+        view_keys: dict[str, dict[str, tuple[str, ...]]] | None = None,
+    ) -> None:
         self._secrets = secrets
         self._hosts = allowed_hosts
+        self._view_keys = view_keys or {}
 
     async def discover(self, source: DiscoverySource) -> SourceSnapshot:
         connection = await self._secrets.resolve_postgres(source.secret_ref)
@@ -183,7 +221,11 @@ class PostgresSchemaDiscovery:
             async with engine.connect() as database:
                 await database.execute(text("SET TRANSACTION READ ONLY"))
                 await database.execute(text("SET LOCAL statement_timeout = '5s'"))
-                return await database.run_sync(lambda sync: inspect_schema(sync, source))
+                return await database.run_sync(
+                    lambda sync: inspect_schema(
+                        sync, source, view_keys=self._view_keys.get(source.secret_ref)
+                    )
+                )
         except HasuraError:
             raise
         except Exception:

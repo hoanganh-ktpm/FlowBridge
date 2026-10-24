@@ -23,6 +23,8 @@ ResourceKind = Literal[
     "grant",
     "job",
     "relationship",
+    "workflow_action",
+    "workflow_event",
 ]
 
 

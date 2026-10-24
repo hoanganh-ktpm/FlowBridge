@@ -1,0 +1,54 @@
+name: flowbridge-local
+
+services:
+  postgres:
+    image: postgres:16
+    command: [bash, /run/postgres-start.sh]
+    environment:
+      POSTGRES_USER: flowbridge_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python -m scripts.database.local configure}
+      POSTGRES_DB: postgres
+      SALES_PASSWORD: ${SALES_PASSWORD:?Missing local secret}
+      WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD:?Missing local secret}
+      LOGISTICS_PASSWORD: ${LOGISTICS_PASSWORD:?Missing local secret}
+      CORE_PASSWORD: ${CORE_PASSWORD:?Missing local secret}
+      METADATA_PASSWORD: ${METADATA_PASSWORD:?Missing local secret}
+      READER_PASSWORD: ${READER_PASSWORD:?Missing local secret}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./bootstrap.sql:/docker-entrypoint-initdb.d/010-databases.sql:ro
+      - ./start.sh:/run/postgres-start.sh:ro
+      - ../../.tmp/local-postgres/tls:/run/postgres-tls:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U flowbridge_admin -d postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  hasura:
+    profiles: [integration]
+    image: hasura/graphql-engine:v2.48.16@sha256:6ff7d8ba122c69f7be377092b0c1f5314d3e4e28274dc089cd774ce6a8ba6479
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: ../../.tmp/business-workflow/hasura.env
+        required: false
+    environment:
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgresql://hasura_owner:${METADATA_PASSWORD}@postgres:5432/hasura_metadata_db?sslmode=require
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:?Missing local secret}
+      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_JWT_CONFIG:?Missing JWT config}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+      HASURA_GRAPHQL_ENABLE_TELEMETRY: "false"
+      SALES_READ_DATABASE_URL: postgresql://sales_reader:${READER_PASSWORD}@postgres:5432/sales_db?sslmode=require
+      WAREHOUSE_READ_DATABASE_URL: postgresql://warehouse_reader:${READER_PASSWORD}@postgres:5432/warehouse_db?sslmode=require
+      LOGISTICS_READ_DATABASE_URL: postgresql://logistics_reader:${READER_PASSWORD}@postgres:5432/logistics_db?sslmode=require
+    ports:
+      - "127.0.0.1:18082:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

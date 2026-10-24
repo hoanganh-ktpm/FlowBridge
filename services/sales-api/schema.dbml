@@ -180,3 +180,26 @@ Table public.inbox_receipts {
 Ref: public.sales_orders.(org_id, customer_id) > public.customers.(org_id, id) [delete: restrict, update: restrict]
 Ref: public.sales_order_lines.(org_id, order_id) > public.sales_orders.(org_id, id) [delete: restrict, update: restrict]
 Ref: public.sales_order_events.(org_id, order_id) > public.sales_orders.(org_id, id) [delete: restrict, update: restrict]
+
+// Views: v_confirmed_demand_daily (gross confirmed quantity, immutable snapshot, Vietnam day),
+// v_open_orders (confirmed non-COMPLETED/non-CANCELLED original lines; not net remaining quantity).
+
+// Isolated delivery extension. Historical sales_orders still end at carrier handoff.
+Table public.wf_e2e_orders {
+  id uuid [pk]
+  org_id uuid [not null]
+  order_number varchar(80) [not null]
+  warehouse_ref uuid [not null, note: 'Opaque Warehouse business ID']
+  lines jsonb [not null, note: 'Immutable validated line snapshots with original line UUIDs']
+  status varchar(30) [not null, note: 'CONFIRMED, WAITING_STOCK, RESERVED, PACKED, SHIPPED, DELIVERED, FAILED']
+  owner_subject varchar(255) [not null]
+  workflow_instance_ref varchar(128)
+  last_source_event_ref uuid
+  version bigint [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, order_number) [unique]
+  }
+}

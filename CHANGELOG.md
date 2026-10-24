@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Local PostgreSQL và Business Workflow E2E
+
+- Thêm PostgreSQL 16/Hasura local, generator 365 ngày và sáu Data Product views; giữ secrets, TLS, runtime evidence và dữ liệu sinh ngoài Git.
+- Triển khai vertical slice APIs Sales/Warehouse/Logistics với transaction, quyền theo subject/org, idempotency và hai bảng delivery workflow qua migration additive.
+- Chạy Flowable OSS 7.2.0 trên flowable_db trong PostgreSQL local; hoàn thiện order fulfillment với Data Action đọc Hasura, reservation, Warehouse User Task và Logistics delivery event.
+- Thêm relay xác thực webhook Hasura rồi ký HMAC, giữ IT event config tách Workflow subscription; sửa query Flowable dùng processBusinessKey và kiểm tra correlation trả về.
+- Nghiệm thu 841 regression tests, 43 PostgreSQL tests và 5 live Business Workflow tests; restart/retry/event replay không gây ghi trùng, checksum lịch sử giữ nguyên. data.update vẫn unavailable, tách khỏi kết quả Business API writes.
+
+### Workflow Engine (Layer 1, Flowable OSS)
+
+- Mount Workflow router vào native Core API; dùng Core principal policy, giới hạn assignee và không trả process variables. Nối System Data Actions vào Data Product/grant/Hasura read pipeline hiện có, không mở quyền ghi nghiệp vụ.
+- Thêm BPMN mẫu order_fulfillment tại workflows/ và compose Flowable tối thiểu tại infra/flowable dùng Supabase qua JDBC+TLS, schema flowable_runtime riêng, pool giới hạn.
+- Thêm Hasura event-trigger provisioning helper cho workflow subscriptions (control-plane only, webhook HTTPS).
+- Bổ sung CoreStore adapters và migration core_0006 cho action definitions/durable dispatch inbox, không blind retry intent chưa rõ kết quả. Sửa lỗi nhân đôi tên DROP CHECK của core_0005 theo phê duyệt và bind audit details rỗng thành SQL NULL thay vì JSON null.
+- Kiểm chứng runtime Flowable 7.2.0 trên Supabase bằng token Keycloak/native API, HTTP Service Task/Gateway/User Task/message và restart. Tách rõ offline doubles, runtime probe và opt-in Data Sharing Workflow E2E tại docs/WORKFLOW.md.
+
 ### Docker Integration Profile
 
 - Chuyển Keycloak/Hasura test runtime sang Compose với image version/digest pin, loopback ports và Hasura metadata schema riêng; không tạo thêm database Supabase.

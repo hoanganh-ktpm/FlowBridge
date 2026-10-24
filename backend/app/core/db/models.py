@@ -31,6 +31,8 @@ CORE_TABLE_PRIORITIES = {
     "audit_events": "P0",
     "core_command_receipts": "P0",
     "data_product_relationships": "P0",
+    "workflow_actions": "P1",
+    "workflow_event_inbox": "P1",
 }
 
 
@@ -897,3 +899,39 @@ core_command_receipts = sa.Table(
     schema="public",
 )
 sa.Index("ix_receipt_expiry", core_command_receipts.c.expires_at)
+
+
+workflow_actions = sa.Table(
+    "workflow_actions",
+    CoreBase.metadata,
+    sa.Column("id", sa.Uuid, primary_key=True),
+    sa.Column("action_id", sa.Text, nullable=False),
+    sa.Column("version", sa.Integer, nullable=False),
+    sa.Column("definition_json", JSONB, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.Column("created_by", sa.Uuid, sa.ForeignKey("public.principals.id", ondelete="RESTRICT"), nullable=False),
+    sa.Column("updated_by", sa.Uuid, sa.ForeignKey("public.principals.id", ondelete="RESTRICT"), nullable=False),
+    sa.Column("revision", sa.BigInteger, nullable=False, server_default="1"),
+    sa.UniqueConstraint("action_id", "version"),
+    sa.CheckConstraint("version >= 1 AND revision >= 1", name="version"),
+    sa.CheckConstraint("btrim(action_id) <> '' AND jsonb_typeof(definition_json) = 'object'", name="definition"),
+    schema="public",
+)
+
+
+workflow_event_inbox = sa.Table(
+    "workflow_event_inbox",
+    CoreBase.metadata,
+    sa.Column("id", sa.Uuid, primary_key=True),
+    sa.Column("payload_hash", sa.Text, nullable=False),
+    sa.Column("status", sa.Text, nullable=False),
+    sa.Column("result_json", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.Column("revision", sa.BigInteger, nullable=False, server_default="1"),
+    sa.CheckConstraint("status IN ('DISPATCHING','COMPLETED','UNCERTAIN')", name="status"),
+    sa.CheckConstraint("payload_hash ~ '^[0-9a-f]{64}$'", name="payload_hash"),
+    sa.CheckConstraint("revision >= 1 AND jsonb_typeof(result_json) = 'object'", name="result"),
+    schema="public",
+)

@@ -348,6 +348,32 @@ class Warehouse(_OrgRow, WarehouseBase):
     updated_at: Mapped[datetime] = _created()
 
 
+class InboundPlan(_OrgRow, WarehouseBase):
+    __tablename__ = "inbound_plans"
+    __table_args__ = _args(
+        __tablename__,
+        _uq(__tablename__, "org_id", "id", "product_id"),
+        _fk(__tablename__, ("org_id", "warehouse_id"), "warehouses", ("org_id", "id")),
+        _fk(__tablename__, ("org_id", "product_id"), "products", ("org_id", "id")),
+        _ck(__tablename__, "quantity", "planned_quantity > 0"),
+        _ck(
+            __tablename__,
+            "status",
+            "status IN ('DRAFT', 'APPROVED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED')",
+        ),
+        _ix(__tablename__, "org_id", "warehouse_id", "expected_at"),
+        comment="Planned replenishment is not stock; only POSTED receipt lines enter the ledger. decision_case_ref is an opaque logical reference.",
+    )
+    warehouse_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    product_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    planned_quantity: Mapped[Decimal] = _quantity()
+    expected_at: Mapped[datetime] = _time(nullable=False)
+    status: Mapped[str] = mapped_column(sa.String(30), nullable=False)
+    decision_case_ref: Mapped[UUID | None] = mapped_column(sa.Uuid)
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _created()
+
+
 class InventoryBalance(_OrgRow, WarehouseBase):
     __tablename__ = "inventory_balances"
     __table_args__ = _args(
@@ -418,6 +444,12 @@ class GoodsReceiptLine(_OrgRow, WarehouseBase):
     __tablename__ = "goods_receipt_lines"
     __table_args__ = _args(
         __tablename__,
+        _fk(
+            __tablename__,
+            ("org_id", "inbound_plan_id", "product_id"),
+            "inbound_plans",
+            ("org_id", "id", "product_id"),
+        ),
         _uq(__tablename__, "org_id", "receipt_id", "line_no"),
         _fk(__tablename__, ("org_id", "receipt_id"), "goods_receipts", ("org_id", "id")),
         _fk(__tablename__, ("org_id", "product_id"), "products", ("org_id", "id")),
@@ -430,6 +462,7 @@ class GoodsReceiptLine(_OrgRow, WarehouseBase):
         comment="Only accepted quantity increases usable stock. Product UOM applies; reject amount = received - accepted. Freeze lines once receipt posted. Cost is private Warehouse data.",
     )
 
+    inbound_plan_id: Mapped[UUID | None] = mapped_column(sa.Uuid)
     receipt_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
     line_no: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     product_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)

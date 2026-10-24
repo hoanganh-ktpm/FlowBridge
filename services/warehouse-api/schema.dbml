@@ -1,4 +1,4 @@
-// Design artifact only. Target database: warehouse_db. No SQL/app/live database changes.
+// Design for warehouse_db; additive implementation: warehouse_0002.
 // Import separately. Foreign keys below are local to warehouse_db.public.
 Project dxos_warehouse_demo {
   database_type: 'PostgreSQL'
@@ -79,6 +79,7 @@ Table public.goods_receipts {
 }
 
 Table public.goods_receipt_lines {
+  inbound_plan_id uuid [note: 'Local org/product-qualified plan reference, nullable.']
   id uuid [pk]
   org_id uuid [not null]
   receipt_id uuid [not null]
@@ -308,3 +309,28 @@ Ref: public.dispatch_lines.(org_id, reservation_id, reservation_line_id) > publi
 Ref: public.stock_movements.(org_id, warehouse_id, product_id) > public.inventory_balances.(org_id, warehouse_id, product_id) [delete: restrict, update: restrict]
 Ref: public.stock_movements.(org_id, goods_receipt_line_id) > public.goods_receipt_lines.(org_id, id) [delete: restrict, update: restrict]
 Ref: public.stock_movements.(org_id, dispatch_line_id) > public.dispatch_lines.(org_id, id) [delete: restrict, update: restrict]
+
+// Additive replenishment planning; plans never count as physical stock.
+Table public.inbound_plans {
+  id uuid [pk]
+  org_id uuid [not null]
+  warehouse_id uuid [not null]
+  product_id uuid [not null]
+  planned_quantity numeric(18,3) [not null, note: 'CHECK > 0']
+  expected_at timestamptz [not null]
+  status varchar(30) [not null, note: 'DRAFT, APPROVED, PARTIALLY_RECEIVED, RECEIVED, CANCELLED']
+  decision_case_ref uuid [note: 'Logical reference only; no cross-database FK.']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, id, product_id) [unique]
+    (org_id, warehouse_id, expected_at)
+  }
+}
+Ref: public.inbound_plans.(org_id, warehouse_id) > public.warehouses.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.inbound_plans.(org_id, product_id) > public.products.(org_id, id) [delete: restrict, update: restrict]
+Ref: public.goods_receipt_lines.(org_id, inbound_plan_id, product_id) > public.inbound_plans.(org_id, id, product_id) [delete: restrict, update: restrict]
+// Views: v_stock_availability (available=on_hand-reserved),
+// v_inbound_schedule (APPROVED/PARTIALLY_RECEIVED, remaining=planned-POSTED accepted).
+// Receipt header warehouse must equal plan warehouse; validate in the posting transaction.

@@ -23,6 +23,7 @@ from app.platform.http.correlation import CorrelationMiddleware
 from app.platform.http.errors import ErrorCode, error_response, register_exception_handlers
 from app.platform.http.request_policy import PrivateJsonMiddleware
 from app.platform.identity.settings import IdentitySettings
+from app.platform.workflow.router import WorkflowRuntime, workflow_router
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class CoreDependencies:
     identity_settings: IdentitySettings
     evidence: object | None = None
     metadata: object | None = None
+    workflow: WorkflowRuntime | None = None
 
 
 def create_app(dependencies: CoreDependencies | None = None, *, testing: bool = False) -> FastAPI:
@@ -41,6 +43,15 @@ def create_app(dependencies: CoreDependencies | None = None, *, testing: bool = 
         raise MissingIntegration(
             "Configure a durable CoreStore; no production memory fallback exists"
         )
+    if (
+        not testing
+        and dependencies.workflow is not None
+        and (
+            not getattr(dependencies.workflow.registry, "durable", False)
+            or not getattr(dependencies.workflow.event_router.inbox, "durable", False)
+        )
+    ):
+        raise MissingIntegration("Workflow requires durable action registry and event inbox")
     settings = dependencies.identity_settings
     if not testing and not all(
         (
@@ -61,6 +72,7 @@ def create_app(dependencies: CoreDependencies | None = None, *, testing: bool = 
     app.state.onboarding = RuntimeOnboarding(app.state.core, dependencies.metadata)
     app.state.relationships = RelationshipRegistry(app.state.core, dependencies.metadata)
     app.state.relationship_queries = RelationshipQueries(app.state.core, dependencies.metadata)
+    app.state.workflow = dependencies.workflow
     register_exception_handlers(app)
 
     async def hasura_error(request: Request, error: HasuraError):
@@ -85,4 +97,5 @@ def create_app(dependencies: CoreDependencies | None = None, *, testing: bool = 
     app.add_middleware(PrivateJsonMiddleware)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(router)
+    app.include_router(workflow_router)
     return app

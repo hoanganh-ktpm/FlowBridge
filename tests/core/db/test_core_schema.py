@@ -23,6 +23,8 @@ EXPECTED = {
     "audit_events",
     "core_command_receipts",
     "data_product_relationships",
+    "workflow_actions",
+    "workflow_event_inbox",
 }
 
 
@@ -67,6 +69,8 @@ def test_relationship_migration_does_not_reset_existing_core(monkeypatch):
     ddl = config.output_buffer.getvalue()
     assert "CREATE TABLE public.data_product_relationships" in ddl
     assert "ADD COLUMN relationship_id" in ddl
+    assert "DROP CONSTRAINT ck_publication_jobs_job_type" in ddl
+    assert "ck_publication_jobs_ck_publication_jobs" not in ddl
     assert not any(token in ddl for token in ("DROP TABLE", "TRUNCATE", "DELETE FROM"))
 
 
