@@ -86,7 +86,7 @@ Core sau reset để trống; seed tùy chọn chỉ có departments và applica
 
 ## Hasura và số lượng nguồn
 
-Hasura cần sources riêng cho ba database nghiệp vụ, remote relationships và permission được Data Contract duyệt. Core giữ metadata nội bộ, không tự mở toàn bộ cho Agent. Xem [HASURA_HANDOFF.md](HASURA_HANDOFF.md).
+Hasura cần sources riêng cho ba database nghiệp vụ, remote relationships và permission được Data Contract duyệt. Core giữ metadata nội bộ, không tự mở toàn bộ cho consumer. Xem [HASURA_HANDOFF.md](HASURA_HANDOFF.md).
 
 CLI hiện chỉ quản lý bốn database demo. Core schema cho phép nhiều ứng dụng đăng ký nhiều nguồn, nhưng runtime Core đã có logic offline, nhưng persistence adapter và tích hợp N nguồn thật vẫn cần hoàn thiện; không được coi bốn tên demo là giới hạn sản phẩm.
 

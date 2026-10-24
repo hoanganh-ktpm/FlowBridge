@@ -16,6 +16,9 @@ _archive
 **/.env
 **/.env.*
 !**/.env.example
+deployment.yaml
+secrets
+infra/deployment/generated
 **/*.log
 **/*.key
 **/*.pem

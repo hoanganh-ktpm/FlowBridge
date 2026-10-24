@@ -9,12 +9,7 @@ from uuid import uuid4
 
 from dotenv import dotenv_values
 
-
-def write_env(path, values):
-    path.write_text(
-        "\n".join(f"{name}={json.dumps(str(value))}" for name, value in values.items()) + "\n",
-        encoding="utf-8",
-    )
+from scripts.integration_utils import write_env
 
 
 def prepare():

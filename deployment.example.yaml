@@ -1,0 +1,76 @@
+# Copy to deployment.yaml; keep actual credentials in .env or the process environment.
+name: flowbridge-example
+environment: development
+domain: example.invalid
+
+services:
+  postgres:
+    enabled: true
+    port: 55432
+  keycloak:
+    enabled: true
+    port: 18443
+    public_url: https://auth.example.invalid
+    internal_url: http://keycloak:8080
+  hasura:
+    enabled: true
+    port: 18080
+    public_url: https://data.example.invalid
+    internal_url: http://hasura:8080
+  flowable:
+    enabled: true
+    schema_policy: update # development only; use manual + schema_prepared in staging/production
+    port: 18083 # published host port
+    container_port: 18081
+    public_url: https://workflow.example.invalid
+    internal_url: http://flowable:18081/flowable-rest/service
+
+database:
+  names:
+    core: dxos_core_db
+    sales: sales_db
+    warehouse: warehouse_db
+    logistics: logistics_db
+    hasura_metadata: hasura_metadata_db
+    flowable: flowable_db
+    keycloak: keycloak_db
+  user: flowbridge_admin
+  password_env: POSTGRES_PASSWORD
+  role_password_env:
+    core: CORE_DB_PASSWORD
+    sales: SALES_DB_PASSWORD
+    warehouse: WAREHOUSE_DB_PASSWORD
+    logistics: LOGISTICS_DB_PASSWORD
+    hasura_metadata: HASURA_DB_PASSWORD
+    flowable: FLOWABLE_DB_PASSWORD
+    keycloak: KEYCLOAK_DB_PASSWORD
+    sales_reader: SALES_READER_PASSWORD
+    warehouse_reader: WAREHOUSE_READER_PASSWORD
+    logistics_reader: LOGISTICS_READER_PASSWORD
+
+identity:
+  realm: flowbridge
+  issuer: https://auth.example.invalid/realms/flowbridge
+  client_id: flowbridge-api
+  client_secret_env: OIDC_CLIENT_SECRET
+  hasura_default_role_attribute: hasura_default_role
+
+credentials:
+  keycloak_admin_user: flowbridge_admin
+  flowable_admin_user: flowbridge_admin
+
+secrets:
+  keycloak_admin_password_env: KEYCLOAK_ADMIN_PASSWORD
+  hasura_admin_secret_env: HASURA_ADMIN_SECRET
+  flowable_admin_password_env: FLOWABLE_ADMIN_PASSWORD
+
+tls:
+  enabled: false
+  termination: external # external or files; production requires enabled: true
+  cert_file: null
+  key_file: null
+
+volumes:
+  postgres: flowbridge_postgres
+  keycloak: flowbridge_keycloak
+  flowable: flowbridge_flowable

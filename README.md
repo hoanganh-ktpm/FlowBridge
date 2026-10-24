@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="portal/public/logo-flowbridge.png" alt="FlowBridge" width="112">
+  <img src="portal/src/assets/logo-flowbridge.png" alt="FlowBridge" width="112">
 </p>
 
 <h1 align="center">FlowBridge</h1>
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  Data Governance · AI Agent Tools · BPMN Workflows
+  Data Governance · Business APIs · BPMN Workflows
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 FlowBridge hướng tới một nền tảng dùng chung để đăng ký ứng dụng, công bố dữ liệu có quản trị và phối hợp quy trình giữa các phòng ban. Dữ liệu nghiệp vụ được giữ tại ứng dụng sở hữu; nền tảng quản lý metadata, hợp đồng dữ liệu, quyền truy cập và các năng lực tích hợp.
 
-Sales, Warehouse và Logistics là ba ứng dụng mẫu cho quy trình Order Fulfillment. Agent và Workflow sử dụng các giao diện được cấp quyền để khai thác dữ liệu và thực hiện hành động nghiệp vụ.
+Sales, Warehouse và Logistics là ba ứng dụng mẫu cho quy trình Order Fulfillment. Workflow sử dụng các giao diện được cấp quyền để khai thác dữ liệu và thực hiện hành động nghiệp vụ.
 
 Ba lớp quyền độc lập: IT/PLATFORM_ADMIN quản trị DX-OS (gồm publish và cấp/thu quyền); Core + Hasura kiểm quyền đọc dữ liệu theo grant; từng Business API kiểm quyền nghiệp vụ riêng. Vai trò nhân viên/phụ trách phòng ban không tự cấp quyền quản trị nền tảng. Chi tiết tại [API Contracts](docs/API-CONTRACTS.md#authorization-model-three-independent-layers).
 
@@ -34,7 +34,7 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 
 | Thành phần | Vai trò | Trạng thái |
 |---|---|---|
-| Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Core HTTP/worker và PostgreSQL adapter; đã kiểm luồng onboarding, publish, đọc theo grant và revoke với Keycloak/Hasura/Supabase thật |
+| Data Core | Registry, Data Products, Governance, Hasura Provisioner | Core HTTP/worker và PostgreSQL adapter; đã kiểm luồng onboarding, publish, đọc theo grant và revoke với Keycloak/Hasura/PostgreSQL thật |
 | Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Identity/HTTP adapters và Workflow Layer 1 đã có live E2E; các tích hợp còn lại đang phát triển |
 | Business APIs | Đơn hàng, tồn kho và vận chuyển | Có vertical slice Workflow thật xuyên 3 DB: reservation/packing/handoff/delivery; chưa phải ERP đầy đủ |
 | Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
@@ -65,7 +65,7 @@ Core quản lý dữ liệu được chia sẻ và quyền khai thác. Business 
 ```text
 FlowBridge/
 ├── backend/app/
-│   ├── core/                   Registry, Data Products, Governance, Agents, Core DB
+│   ├── core/                   Registry, Data Products, Governance, Core DB
 │   └── platform/               Identity, Gateway, Workflow, Audit, HTTP
 ├── services/
 │   ├── sales-api/              app/ và migrations/

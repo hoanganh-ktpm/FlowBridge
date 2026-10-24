@@ -19,7 +19,7 @@ Ba giá trị cần chứng minh:
 
 1. Sales đọc tồn mới tại Warehouse để biết có thể đáp ứng đơn hay phải chờ nhập bổ sung.
 2. Logistics nhận đúng manifest của kho và thông tin in nhãn được Sales cấp phép, tránh nhập lại sai món/lượng/người nhận.
-3. Chatbot biết đơn thiếu gì, đang chờ hàng, chờ soạn hay chờ carrier, đã bàn giao đợt nào; mỗi thông tin có nguồn và phạm vi quyền rõ.
+3. Người dùng tra cứu được đơn thiếu gì, đang chờ hàng, chờ soạn hay chờ carrier, đã bàn giao đợt nào; mỗi thông tin có nguồn và phạm vi quyền rõ.
 
 Tồn đủ qua một lần đọc chưa phải giữ được hàng. Tạo vận đơn cũng chưa chứng minh hàng đã rời kho. Phải gọi đúng Business API để thực hiện và xác nhận từng bước.
 
@@ -51,7 +51,7 @@ Quy ước cấu trúc:
 - `org_id` lấy từ identity/binding được xác minh, là ranh giới doanh nghiệp trong mọi bảng, unique key và join.
 - UUID là ID kỹ thuật, mã SO/RSV/DSP/SHP để con người đọc.
 - FK nội bộ có org và parent ID. Reference sang DB khác là opaque ID được kiểm chứng qua API/event/contract, không FK vật lý xuyên DB.
-- Warehouse sở hữu SKU/đơn vị; không để LLM nối sản phẩm bằng tên gần giống.
+- Warehouse sở hữu SKU/đơn vị; không nối sản phẩm bằng tên gần giống.
 - `input_revision` là phiên bản nội dung đơn, riêng với `version` chống cập nhật đồng thời status. Giữ theo input revision đã xác nhận.
 - Sales `requested_handoff_at` là hạn gửi/bàn giao cho vận chuyển, không phải hạn khách nhận. Kho chọn, dòng hàng và hạn gốc được khóa sau xác nhận.
 - Quantity dùng numeric(18,3), money numeric(18,2) + currency; timestamps timestamptz lưu/trao đổi UTC.
@@ -196,7 +196,7 @@ Sales không đọc giá vốn. Warehouse không cần giá bán/toàn bộ hồ
 
 Join bằng org + ID/reference hoặc SKU đã thống nhất; stock một dòng theo org–kho–SKU, không join chỉ SKU rồi nhân đôi Sales line. Tổng hợp ở cấp dòng trước khi join nhiều đợt.
 
-## 8. Chatbot giúp gì?
+## 8. Các truy vấn liên thông cần hỗ trợ
 
 | Câu hỏi | Nguồn đọc | Kết quả đúng |
 |---|---|---|
@@ -207,7 +207,7 @@ Join bằng org + ID/reference hoặc SKU đã thống nhất; stock một dòng
 | Còn món nào chưa bàn giao? | Sales lines + tổng Warehouse handoff từng dòng | Đúng số thiếu và đơn vị, không cộng cái với ram/cuộn |
 | Khách đã nhận chưa? | Ngoài phạm vi | Nói demo chỉ xác minh đến bàn giao vận chuyển, chưa theo dõi khách nhận |
 
-Bot mặc định read-only; gợi ý/nút thao tác phải qua Business API có quyền/xác nhận, không tự SQL UPDATE tồn hoặc tự nói carrier đã nhận. JSON có thể giữ answer/datasets/tables/charts/warnings kèm evidence, queried_at theo nguồn, trace/config version. Không tạo biểu đồ khách nhận từ dữ liệu chưa thu thập.
+Truy vấn chia sẻ mặc định chỉ đọc; thao tác thay đổi phải qua Business API có quyền/xác nhận, không tự SQL UPDATE tồn hoặc kết luận carrier đã nhận khi thiếu bằng chứng. Kết quả có thể giữ datasets/tables/charts/warnings kèm evidence và queried_at theo nguồn. Không tạo biểu đồ khách nhận từ dữ liệu chưa thu thập.
 
 Nguồn lỗi, thiếu quyền và không tìm thấy trong scope là các tình trạng khác nhau. Có thể báo phần đã xác minh nhưng không đoán phần chưa truy vấn được. Query nhiều DB không được mô tả như snapshot ACID chung; lúc ghi vẫn kiểm tra lại tại nguồn sở hữu.
 
@@ -304,4 +304,4 @@ Hai dispatch hoàn tất, một trễ → tỷ lệ dispatch bàn giao trễ 50%
 - Metric bàn giao dùng hạn gốc, actual handoff và đúng cấp đếm; mẫu rỗng null.
 - Flowable definition/version/task và recovery được kiểm thử thật khi triển khai.
 
-Models/migrations và dữ liệu mẫu trên bốn database độc lập đã có. Các bước tiếp: kiểm chứng Hasura quyền thật → Business APIs/outbox/inbox → BPMN → chatbot có nguồn. Notes CHECK, partial unique, SUM cap và locking vẫn phải được triển khai; parser/export thành công chỉ xác nhận cấu trúc thiết kế, chưa phải hệ thống chạy được.
+Models/migrations và dữ liệu mẫu trên bốn database độc lập đã có. Các bước tích hợp tiếp theo của thiết kế này: Hasura permissions → Business APIs/outbox/inbox → BPMN. Notes CHECK, partial unique, SUM cap và locking vẫn phải được triển khai; parser/export thành công chỉ xác nhận cấu trúc thiết kế, chưa phải hệ thống chạy được.

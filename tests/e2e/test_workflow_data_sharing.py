@@ -15,9 +15,9 @@ import httpx
 import pytest
 from dotenv import dotenv_values
 from pydantic import SecretStr
-from scripts.docker_env import write_env
-from scripts.e2e_environment import ROOT, RUNTIME, business_snapshot, engine_for
+from scripts.e2e_environment import business_snapshot
 from scripts.e2e_runtime import NativeRuntime
+from scripts.integration_utils import ROOT, RUNTIME, engine_for, write_env
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from tests.core.persistence.test_onboarding import submission

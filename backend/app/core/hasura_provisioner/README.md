@@ -37,7 +37,7 @@ Client dành riêng cho control plane nội bộ. Không đưa trực tiếp cli
 
 ## Cấu hình
 
-Tái sử dụng dependencies đã khóa; không cần `pip install psycopg2`, thêm SDK Supabase hoặc cài agent skills cho module này.
+Tái sử dụng dependencies đã khóa; không cần `pip install psycopg2` hoặc thêm SDK Supabase cho module này.
 
 ```sh
 uv sync --locked --group dev --group build

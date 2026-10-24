@@ -9,7 +9,7 @@ Demo mới dùng [PostgreSQL 16 Docker local](database/README.md): Sales, Wareho
 | Khối | Đã có | Phần cần triển khai |
 |---|---|---|
 | Business | Schema ba database, migration, seed tổng hợp và vertical slice APIs Sales/Warehouse/Logistics với transaction, idempotency, quyền theo subject/org | Các API P1 ngoài phạm vi order fulfillment tối thiểu |
-| DX-OS Data Core | PostgreSQL runtime, Registry, Data Products/Contracts, Governance, Hasura provisioning và quyền đọc P0 | Agent/Tool runtime và mở rộng các boundary P1 |
+| DX-OS Data Core | PostgreSQL runtime, Registry, Data Products/Contracts, Governance, Hasura provisioning và quyền đọc P0 | Mở rộng các boundary P1 phục vụ Data Sharing và Workflow |
 | Contracts & Platform | API contracts, Identity/HTTP adapters, Workflow REST/actions/events và Business Workflow E2E trên Flowable/PostgreSQL local | Delegation production, APISIX runtime và audit integration mở rộng |
 
 Mỗi thay đổi cần giữ DTO, trạng thái và quyền nhất quán với contracts, kèm implementation và kiểm thử có thể chạy độc lập.
@@ -34,7 +34,7 @@ Mocks chỉ nằm trong test/development phù hợp; không tạo endpoint giả
 1. Contracts/fixtures thống nhất; từng khối có kiểm thử độc lập và cấu hình môi trường rõ.
 2. Đăng ký nguồn → publish một Data Product → đọc đúng quyền → thu hồi quyền được kiểm tra thực tế.
 3. Order Fulfillment qua APIs thật, User Tasks đúng quyền, nhánh thiếu hàng và xử lý lỗi sau reservation.
-4. Agent sử dụng một registered Tool với quyền người gọi và audit; sau đó mở rộng registry/runtime.
+4. Workflow dùng Operation/Tool được đăng ký với quyền người gọi và audit khi cần.
 5. Portal gọi API mới, deployment có thể dựng lại và E2E xuyên các khối.
 
 Mỗi mốc có assertion và bằng chứng kiểm tra. Không coi scaffold, preview hoặc mock tests là runtime tích hợp hoàn chỉnh.

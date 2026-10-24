@@ -71,8 +71,7 @@ http
     if (
       pathname !== "/" &&
       !pathname.startsWith("/assets/") &&
-      !pathname.startsWith("/favicon.") &&
-      pathname !== "/logo-flowbridge.png"
+      !pathname.startsWith("/favicon.")
     ) {
       response.writeHead(404).end();
       return;

@@ -20,7 +20,7 @@ Hợp đồng chung là điểm nối các khối. Bộ API contract 0.2.0 dùng
 
 Core entrypoint tham chiếu các bounded-context fragments: [application-onboarding](application-onboarding.yaml), [data-contracts](data-contracts.yaml), [data-governance](data-governance.yaml), [operation-registry](operation-registry.yaml). Không mở fragment như một server riêng. Mỗi schema có một nơi sở hữu; tests bundle entrypoints trong bộ nhớ và validate hoàn toàn offline.
 
-88 operations: 48 P0 Data Sharing và 40 P1. Giữ method/path/operationId của 84 operation v0.1.1, nhưng có thay đổi DTO/semantics có chủ đích; không tuyên bố tương thích payload hay runtime. Canonical Data Contract giữ physical/public names, PostgreSQL/wire types và relationships. P0 read grants theo department; principal grants chưa được cam kết enforcement.
+93 operations: 55 P0 và 38 P1. Hai endpoint Agent/Tool binding lịch sử đã loại bỏ; các method/path/operationId còn lại giữ nguyên nhưng DTO/semantics có thay đổi có chủ đích. Không tuyên bố tương thích payload hay runtime. Canonical Data Contract giữ physical/public names, PostgreSQL/wire types và relationships. P0 read grants theo department; principal grants chưa được cam kết enforcement.
 
 Ba lớp quyền độc lập: IT/PLATFORM_ADMIN quản trị toàn bộ DX-OS; Core + Hasura kiểm quyền đọc theo grant; Business API kiểm quyền nghiệp vụ riêng. STAFF/legacy OWNER không cấp quyền quản trị, publish hay duyệt trong Core. Mọi operation có x-authorization-policy để phân biệt admin, consumer và receiver; access requests là hồ sơ IT quản lý thay consumer, không phải luồng phòng ban tự xin/duyệt.
 

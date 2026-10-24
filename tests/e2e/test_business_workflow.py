@@ -24,8 +24,8 @@ from scripts.business_environment import (
 )
 from scripts.database.engine import make_engine
 from scripts.database.registry import REPOSITORY_ROOT
-from scripts.e2e_environment import tokens
 from scripts.e2e_runtime import NativeRuntime
+from scripts.integration_utils import tokens
 from tests.e2e.test_automated_onboarding import call, wait_job
 from tests.e2e.test_business_apis import create_order, request
 

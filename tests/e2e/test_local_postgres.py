@@ -19,9 +19,8 @@ from scripts.database.engine import make_engine
 from scripts.database.local import RUNTIME as LOCAL_RUNTIME
 from scripts.database.local import load_local
 from scripts.database.products import draft_submissions
-from scripts.docker_env import write_env
-from scripts.e2e_environment import RUNTIME, tokens
 from scripts.e2e_runtime import NativeRuntime
+from scripts.integration_utils import RUNTIME, tokens, write_env
 from sqlalchemy.dialects.postgresql import insert
 from tests.e2e.test_automated_onboarding import call, import_manifest, wait_job
 

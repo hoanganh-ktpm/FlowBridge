@@ -2,7 +2,7 @@
 
 **Phạm vi chốt ngày 23/10/2026: kết thúc khi Kho đã bàn giao đủ mọi dòng hàng cho đơn vị vận chuyển bên ngoài.** Logistics là bộ phận nội bộ điều phối việc gửi hàng; không phải đơn vị vận chuyển. Không có bước khách nhận, giao lại, hoàn trả hoặc khiếu nại trên đường trong bản demo này.
 
-Tài liệu mô tả quy trình cần tích hợp. Database/migrations/seed đã có; Business API, worker sự kiện, BPMN thực thi, Hasura permissions và chatbot liên thông chưa được module database tự triển khai.
+Tài liệu mô tả quy trình cần tích hợp tại thời điểm bàn giao. Database/migrations/seed đã có; Business API, worker sự kiện, BPMN thực thi và Hasura permissions không thuộc module database.
 
 ## 1. Vai trò và bốn database độc lập
 
@@ -12,7 +12,7 @@ Tài liệu mô tả quy trình cần tích hợp. Database/migrations/seed đã
 | Nhân viên Warehouse (Kho) | Nhập, kiểm tồn, giữ hàng, soạn hàng và xác nhận bàn giao vật lý | `warehouse_db.public` |
 | Nhân viên Logistics nội bộ | Chọn đơn vị vận chuyển, chuẩn bị mã vận đơn và chấp nhận manifest | `logistics_db.public` |
 | Đại diện đơn vị vận chuyển bên ngoài | Đến kho tiếp nhận hàng, cung cấp tên người nhận bàn giao | Không sở hữu một database nghiệp vụ trong demo |
-| Quản trị/chủ dữ liệu | Đăng ký nguồn, duyệt phạm vi chia sẻ và cấu hình quy trình/Agent | `dxos_core_db.public` |
+| Quản trị/chủ dữ liệu | Đăng ký nguồn, duyệt phạm vi chia sẻ và cấu hình quy trình | `dxos_core_db.public` |
 
 Ba database nghiệp vụ và Core nằm cùng PostgreSQL server nhưng độc lập. Liên thông qua API/Hasura và sự kiện theo UUID + `org_id` chung; không có FK/JOIN PostgreSQL nội bộ xuyên database. Ba quy trình dưới đây là ví dụ; doanh nghiệp có thể cấu hình quy trình khác qua Core/Flowable sau khi tích hợp.
 
@@ -108,7 +108,7 @@ Lệnh nghiệp vụ, receipt và outbox commit trong cùng database sở hữu.
 
 Đơn hủy loại khỏi mẫu số thực hiện; đơn đang mở quá hạn đếm riêng. Tỷ lệ của tập rỗng trả null. Không cộng cái/ram hoặc đếm lặp dòng khi join nhiều đợt.
 
-## 8. Lợi ích liên thông, chatbot và phạm vi triển khai
+## 8. Lợi ích liên thông và phạm vi triển khai
 
 | Câu hỏi/demo | Nguồn cần kết hợp | Giá trị thể hiện |
 |---|---|---|
@@ -118,8 +118,8 @@ Lệnh nghiệp vụ, receipt và outbox commit trong cùng database sở hữu.
 | Tồn laptop 5 sao chỉ bán thêm được 2? | Balance + reservation của các đơn | Không bán nhầm phần đã giữ |
 | Đợt này giao cho ai, vận đơn nào? | Handoff Kho + booking Logistics | Đúng carrier, người tiếp nhận, lượng và thời điểm |
 
-Sales được đọc catalog/tồn khả dụng nhưng không mặc định đọc giá vốn. Logistics chỉ nhận manifest và PII tối thiểu để in nhãn của đơn được phân công. Chatbot mặc định chỉ đọc theo contract/grant ACTIVE, cung cấp source refs và thời điểm truy vấn; không tự SQL UPDATE tồn và không đoán dữ liệu nguồn lỗi/thiếu quyền.
+Sales được đọc catalog/tồn khả dụng nhưng không mặc định đọc giá vốn. Logistics chỉ nhận manifest và PII tối thiểu để in nhãn của đơn được phân công. Truy vấn chia sẻ chỉ đọc theo contract/grant ACTIVE, cung cấp source refs và thời điểm truy vấn; không tự SQL UPDATE tồn và không đoán dữ liệu nguồn lỗi/thiếu quyền.
 
-Core P0 hiện lưu principals/phòng ban, registry, products/contracts, access requests/grants, jobs/audit và command receipts. Agent/Workflow metadata P1/P2 còn là kế hoạch, không nằm trong 12 bảng hiện hành. Core không lưu bản sao hàng nghiệp vụ và không thay database của Flowable/Keycloak. Phần runtime N nguồn và triển khai quyền/Agent thực tế còn cần tích hợp.
+Tại mốc bàn giao này, Core P0 lưu principals/phòng ban, registry, products/contracts, access requests/grants, jobs/audit và command receipts. Workflow metadata đã có ở revision sau; xem [Database Setup](README.md). Core không lưu bản sao hàng nghiệp vụ và không thay database của Flowable/Keycloak. Các bảng Agent trong lịch sử migration được giữ nguyên, không còn là chức năng dự kiến.
 
-Bộ hiện tại có Models, **7 Alembic revision files** và 38 bảng hiện hành. Nghiệp vụ giữ 114 dòng demo; Core sau reset để trống, seed Core tùy chọn gồm 9 dòng draft registry. Dựng đích mới bằng migrations; kiểm tra bằng `status`, `check`, `verify`. Các bước nghiệp vụ và chatbot trên đây là kế hoạch tích hợp, không phải bằng chứng đã có API/BPMN/Hasura chạy hoàn chỉnh.
+Tại mốc bàn giao này có Models, **7 Alembic revision files** và 38 bảng. Nghiệp vụ giữ 114 dòng demo; Core sau reset để trống, seed Core tùy chọn gồm 9 dòng draft registry. Dựng đích mới bằng migrations; kiểm tra bằng `status`, `check`, `verify`. Phạm vi đã được nghiệm thu sau mốc này xem [Business Workflow](../WORKFLOW.md).

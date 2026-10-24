@@ -9,7 +9,7 @@
 | [API Contracts](API-CONTRACTS.md) | OpenAPI 3.1.1, P0 Data Sharing/P1 boundaries, canonical Data Contract, validation và DB alignment gaps |
 | [Core Backend P0](CORE-P0.md) | Runtime handlers, services/policy/worker, offline validation và PostgreSQL/Hasura integration checklist |
 | [Automated Onboarding](AUTOMATED-ONBOARDING.md) | PostgreSQL CoreStore, native API/worker, integration evidence và E2E blockers |
-| [Docker Integration](DOCKER.md) | Keycloak/Hasura trong Docker, Core/domain dùng Supabase hiện có; local secrets/TLS và lệnh khởi động |
+| [Docker Integration — profile cũ](DOCKER.md) | Hướng dẫn và bằng chứng nghiệm thu Keycloak/Hasura với Supabase; demo hiện hành dùng PostgreSQL local |
 | [Database Setup](database/README.md) | Core P0 một doanh nghiệp, migrations theo ownership, guarded reset và giới hạn tích hợp runtime |
 | [Contributing](../CONTRIBUTING.md) | Quy trình phát triển, kiểm tra và review |
 

@@ -1,7 +1,7 @@
 # Tests theo khối
 
 - domain/: tests cho Sales/Warehouse/Logistics, chia thư mục theo API khi có code.
-- core/: Registry, sources/products, Governance, Hasura provisioner và Agent/Tools.
+- core/: Registry, sources/products, Governance, Hasura provisioner và Workflow persistence.
 - platform/: token validation, Keycloak Directory, HTTP/OpenAPI utilities đã port và các adapter Platform sau này.
 - e2e/: quy trình xuyên các khối với engine thật khi tích hợp.
 - contracts/: kiểm tra OpenAPI/JSON Schema, refs, fixtures tổng hợp và consistency của API Contracts; không phụ thuộc database hoặc service thật. Chạy `uv run --locked pytest tests/contracts -q`; xem [API Contracts](../docs/API-CONTRACTS.md).

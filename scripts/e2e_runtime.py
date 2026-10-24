@@ -13,7 +13,7 @@ from dotenv import dotenv_values
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
-from scripts.e2e_environment import ROOT, RUNTIME, engine_for
+from scripts.integration_utils import ROOT, RUNTIME, engine_for
 
 
 class NativeRuntime:

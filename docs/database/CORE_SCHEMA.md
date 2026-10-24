@@ -4,7 +4,7 @@ Core phục vụ **một doanh nghiệp**, theo thiết kế Core v0.2 và API C
 
 ## Phạm vi hiện tại
 
-Source head **core_0005** có **13 bảng**: 12 bảng ở milestone core_0004 và registry quan hệ. Revision mới chưa áp dụng lên Supabase trong task triển khai. Agent/Operation/Tool, lịch sử schema, workflow references và lineage P1/P2 chưa tạo bảng trong mốc này; bổ sung bằng revision mới khi có implementation.
+Tại mốc tài liệu này, source head **core_0005** có **13 bảng**: 12 bảng ở milestone core_0004 và registry quan hệ. Trạng thái triển khai mới hơn xem [Database Setup](README.md). Các bảng Agent từng xuất hiện trong migration lịch sử; việc loại bỏ chúng cần migration riêng, không thay đổi schema trực tiếp trong cleanup này.
 
 - Principal là người/service được đối chiếu issuer + subject, không lưu mật khẩu hoặc token.
 - Department và membership mô tả nhân sự; STAFF/OWNER không phải quyền quản trị DX-OS.
