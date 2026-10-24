@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApi, createSseParser } from "./api";
+import { createApi, createSseParser, responseError } from "./api";
 import { chartData } from "@/features/results/chart-data";
 import { decimal } from "./format";
 import comparison from "../fixtures/supplier-comparison.json";
@@ -8,6 +8,13 @@ import { applyActivity, collectCursor } from "@/features/chat/use-hub";
 
 afterEach(() => vi.unstubAllGlobals());
 describe("contract integration", () => {
+  it("preserves structured data-state errors without displaying an object as a message", async () => {
+    const error = await responseError(new Response(JSON.stringify({detail:{code:"NO_DATA",message:"Chưa có số liệu"}}), {status:422}));
+    expect(error.code).toBe("NO_DATA");
+    expect(error.message).toBe("Chưa có số liệu");
+    const invalid = await responseError(new Response(JSON.stringify({detail:[{msg:"invalid field"}]}), {status:422}));
+    expect(invalid.message).not.toContain("object Object");
+  });
   it("handles SSE split across CRLF and UTF-8 decoded chunks without duplicate frames", () => {
     const events: RunEvent[] = [];
     const parse = createSseParser((event) => events.push(event));

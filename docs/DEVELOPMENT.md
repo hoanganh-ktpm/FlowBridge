@@ -2,6 +2,12 @@
 
 ## Môi trường hiện hành
 
+Data Workspace có service riêng tại port 18090 và tích hợp vào Portal live mặc định.
+Core/worker giữ port 18000; Vite proxy riêng `/api/v1/data-workspace` tới 18090.
+Các lệnh `python -m scripts.data_workspace` chuẩn bị cấu hình local, chạy process và
+quản lý migration riêng Tầng 2, không migration khi startup. Xem
+[hướng dẫn và ma trận kiểm thử](DATA-WORKSPACE.md).
+
 Demo mới dùng [PostgreSQL 16 Docker local](database/README.md): Sales, Warehouse, Logistics, Core và Hasura metadata tách database. Core/worker chạy Python .venv; Hasura local ở 18082. [Profile cũ](DOCKER.md) giữ Keycloak ở 18443; [Workflow](WORKFLOW.md) là profile Flowable độc lập. Secrets/TLS bị Git ignore; local CLI không đọc DSN Supabase cũ. Engine health không thay thế kiểm thử publication/read/revoke hoặc Workflow E2E.
 
 ## Phạm vi implementation

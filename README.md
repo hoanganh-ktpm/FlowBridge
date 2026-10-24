@@ -37,10 +37,11 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 | Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Core HTTP/worker và PostgreSQL adapter; đã kiểm luồng onboarding, publish, đọc theo grant và revoke với Keycloak/Hasura/Supabase thật |
 | Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Identity/HTTP adapters và Workflow Layer 1 đã có live E2E; các tích hợp còn lại đang phát triển |
 | Business APIs | Đơn hàng, tồn kho và vận chuyển | Có vertical slice Workflow thật xuyên 3 DB: reservation/packing/handoff/delivery; chưa phải ERP đầy đủ |
-| Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
-| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | PostgreSQL 16 local có năm DB ứng dụng/metadata và flowable_db; Hasura/Keycloak/Flowable Docker; Core/worker native |
+| Portal | Giao diện, SSO browser và hiển thị kết quả | Data Workspace dùng Core/PKCE; giao diện chat cũ giữ ở route riêng và preview |
+| Data Workspace (Tầng 2) | Adapter cấu hình, analytics, statistical forecast, what-if có kiểm quyền | Service/API và ba màn hình Portal; PostgreSQL riêng; xem [phạm vi và nghiệm thu](docs/DATA-WORKSPACE.md) |
+| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | PostgreSQL 16 local có các DB ứng dụng/metadata, flowable_db và Workspace DB riêng; Hasura/Keycloak/Flowable Docker; Core/worker native |
 
-Native factory `app.core.runtime:create_app` ghép Core HTTP với PostgreSQL thật; worker chạy thành process riêng, không có persistence memory fallback hoặc migration khi startup. Models hiện có 45 bảng ứng dụng/14 revision files: Core 15 bảng và nghiệp vụ 30 bảng. Head `core_0006` bổ sung persistence Workflow trên mô hình principal/phòng ban/Data Product/grant. Manifest v1 đăng ký draft và discovery nguồn thật, không sửa schema Core theo tên ứng dụng. [Workflow](docs/WORKFLOW.md) ghi nhận Flowable 7.2.0 trên PostgreSQL local, quy trình Sales → Warehouse → Logistics đến End và event Hasura thật; Core/worker giữ native. Demo dùng [PostgreSQL Docker local](docs/database/README.md), generator 365 ngày và sáu Data Product views; checksum lịch sử được bảo toàn qua E2E. Các profile Supabase trong [Docker Integration](docs/DOCKER.md) là tài liệu môi trường cũ. Xem [Relationship Queries](docs/RELATIONSHIP-QUERIES.md), [Automated Onboarding](docs/AUTOMATED-ONBOARDING.md), [Core Backend P0](docs/CORE-P0.md) và [Database Setup](docs/database/README.md).
+Native factory `app.core.runtime:create_app` ghép Core HTTP với PostgreSQL thật; worker chạy thành process riêng, không có persistence memory fallback hoặc migration khi startup. Source hiện có 48 bảng ứng dụng/17 revision files: Core 15 bảng, nghiệp vụ 30 bảng và Workspace 3 bảng. Head `core_0006` bổ sung persistence Workflow trên mô hình principal/phòng ban/Data Product/grant. Manifest v1 đăng ký draft và discovery nguồn thật, không sửa schema Core theo tên ứng dụng. [Workflow](docs/WORKFLOW.md) ghi nhận Flowable 7.2.0 trên PostgreSQL local, quy trình Sales → Warehouse → Logistics đến End và event Hasura thật; Core/worker giữ native. Demo dùng [PostgreSQL Docker local](docs/database/README.md), generator 365 ngày và bảy Data Product views; checksum lịch sử được bảo toàn qua E2E. Các profile Supabase trong [Docker Integration](docs/DOCKER.md) là tài liệu môi trường cũ. Xem [Relationship Queries](docs/RELATIONSHIP-QUERIES.md), [Automated Onboarding](docs/AUTOMATED-ONBOARDING.md), [Core Backend P0](docs/CORE-P0.md) và [Database Setup](docs/database/README.md).
 
 ## Kiến trúc định hướng
 
@@ -68,6 +69,7 @@ FlowBridge/
 │   ├── core/                   Registry, Data Products, Governance, Agents, Core DB
 │   └── platform/               Identity, Gateway, Workflow, Audit, HTTP
 ├── services/
+│   ├── data-workspace-api/     Analytics/forecast/simulation qua Core API; DB riêng
 │   ├── sales-api/              app/ và migrations/
 │   ├── warehouse-api/          app/ và migrations/
 │   └── logistics-api/          app/ và migrations/
@@ -133,6 +135,8 @@ npm run build
 `.env.example` chỉ chứa tên cấu hình và giá trị mẫu. Tạo `.env` cục bộ khi tích hợp Identity vào ứng dụng; không đưa credential vào source.
 
 ## Tài liệu
+
+- [Data Workspace: triển khai, mô hình tính, kiểm thử, cách chạy và phần chờ phê duyệt](docs/DATA-WORKSPACE.md)
 
 - [Kiến trúc và ranh giới module](docs/ARCHITECTURE.md)
 - [Môi trường phát triển và tiêu chí tích hợp](docs/DEVELOPMENT.md)

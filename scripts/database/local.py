@@ -17,9 +17,15 @@ RUNTIME = REPOSITORY_ROOT / ".tmp/local-postgres"
 COMPOSE = REPOSITORY_ROOT / "infra/postgres/docker-compose.local.yml"
 BUSINESS = ("sales", "warehouse", "logistics")
 PRODUCT_VIEWS = {
-    "sales": ("v_confirmed_demand_daily", "v_open_orders"),
-    "warehouse": ("v_stock_availability", "v_inbound_schedule"),
-    "logistics": ("v_handoff_capacity", "v_accepted_shipments_daily"),
+    "sales": ("v_confirmed_demand_daily", "v_open_orders", "v_planning_demand_daily"),
+    "warehouse": (
+        "v_stock_availability",
+        "v_inbound_schedule",
+        "v_order_commitments",
+        "v_planning_catalog",
+        "v_receipts_daily",
+    ),
+    "logistics": ("v_handoff_capacity", "v_accepted_shipments_daily", "v_handoff_schedule"),
 }
 
 

@@ -13,6 +13,34 @@ Core quản lý tích hợp dữ liệu, Platform cung cấp năng lực kỹ th
 
 ## Quy tắc giao tiếp
 
+Tầng 2 nằm tại `services/data-workspace-api/app`, chạy process độc lập. Nó chỉ đọc
+business facts qua Core HTTP (`/me`, `/authorized-data-products`, `/data-products/{id}/query`),
+giữ JWT người gọi và để Core/Hasura thực thi grants tại mỗi lần đọc. Adapter, analytics,
+forecast và simulation không import Core/domain repositories. PostgreSQL riêng
+`flowbridge_workspace_db/data_workspace` lưu cấu hình bất biến và kết quả có org/owner;
+đọc lại kết quả vẫn kiểm quyền nguồn hiện tại. Không có Hasura admin secret hay DSN
+Sales/Warehouse/Logistics trong runtime Tầng 2. Chi tiết tại [Data Workspace](DATA-WORKSPACE.md).
+
+Business reports tại `services/data-workspace-api/app/reports.py` dùng hai contract
+phát sinh đã công bố để đưa ra quy tắc báo cáo rõ ràng; không thay generic analytics.
+`/overview` đọc lịch sử một lần qua Core, trả phạm vi/đối tượng và analytics. Portal
+giữ bộ lọc nháp và kết quả đã áp dụng riêng; chỉ hành động rõ ràng của người dùng
+mới đọc facts, dự đoán hoặc tính phương án. Auth/catalog metadata vẫn kiểm khi đăng nhập.
+
+Report composition dùng `reports.py` cho chuỗi cùng đơn vị và mapping riêng đã lưu,
+`portfolio.py` cho ngữ nghĩa Sales/Warehouse và lịch Logistics. Các phép đối chiếu
+chỉ dùng facts từ Core, không JOIN SQL các database nghiệp vụ. Kết quả thiếu quyền
+là unknown; trước khi trả báo cáo tổng hợp kiểm lại mọi nguồn đã dùng. Lineage được
+tách theo từng biểu đồ. Ridge/rolling validation ở `learning.py` dùng chung dữ liệu
+chuẩn hóa, không đọc tồn kho tương lai hoặc gọi model ngoài để học nhu cầu.
+
+`/planning` ở `operations.py` đối chiếu lượng đặt theo kho, tồn và phần đã giữ,
+đơn chưa phân bổ, hàng sẽ về và lịch bàn giao qua các Data Product đã cấp quyền.
+Ngày/giờ về và hạn từng đơn được xử lý ở `planning.py`, không truy vấn schema
+nội bộ các service. `/overview` vẫn phục vụ biểu đồ cũ độc lập với các nguồn
+kế hoạch mới; tên sản phẩm chỉ bổ sung khi có catalog được chia sẻ. Portal dùng
+một giao diện chung, từ biểu đồ/dự đoán sang kế hoạch và so sánh phương án.
+
 - Platform không import Core/domain. Core dùng interface công khai của Platform; giữa module Core không tùy tiện đọc repository của nhau.
 - Services giao tiếp bằng API/contract, không import source hoặc truy vấn DB của nhau.
 - Portal gọi API qua boundary; fixtures chỉ hỗ trợ phát triển độc lập.

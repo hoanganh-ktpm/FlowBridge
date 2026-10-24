@@ -1,0 +1,1941 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FlowBridge Data Workspace",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/data-workspace/products": {
+      "get": {
+        "summary": "Products",
+        "operationId": "products_api_v1_data_workspace_products_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/preview": {
+      "post": {
+        "summary": "Preview",
+        "operationId": "preview_api_v1_data_workspace_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/profile": {
+      "post": {
+        "summary": "Profile",
+        "operationId": "profile_api_v1_data_workspace_profile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/analytics": {
+      "post": {
+        "summary": "Analytics",
+        "operationId": "analytics_api_v1_data_workspace_analytics_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/overview": {
+      "post": {
+        "summary": "Operational Overview",
+        "operationId": "operational_overview_api_v1_data_workspace_overview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/planning": {
+      "post": {
+        "summary": "Merchandise Plan",
+        "operationId": "merchandise_plan_api_v1_data_workspace_planning_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanningRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/configurations": {
+      "post": {
+        "summary": "Save Configuration",
+        "operationId": "save_configuration_api_v1_data_workspace_configurations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/{kind}/saved": {
+      "get": {
+        "summary": "Saved",
+        "operationId": "saved_api_v1_data_workspace__kind__saved_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-workspace/forecasts": {
+      "post": {
+        "summary": "Forecast",
+        "operationId": "forecast_api_v1_data_workspace_forecasts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/forecasts/{run_id}": {
+      "get": {
+        "summary": "Get Forecast",
+        "operationId": "get_forecast_api_v1_data_workspace_forecasts__run_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-workspace/scenarios": {
+      "post": {
+        "summary": "Scenario",
+        "operationId": "scenario_api_v1_data_workspace_scenarios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/scenarios/{scenario_id}": {
+      "get": {
+        "summary": "Get Scenario",
+        "operationId": "get_scenario_api_v1_data_workspace_scenarios__scenario_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scenario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scenario Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-workspace/stock-options": {
+      "post": {
+        "summary": "Stock Options",
+        "operationId": "stock_options_api_v1_data_workspace_stock_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/capacity": {
+      "post": {
+        "summary": "Capacity",
+        "operationId": "capacity_api_v1_data_workspace_capacity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CapacityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisConfig": {
+        "properties": {
+          "data_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Data Product Id"
+          },
+          "contract_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contract Version Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "time_column": {
+            "type": "string",
+            "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$",
+            "title": "Time Column"
+          },
+          "entity_column": {
+            "type": "string",
+            "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$",
+            "title": "Entity Column"
+          },
+          "target_column": {
+            "type": "string",
+            "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$",
+            "title": "Target Column"
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 24,
+            "minLength": 1,
+            "title": "Unit"
+          },
+          "unit_column": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Column"
+          },
+          "metric_type": {
+            "type": "string",
+            "enum": [
+              "FLOW",
+              "STOCK"
+            ],
+            "title": "Metric Type",
+            "default": "FLOW"
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "SUM",
+              "COUNT",
+              "AVG",
+              "LAST",
+              "MIN",
+              "MAX"
+            ],
+            "title": "Aggregation",
+            "default": "SUM"
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "D",
+              "W",
+              "M"
+            ],
+            "title": "Frequency",
+            "default": "D"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "Asia/Ho_Chi_Minh"
+          },
+          "missing_policy": {
+            "type": "string",
+            "enum": [
+              "error",
+              "zero",
+              "forward_fill"
+            ],
+            "title": "Missing Policy",
+            "default": "error"
+          },
+          "duplicate_policy": {
+            "type": "string",
+            "enum": [
+              "error",
+              "aggregate"
+            ],
+            "title": "Duplicate Policy",
+            "default": "error"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "entities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Entities"
+          },
+          "filters": {
+            "patternProperties": {
+              "^(?!__)[a-z_][a-z0-9_]{0,62}$": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "type": "object",
+            "maxProperties": 10,
+            "title": "Filters"
+          },
+          "forecast_horizon": {
+            "type": "integer",
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Forecast Horizon",
+            "default": 14
+          },
+          "forecast_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Start"
+          },
+          "forecast_model": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "seasonal_mean",
+              "ridge_lag",
+              "chronos2"
+            ],
+            "title": "Forecast Model",
+            "default": "seasonal_mean"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data_product_id",
+          "contract_version_id",
+          "name",
+          "time_column",
+          "entity_column",
+          "target_column",
+          "unit",
+          "start",
+          "end"
+        ],
+        "title": "AnalysisConfig"
+      },
+      "AnalyticsResult": {
+        "properties": {
+          "series": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "metrics": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "quality": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Quality"
+          },
+          "evidence": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "series",
+          "metrics",
+          "quality",
+          "evidence"
+        ],
+        "title": "AnalyticsResult"
+      },
+      "CapacityRequest": {
+        "properties": {
+          "data_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Data Product Id"
+          },
+          "contract_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contract Version Id"
+          },
+          "carrier_code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Carrier Code"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "additional_dispatches": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Additional Dispatches",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data_product_id",
+          "contract_version_id",
+          "carrier_code",
+          "start",
+          "end"
+        ],
+        "title": "CapacityRequest"
+      },
+      "ForecastPoint": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date",
+            "title": "Timestamp"
+          },
+          "p10": {
+            "type": "number",
+            "title": "P10"
+          },
+          "p50": {
+            "type": "number",
+            "title": "P50"
+          },
+          "p90": {
+            "type": "number",
+            "title": "P90"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_id",
+          "timestamp",
+          "p10",
+          "p50",
+          "p90"
+        ],
+        "title": "ForecastPoint"
+      },
+      "ForecastRequest": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/AnalysisConfig"
+          },
+          "allow_statistical_fallback": {
+            "type": "boolean",
+            "title": "Allow Statistical Fallback",
+            "default": true
+          },
+          "start_from_request_date": {
+            "type": "boolean",
+            "title": "Start From Request Date",
+            "default": false
+          },
+          "training_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  90,
+                  180,
+                  365
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "config"
+        ],
+        "title": "ForecastRequest"
+      },
+      "ForecastResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "SUCCEEDED",
+            "title": "Status",
+            "default": "SUCCEEDED"
+          },
+          "config": {
+            "$ref": "#/components/schemas/AnalysisConfig"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "model": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Model"
+          },
+          "evidence": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Evidence"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRead"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "quality": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Quality"
+          },
+          "metrics": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "config",
+          "points",
+          "model",
+          "evidence",
+          "sources",
+          "quality",
+          "metrics",
+          "created_at"
+        ],
+        "title": "ForecastResult"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JsonValue": {},
+      "OverviewRequest": {
+        "properties": {
+          "data_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Data Product Id"
+          },
+          "contract_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contract Version Id"
+          },
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              14,
+              30,
+              90,
+              365
+            ],
+            "title": "Days",
+            "default": 30
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity"
+          },
+          "compare_entities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Compare Entities"
+          },
+          "configuration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Id"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inbound": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "catalog": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planning_days": {
+            "type": "integer",
+            "enum": [
+              7,
+              14,
+              30
+            ],
+            "title": "Planning Days",
+            "default": 14
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data_product_id",
+          "contract_version_id"
+        ],
+        "title": "OverviewRequest"
+      },
+      "OverviewResult": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/AnalysisConfig"
+          },
+          "analytics": {
+            "$ref": "#/components/schemas/AnalyticsResult"
+          },
+          "entities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entities"
+          },
+          "entity": {
+            "type": "string",
+            "title": "Entity"
+          },
+          "source_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Source Start"
+          },
+          "source_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Source End"
+          },
+          "source_age_days": {
+            "type": "integer",
+            "title": "Source Age Days"
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalyticsResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comparison_entities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Comparison Entities"
+          },
+          "stocks": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Stocks"
+          },
+          "stock_evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Evidence"
+          },
+          "portfolio": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portfolio"
+          },
+          "capacity_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Summary"
+          },
+          "related_issues": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Related Issues"
+          },
+          "entity_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Entity Labels"
+          },
+          "report_sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRead"
+            },
+            "type": "array",
+            "title": "Report Sources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "config",
+          "analytics",
+          "entities",
+          "entity",
+          "source_start",
+          "source_end",
+          "source_age_days"
+        ],
+        "title": "OverviewResult"
+      },
+      "PlanningRequest": {
+        "properties": {
+          "demand": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "stock": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "inbound": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "open_orders": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "commitments": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "catalog": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receipts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "sku": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku"
+          },
+          "horizon": {
+            "type": "integer",
+            "enum": [
+              7,
+              14,
+              30,
+              90
+            ],
+            "title": "Horizon",
+            "default": 7
+          },
+          "history_days": {
+            "type": "integer",
+            "enum": [
+              7,
+              14,
+              30,
+              90,
+              365
+            ],
+            "title": "History Days",
+            "default": 30
+          },
+          "history_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History Start"
+          },
+          "history_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History End"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "demand",
+          "stock",
+          "inbound",
+          "open_orders",
+          "commitments"
+        ],
+        "title": "PlanningRequest"
+      },
+      "ProductRef": {
+        "properties": {
+          "data_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Data Product Id"
+          },
+          "contract_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contract Version Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data_product_id",
+          "contract_version_id"
+        ],
+        "title": "ProductRef"
+      },
+      "ProfileRequest": {
+        "properties": {
+          "data_product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Data Product Id"
+          },
+          "contract_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contract Version Id"
+          },
+          "time_column": {
+            "type": "string",
+            "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$",
+            "title": "Time Column"
+          },
+          "entity_column": {
+            "type": "string",
+            "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$",
+            "title": "Entity Column"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "Asia/Ho_Chi_Minh"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data_product_id",
+          "contract_version_id",
+          "time_column",
+          "entity_column"
+        ],
+        "title": "ProfileRequest"
+      },
+      "ScenarioMetrics": {
+        "properties": {
+          "first_risk_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Risk Date"
+          },
+          "peak_shortage": {
+            "type": "number",
+            "title": "Peak Shortage"
+          },
+          "forecast_demand": {
+            "type": "number",
+            "title": "Forecast Demand"
+          },
+          "fulfilled_quantity": {
+            "type": "number",
+            "title": "Fulfilled Quantity"
+          },
+          "fulfillment_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fulfillment Percent"
+          },
+          "known_orders_at_risk": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Orders At Risk"
+          },
+          "known_unallocated_demand": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Unallocated Demand"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "first_risk_date",
+          "peak_shortage",
+          "forecast_demand",
+          "fulfilled_quantity",
+          "fulfillment_percent",
+          "known_orders_at_risk"
+        ],
+        "title": "ScenarioMetrics"
+      },
+      "ScenarioOutput": {
+        "properties": {
+          "series": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/ScenarioMetrics"
+          },
+          "orders": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Orders"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "series",
+          "metrics"
+        ],
+        "title": "ScenarioOutput"
+      },
+      "ScenarioResult": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/ScenarioOutput"
+          },
+          "proposed": {
+            "$ref": "#/components/schemas/ScenarioOutput"
+          },
+          "comparison": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Comparison"
+          },
+          "sensitivity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SensitivityResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Evidence"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRead"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "baseline",
+          "proposed",
+          "comparison",
+          "evidence",
+          "sources",
+          "created_at"
+        ],
+        "title": "ScenarioResult"
+      },
+      "SensitivityCell": {
+        "properties": {
+          "quantity": {
+            "type": "number",
+            "title": "Quantity"
+          },
+          "arrival_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Arrival Date"
+          },
+          "peak_shortage": {
+            "type": "number",
+            "title": "Peak Shortage"
+          },
+          "known_orders_at_risk": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Orders At Risk"
+          },
+          "first_risk_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Risk Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity",
+          "arrival_date",
+          "peak_shortage",
+          "known_orders_at_risk",
+          "first_risk_date"
+        ],
+        "title": "SensitivityCell"
+      },
+      "SensitivityResult": {
+        "properties": {
+          "quantities": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Quantities"
+          },
+          "dates": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Dates"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/SensitivityCell"
+            },
+            "type": "array",
+            "maxItems": 25,
+            "title": "Cells"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantities",
+          "dates",
+          "cells",
+          "unit"
+        ],
+        "title": "SensitivityResult"
+      },
+      "SimulationRequest": {
+        "properties": {
+          "forecast_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Forecast Run Id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "sku": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Sku"
+          },
+          "warehouse_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Warehouse Id"
+          },
+          "stock": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "inbound": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "open_orders": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commitments": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "additional_quantity": {
+            "type": "number",
+            "maximum": 1000000000.0,
+            "minimum": 0.0,
+            "title": "Additional Quantity",
+            "default": 0
+          },
+          "arrival_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Arrival Date"
+          },
+          "demand_multiplier": {
+            "type": "number",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Demand Multiplier",
+            "default": 1
+          },
+          "demand_quantile": {
+            "type": "string",
+            "enum": [
+              "p50",
+              "p90"
+            ],
+            "title": "Demand Quantile",
+            "default": "p50"
+          },
+          "inbound_delay_days": {
+            "type": "integer",
+            "maximum": 90.0,
+            "minimum": 0.0,
+            "title": "Inbound Delay Days",
+            "default": 0
+          },
+          "include_sensitivity": {
+            "type": "boolean",
+            "title": "Include Sensitivity",
+            "default": false
+          },
+          "save": {
+            "type": "boolean",
+            "title": "Save",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "forecast_run_id",
+          "sku",
+          "warehouse_id",
+          "stock",
+          "inbound",
+          "arrival_date"
+        ],
+        "title": "SimulationRequest"
+      },
+      "SourceRead": {
+        "properties": {
+          "ref": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "columns": {
+            "items": {
+              "type": "string",
+              "pattern": "^(?!__)[a-z_][a-z0-9_]{0,62}$"
+            },
+            "type": "array",
+            "title": "Columns"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ref",
+          "columns"
+        ],
+        "title": "SourceRead"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // FlowBridge; see LICENSE.
 import { expect, test } from '@playwright/test'
+import delivery from '../../src/fixtures/delivery-result.json' with { type: 'json' }
 
 test('reading column stays centered and composer expands without viewport overflow', async ({ page }) => {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }, { width: 320, height: 640 }]) {
@@ -54,7 +55,7 @@ test('chat layout, agent explorer and contract charts work on desktop', async ({
   await page.getByRole('button', { name: 'Đóng chi tiết xử lý' }).click()
   await page.getByRole('tab', { name: 'Dữ liệu', exact: true }).click()
   await expect(page.locator('[data-slot="table"]').first()).toBeVisible()
-  await expect(page.getByRole('cell', { name: '110', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('cell', { name: String(delivery.datasets[0].rows[0].order_count), exact: true }).first()).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /Tải CSV/ }).click()
   expect((await download).suggestedFilename()).toContain('.csv')
@@ -88,7 +89,7 @@ test('mobile activity panel uses a dismissible sheet and keeps chat context', as
   await page.getByRole('button', { name: 'Hoạt động', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Chi tiết xử lý' })).toBeVisible()
   await page.getByRole('tab', { name: 'Nguồn', exact: true }).click()
-  await expect(page.getByRole('dialog').getByText('supplier_delivery_statistics', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText(delivery.sources[0].title, { exact: true })).toBeVisible()
   await page.screenshot({ path: 'ref/qa/mobile-activities.png', fullPage: true, animations: 'disabled' })
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', { name: 'Chi tiết xử lý' })).toHaveCount(0)

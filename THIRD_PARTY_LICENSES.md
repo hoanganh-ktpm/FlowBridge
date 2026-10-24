@@ -1,5 +1,31 @@
 # Third-Party Licenses
 
+## Data Workspace (Layer 2)
+
+No dependency was added or upgraded for the active Workspace implementation.
+Analytics, normalization and deterministic simulation use Python's standard library.
+The service reuses the locked FastAPI 0.143.1 (MIT), HTTPX 0.28.1 (BSD-3-Clause),
+SQLAlchemy 2.1.4 (MIT), Alembic 1.20.0 (MIT), and asyncpg 0.32.0 (Apache-2.0).
+Installed distribution metadata/license files were checked. asyncpg is used for
+runtime persistence because async psycopg is incompatible with Windows Proactor
+event loops; the existing psycopg database group remains the migration/admin driver.
+
+| Component | Version | License/source | Workspace purpose |
+|---|---|---|---|
+| Recharts | 3.10.1, existing frontend lock | [MIT](https://github.com/recharts/recharts/blob/v3.10.1/LICENSE) | Responsive historical, forecast, inventory, shortage and capacity charts |
+| asyncpg | 0.32.0, existing Python lock | Apache-2.0; [official repository](https://github.com/MagicStack/asyncpg), installed distribution LICENSE | Only `workspace_owner@flowbridge_workspace_db` persistence |
+| SQLAlchemy | 2.1.4, existing Python lock | MIT; [official repository](https://github.com/sqlalchemy/sqlalchemy) | Parameterized Layer 2 storage adapter |
+| Alembic | 1.20.0, existing Python lock | MIT; [official repository](https://github.com/sqlalchemy/alembic) | Owned migration histories |
+
+Retain the Recharts copyright/permission/warranty notice when distributing its
+bundled code; the Portal notice includes it. Preserve Python distribution licenses
+and applicable Apache NOTICE/attribution when packaging dependencies. No third-party
+source code or model weights were copied into the service. The exact-version
+asyncpg GitHub license URL was unavailable to the web fetcher; its installed
+metadata is the version/license evidence, rather than a claim of a verified Git tag.
+See [MODEL_LICENSES.md](MODEL_LICENSES.md) for the optional, unprovisioned Chronos-2
+provider and the distinction between code and weights licenses.
+
 ## Hasura integration audit
 
 Core v0.2 hardening review: rechecked installed/locked HTTPX 0.28.1 (BSD-3-Clause), Pydantic 2.14.1 (MIT), Pydantic Settings 2.16.0 (MIT). Added code uses only these existing packages and Python stdlib; no new dependency or engine artifact. Reading pinned Hasura source for API verification does not vendor that source. Runtime scope and integration checks are documented in [Docker Integration](docs/DOCKER.md).

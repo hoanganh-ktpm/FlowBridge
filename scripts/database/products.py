@@ -1,4 +1,4 @@
-"""Draft-only mappings for the six domain-owned Data Products; no publish/grant calls."""
+"""Draft-only mappings for domain-owned Data Products; no publish/grant calls."""
 
 import json
 
@@ -13,14 +13,19 @@ PRODUCTS = {
     "sales": {
         "confirmed_demand_daily": ("org_id", "sku", "day"),
         "open_orders": ("org_id", "order_line_id"),
+        "planning_demand_daily": ("org_id", "warehouse_id", "sku", "uom", "day"),
     },
     "warehouse": {
         "stock_availability": ("org_id", "warehouse_id", "product_id"),
         "inbound_schedule": ("org_id", "inbound_plan_id"),
+        "order_commitments": ("org_id", "order_line_id", "warehouse_id"),
+        "planning_catalog": ("org_id", "warehouse_id", "product_id"),
+        "receipts_daily": ("org_id", "warehouse_id", "sku", "day", "uom"),
     },
     "logistics": {
         "handoff_capacity": ("org_id", "carrier_code", "capacity_date"),
         "accepted_shipments_daily": ("org_id", "carrier_code", "day"),
+        "handoff_schedule": ("org_id", "shipment_id"),
     },
 }
 
@@ -125,4 +130,6 @@ def draft_submissions():
 def export_drafts():
     target = RUNTIME / "draft-products.json"
     target.write_text(json.dumps(draft_submissions(), indent=2), encoding="utf-8")
-    print("Six DRAFT product mappings exported to ignored .tmp/local-postgres/draft-products.json")
+    print(
+        "Seven DRAFT product mappings exported to ignored .tmp/local-postgres/draft-products.json"
+    )

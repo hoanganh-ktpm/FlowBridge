@@ -217,7 +217,7 @@ def test_local_six_views_publish_read_update_revoke(local_live):
         discovered = call(
             it, "GET", "/data-sources/" + source_id + "/schema", params={"schema_name": "public"}
         )
-        assert len(discovered["objects"]) == 2
+        assert len(discovered["objects"]) == len(body["manifest"]["data_products"])
         for product_id in imported["data_product_ids"]:
             product = call(it, "GET", "/data-products/" + product_id)
             core = make_engine("core")

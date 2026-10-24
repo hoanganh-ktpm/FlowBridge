@@ -18,7 +18,7 @@ export async function publicConfig() {
     apiUrl:
       process.env.FLOWBRIDGE_WEB_API_URL ||
       config?.apiUrl ||
-      "http://127.0.0.1:18082",
+      "http://127.0.0.1:18000",
     issuer:
       process.env.FLOWBRIDGE_WEB_ISSUER ||
       config?.issuer ||

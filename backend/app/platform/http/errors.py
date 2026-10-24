@@ -131,6 +131,18 @@ def error_response(
 
 
 async def handle_core_error(request: Request, exc: CoreError) -> JSONResponse:
+    if ERROR_SPECS[exc.code].status_code >= 500:
+        # Log only code locations, never exception text, frame locals, DSNs or payloads.
+        sites, trace = [], exc.__traceback__
+        while trace is not None:
+            sites.append(f"{trace.tb_frame.f_code.co_name}:{trace.tb_lineno}")
+            trace = trace.tb_next
+        logger.warning(
+            "Core upstream failure code=%s sites=%s request_id=%s",
+            exc.code.value,
+            ">".join(sites[-4:]),
+            request.state.correlation_id,
+        )
     headers = {}
     if exc.retry_after is not None:
         headers["Retry-After"] = str(exc.retry_after)
