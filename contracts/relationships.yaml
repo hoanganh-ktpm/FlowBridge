@@ -1,0 +1,736 @@
+paths:
+  /api/v1/core/relationships:
+    post:
+      operationId: createRelationship
+      summary: create Relationship
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: IT_ADMIN
+      x-authorization: ACTIVE trusted principal with platform_role=PLATFORM_ADMIN. No department OWNER
+        membership is required. No implicit consumer grant; revision, discovery and metadata verification
+        remain mandatory.
+      x-idempotency: DURABLE_COMMAND
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./relationships.yaml#/components/schemas/RelationshipDefinition
+      responses:
+        '201':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+          content:
+            application/json:
+              schema:
+                $ref: ./relationships.yaml#/components/schemas/ProductRelationship
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+    get:
+      operationId: listRelationships
+      summary: list Relationships
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: IT_ADMIN
+      x-authorization: ACTIVE trusted principal with platform_role=PLATFORM_ADMIN. No department OWNER
+        membership is required. No implicit consumer grant; revision, discovery and metadata verification
+        remain mandatory.
+      x-idempotency: NONE_READ_ONLY
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: source_product_id
+        in: query
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: ./relationships.yaml#/components/schemas/ProductRelationship
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+  /api/v1/core/relationships/{relationship_id}:
+    get:
+      operationId: getRelationship
+      summary: get Relationship
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: IT_ADMIN
+      x-authorization: ACTIVE trusted principal with platform_role=PLATFORM_ADMIN. No department OWNER
+        membership is required. No implicit consumer grant; revision, discovery and metadata verification
+        remain mandatory.
+      x-idempotency: NONE_READ_ONLY
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: relationship_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      responses:
+        '200':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+          content:
+            application/json:
+              schema:
+                $ref: ./relationships.yaml#/components/schemas/ProductRelationship
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+    patch:
+      operationId: patchRelationship
+      summary: patch Relationship
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: IT_ADMIN
+      x-authorization: ACTIVE trusted principal with platform_role=PLATFORM_ADMIN. No department OWNER
+        membership is required. No implicit consumer grant; revision, discovery and metadata verification
+        remain mandatory.
+      x-idempotency: DURABLE_COMMAND
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      - name: relationship_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - expected_revision
+              - field_mapping
+              properties:
+                expected_revision:
+                  $ref: ./common.openapi.yaml#/components/schemas/Revision
+                field_mapping:
+                  type: object
+                  minProperties: 1
+                  maxProperties: 20
+                  propertyNames:
+                    type: string
+                    minLength: 1
+                    maxLength: 63
+                    pattern: ^(?!__)[a-z_][a-z0-9_]*$
+                  additionalProperties:
+                    type: string
+                    minLength: 1
+                    maxLength: 63
+                    pattern: ^(?!__)[a-z_][a-z0-9_]*$
+      responses:
+        '200':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+          content:
+            application/json:
+              schema:
+                $ref: ./relationships.yaml#/components/schemas/ProductRelationship
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+  /api/v1/core/relationships/{relationship_id}/publish:
+    post:
+      operationId: publishRelationship
+      summary: publish Relationship
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: IT_ADMIN
+      x-authorization: ACTIVE trusted principal with platform_role=PLATFORM_ADMIN. No department OWNER
+        membership is required. No implicit consumer grant; revision, discovery and metadata verification
+        remain mandatory.
+      x-idempotency: DURABLE_COMMAND
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      - name: relationship_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - expected_revision
+              properties:
+                expected_revision:
+                  $ref: ./common.openapi.yaml#/components/schemas/Revision
+      responses:
+        '202':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+            Location:
+              schema:
+                type: string
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - job_id
+                - status
+                - status_url
+                properties:
+                  job_id:
+                    $ref: ./common.openapi.yaml#/components/schemas/UUID
+                  status:
+                    const: QUEUED
+                  status_url:
+                    type: string
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+  /api/v1/core/relationships/{relationship_id}/disable:
+    post:
+      operationId: disableRelationship
+      summary: disable Relationship
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: IT_ADMIN
+      x-authorization: ACTIVE trusted principal with platform_role=PLATFORM_ADMIN. No department OWNER
+        membership is required. No implicit consumer grant; revision, discovery and metadata verification
+        remain mandatory.
+      x-idempotency: DURABLE_COMMAND
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - $ref: ./common.openapi.yaml#/components/parameters/IdempotencyKey
+      - name: relationship_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - expected_revision
+              - reason
+              properties:
+                expected_revision:
+                  $ref: ./common.openapi.yaml#/components/schemas/Revision
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '202':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+            Location:
+              schema:
+                type: string
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - job_id
+                - status
+                - status_url
+                properties:
+                  job_id:
+                    $ref: ./common.openapi.yaml#/components/schemas/UUID
+                  status:
+                    const: QUEUED
+                  status_url:
+                    type: string
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+  /api/v1/core/data-products/{data_product_id}/query:
+    post:
+      operationId: queryDataProduct
+      summary: query Data Product
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: DATA_GRANT
+      x-authorization: Every caller, including IT/PLATFORM_ADMIN, requires current grants for every selected
+        product, key and column, all under one common department role. Core checks before and after the
+        read; Hasura enforces SELECT. Relationship publication does not grant data access.
+      x-idempotency: NONE_READ_ONLY
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./relationships.yaml#/components/schemas/RelationshipQuerySelection
+      responses:
+        '200':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - data_product_id
+                - contract_version_id
+                - rows
+                - limit
+                - offset
+                properties:
+                  data_product_id:
+                    $ref: ./common.openapi.yaml#/components/schemas/UUID
+                  contract_version_id:
+                    $ref: ./common.openapi.yaml#/components/schemas/UUID
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                  limit:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                  offset:
+                    type: integer
+                    minimum: 0
+                    maximum: 10000
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
+components:
+  schemas:
+    RelationshipDefinition:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - source_product_id
+      - target_product_id
+      - relationship_type
+      - field_mapping
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^(?!__)[a-z_][a-z0-9_]*$
+        source_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        target_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        relationship_type:
+          enum:
+          - object
+          - array
+        field_mapping:
+          type: object
+          minProperties: 1
+          maxProperties: 20
+          propertyNames:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+    ProductRelationship:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - source_product_id
+      - target_product_id
+      - relationship_type
+      - field_mapping
+      - id
+      - source_contract_id
+      - target_contract_id
+      - status
+      - revision
+      - applied_revision
+      - last_error_code
+      - created_at
+      - updated_at
+      - created_by
+      - updated_by
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^(?!__)[a-z_][a-z0-9_]*$
+        source_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        target_product_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        relationship_type:
+          enum:
+          - object
+          - array
+        field_mapping:
+          type: object
+          minProperties: 1
+          maxProperties: 20
+          propertyNames:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+        id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        source_contract_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        target_contract_id:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+        status:
+          enum:
+          - DRAFT
+          - PROVISIONING
+          - ACTIVE
+          - DISABLING
+          - DISABLED
+          - ERROR
+        revision:
+          $ref: ./common.openapi.yaml#/components/schemas/Revision
+        applied_revision:
+          type: integer
+          minimum: 0
+        last_error_code:
+          type:
+          - string
+          - 'null'
+        created_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        updated_at:
+          $ref: ./common.openapi.yaml#/components/schemas/Timestamp
+        created_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        updated_by:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+    RelationshipQuerySelection:
+      type: object
+      additionalProperties: false
+      $dynamicAnchor: selection
+      required:
+      - select
+      properties:
+        select:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+        contract_version_id:
+          anyOf:
+          - $ref: ./common.openapi.yaml#/components/schemas/UUID
+          - type: 'null'
+        where:
+          type: object
+          maxProperties: 50
+          propertyNames:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+          additionalProperties:
+            type: object
+            minProperties: 1
+            additionalProperties: false
+            properties:
+              _eq:
+                type:
+                - string
+                - number
+                - boolean
+              _neq:
+                type:
+                - string
+                - number
+                - boolean
+              _gt:
+                type:
+                - string
+                - number
+              _gte:
+                type:
+                - string
+                - number
+              _lt:
+                type:
+                - string
+                - number
+              _lte:
+                type:
+                - string
+                - number
+              _is_null:
+                type: boolean
+              _in:
+                type: array
+                minItems: 1
+                maxItems: 100
+                items:
+                  type:
+                  - string
+                  - number
+                  - boolean
+        order_by:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - field
+            properties:
+              field:
+                type: string
+                minLength: 1
+                maxLength: 63
+                pattern: ^(?!__)[a-z_][a-z0-9_]*$
+              direction:
+                enum:
+                - asc
+                - desc
+                default: asc
+        include:
+          type: object
+          maxProperties: 20
+          propertyNames:
+            type: string
+            minLength: 1
+            maxLength: 63
+            pattern: ^(?!__)[a-z_][a-z0-9_]*$
+          additionalProperties:
+            $dynamicRef: '#selection'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      description: Bounded selection tree; max depth 4, array rows 20, complexity 10000 by default. Scalar-only
+        predicates/order. Object relationships accept select/include/contract pin only. All referenced,
+        key, filter and ordering columns require grants in one common department. No aggregate, SQL or
+        relation predicates.

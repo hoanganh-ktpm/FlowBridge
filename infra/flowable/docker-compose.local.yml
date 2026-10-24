@@ -1,0 +1,27 @@
+name: flowbridge-local-workflow
+services:
+  flowable:
+    image: flowable/flowable-rest:7.2.0@sha256:bcb895b12a95c7a11c07daef9a66c7c7e021038963b0877ee1f01d43059694ee
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowable_db?sslmode=require
+      SPRING_DATASOURCE_USERNAME: wf_engine
+      SPRING_DATASOURCE_PASSWORD: ${FLOWABLE_DB_PASSWORD:?Missing local secret}
+      SERVER_PORT: "18081"
+      FLOWABLE_REST_APP_ADMIN_USER_ID: rest-admin
+      FLOWABLE_REST_APP_ADMIN_PASSWORD: ${FLOWABLE_REST_PASSWORD:?Missing local secret}
+      FLOWABLE_DATABASE_SCHEMA_UPDATE: "true"
+      FLOWABLE_REST_APP_CREATE_DEMO_DEFINITIONS: "false"
+      REST_VARIABLES_ALLOW_SERIALIZABLE: "false"
+      FLOWABLE_REST_APP_SWAGGER_DOCS_ENABLED: "false"
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      FLOWBRIDGE_WORKFLOW_BASE_URL: http://host.docker.internal:18000
+      FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN: ${WORKFLOW_ENGINE_TOKEN:?Missing execution token}
+    ports:
+      - "127.0.0.1:18083:18081"
+    networks: [local]
+    restart: unless-stopped
+    mem_limit: 1g
+networks:
+  local:
+    external: true
+    name: flowbridge-local_default

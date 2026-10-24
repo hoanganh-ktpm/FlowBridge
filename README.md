@@ -35,12 +35,12 @@ Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các mo
 | Thành phần | Vai trò | Trạng thái |
 |---|---|---|
 | Data Core | Registry, Data Products, Governance, Hasura Provisioner, Agent/Tools | Core HTTP/worker và PostgreSQL adapter; đã kiểm luồng onboarding, publish, đọc theo grant và revoke với Keycloak/Hasura/Supabase thật |
-| Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Đã có Identity adapters và HTTP utilities; các tích hợp còn lại đang phát triển |
-| Business APIs | Đơn hàng, tồn kho và vận chuyển | Có models và migrations cho 3 database; chưa có endpoints/transaction nghiệp vụ |
+| Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Identity/HTTP adapters và Workflow Layer 1 đã có live E2E; các tích hợp còn lại đang phát triển |
+| Business APIs | Đơn hàng, tồn kho và vận chuyển | Có vertical slice Workflow thật xuyên 3 DB: reservation/packing/handoff/delivery; chưa phải ERP đầy đủ |
 | Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
-| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | Docker test chỉ Keycloak/Hasura; metadata và dữ liệu ở Supabase hiện có; Core/worker chạy native; chưa triển khai toàn hệ thống |
+| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | PostgreSQL 16 local có năm DB ứng dụng/metadata và flowable_db; Hasura/Keycloak/Flowable Docker; Core/worker native |
 
-Native factory `app.core.runtime:create_app` ghép Core HTTP với PostgreSQL thật; worker chạy thành process riêng, không có persistence memory fallback hoặc migration khi startup. Bốn database ứng dụng có tổng 38 bảng hiện hành/7 revision files: Core P0 12 bảng và nghiệp vụ 26 bảng. Schema Core theo principal/phòng ban/Data Product/grant. Manifest đăng ký draft và discovery nguồn thật mà không sửa Core theo tên ứng dụng. Profile [Docker Integration & Real E2E](docs/DOCKER.md) kiểm chứng Data Sharing với fixture catalog; không đồng nghĩa nghiệm thu Business APIs, inventory NUMERIC hoặc BPMN. Xem thêm [Automated Onboarding](docs/AUTOMATED-ONBOARDING.md), [Core Backend P0](docs/CORE-P0.md) và [Database Setup](docs/database/README.md).
+Native factory `app.core.runtime:create_app` ghép Core HTTP với PostgreSQL thật; worker chạy thành process riêng, không có persistence memory fallback hoặc migration khi startup. Models hiện có 45 bảng ứng dụng/14 revision files: Core 15 bảng và nghiệp vụ 30 bảng. Head `core_0006` bổ sung persistence Workflow trên mô hình principal/phòng ban/Data Product/grant. Manifest v1 đăng ký draft và discovery nguồn thật, không sửa schema Core theo tên ứng dụng. [Workflow](docs/WORKFLOW.md) ghi nhận Flowable 7.2.0 trên PostgreSQL local, quy trình Sales → Warehouse → Logistics đến End và event Hasura thật; Core/worker giữ native. Demo dùng [PostgreSQL Docker local](docs/database/README.md), generator 365 ngày và sáu Data Product views; checksum lịch sử được bảo toàn qua E2E. Các profile Supabase trong [Docker Integration](docs/DOCKER.md) là tài liệu môi trường cũ. Xem [Relationship Queries](docs/RELATIONSHIP-QUERIES.md), [Automated Onboarding](docs/AUTOMATED-ONBOARDING.md), [Core Backend P0](docs/CORE-P0.md) và [Database Setup](docs/database/README.md).
 
 ## Kiến trúc định hướng
 

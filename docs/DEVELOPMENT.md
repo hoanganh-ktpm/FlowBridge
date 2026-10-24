@@ -2,15 +2,15 @@
 
 ## Môi trường hiện hành
 
-Keycloak/Hasura chạy bằng [Docker integration profile](DOCKER.md); Core/worker tiếp tục dùng Python .venv, Core và ba domain dùng Supabase hiện tại. Không cần JDK host, không tự tạo/reset database Supabase khi dựng engines. Secrets/TLS và realm thử được render cục bộ, không đưa vào Git. Engine health không đồng nghĩa publication/read/revoke E2E đạt.
+Demo mới dùng [PostgreSQL 16 Docker local](database/README.md): Sales, Warehouse, Logistics, Core và Hasura metadata tách database. Core/worker chạy Python .venv; Hasura local ở 18082. [Profile cũ](DOCKER.md) giữ Keycloak ở 18443; [Workflow](WORKFLOW.md) là profile Flowable độc lập. Secrets/TLS bị Git ignore; local CLI không đọc DSN Supabase cũ. Engine health không thay thế kiểm thử publication/read/revoke hoặc Workflow E2E.
 
 ## Phạm vi implementation
 
 | Khối | Đã có | Phần cần triển khai |
 |---|---|---|
-| Business | Schema ba database, migration và seed tổng hợp | Sales/Warehouse/Logistics APIs, transaction, idempotency và business authorization |
+| Business | Schema ba database, migration, seed tổng hợp và vertical slice APIs Sales/Warehouse/Logistics với transaction, idempotency, quyền theo subject/org | Các API P1 ngoài phạm vi order fulfillment tối thiểu |
 | DX-OS Data Core | PostgreSQL runtime, Registry, Data Products/Contracts, Governance, Hasura provisioning và quyền đọc P0 | Agent/Tool runtime và mở rộng các boundary P1 |
-| Contracts & Platform | API contracts, Identity adapters, HTTP utilities và cấu hình engine | Gateway runtime, Flowable, audit adapter và ghép hệ thống |
+| Contracts & Platform | API contracts, Identity/HTTP adapters, Workflow REST/actions/events và Business Workflow E2E trên Flowable/PostgreSQL local | Delegation production, APISIX runtime và audit integration mở rộng |
 
 Mỗi thay đổi cần giữ DTO, trạng thái và quyền nhất quán với contracts, kèm implementation và kiểm thử có thể chạy độc lập.
 

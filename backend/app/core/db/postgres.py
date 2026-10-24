@@ -26,6 +26,9 @@ TABLES = {
     "request": models.access_requests,
     "grant": models.access_grants,
     "job": models.publication_jobs,
+    "relationship": models.data_product_relationships,
+    "workflow_action": models.workflow_actions,
+    "workflow_event": models.workflow_event_inbox,
 }
 SOURCE_PRIVATE = {"host", "port", "database_name", "db_user", "ssl_mode", "secret_ref"}
 JOB_PRIVATE = {"idempotency_key", "requested_by", "correlation_id", "locked_by", "lease_expires_at"}
@@ -369,6 +372,7 @@ class PostgresCoreTransaction:
         content_hash=None,
         resource_type="job",
         initiator_id=None,
+        details=None,
     ):
         kind = "system"
         if actor_id is not None:
@@ -391,5 +395,6 @@ class PostgresCoreTransaction:
                 request_id=correlation_id,
                 error_code=error_code,
                 content_hash=content_hash,
+                diff_json=sa.null() if details is None else details,
             )
         )

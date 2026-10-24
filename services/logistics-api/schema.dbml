@@ -6,6 +6,7 @@ Project dxos_logistics_demo {
 }
 
 Table public.shipments {
+  scheduled_handoff_at timestamptz [note: 'Actual booking time; planned_handoff_at remains the original deadline.']
   id uuid [pk]
   org_id uuid [not null]
   shipment_number varchar(50) [not null]
@@ -177,3 +178,43 @@ Table public.inbox_receipts {
 
 Ref: public.shipment_lines.(org_id, shipment_id) > public.shipments.(org_id, id) [delete: restrict, update: restrict]
 Ref: public.shipment_events.(org_id, shipment_id) > public.shipments.(org_id, id) [delete: restrict, update: restrict]
+
+Table public.handoff_capacity_calendar {
+  id uuid [pk]
+  org_id uuid [not null]
+  carrier_code varchar(50) [not null]
+  capacity_date date [not null, note: 'Asia/Ho_Chi_Minh business date']
+  max_dispatches integer [not null, note: 'CHECK >= 0']
+  status varchar(20) [not null, note: 'ACTIVE or UNAVAILABLE']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, carrier_code, capacity_date) [unique]
+  }
+}
+// Views: v_handoff_capacity retains physical handoffs in usage and releases cancelled bookings.
+// v_accepted_shipments_daily uses canonical accepted_at, no event joins.
+// Runtime booking/rescheduling must lock the calendar row; views do not enforce aggregate capacity.
+
+// Customer delivery exists only in this isolated workflow extension.
+Table public.wf_e2e_shipments {
+  id uuid [pk]
+  org_id uuid [not null]
+  sales_order_ref uuid [not null, note: 'Opaque reference; no cross-database FK']
+  warehouse_dispatch_ref uuid [not null]
+  status varchar(30) [not null, note: 'CREATED, HANDED_OVER, DELIVERED']
+  manifest jsonb [not null]
+  warehouse_handoff_event_ref uuid
+  handed_over_at timestamptz
+  delivered_at timestamptz
+  event_id uuid [not null]
+  version bigint [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes {
+    (org_id, id) [unique]
+    (org_id, sales_order_ref) [unique]
+    (org_id, warehouse_dispatch_ref) [unique]
+  }
+}

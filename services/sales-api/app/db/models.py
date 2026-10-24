@@ -304,6 +304,28 @@ class _InboxReceipt(_OrgRow):
         )
 
 
+class WorkflowOrder(_OrgRow, SalesBase):
+    __tablename__ = "wf_e2e_orders"
+    __table_args__ = _args(
+        __tablename__,
+        _uq(__tablename__, "org_id", "order_number"),
+        _ck(__tablename__, "prefix", "order_number LIKE 'wf_e2e_%'"),
+        _ck(__tablename__, "status", "status IN ('CONFIRMED','WAITING_STOCK','RESERVED','PACKED','SHIPPED','DELIVERED','FAILED')"),
+        _ck(__tablename__, "version", "version > 0"),
+        comment="Isolated delivery workflow slice; does not reinterpret historical carrier-handoff Sales completion. Lines are immutable authorized command snapshots, not cross-database foreign keys.",
+    )
+    order_number: Mapped[str] = mapped_column(sa.String(80), nullable=False)
+    warehouse_ref: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    lines: Mapped[list] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(sa.String(30), nullable=False)
+    owner_subject: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    workflow_instance_ref: Mapped[str | None] = mapped_column(sa.String(128))
+    last_source_event_ref: Mapped[UUID | None] = mapped_column(sa.Uuid)
+    version: Mapped[int] = _version()
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _created()
+
+
 class Customer(_OrgRow, SalesBase):
     __tablename__ = "customers"
     __table_args__ = _args(

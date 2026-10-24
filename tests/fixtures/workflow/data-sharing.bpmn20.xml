@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xmlns:flowable="http://flowable.org/bpmn" targetNamespace="https://flowbridge.test/data-sharing">
+  <message id="reviewed" name="flowbridge.review.done"/>
+  <process id="flowbridge_data_probe" name="Governed Data Product review" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="to_read" sourceRef="start" targetRef="read_product"/>
+    <serviceTask id="read_product" name="Read governed Data Product" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod" stringValue="POST"/>
+        <flowable:field name="requestTimeout" stringValue="90000"/>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/data.get_record/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders" stringValue="Content-Type: application/json"/>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${inventory_request}</flowable:expression></flowable:field>
+        <flowable:field name="responseVariableName" stringValue="product_result"/>
+        <flowable:field name="saveResponseVariableAsJson" stringValue="true"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="to_gateway" sourceRef="read_product" targetRef="has_product"/>
+    <exclusiveGateway id="has_product" default="no_product"/>
+    <sequenceFlow id="found" sourceRef="has_product" targetRef="inspect_product">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${product_result.result.id != null}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="no_product" sourceRef="has_product" targetRef="rejected"/>
+    <endEvent id="rejected"/>
+    <serviceTask id="inspect_product" name="Registered custom HTTP inspection" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod" stringValue="POST"/>
+        <flowable:field name="requestTimeout" stringValue="90000"/>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/warehouse.inspect_product/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:inspect_product</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${custom_request}</flowable:expression></flowable:field>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="to_review" sourceRef="inspect_product" targetRef="review"/>
+    <userTask id="review" name="Review published product" flowable:assignee="${assignee}"/>
+    <sequenceFlow id="to_wait" sourceRef="review" targetRef="wait_reviewed"/>
+    <intermediateCatchEvent id="wait_reviewed"><messageEventDefinition messageRef="reviewed"/></intermediateCatchEvent>
+    <sequenceFlow id="to_end" sourceRef="wait_reviewed" targetRef="done"/>
+    <endEvent id="done"/>
+  </process>
+</definitions>

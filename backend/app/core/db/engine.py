@@ -1,10 +1,33 @@
 """Create a credential-redacted PostgreSQL engine without connecting or migrating."""
 
+import asyncio
 import ssl
 
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
+
+
+async def wait_for_database(engine, *, attempts=5, delay=0.5, timeout=15):
+    """Bound startup retries and never expose a driver exception/connection URL."""
+    try:
+        async with asyncio.timeout(timeout):
+            for attempt in range(attempts):
+                try:
+                    async with engine.connect() as connection:
+                        await connection.execute(text("SELECT 1"))
+                    return
+                except (SQLAlchemyError, OSError):
+                    if attempt == attempts - 1:
+                        break
+                    await asyncio.sleep(delay)
+    except TimeoutError:
+        pass
+    raise RuntimeError(
+        "Core database readiness failed; check local service and credentials"
+    ) from None
 
 
 def core_engine(database_url: str):

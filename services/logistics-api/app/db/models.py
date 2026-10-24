@@ -14,7 +14,7 @@ are not an implementation of those services. No roles or passwords live here.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
@@ -304,6 +304,49 @@ class _InboxReceipt(_OrgRow):
         )
 
 
+class WorkflowShipment(_OrgRow, LogisticsBase):
+    __tablename__ = "wf_e2e_shipments"
+    __table_args__ = _args(
+        __tablename__,
+        _uq(__tablename__, "org_id", "sales_order_ref"),
+        _uq(__tablename__, "org_id", "warehouse_dispatch_ref"),
+        _ck(__tablename__, "status", "status IN ('CREATED','HANDED_OVER','DELIVERED')"),
+        _ck(__tablename__, "delivery", "(status = 'DELIVERED') = (delivered_at IS NOT NULL)"),
+        _ck(__tablename__, "handoff", "status = 'CREATED' OR (handed_over_at IS NOT NULL AND warehouse_handoff_event_ref IS NOT NULL)"),
+        _ck(__tablename__, "chronology", "delivered_at IS NULL OR delivered_at >= handed_over_at"),
+        comment="Isolated delivery extension for workflow E2E; historical shipments retain their physical carrier-handoff semantics.",
+    )
+    sales_order_ref: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    warehouse_dispatch_ref: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    status: Mapped[str] = mapped_column(sa.String(30), nullable=False)
+    manifest: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    warehouse_handoff_event_ref: Mapped[UUID | None] = mapped_column(sa.Uuid)
+    handed_over_at: Mapped[datetime | None] = _time()
+    delivered_at: Mapped[datetime | None] = _time()
+    event_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    version: Mapped[int] = _version()
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _created()
+
+
+class HandoffCapacityCalendar(_OrgRow, LogisticsBase):
+    __tablename__ = "handoff_capacity_calendar"
+    __table_args__ = _args(
+        __tablename__,
+        _uq(__tablename__, "org_id", "carrier_code", "capacity_date"),
+        _ck(__tablename__, "capacity", "max_dispatches >= 0"),
+        _ck(__tablename__, "status", "status IN ('ACTIVE', 'UNAVAILABLE')"),
+        _nonblank(__tablename__, "carrier_code"),
+        comment="Local carrier dispatch slots by Asia/Ho_Chi_Minh date. Booking requires a locked calendar row; historical handoffs consume capacity.",
+    )
+    carrier_code: Mapped[str] = mapped_column(sa.String(50), nullable=False)
+    capacity_date: Mapped[date] = mapped_column(sa.Date, nullable=False)
+    max_dispatches: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    status: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _created()
+
+
 class Shipment(_OrgRow, LogisticsBase):
     __tablename__ = "shipments"
     __table_args__ = _args(
@@ -378,6 +421,7 @@ class Shipment(_OrgRow, LogisticsBase):
     recipient_phone_snapshot: Mapped[str] = mapped_column(sa.String(40), nullable=False)
     delivery_address_snapshot: Mapped[str] = mapped_column(sa.Text, nullable=False)
     delivery_instructions_snapshot: Mapped[str | None] = mapped_column(sa.Text)
+    scheduled_handoff_at: Mapped[datetime | None] = _time()
     planned_handoff_at: Mapped[datetime] = _time(
         nullable=False,
         comment="Immutable accepted Sales original carrier-handoff deadline; not customer delivery promise.",

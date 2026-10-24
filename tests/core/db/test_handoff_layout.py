@@ -17,7 +17,7 @@ FINGERPRINTS = json.loads(
 
 
 @pytest.mark.parametrize("database", ["sales", "warehouse", "logistics"])
-def test_relocated_models_preserve_handoff_ddl(database):
+def test_models_match_reviewed_handoff_and_additive_ddl(database):
     actual = {}
     for table in metadata_for(database).sorted_tables:
         ddl = str(CreateTable(table).compile(dialect=postgresql.dialect()))
@@ -35,12 +35,18 @@ def test_relocated_models_preserve_handoff_ddl(database):
 def test_migration_content_and_history_are_preserved(database):
     config = alembic_config(database)
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["core_0004" if database == "core" else f"{database}_0001"]
+    heads = {
+        "core": "core_0006",
+        "sales": "sales_0003",
+        "warehouse": "warehouse_0002",
+        "logistics": "logistics_0003",
+    }
+    assert scripts.get_heads() == [heads[database]]
     for revision in scripts.walk_revisions():
         path = Path(revision.path)
         assert path.parent == migration_path(database) / "versions"
         digest = hashlib.sha256(path.read_text(encoding="utf-8").encode()).hexdigest()
-        if path.name != "core_0004.py":
+        if path.name not in {"core_0004.py", "core_0005.py", "core_0006.py"}:
             assert digest == FINGERPRINTS["migrations"][path.name]
 
 

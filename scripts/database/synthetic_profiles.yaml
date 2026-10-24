@@ -1,0 +1,12 @@
+# Private simulation inputs. Never published as Data Products.
+version: 1
+timezone: Asia/Ho_Chi_Minh
+products:
+  SKU-A: {base: 14, trend: 1.2, weekly: 0.30, seasonal: 0.0}
+  SKU-B: {base: 12, trend: 0.0, weekly: 0.0, seasonal: 0.0}
+  SKU-C: {base: 12, trend: 0.0, weekly: 0.10, seasonal: 0.70}
+  SKU-D: {base: 18, trend: -0.65, weekly: 0.10, seasonal: 0.0}
+  SKU-E: {base: 10, trend: 0.0, weekly: 0.0, seasonal: 0.0, zero_probability: 0.78}
+  SKU-F: {base: 9, trend: 0.0, weekly: 0.15, seasonal: 0.0, spike_multiplier: 9}
+  SKU-G: {base: 11, trend: 0.3, weekly: 0.20, seasonal: 0.15}
+  SKU-H: {base: 13, trend: 0.0, weekly: 0.25, seasonal: 0.30}

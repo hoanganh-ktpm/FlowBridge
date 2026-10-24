@@ -1500,7 +1500,8 @@ components:
         - "updated_at"
       properties:
         id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
-        job_type: {"type":"string","enum":["CONNECT_SOURCE","PUBLISH_PRODUCT","APPLY_GRANT","REVOKE_GRANT","DISABLE_PRODUCT"]}
+        job_type: {"type":"string","enum":["CONNECT_SOURCE","PUBLISH_PRODUCT","APPLY_GRANT","REVOKE_GRANT","DISABLE_PRODUCT","PUBLISH_RELATIONSHIP","DISABLE_RELATIONSHIP"]}
+        relationship_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
         data_source_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
         data_product_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}
         access_grant_id: {"anyOf":[{"$ref":"./common.openapi.yaml#/components/schemas/UUID"},{"type":"null"}]}

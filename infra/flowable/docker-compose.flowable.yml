@@ -1,0 +1,43 @@
+name: flowbridge-flowable
+
+services:
+  flowable:
+    image: flowable/flowable-rest:7.2.0@sha256:bcb895b12a95c7a11c07daef9a66c7c7e021038963b0877ee1f01d43059694ee
+    environment:
+      # Supabase Postgres over JDBC+TLS. Prefer direct/session pooler URL;
+      # never the transaction pooler. Schema isolation: flowable_runtime.
+      SPRING_DATASOURCE_URL: ${FLOWBRIDGE_FLOWABLE_JDBC_URL:?Set JDBC URL to Supabase}
+      SPRING_DATASOURCE_USERNAME: ${FLOWBRIDGE_FLOWABLE_DB_USER:?Set DB user}
+      SPRING_DATASOURCE_PASSWORD: ${FLOWBRIDGE_FLOWABLE_DB_PASSWORD:?Set DB password}
+      SERVER_PORT: "18081"
+      FLOWABLE_REST_APP_ADMIN_USER_ID: ${FLOWBRIDGE_FLOWABLE_ADMIN_USER:-rest-admin}
+      FLOWABLE_REST_APP_ADMIN_PASSWORD: ${FLOWBRIDGE_FLOWABLE_ADMIN_PASSWORD:?Set REST password}
+      FLOWABLE_DATABASE_SCHEMA: flowable_runtime
+      FLOWABLE_DATABASE_SCHEMA_UPDATE: "true"
+      SPRING_DATASOURCE_HIKARI_SCHEMA: flowable_runtime
+      FLOWABLE_REST_APP_CREATE_DEMO_DEFINITIONS: "false"
+      REST_VARIABLES_ALLOW_SERIALIZABLE: "false"
+      FLOWABLE_REST_APP_SWAGGER_DOCS_ENABLED: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "1"
+      # BPMN HttpTasks call back into the Workflow API on the host.
+      FLOWBRIDGE_WORKFLOW_BASE_URL: ${FLOWBRIDGE_WORKFLOW_BASE_URL:-http://host.docker.internal:18000}
+      FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN: ${FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN:-}
+    volumes:
+      - type: bind
+        source: ${FLOWBRIDGE_FLOWABLE_RUNTIME_DIR:?Set runtime directory}/tls
+        target: /run/tls
+        read_only: true
+    ports:
+      - 127.0.0.1:18081:18081
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    healthcheck:
+      test: ["CMD-SHELL", 'wget -qO- --header="Authorization: Basic $$(printf "%s:%s" "$$FLOWABLE_REST_APP_ADMIN_USER_ID" "$$FLOWABLE_REST_APP_ADMIN_PASSWORD" | base64 | tr -d "\n")" http://127.0.0.1:18081/flowable-rest/service/management/engine >/dev/null || exit 1']
+      interval: 20s
+      timeout: 10s
+      retries: 12
+      start_period: 90s
+    mem_limit: 1.5g
+    restart: unless-stopped

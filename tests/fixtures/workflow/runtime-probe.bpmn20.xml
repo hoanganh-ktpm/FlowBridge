@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xmlns:flowable="http://flowable.org/bpmn" targetNamespace="https://flowbridge.test/runtime">
+  <message id="probe_done" name="flowbridge.probe.done"/>
+  <process id="flowbridge_runtime_probe" name="FlowBridge runtime acceptance probe" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="to_http" sourceRef="start" targetRef="read_openapi"/>
+    <serviceTask id="read_openapi" name="Read native Core OpenAPI" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod" stringValue="GET"/>
+        <flowable:field name="requestUrl" stringValue="http://host.docker.internal:18000/openapi.json"/>
+        <flowable:field name="responseVariableName" stringValue="probe_response"/>
+        <flowable:field name="saveResponseVariableAsJson" stringValue="true"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="to_gateway" sourceRef="read_openapi" targetRef="verified"/>
+    <exclusiveGateway id="verified" default="unexpected"/>
+    <sequenceFlow id="expected" sourceRef="verified" targetRef="review">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${probe_response.info.title == 'FlowBridge Core P0'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="unexpected" sourceRef="verified" targetRef="rejected"/>
+    <endEvent id="rejected"/>
+    <userTask id="review" name="Review runtime probe" flowable:assignee="${assignee}"/>
+    <sequenceFlow id="to_message" sourceRef="review" targetRef="wait_done"/>
+    <intermediateCatchEvent id="wait_done"><messageEventDefinition messageRef="probe_done"/></intermediateCatchEvent>
+    <sequenceFlow id="to_end" sourceRef="wait_done" targetRef="done"/>
+    <endEvent id="done"/>
+  </process>
+</definitions>

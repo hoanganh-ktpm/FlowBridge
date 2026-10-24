@@ -11,7 +11,7 @@ def test_business_fixtures_preserve_counts(database, expected):
     assert sum(map(len, business_seed_rows()[database].values())) == expected
 
 
-@pytest.mark.parametrize("database,expected", [("sales", 7), ("warehouse", 13), ("logistics", 6)])
+@pytest.mark.parametrize("database,expected", [("sales", 8), ("warehouse", 14), ("logistics", 8)])
 def test_domain_models_import_independently(database, expected):
     directory = REPOSITORY_ROOT / "services" / f"{database}-api"
     program = (

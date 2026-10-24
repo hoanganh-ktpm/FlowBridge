@@ -1,5 +1,7 @@
 # Core Backend P0
 
+**Mở rộng hiện tại:** source head `core_0005` bổ sung registry quan hệ, worker local/remote provisioning và structured nested query theo grants; chưa chạy migration hay E2E nhiều nguồn trên Supabase. Xem [Relationship Queries](RELATIONSHIP-QUERIES.md) để phân biệt implementation, kiểm thử offline và điều kiện nghiệm thu thật.
+
 Runtime cho một vertical slice Data Sharing, theo API Contracts 0.2.0 hiện hành. Không thay endpoint/DTO baseline, không tạo ORM/migration và không triển khai Agent, Workflow hoặc Business APIs.
 
 **Cập nhật sau milestone:** Core head core_0004 theo 11 bảng P0 + command receipts. PostgreSQL adapter và native composition app.core.runtime đã triển khai; profile [Docker Integration & Real E2E](DOCKER.md) kiểm Data Sharing với Keycloak/Hasura và Supabase thật. Command/worker giữ SERIALIZABLE/CAS; GET resource/status dùng transaction read-only không giữ row lock để tránh ảnh hưởng provisioning. Bảng khảo sát, bằng chứng offline và checklist bên dưới giữ bối cảnh milestone runtime ban đầu, không phải toàn bộ trạng thái hiện tại. [Automated Onboarding](AUTOMATED-ONBOARDING.md) ghi nhận thêm milestone native trước đó.

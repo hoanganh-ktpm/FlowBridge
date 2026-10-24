@@ -1,6 +1,6 @@
 """Explicit, deterministic demo loading; never a production data migration."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 
 from sqlalchemy import select, text
 
@@ -21,14 +21,20 @@ def demo_rows():
 def _validate_existing(conn, metadata, rows):
     for table_name, records in rows.items():
         table = metadata.tables[f"public.{table_name}"]
-        for record in records:
-            existing = (
-                conn.execute(
-                    select(*(table.c[key] for key in record)).where(table.c.id == record["id"])
-                )
-                .mappings()
-                .one_or_none()
+        if not records:
+            continue
+        # Batch reads instead of one round trip per fixture record.
+        existing_rows = {}
+        for offset in range(0, len(records), 1000):
+            ids = [record["id"] for record in records[offset : offset + 1000]]
+            existing_rows.update(
+                {
+                    record["id"]: record
+                    for record in conn.execute(select(table).where(table.c.id.in_(ids))).mappings()
+                }
             )
+        for record in records:
+            existing = existing_rows.get(record["id"])
             if existing is not None and any(
                 existing[key] != value for key, value in record.items()
             ):
@@ -36,6 +42,26 @@ def _validate_existing(conn, metadata, rows):
                     f"Demo fixture conflict in {table_name}: an existing fixture row was changed. "
                     "Seed does not overwrite user data."
                 )
+
+
+def insert_missing_rows(conn, metadata, rows):
+    """Shared batch loader for the small handoff fixture and timeline generator."""
+    _validate_existing(conn, metadata, rows)
+    count = 0
+    for table in metadata.sorted_tables:
+        records = rows.get(table.name, [])
+        if not records:
+            continue
+        existing = set(conn.scalars(select(table.c.id)))
+        missing = [record for record in records if record["id"] not in existing]
+        groups = defaultdict(list)
+        for record in missing:
+            groups[tuple(sorted(record))].append(record)
+        for group in groups.values():
+            for offset in range(0, len(group), 500):
+                conn.execute(table.insert(), group[offset : offset + 500])
+        count += len(missing)
+    return count
 
 
 def seed_databases(names):
@@ -59,13 +85,7 @@ def seed_databases(names):
             with engine.begin() as conn:
                 # Serializes this seed loader with itself inside the local DB.
                 conn.execute(text("SELECT pg_advisory_xact_lock(477184112)"))
-                _validate_existing(conn, metadata, all_rows[name])
-                for table in metadata.sorted_tables:
-                    for record in all_rows[name].get(table.name, []):
-                        exists = conn.scalar(select(table.c.id).where(table.c.id == record["id"]))
-                        if exists is None:
-                            conn.execute(table.insert().values(**record))
-                            counter[table.name] += 1
+                counter["total"] = insert_missing_rows(conn, metadata, all_rows[name])
             summary[name] = sum(counter.values())
             print(f"{name}: {summary[name]} demo rows inserted (existing identical rows preserved)")
         finally:

@@ -1,5 +1,37 @@
 # Dữ liệu mẫu xuyên ba database
 
+## Timeline generator 365 ngày
+
+`scripts/database/simulation.py` tái sử dụng identity, NUMERIC và canonical hash của fixture cũ; batch loader dùng chung trong `seed.py`. Timeline tạo nhu cầu Poisson từ cấu hình riêng `synthetic_profiles.yaml`, xác nhận đơn, giữ đủ mọi dòng, nhập bổ sung, xếp lịch theo capacity rồi mới phát chứng cứ handoff. Ledger và tồn cuối được suy ra từ giao dịch; không gán random cờ trễ. Chỉ receipts POSTED tăng tồn; tồn đầu kỳ cũng có receipt/movement. Không có transaction xuyên DB, mô hình forecasting hoặc customer-delivery state.
+
+Sau [khởi tạo PostgreSQL local](README.md):
+
+```powershell
+.venv/Scripts/python.exe -m scripts.database.synthetic generate --days 60 --scale 0.15 --dry-run
+.venv/Scripts/python.exe -m scripts.database.synthetic generate --days 60 --scale 0.15
+.venv/Scripts/python.exe -m scripts.database.synthetic generate --reset-demo
+.venv/Scripts/python.exe -m scripts.database.synthetic validate
+.venv/Scripts/python.exe -m scripts.database.synthetic stats
+.venv/Scripts/python.exe -m scripts.database.synthetic generate
+```
+
+Mặc định: seed `20261024`, reference date `2026-10-20`, 365 ngày, scale `1`, 8 SKU và 40 khách. Chỉnh bằng `--seed`, `--reference-date`, `--days`, `--scale`. Fast mode bỏ kiểm tra pattern cả năm và báo SKIP rõ ràng. Full dataset có 7.040 orders/reservations/dispatches/shipments, 231 inbound plans, 229 receipts; 6.910 completed, 130 pending, 2.547 handoff đúng hạn và 4.363 trễ. Có 18 receipts trễ và 776 đơn chờ hàng được xử lý lại. Các số này thuộc cấu hình mặc định, không phải nhãn AI.
+
+Mặc định không reset. `--reset-demo` chỉ chấp nhận loopback/demo names/owners, kiểm tra mọi business table không có dòng lạ hoặc chỉnh sửa sau seed, và không đụng Core/Hasura. Mỗi DB dùng session advisory lock và transaction riêng; ledger `.tmp/local-postgres/synthetic-run.json` ghi IN_PROGRESS trước khi commit. Nếu lỗi giữa các DB, sửa lỗi rồi chạy lại đúng cấu hình: database đã commit được xác minh, database chưa commit được nạp tiếp, không thêm movement/event trùng. Không xóa ledger hoặc volume để né lỗi. Khi COMPLETE, checksum mọi cột được giữ để chặn reset dữ liệu đã chỉnh sửa.
+
+Validator đọc lại ba DB riêng, báo invariant và ID/sample lỗi. Nó kiểm tồn theo timeline, ledger hai chiều, reservation toàn đơn, completion từng dòng, Warehouse evidence, capacity, nguồn receipt/plan, SKU/UOM/refs, chronology, duplicate, sáu tình huống và trend/weekly/seasonal/intermittent/spikes. Các nguồn công bố không chứa profile/hidden parameters.
+
+Smoke thật (cần test Keycloak hiện có, không sửa realm):
+
+```powershell
+$env:FLOWBRIDGE_LOCAL_E2E='1'
+.venv/Scripts/python.exe -m pytest tests/e2e/test_local_postgres.py -m e2e -q
+```
+
+Smoke đi qua Core HTTP/worker, live discovery, sáu contract publications, SQL reader chỉ đọc view và Hasura JWT. Sales thấy thay đổi Warehouse qua Data Product; thay đổi thử được hoàn nguyên cùng receipt/ledger. Kiểm anonymous, outsider, IT không có grant và JWT sau revoke. Không thay thế nghiệm thu Business APIs/Workflow thật. Thiếu cấu hình Keycloak được báo BLOCKED/SKIP.
+
+## Fixture bàn giao nhỏ (giữ để regression)
+
 Bộ seed là một **ảnh chụp nghiệp vụ giả lập tại 15:00 ngày 20/10/2026, múi giờ UTC+07:00**. Tên người, khách hàng, địa chỉ liên hệ và số chứng từ dùng để trình diễn; email dùng miền `.example`. Tên sản phẩm và đơn vị được ghi rõ để đọc và đối chiếu được. Dữ liệu này không chứng minh các dịch vụ Hasura, Flowable hoặc vận chuyển đã được chạy.
 
 UUID được tạo bằng UUIDv5 từ khóa ổn định. Cùng một đơn hàng, dòng hàng, mặt hàng và lần xuất kho được tham chiếu xuyên các database bằng đúng UUID đó. Khóa ngoại vật lý chỉ tồn tại bên trong từng database và luôn kèm `org_id`.

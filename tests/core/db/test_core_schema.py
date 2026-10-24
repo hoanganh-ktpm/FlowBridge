@@ -22,6 +22,9 @@ EXPECTED = {
     "publication_jobs",
     "audit_events",
     "core_command_receipts",
+    "data_product_relationships",
+    "workflow_actions",
+    "workflow_event_inbox",
 }
 
 
@@ -53,6 +56,22 @@ def test_core_history_renders_without_database(monkeypatch):
     assert "DROP SCHEMA" not in ddl
     assert "CASCADE" not in ddl
     assert "core_0004" in ddl
+    assert "CREATE TABLE public.data_product_relationships" in ddl
+    assert "core_0005" in ddl
+
+
+def test_relationship_migration_does_not_reset_existing_core(monkeypatch):
+    monkeypatch.setenv("DXOS_LAYOUT", "databases")
+    monkeypatch.setenv("DXOS_CORE_URL", "postgresql+psycopg://synthetic@localhost/dxos_core_db")
+    config = alembic_config("core")
+    config.output_buffer = StringIO()
+    command.upgrade(config, "core_0004:head", sql=True)
+    ddl = config.output_buffer.getvalue()
+    assert "CREATE TABLE public.data_product_relationships" in ddl
+    assert "ADD COLUMN relationship_id" in ddl
+    assert "DROP CONSTRAINT ck_publication_jobs_job_type" in ddl
+    assert "ck_publication_jobs_ck_publication_jobs" not in ddl
+    assert not any(token in ddl for token in ("DROP TABLE", "TRUNCATE", "DELETE FROM"))
 
 
 @pytest.mark.parametrize(

@@ -14,7 +14,17 @@ class TransientTransactionConflict(CoreError):
 
 
 ResourceKind = Literal[
-    "department", "application", "source", "product", "contract", "request", "grant", "job"
+    "department",
+    "application",
+    "source",
+    "product",
+    "contract",
+    "request",
+    "grant",
+    "job",
+    "relationship",
+    "workflow_action",
+    "workflow_event",
 ]
 
 
@@ -65,6 +75,7 @@ class CoreTransaction(Protocol):
         content_hash: str | None = None,
         resource_type: ResourceKind = "job",
         initiator_id: UUID | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None: ...
 
 

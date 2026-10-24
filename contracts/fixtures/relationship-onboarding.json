@@ -1,0 +1,391 @@
+{
+  "description": "Illustrative Manifest v1 submissions. Replace fixture IDs/connection references after approved setup; no embedded publication or grants.",
+  "submissions": {
+    "sales": {
+      "manifest": {
+        "manifest_version": "1.0",
+        "application": {
+          "key": "rel-e2e-sales",
+          "name": "Relationship example sales",
+          "department_key": "sales",
+          "description": "Illustrative reserved-fixture onboarding; not a runnable deployment configuration."
+        },
+        "sources": [
+          {
+            "key": "pg",
+            "kind": "postgres",
+            "host": "sales.example.invalid",
+            "port": 5432,
+            "database": "sales_db",
+            "username": "fixture_reader",
+            "ssl_mode": "verify-full",
+            "secret_ref": "rel-e2e-sales-reader"
+          }
+        ],
+        "data_products": [
+          {
+            "key": "orders",
+            "source_key": "pg",
+            "name": "orders",
+            "object": {
+              "schema": "fb_rel_e2e_example",
+              "name": "orders",
+              "kind": "table"
+            },
+            "fields": [
+              {
+                "column": "id",
+                "expected_type": "text"
+              }
+            ],
+            "contract_version": "1.0.0",
+            "requested_state": "DRAFT"
+          },
+          {
+            "key": "order_lines",
+            "source_key": "pg",
+            "name": "order_lines",
+            "object": {
+              "schema": "fb_rel_e2e_example",
+              "name": "order_lines",
+              "kind": "table"
+            },
+            "fields": [
+              {
+                "column": "id",
+                "expected_type": "text"
+              },
+              {
+                "column": "order_id",
+                "expected_type": "text"
+              },
+              {
+                "column": "sku",
+                "expected_type": "text"
+              },
+              {
+                "column": "quantity",
+                "expected_type": "integer"
+              }
+            ],
+            "contract_version": "1.0.0",
+            "requested_state": "DRAFT"
+          }
+        ]
+      },
+      "product_contracts": [
+        {
+          "product_key": "orders",
+          "version": "1.0.0",
+          "contract_json": {
+            "document_version": "1.0",
+            "grain": "One orders row",
+            "business_key": [
+              "id"
+            ],
+            "classification": "INTERNAL",
+            "description": null,
+            "fields": [
+              {
+                "column": "id",
+                "name": "id",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              }
+            ],
+            "relationships": []
+          }
+        },
+        {
+          "product_key": "order_lines",
+          "version": "1.0.0",
+          "contract_json": {
+            "document_version": "1.0",
+            "grain": "One order_lines row",
+            "business_key": [
+              "id"
+            ],
+            "classification": "INTERNAL",
+            "description": null,
+            "fields": [
+              {
+                "column": "id",
+                "name": "id",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              },
+              {
+                "column": "order_id",
+                "name": "order_id",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              },
+              {
+                "column": "sku",
+                "name": "sku",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              },
+              {
+                "column": "quantity",
+                "name": "quantity",
+                "physical_type": "integer",
+                "wire_type": "integer",
+                "nullable": false,
+                "description": null
+              }
+            ],
+            "relationships": []
+          }
+        }
+      ]
+    },
+    "warehouse": {
+      "manifest": {
+        "manifest_version": "1.0",
+        "application": {
+          "key": "rel-e2e-warehouse",
+          "name": "Relationship example warehouse",
+          "department_key": "warehouse",
+          "description": "Illustrative reserved-fixture onboarding; not a runnable deployment configuration."
+        },
+        "sources": [
+          {
+            "key": "pg",
+            "kind": "postgres",
+            "host": "warehouse.example.invalid",
+            "port": 5432,
+            "database": "warehouse_db",
+            "username": "fixture_reader",
+            "ssl_mode": "verify-full",
+            "secret_ref": "rel-e2e-warehouse-reader"
+          }
+        ],
+        "data_products": [
+          {
+            "key": "products",
+            "source_key": "pg",
+            "name": "products",
+            "object": {
+              "schema": "fb_rel_e2e_example",
+              "name": "products",
+              "kind": "table"
+            },
+            "fields": [
+              {
+                "column": "sku",
+                "expected_type": "text"
+              },
+              {
+                "column": "name",
+                "expected_type": "text"
+              },
+              {
+                "column": "supplier_id",
+                "expected_type": "text"
+              }
+            ],
+            "contract_version": "1.0.0",
+            "requested_state": "DRAFT"
+          }
+        ]
+      },
+      "product_contracts": [
+        {
+          "product_key": "products",
+          "version": "1.0.0",
+          "contract_json": {
+            "document_version": "1.0",
+            "grain": "One products row",
+            "business_key": [
+              "sku"
+            ],
+            "classification": "INTERNAL",
+            "description": null,
+            "fields": [
+              {
+                "column": "sku",
+                "name": "sku",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              },
+              {
+                "column": "name",
+                "name": "name",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              },
+              {
+                "column": "supplier_id",
+                "name": "supplier_id",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              }
+            ],
+            "relationships": []
+          }
+        }
+      ]
+    },
+    "procurement": {
+      "manifest": {
+        "manifest_version": "1.0",
+        "application": {
+          "key": "rel-e2e-procurement",
+          "name": "Relationship example procurement",
+          "department_key": "procurement",
+          "description": "Illustrative reserved-fixture onboarding; not a runnable deployment configuration."
+        },
+        "sources": [
+          {
+            "key": "pg",
+            "kind": "postgres",
+            "host": "procurement.example.invalid",
+            "port": 5432,
+            "database": "procurement_db",
+            "username": "fixture_reader",
+            "ssl_mode": "verify-full",
+            "secret_ref": "rel-e2e-procurement-reader"
+          }
+        ],
+        "data_products": [
+          {
+            "key": "suppliers",
+            "source_key": "pg",
+            "name": "suppliers",
+            "object": {
+              "schema": "fb_rel_e2e_example",
+              "name": "suppliers",
+              "kind": "table"
+            },
+            "fields": [
+              {
+                "column": "id",
+                "expected_type": "text"
+              },
+              {
+                "column": "name",
+                "expected_type": "text"
+              }
+            ],
+            "contract_version": "1.0.0",
+            "requested_state": "DRAFT"
+          }
+        ]
+      },
+      "product_contracts": [
+        {
+          "product_key": "suppliers",
+          "version": "1.0.0",
+          "contract_json": {
+            "document_version": "1.0",
+            "grain": "One suppliers row",
+            "business_key": [
+              "id"
+            ],
+            "classification": "INTERNAL",
+            "description": null,
+            "fields": [
+              {
+                "column": "id",
+                "name": "id",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              },
+              {
+                "column": "name",
+                "name": "name",
+                "physical_type": "text",
+                "wire_type": "string",
+                "nullable": false,
+                "description": null
+              }
+            ],
+            "relationships": []
+          }
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "name": "lines",
+      "source_product_id": "11111111-1111-4111-8111-111111111111",
+      "target_product_id": "22222222-2222-4222-8222-222222222222",
+      "relationship_type": "array",
+      "field_mapping": {
+        "id": "order_id"
+      }
+    },
+    {
+      "name": "product",
+      "source_product_id": "22222222-2222-4222-8222-222222222222",
+      "target_product_id": "33333333-3333-4333-8333-333333333333",
+      "relationship_type": "object",
+      "field_mapping": {
+        "sku": "sku"
+      }
+    },
+    {
+      "name": "supplier",
+      "source_product_id": "33333333-3333-4333-8333-333333333333",
+      "target_product_id": "44444444-4444-4444-8444-444444444444",
+      "relationship_type": "object",
+      "field_mapping": {
+        "supplier_id": "id"
+      }
+    }
+  ],
+  "query": {
+    "select": [
+      "id"
+    ],
+    "where": {
+      "id": {
+        "_eq": "ORD-001"
+      }
+    },
+    "limit": 1,
+    "include": {
+      "lines": {
+        "select": [
+          "id",
+          "sku",
+          "quantity"
+        ],
+        "limit": 5,
+        "include": {
+          "product": {
+            "select": [
+              "sku",
+              "name"
+            ],
+            "include": {
+              "supplier": {
+                "select": [
+                  "name"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

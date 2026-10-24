@@ -41,6 +41,8 @@ def validate_physical_contract(
         "uuid": {"string"},
         "character": {"string"},
         "integer": {"integer"},
+        "bigint": {"integer"},
+        "numeric": {"number"},
         "smallint": {"integer"},
         "boolean": {"boolean"},
         "real": {"number"},

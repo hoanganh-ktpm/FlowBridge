@@ -17,7 +17,10 @@ from scripts.e2e_environment import ROOT, RUNTIME, engine_for
 
 
 class NativeRuntime:
-    def __init__(self, directory):
+    def __init__(self, directory, *, api_host="127.0.0.1"):
+        if api_host not in {"127.0.0.1", "0.0.0.0"}:
+            raise ValueError("Use a local integration bind address")
+        self.api_host = api_host
         self.directory = Path(directory).resolve()
         assert self.directory.is_relative_to((RUNTIME / "runs").resolve())
         self.ledger = self.directory / "resources.json"
@@ -91,7 +94,7 @@ class NativeRuntime:
                 "app.core.runtime:create_app",
                 "--factory",
                 "--host",
-                "127.0.0.1",
+                self.api_host,
                 "--port",
                 "18000",
             ]

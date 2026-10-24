@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:flowable="http://flowable.org/bpmn"
+                  targetNamespace="http://flowbridge/bpmn/order-fulfillment">
+  <bpmn:process id="order_fulfillment" name="Order Fulfillment" isExecutable="true">
+    <bpmn:startEvent id="start" name="Order submitted"/>
+    <bpmn:sequenceFlow id="f1" sourceRef="start" targetRef="check_inventory"/>
+    <!-- Service task: Data Action reads inventory through the Action Gateway -->
+    <bpmn:serviceTask id="check_inventory" name="Check inventory"
+                      flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/data.get_record/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders" stringValue="Content-Type: application/json"/>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${inventory_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="90000"/>
+        <flowable:field name="responseVariableName" stringValue="inventory_result"/>
+        <flowable:field name="saveResponseVariableAsJson" stringValue="true"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="f2" sourceRef="check_inventory" targetRef="stock_gateway"/>
+    <bpmn:exclusiveGateway id="stock_gateway" name="Stock available?"/>
+    <bpmn:sequenceFlow id="f_in_stock" sourceRef="stock_gateway" targetRef="reserve_stock">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${inventory_result.result.available_quantity >= required_quantity}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="f_out_of_stock" sourceRef="stock_gateway" targetRef="sales_no_stock">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${inventory_result.result.available_quantity < required_quantity}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <!-- Service task: Custom Action calls warehouse.reserve_stock -->
+    <bpmn:serviceTask id="reserve_stock" name="Reserve stock" flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/warehouse.reserve_stock/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:reserve_stock</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${custom_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="90000"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="f3" sourceRef="reserve_stock" targetRef="sales_reserved"/>
+    <bpmn:userTask id="warehouse_pack" name="Warehouse packs order" flowable:assignee="${assignee}"/>
+    <bpmn:sequenceFlow id="f4" sourceRef="warehouse_pack" targetRef="create_shipment"/>
+    <!-- Service task: logistics shipment creation -->
+    <bpmn:serviceTask id="create_shipment" name="Create shipment" flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/logistics.create_shipment/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:create_shipment</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${shipment_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="90000"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="f5" sourceRef="create_shipment" targetRef="sales_shipped"/>
+    <!-- Wait for shipment.delivered correlated by order business key -->
+    <bpmn:intermediateCatchEvent id="wait_delivery" name="Wait for delivery">
+      <bpmn:messageEventDefinition messageRef="shipment_delivered"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="f6" sourceRef="wait_delivery" targetRef="sales_delivered"/>
+    <bpmn:endEvent id="end_done" name="Fulfilled"/>
+    <bpmn:endEvent id="end_no_stock" name="Out of stock"/>
+
+    <bpmn:serviceTask id="sales_reserved" name="Update Sales reserved" flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod" stringValue="POST"/>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/sales.update_order/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:sales_reserved</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${sales_reserved_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="30000"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="after_reserved" sourceRef="sales_reserved" targetRef="warehouse_pack"/>
+
+    <bpmn:serviceTask id="sales_shipped" name="Update Sales shipped" flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod" stringValue="POST"/>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/sales.update_order/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:sales_shipped</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${sales_shipped_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="30000"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="after_shipped" sourceRef="sales_shipped" targetRef="wait_delivery"/>
+
+    <bpmn:serviceTask id="sales_delivered" name="Update Sales delivered" flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod" stringValue="POST"/>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/sales.update_order/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:sales_delivered</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${sales_delivered_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="30000"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="after_delivered" sourceRef="sales_delivered" targetRef="end_done"/>
+
+    <bpmn:serviceTask id="sales_no_stock" name="Update Sales no_stock" flowable:type="http">
+      <bpmn:extensionElements>
+        <flowable:field name="requestMethod" stringValue="POST"/>
+        <flowable:field name="requestUrl"><flowable:expression>${environment.getProperty('FLOWBRIDGE_WORKFLOW_BASE_URL')}/api/v1/workflows/actions/sales.update_order/execute</flowable:expression></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>Content-Type: application/json
+Idempotency-Key: ${execution.processInstanceId}:sales_no_stock</flowable:expression></flowable:field>
+        <flowable:field name="requestSecureHeaders"><flowable:expression>Authorization: Bearer ${environment.getProperty('FLOWBRIDGE_WORKFLOW_ENGINE_TOKEN')}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${sales_no_stock_request}</flowable:expression></flowable:field>
+        <flowable:field name="requestTimeout" stringValue="30000"/>
+        <flowable:field name="saveResponseParametersTransient" stringValue="true"/>
+        <flowable:field name="saveRequestVariables" stringValue="false"/>
+        <flowable:field name="disallowRedirects" stringValue="true"/>
+        <flowable:field name="failStatusCodes" stringValue="3XX,4XX,5XX"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="after_no_stock" sourceRef="sales_no_stock" targetRef="end_no_stock"/>
+  </bpmn:process>
+  <bpmn:message id="shipment_delivered" name="shipment.delivered"/>
+</bpmn:definitions>

@@ -25,7 +25,10 @@ class HasuraJwtCredentials:
         now = datetime.now(UTC)
         if (
             context.applied_revision != context.desired_revision
-            or not 0 <= (now - context.validated_at).total_seconds() <= 10
+            # Trusted DB validation and the native issuer may differ slightly
+            # across Docker/host clocks. Tokens still use the issuer's current
+            # time and retain their ten-second lifetime.
+            or not -1 <= (now - context.validated_at).total_seconds() <= 10
         ):
             raise CoreError(ErrorCode.FORBIDDEN)
         expires = int(now.timestamp()) + 10
