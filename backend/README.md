@@ -6,7 +6,7 @@ Source nằm trong package `app`, chia theo hai khối:
 
 | Khối | Trách nhiệm | Tài liệu |
 |---|---|---|
-| app/core | Metadata, Registry, Data Products, Governance, Hasura và Agent/Tools | [Core](app/core/README.md) |
+| app/core | Metadata, Registry, Data Products, Governance và Hasura | [Core](app/core/README.md) |
 | app/platform | Identity, Gateway, Workflow, Audit và HTTP utilities | [Platform](app/platform/README.md) |
 
 Import qua `app.core` và `app.platform`. Root `pyproject.toml`/`uv.lock` là nguồn chuẩn cho dependency Python. Các Business APIs nằm riêng dưới `services/`.

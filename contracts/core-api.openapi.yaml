@@ -856,8 +856,6 @@ paths:
   "/api/v1/core/tools/{tool_id}/disable": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1tools~1{tool_id}~1disable"}
   "/api/v1/core/operations/{operation_id}/permissions": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operations~1{operation_id}~1permissions"}
   "/api/v1/core/operation-permissions/{permission_id}/revoke": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1operation-permissions~1{permission_id}~1revoke"}
-  "/api/v1/core/agents/{agent_id}/tools/{tool_id}": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1agents~1{agent_id}~1tools~1{tool_id}"}
-  "/api/v1/core/agents/{agent_id}/tools": {"$ref":"./operation-registry.yaml#/paths/~1api~1v1~1core~1agents~1{agent_id}~1tools"}
   "/api/v1/core/data-contracts/{contract_version_id}/retire": {"$ref":"./data-governance.yaml#/paths/~1api~1v1~1core~1data-contracts~1{contract_version_id}~1retire"}
 components:
   securitySchemes: {"bearerAuth":{"type":"http","scheme":"bearer"}}

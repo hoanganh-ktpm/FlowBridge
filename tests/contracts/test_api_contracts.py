@@ -156,22 +156,32 @@ def test_synthetic_fixture_shape(case):
     assert (not errors) == case["valid"], [error.message for error in errors[:3]]
 
 
-def test_preserves_legacy_http_paths_and_operation_ids():
+def test_preserves_supported_legacy_http_paths_and_operation_ids():
     legacy = read_document(FIXTURES / "legacy-operations-v0.1.1.json")["operations"]
     actual = {
         (route, method): operation["operationId"] for _, route, method, operation, _ in OPERATIONS
     }
     assert len(legacy) == 84
+    retired = {
+        ("/api/v1/core/agents/{agent_id}/tools/{tool_id}", "put"): "bindAgentTool",
+        ("/api/v1/core/agents/{agent_id}/tools", "get"): "listAgentToolBindings",
+    }
+    # Keep the historical fixture intact; only these Agent bindings were retired.
+    assert not retired.keys() & actual.keys()
     for previous in legacy:
+        key = (previous["path"], previous["method"])
+        if key in retired:
+            assert previous["operationId"] == retired[key]
+            continue
         assert actual[(previous["path"], previous["method"])] == previous["operationId"]
-    assert len(actual) == 95
+    assert len(actual) == 93
 
 
 def test_operation_ids_service_boundaries_and_priorities():
     identifiers = [operation["operationId"] for _, _, _, operation, _ in OPERATIONS]
     assert len(identifiers) == len(set(identifiers))
     priorities = Counter(operation["x-priority"] for _, _, _, operation, _ in OPERATIONS)
-    assert priorities == {"P0": 55, "P1": 40}
+    assert priorities == {"P0": 55, "P1": 38}
     for path, route, _, operation, _ in OPERATIONS:
         if path.name in {
             "sales-api.openapi.yaml",

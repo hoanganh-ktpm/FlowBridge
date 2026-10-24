@@ -481,104 +481,6 @@ paths:
         "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
         "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
         "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
-  "/api/v1/core/agents/{agent_id}/tools/{tool_id}":
-    parameters:
-      -
-        name: "agent_id"
-        in: "path"
-        required: true
-        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
-      -
-        name: "tool_id"
-        in: "path"
-        required: true
-        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
-    put:
-      operationId: "bindAgentTool"
-      summary: "bindAgentTool"
-      description: >-
-        expected_revision=0 creates an absent binding; otherwise exact revision CAS. Atomic binding
-        uniqueness and exposed-name conflict checks. Does not create Agent/model/runtime or execute
-        permissions.
-      tags: ["Operations"]
-      x-priority: "P1"
-      x-authorization-policy: "IT_ADMIN"
-      x-authorization: >-
-        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
-        across departments: registration, configuration, publish, grant/revoke and audit. No department
-        OWNER membership or separate department approval required. Technical validation, resource state,
-        revision and verification guards still apply; this role does not bypass normal data grants or
-        Business API authorization.
-      x-database-alignment: "PENDING_DB_ALIGNMENT"
-      x-idempotency: "DURABLE_COMMAND"
-      parameters:
-        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
-        - {"$ref":"./common.openapi.yaml#/components/parameters/IdempotencyKey"}
-      requestBody:
-        required: true
-        content: {"application/json":{"schema":{"$ref":"./operation-registry.yaml#/components/schemas/ToolBindingPut"}}}
-      responses:
-        "200":
-          description: "Validated JSON response."
-          headers:
-            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
-            Idempotency-Replayed: {"$ref":"./common.openapi.yaml#/components/headers/IdempotencyReplayed"}
-            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
-          content: {"application/json":{"schema":{"$ref":"./operation-registry.yaml#/components/schemas/ToolBinding"}}}
-        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
-        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
-        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
-        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
-        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
-        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
-        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
-        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
-        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
-        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
-  "/api/v1/core/agents/{agent_id}/tools":
-    parameters:
-      -
-        name: "agent_id"
-        in: "path"
-        required: true
-        schema: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
-    get:
-      operationId: "listAgentToolBindings"
-      summary: "listAgentToolBindings"
-      description: "listAgentToolBindings"
-      tags: ["Operations"]
-      x-priority: "P1"
-      x-authorization-policy: "IT_ADMIN"
-      x-authorization: >-
-        ACTIVE trusted principal with platform_role=PLATFORM_ADMIN (IT). Full DX-OS control-plane authority
-        across departments: registration, configuration, publish, grant/revoke and audit. No department
-        OWNER membership or separate department approval required. Technical validation, resource state,
-        revision and verification guards still apply; this role does not bypass normal data grants or
-        Business API authorization.
-      x-database-alignment: "PENDING_DB_ALIGNMENT"
-      x-idempotency: "NONE_READ_ONLY"
-      parameters:
-        - {"$ref":"./common.openapi.yaml#/components/parameters/CorrelationId"}
-        - {"$ref":"./common.openapi.yaml#/components/parameters/Limit"}
-        - {"$ref":"./common.openapi.yaml#/components/parameters/Cursor"}
-      responses:
-        "200":
-          description: "Validated JSON response."
-          headers:
-            X-Correlation-Id: {"$ref":"./common.openapi.yaml#/components/headers/CorrelationId"}
-            Cache-Control: {"$ref":"./common.openapi.yaml#/components/headers/CacheControl"}
-          content: {"application/json":{"schema":{"$ref":"./operation-registry.yaml#/components/schemas/ToolBindingPage"}}}
-        "400": {"$ref":"./common.openapi.yaml#/components/responses/Error400"}
-        "401": {"$ref":"./common.openapi.yaml#/components/responses/Error401"}
-        "403": {"$ref":"./common.openapi.yaml#/components/responses/Error403"}
-        "404": {"$ref":"./common.openapi.yaml#/components/responses/Error404"}
-        "409": {"$ref":"./common.openapi.yaml#/components/responses/Error409"}
-        "422": {"$ref":"./common.openapi.yaml#/components/responses/Error422"}
-        "429": {"$ref":"./common.openapi.yaml#/components/responses/Error429"}
-        "500": {"$ref":"./common.openapi.yaml#/components/responses/Error500"}
-        "503": {"$ref":"./common.openapi.yaml#/components/responses/Error503"}
-        "504": {"$ref":"./common.openapi.yaml#/components/responses/Error504"}
-      x-pagination: {"sort":["bound_at","tool_id"],"direction":"asc","cursor_bound_to_filters":true}
 components:
   schemas:
     AuthenticationConfig:
@@ -929,27 +831,6 @@ components:
       description: >-
         No copied input/output schema: inherit canonical schemas of the pinned operation. Knowing a Tool or
         binding is not execution authorization.
-    ToolBindingPut:
-      type: "object"
-      additionalProperties: false
-      required: ["expected_revision","exposed_name","enabled"]
-      properties:
-        expected_revision: {"type":"integer","minimum":0}
-        exposed_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
-        enabled: {"type":"boolean"}
-    ToolBinding:
-      type: "object"
-      additionalProperties: false
-      required: ["agent_id","tool_id","exposed_name","enabled","revision","bound_at","updated_at","bound_by"]
-      properties:
-        agent_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
-        tool_id: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
-        exposed_name: {"$ref":"./common.openapi.yaml#/components/schemas/Identifier"}
-        enabled: {"type":"boolean"}
-        revision: {"$ref":"./common.openapi.yaml#/components/schemas/Revision"}
-        bound_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
-        updated_at: {"$ref":"./common.openapi.yaml#/components/schemas/Timestamp"}
-        bound_by: {"$ref":"./common.openapi.yaml#/components/schemas/UUID"}
     OperationPermissionPage:
       type: "object"
       additionalProperties: false
@@ -958,17 +839,6 @@ components:
         items:
           type: "array"
           items: {"$ref":"./operation-registry.yaml#/components/schemas/OperationPermission"}
-          minItems: 0
-          maxItems: 100
-        next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}
-    ToolBindingPage:
-      type: "object"
-      additionalProperties: false
-      required: ["items","next_cursor"]
-      properties:
-        items:
-          type: "array"
-          items: {"$ref":"./operation-registry.yaml#/components/schemas/ToolBinding"}
           minItems: 0
           maxItems: 100
         next_cursor: {"anyOf":[{"type":"string","minLength":1,"maxLength":2048},{"type":"null"}]}

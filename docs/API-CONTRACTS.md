@@ -28,17 +28,17 @@ Fragments are referenced by the Core entry point, not separately deployed. Share
 
 ## Scope and compatibility
 
-There are **88 operations: 48 P0 and 40 P1**. All 84 v0.1.1 method/path pairs and operationIds are retained. New operations: onboarding validate, plan, draft import (P0), and explicit retirement of an unused published contract (P1).
+There are **93 operations: 55 P0 and 38 P1**. The two Agent/Tool binding endpoints from the v0.1.1 catalog are retired; the other historical method/path pairs and operationIds remain. This proposed contract is broader than the implemented runtime APIs.
 
 | Boundary | P0 | P1 | Readiness |
 |---|---:|---:|---|
-| Core registry/onboarding/governance | 48 | 14 | Contract-first; adapters/runtime pending |
+| Core registry/onboarding/governance | 55 | 12 | Contract-first; adapters/runtime pending |
 | Sales | 0 | 8 | PROPOSED / PENDING_DB_ALIGNMENT |
 | Warehouse | 0 | 7 | PROPOSED / PENDING_DB_ALIGNMENT |
 | Logistics | 0 | 6 | PROPOSED / PENDING_DB_ALIGNMENT |
 | Platform execution/workflow | 0 | 5 | P1; no engine runtime assumed |
 
-P0 proves Data Sharing without Agent/Operation/Workflow dependencies. Order Fulfillment is deliberately P1; moving it into a demo milestone also moves its delegation, fencing, transaction and compensation acceptance tests into that milestone. P2 mapping/lineage, advanced row filters, partial fulfillment, multiple warehouses and complete Agent/LLM/chat runtime are not specified as endpoints here.
+P0 proves Data Sharing independently of Operation/Workflow contracts. Order Fulfillment belongs to P1 and has separate delegation, fencing, transaction and compensation acceptance tests. P2 mapping/lineage, advanced row filters, partial fulfillment and multiple warehouses are not specified as endpoints here.
 
 Revision 0.2.0 is **not wire-compatible in every DTO** with v0.1.1. Canonical contracts, source naming ownership and P0 consumer profile change intentionally; regenerate producer/consumer validators together. Preserving paths/operationIds does not imply payload compatibility. No deployed API or Portal compatibility is claimed.
 
@@ -163,7 +163,7 @@ Audit append-only events retain verified actor/initiator, correlation, target/ha
 
 ## P1 execution and workflow boundaries
 
-Agent -> Tool -> pinned Operation -> current execute permission -> Hasura grant or Business receiver policy. Registry owns canonical input/output schemas; Tool does not copy them. ACTIVE versions are immutable. BUSINESS_API request_config_json pins exact Domain operationId, method and path; variables have path/query/body and canonical target validation. No guessed mapping, eval, arbitrary URL/query/role/actor/secret input. Follow no redirects; validate approved base URL, DNS/egress and target application/department at activation and execution. Source/HTTP host allowlists do not replace deployment network policy.
+Workflow Action -> pinned Operation -> current execute permission -> Hasura grant or Business receiver policy. Registry owns canonical input/output schemas; Tool does not copy them. ACTIVE versions are immutable. BUSINESS_API request_config_json pins exact Domain operationId, method and path; variables have path/query/body and canonical target validation. No guessed mapping, eval, arbitrary URL/query/role/actor/secret input. Follow no redirects; validate approved base URL, DNS/egress and target application/department at activation and execution. Source/HTTP host allowlists do not replace deployment network policy.
 
 Core public Operation reads deliberately omit query/config/secrets. Platform defines an internal resolver port by operation key+version; a composition adapter supplies ResolvedOperationDescriptor plus current policy. Platform does not import Core repositories, and no public endpoint exposes the internal descriptor. This interface/persistence is not claimed to exist already.
 
@@ -188,7 +188,7 @@ Compensation persists COMPENSATING, fences new forward commands and drains/recon
 | data_contract_versions | Canonical JSON lives in contract_json, outer version/lifecycle unchanged; aliases/relationships do not require new tables |
 | access_requests/access_grants | Existing decision/subject/scope/revision fields; P0 exposes only department subject; atomic policy/constraints need implementation |
 | publication_jobs/audit_events | Existing job types, revisions, lease/retry and audit metadata; public DTOs redact internal fields |
-| operation/tool/agent bindings | P1 metadata; Agent CRUD/model runtime is outside this profile, binding requires a separately valid Agent |
+| operation/tool registry | P1 metadata proposal; Workflow actions use the separate implemented registry and current receiver policy |
 | workflow_business_links | Existing engine-neutral correlation fields; durable start/compensation/fencing state is an explicit adapter persistence gap |
 | HTTP idempotency/cardinality evidence | Storage/retention/review mechanism PENDING_DB_ALIGNMENT; do not equate HTTP records with job keys or invent completed migrations |
 | sales_db/warehouse_db/logistics_db | DTOs proposed from business semantics; no claim of tables/columns/seed data; DB owners confirm local constraints and transactions |
@@ -207,7 +207,7 @@ uv run --locked ruff format --check tests/contracts
 
 Tests parse YAML with duplicate-key rejection, resolve all local refs, bundle each entry point in memory and validate against a pinned official OpenAPI 3.1 meta-schema, check component Draft 2020-12 schemas, unique operationIds/service boundaries, request/response/header/security consistency, declared redaction, priorities, legacy paths/IDs and synthetic positive/negative fixtures. Test utilities bundle only for verification; there is no new runtime generator, dependency, network request or database connection.
 
-Static verification on 2026-10-23: **384 passed**; Ruff lint and format check passed. Coverage includes 10 YAML files, 122 named component schemas, six independently bundled/validated OpenAPI documents (five service entry points plus the shared component library), and 54 synthetic cases (27 shape-valid, 27 intentionally invalid). A policy matrix checks all 88 operations: IT administration, bounded consumer access and independent business/runtime permissions. Metadata OWNER without PLATFORM_ADMIN is not management authority; an IT principal may have no department membership. These are specification assertions, not executed authorization decisions. Status is **STATIC VALIDATED / REVIEW CANDIDATE**; runtime acceptance remains DEFERRED. This supersedes the unavailable 79-test evidence cited by the external v0.1.1 manual only for this checkout's specification validation, not for engine behavior.
+The 2026-10-23 static verification result predates retirement of the Agent/Tool binding endpoints. The contract suite validates references, schemas, authorization metadata and the current 93-operation catalog offline. These are specification assertions, not executed authorization decisions. Status remains **REVIEW CANDIDATE**; runtime acceptance is separate.
 
 The OpenAPI meta-schema does not prove business invariants or fully validate every embedded schema by itself; component JSON Schema checks and targeted assertions supplement it. Safe schema subsets, duplicate semantic names, dynamic row projections, cross-record conditions and real authorization still require implementation. Synthetic fixture validity means shape validity, not permission/transaction success.
 

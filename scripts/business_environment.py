@@ -20,8 +20,7 @@ from scripts.database.engine import make_engine
 from scripts.database.local import RUNTIME as POSTGRES_RUNTIME
 from scripts.database.local import load_local
 from scripts.database.registry import REPOSITORY_ROOT
-from scripts.docker_env import write_env
-from scripts.e2e_environment import tokens
+from scripts.integration_utils import tokens, write_env
 
 RUNTIME = REPOSITORY_ROOT / ".tmp/business-workflow"
 COMPOSE = REPOSITORY_ROOT / "infra/flowable/docker-compose.local.yml"

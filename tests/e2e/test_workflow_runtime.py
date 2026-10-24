@@ -10,9 +10,8 @@ from uuid import uuid4
 import httpx
 import pytest
 from dotenv import dotenv_values
-from scripts.docker_env import write_env
-from scripts.e2e_environment import ROOT, RUNTIME
 from scripts.e2e_runtime import NativeRuntime
+from scripts.integration_utils import ROOT, RUNTIME, write_env
 from tests.e2e.workflow_fixture import prepare_identities, workflow_tokens
 
 from app.platform.workflow.flowable import FlowableClient

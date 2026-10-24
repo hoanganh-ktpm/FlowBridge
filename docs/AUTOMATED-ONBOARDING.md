@@ -158,4 +158,4 @@ Kiểm chứng ngày 23/10/2026: **11 Core PostgreSQL integration tests passed**
 
 Toàn bộ suite offline: **730 passed, 50 integration/E2E deselected** (32.52 giây). Ruff lint/format, git diff --check và build sdist/wheel offline đạt. Kiểm package members không có .env thật, .tmp, cache, archive, backups, PDF tham chiếu hoặc pgAdmin local config. Secret scan source phát hành không có password từ cấu hình cục bộ. Các kết quả này không chứng minh deployment auth/engine đã hoạt động.
 
-Không dùng khái niệm E2E PASS cho các integration tests trên. Sau khi có dịch vụ thử: chạy harness và nghiệm thu T01–T10 qua Core HTTP thật với token IT/consumer thật. Workflow/Agent, UI và Docker không thuộc milestone này.
+Không dùng khái niệm E2E PASS cho các integration tests trên. Sau khi có dịch vụ thử: chạy harness và nghiệm thu T01–T10 qua Core HTTP thật với token IT/consumer thật. Workflow, UI và Docker không thuộc milestone này.

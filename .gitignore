@@ -21,6 +21,11 @@ htmlcov/
 .env
 .env.*
 !.env.example
+/deployment.yaml
+/deployments/
+deployment.state.json
+/secrets/
+/infra/deployment/generated/
 node_modules/
 playwright-report/
 test-results/

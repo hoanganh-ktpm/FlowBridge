@@ -25,6 +25,7 @@ dependencies = [
     "pydantic==2.14.1",
     "pydantic-settings==2.16.0",
     "pyyaml==6.0.3",
+    "questionary==2.1.1",
     "referencing==0.37.0",
     "sqlalchemy[asyncio]==2.1.4",
     "starlette==1.8.0",
@@ -51,7 +52,6 @@ packages = ["backend/app"]
 [tool.hatch.build.targets.sdist]
 only-include = [
     "backend", "services", "portal/src", "portal/server",
-    "portal/public/favicon.png", "portal/public/logo-flowbridge.png",
     "portal/tests", "portal/package.json", "portal/package-lock.json",
     "portal/components.json", "portal/tsconfig.json", "portal/vite.config.ts",
     "portal/vitest.config.ts", "portal/playwright.config.ts", "portal/index.html",
@@ -61,9 +61,9 @@ only-include = [
     "tests", "docs", "scripts", "alembic.ini", "README.md",
     "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "THIRD_PARTY_LICENSES.md", "pyproject.toml",
     "uv.lock", "uv.lock.license", ".python-version", ".python-version.license",
-    ".env.example", ".gitignore", ".gitattributes", ".dockerignore",
+    ".env.example", "deployment.example.yaml", ".gitignore", ".gitattributes", ".dockerignore",
 ]
-exclude = ["/_archive", "/docs/reference", "/docs/CHECKPOINT.md", "/docs/HASURA_AUDIT.md", "/AGENTS.md", "**/__pycache__", "**/*.pyc", "**/node_modules"]
+exclude = ["/_archive", "/docs/reference", "/docs/CHECKPOINT.md", "/docs/HASURA_AUDIT.md", "/AGENTS.md", "/infra/deployment/generated", "**/__pycache__", "**/*.pyc", "**/node_modules"]
 
 [tool.ruff]
 target-version = "py312"

@@ -15,13 +15,8 @@
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.2.8",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-tabs": "^1.1.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cn": "^0.5.0",
     "decimal.js": "^10.6.0",
     "keycloak-js": "^26.2.4",
     "keycloakify": "11.16.3",

@@ -12,19 +12,12 @@ from uuid import uuid4
 import httpx
 from dotenv import dotenv_values
 from psycopg import sql
-from sqlalchemy import create_engine, inspect, select, text
+from sqlalchemy import inspect, select, text
 from sqlalchemy.engine import make_url
 
 from app.core.applications.manifest import source_name
 from app.core.db import models
-from scripts.docker_env import write_env
-
-ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = ROOT / ".tmp/docker-integration"
-
-
-def engine_for(url):
-    return create_engine(url, hide_parameters=True, connect_args={"connect_timeout": 10})
+from scripts.integration_utils import ROOT, RUNTIME, engine_for, tokens, write_env
 
 
 def reader_url(admin_url, role, password):
@@ -136,38 +129,6 @@ def prepare_metadata():
         print("No database created, no Core/business schema or data modified")
     finally:
         engine.dispose()
-
-
-def tokens():
-    state = json.loads((RUNTIME / "secrets.json").read_text())
-    issuer = "https://localhost:18443/realms/flowbridge-it"
-    context = ssl.create_default_context(cafile=str(RUNTIME / "tls/server.crt"))
-    result = {}
-    with httpx.Client(verify=context, timeout=20) as client:
-        for name, subject in state["users"].items():
-            response = client.post(
-                issuer + "/protocol/openid-connect/token",
-                data={
-                    "grant_type": "password",
-                    "client_id": "flowbridge-e2e",
-                    "username": "test-" + name,
-                    "password": state["user_password"],
-                    "scope": "openid",
-                },
-            )
-            response.raise_for_status()
-            token = response.json()["access_token"]
-            response = client.post(
-                issuer + "/protocol/openid-connect/token/introspect",
-                data={"token": token},
-                auth=("flowbridge-api", state["api_secret"]),
-            )
-            response.raise_for_status()
-            claims = response.json()
-            assert claims["active"] and claims["iss"] == issuer and claims["sub"] == subject
-            assert "flowbridge-api" in claims["aud"]
-            result[name] = token
-    return result
 
 
 def expired_token():

@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import httpx
 from dotenv import dotenv_values
-from scripts.e2e_environment import ROOT, RUNTIME, engine_for
+from scripts.integration_utils import ROOT, RUNTIME, engine_for
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
 

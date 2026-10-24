@@ -54,7 +54,7 @@ test('chat layout, agent explorer and contract charts work on desktop', async ({
   await page.getByRole('button', { name: 'Đóng chi tiết xử lý' }).click()
   await page.getByRole('tab', { name: 'Dữ liệu', exact: true }).click()
   await expect(page.locator('[data-slot="table"]').first()).toBeVisible()
-  await expect(page.getByRole('cell', { name: '110', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('cell', { name: '12', exact: true }).first()).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /Tải CSV/ }).click()
   expect((await download).suggestedFilename()).toContain('.csv')

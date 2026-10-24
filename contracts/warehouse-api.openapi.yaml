@@ -54,7 +54,7 @@ paths:
       summary: "reserveStock"
       description: >-
         Transaction locks/conditional updates in stable SKU order; insufficient any SKU rolls back all rows.
-        Verify order lines via Sales API or an equivalent trusted command. No name-based or LLM-supplied
+        Verify order lines via Sales API or an equivalent trusted command. Reject unverified
         business evidence.
       tags: ["Business"]
       x-priority: "P1"

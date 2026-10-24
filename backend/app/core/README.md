@@ -12,9 +12,9 @@ Khối của nhóm Data Core/Hasura. Source: backend/app/core; test: tests/core;
 | data_products | Sản phẩm dữ liệu, contract/version và trạng thái công bố |
 | governance | Access requests/grants, thời hạn, thu hồi và publication jobs |
 | hasura_provisioner | Apply/reconcile metadata và permissions Hasura |
-| agents | Agent/Operation/Tool Registry và executor |
+| workflow | Workflow actions, dữ liệu được cấp quyền và event inbox |
 
-[Hasura Provisioner](hasura_provisioner/README.md) có Metadata Client, source registration, product publication, SELECT reconciliation và publication worker. PostgreSQL adapter và native composition tại app.core.runtime đã kiểm bằng PostgreSQL integration; internal JWT provider mặc định tắt tới khi xác minh auth profile. Hasura/SSO E2E chưa nghiệm thu. Agents và phần P0/P1 ngoài vertical slice còn chờ triển khai; xem [Automated Onboarding](../../../docs/AUTOMATED-ONBOARDING.md). Không tạo một service deploy riêng cho mỗi dòng.
+[Hasura Provisioner](hasura_provisioner/README.md) có Metadata Client, source registration, product publication, SELECT reconciliation và publication worker. PostgreSQL adapter và native composition tại app.core.runtime đã kiểm bằng PostgreSQL integration; internal JWT provider mặc định tắt tới khi xác minh auth profile. Phạm vi onboarding và Data Sharing tại [Automated Onboarding](../../../docs/AUTOMATED-ONBOARDING.md). Không tạo một service deploy riêng cho mỗi dòng.
 
 Core lưu metadata, không chứa dữ liệu nghiệp vụ Sales/Warehouse/Logistics. Module dùng Platform cho identity/HTTP boundary và adapter công khai; không import database nghiệp vụ. Có thể phát triển với PostgreSQL fixture, identity mock và mock engine APIs.
 

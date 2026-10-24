@@ -10,7 +10,7 @@ import pytest
 import sqlalchemy as sa
 from scripts.business_environment import BusinessProcesses, historical_snapshot, prepare
 from scripts.database.engine import make_engine
-from scripts.e2e_environment import tokens
+from scripts.integration_utils import tokens
 
 pytestmark = pytest.mark.e2e
 
