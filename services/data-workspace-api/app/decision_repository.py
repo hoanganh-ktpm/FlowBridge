@@ -349,6 +349,79 @@ class DecisionRepository:
                 )
             )
 
+    async def check_history(self, ctx, identifier, revision_id):
+        await self.get(ctx, identifier)
+        async with self.engine.connect() as conn:
+            rows = (
+                (
+                    await conn.execute(
+                        sa.select(checks)
+                        .where(
+                            checks.c.org_id == ctx.org_id,
+                            checks.c.case_id == identifier,
+                            checks.c.revision_id == revision_id,
+                        )
+                        .order_by(checks.c.created_at.desc(), checks.c.id)
+                        .limit(101)
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return {
+            "items": jsonable_encoder([dict(row) for row in rows[:100]]),
+            "has_more": len(rows) > 100,
+        }
+
+    async def observe_source(self, ctx, identifier, revision_id, source):
+        """Inbox receipt and audit entry in one local transaction, across observers.
+
+        Event arrival never changes case/engine status. Old versions are retained
+        as observations rather than overwriting a projection with stale payloads.
+        """
+        payload_check(source)
+        key = "source:" + fingerprint([source["producer"], source["id"]])
+        async with self.engine.begin() as conn:
+            case = await self.get(ctx, identifier, conn=conn, lock=True)
+            if (
+                case["revision"]["id"] != str(revision_id)
+                or source["org_id"] != str(ctx.org_id)
+                or source["warehouse_id"] != case["warehouse_id"]
+            ):
+                raise HTTPException(409, "Source observation belongs to another scope or revision")
+            candidates = (
+                (
+                    await conn.execute(
+                        sa.select(events).where(
+                            events.c.org_id == ctx.org_id,
+                            events.c.case_id == identifier,
+                            events.c.event_type == "SOURCE_OBSERVED",
+                            events.c.payload["producer"].astext == source["producer"],
+                            sa.or_(
+                                events.c.event_key == key,
+                                sa.and_(
+                                    events.c.payload["aggregate_id"].astext
+                                    == source["aggregate_id"],
+                                    events.c.payload["aggregate_version"].as_integer()
+                                    == source["aggregate_version"],
+                                    events.c.payload["event_type"].astext == source["event_type"],
+                                ),
+                            ),
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            if candidates:
+                if len(candidates) != 1 or candidates[0]["payload_hash"] != fingerprint(source):
+                    raise HTTPException(
+                        409, "Conflicting source event identity or aggregate version"
+                    )
+                return False
+            await self.event(conn, ctx, identifier, revision_id, "SOURCE_OBSERVED", key, source)
+            return True
+
     async def begin_submission(self, ctx, identifier, expected_version, revision_id, key):
         command_key(key)
         digest = fingerprint(

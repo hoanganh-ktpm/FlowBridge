@@ -2,13 +2,15 @@
 """Governed decision dossiers; workflow authority remains in Core/Flowable."""
 
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import Field, ValidationError
 
+from .decision_events import validate_event
+from .decision_impact import assess_change
 from .schemas import DTO, SourceRead
 
 Role = Literal["coordinator", "warehouse", "logistics", "manager"]
@@ -83,10 +85,20 @@ class DecisionPolicy:
 
 
 class DecisionService:
-    def __init__(self, repository, results, policy, reauthorize, inspector=None, workflow=None):
+    def __init__(
+        self,
+        repository,
+        results,
+        policy,
+        reauthorize,
+        inspector=None,
+        workflow=None,
+        event_reader=None,
+    ):
         self.repository, self.results = repository, results
         self.policy, self.reauthorize = policy, reauthorize
         self.inspector, self.workflow = inspector, workflow
+        self.event_reader = event_reader
 
     async def permitted_payload(self, ctx, payload):
         # SourceRead rejects arbitrary fields/URLs and enforces bounded column identifiers.
@@ -162,28 +174,115 @@ class DecisionService:
         try:
             proof = await self.inspector(ctx, payload)
             baseline = payload.get("validation_baseline")
-            if not baseline or baseline["input_sha256"] != proof["input_sha256"]:
+            impact = assess_change(baseline, proof)
+            if impact["requires_revision"]:
+                await self.repository.record_check(
+                    ctx, UUID(case["id"]), revision, "STALE", {**proof, "impact": impact}
+                )
                 raise HTTPException(
-                    409, "Source conditions changed; create and verify a new revision"
+                    409,
+                    {
+                        "code": "DECISION_REQUIRES_REVISION",
+                        "message": "Source conditions changed; create and verify a new revision",
+                        "impact": impact,
+                    },
                 )
         except HTTPException as error:
             outcome = (
                 "DENIED"
-                if error.status_code == 403
+                if error.status_code in {401, 403}
                 else "UNAVAILABLE"
                 if error.status_code >= 500
                 else "STALE"
             )
-            await self.repository.record_check(
-                ctx,
-                UUID(case["id"]),
-                revision,
-                outcome,
-                {"http_status": error.status_code, "requires_revalidation": True},
-            )
+            if (
+                not isinstance(error.detail, dict)
+                or error.detail.get("code") != "DECISION_REQUIRES_REVISION"
+            ):
+                await self.repository.record_check(
+                    ctx,
+                    UUID(case["id"]),
+                    revision,
+                    outcome,
+                    {"http_status": error.status_code, "requires_revalidation": True},
+                )
             raise
+        proof = {
+            **proof,
+            "observed_input_sha256": proof["input_sha256"],
+            "input_sha256": baseline["input_sha256"],
+            "impact": impact,
+        }
         await self.repository.record_check(ctx, UUID(case["id"]), revision, "VALID", proof)
         return proof
+
+    async def revalidate(self, ctx, identifier):
+        case = await self.get(ctx, identifier)
+        proof = await self.checked(ctx, case)
+        return {
+            "revision_id": case["revision"]["id"],
+            "checked_at": proof["checked_at"],
+            "impact": proof["impact"],
+            "warehouse_confirmable": proof["warehouse_confirmable"],
+            "logistics_confirmable": proof["logistics_confirmable"],
+        }
+
+    async def checks(self, ctx, identifier):
+        case = await self.get(ctx, identifier)
+        return await self.repository.check_history(ctx, identifier, UUID(case["revision"]["id"]))
+
+    async def sync_events(self, ctx, identifier):
+        case = await self.get(ctx, identifier)
+        if self.event_reader is None:
+            raise HTTPException(503, "Configure registered native owner event read actions")
+        count, warnings = 0, []
+        # Replay the full case window on each explicit sync. This also recovers
+        # delayed commits below an earlier cursor, with inbox dedup across users.
+        since = (datetime.fromisoformat(case["created_at"]) - timedelta(minutes=1)).isoformat()
+        for producer in ("sales", "warehouse", "logistics"):
+            body = {
+                "org_id": str(ctx.org_id),
+                "warehouse_id": case["warehouse_id"],
+                "since": since,
+                "limit": 100,
+            }
+            seen = set()
+            for _ in range(10):
+                page = await self.event_reader(ctx, producer, body)
+                if (
+                    not isinstance(page, dict)
+                    or type(page.get("has_more")) is not bool
+                    or not isinstance(page.get("items"), list)
+                    or len(page["items"]) > 100
+                ):
+                    raise HTTPException(502, "Invalid owner event page")
+                for raw in page["items"]:
+                    try:
+                        value = validate_event(
+                            raw, producer, ctx.org_id, UUID(case["warehouse_id"])
+                        )
+                    except (ValidationError, TypeError, ValueError):
+                        raise HTTPException(502, "Invalid owner event summary") from None
+                    if value["id"] in seen:
+                        raise HTTPException(502, "Owner event pagination repeated a row")
+                    seen.add(value["id"])
+                    count += await self.repository.observe_source(
+                        ctx, identifier, UUID(case["revision"]["id"]), value
+                    )
+                if not page["has_more"]:
+                    break
+                if not page["items"]:
+                    raise HTTPException(502, "Owner event pagination is incomplete")
+                last = page["items"][-1]
+                body.update(after_time=last["occurred_at"], after_id=last["id"])
+            else:
+                warnings.append(producer + " replay exceeds 1000 events; history is incomplete")
+        return {
+            "new_observations": count,
+            "warnings": warnings,
+            "requires_source_revalidation": True,
+            "message": "Events are hints; current source checks remain mandatory",
+        }
 
     async def submit(self, ctx, identifier, body, key):
         case = await self.get(ctx, identifier)
@@ -252,6 +351,43 @@ class DecisionService:
             if state["status"] == "COMPLETED" and case["status"] != "COMPLETED"
             else [],
         }
+
+    async def reconcile_start(self, ctx, identifier):
+        case = await self.get(ctx, identifier)
+        if self.workflow is None:
+            raise HTTPException(503, "Workflow service is not configured")
+        if case["workflow_instance_ref"]:
+            return await self.workflow_state(ctx, identifier)
+        if case["status"] != "VALIDATING" or "coordinator" not in self.policy.roles(
+            ctx, case["warehouse_id"]
+        ):
+            raise HTTPException(409, "No pending start owned by this coordinator")
+        result = await self.workflow.request(
+            "/decision-runs/commands/reconcile-start",
+            {
+                "org_id": str(ctx.org_id),
+                "case_id": case["id"],
+                "revision_id": case["revision"]["id"],
+                "actor_principal_id": str(ctx.owner_id),
+            },
+        )
+        if result.get("state") != "FOUND":
+            return {
+                "case": case,
+                "workflow": None,
+                "warnings": ["Start remains UNCONFIRMED; do not dispatch a replacement"],
+            }
+        run = result["run"]
+        if (
+            any(run.get(field) != case[field] for field in ("org_id", "warehouse_id", "order_id"))
+            or run.get("case_id") != case["id"]
+            or run.get("revision_id") != case["revision"]["id"]
+        ):
+            raise HTTPException(502, "Reconciled start belongs to a different case revision")
+        await self.repository.workflow_projection(
+            ctx, identifier, UUID(case["revision"]["id"]), run["id"], "VALIDATING"
+        )
+        return await self.workflow_state(ctx, identifier)
 
     async def verify_handoff(self, ctx, identifier, body, key):
         case = await self.get(ctx, identifier)
@@ -426,9 +562,26 @@ class DecisionService:
         return {"items": rows[:100], "has_more": len(rows) > 100}
 
     async def timeline(self, ctx, identifier):
-        await self.get(ctx, identifier)
+        case = await self.get(ctx, identifier)
         # Older events can reference a source whose permission has since changed.
         rows = await self.repository.timeline(ctx, identifier)
+        producers = {
+            row["payload"]["producer"] for row in rows if row["event_type"] == "SOURCE_OBSERVED"
+        }
+        if producers:
+            if self.event_reader is None:
+                raise HTTPException(503, "Source event permissions cannot currently be checked")
+            for producer in sorted(producers):
+                await self.event_reader(
+                    ctx,
+                    producer,
+                    {
+                        "org_id": str(ctx.org_id),
+                        "warehouse_id": case["warehouse_id"],
+                        "since": datetime.now(UTC).isoformat(),
+                        "limit": 1,
+                    },
+                )
         revision_ids = {UUID(row["revision_id"]) for row in rows if row["revision_id"]}
         referenced = await self.repository.revisions_for(ctx, identifier, revision_ids)
         for row in referenced:

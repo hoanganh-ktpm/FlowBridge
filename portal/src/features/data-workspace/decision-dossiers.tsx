@@ -6,13 +6,15 @@ import { ApiError } from '@/lib/api';
 import { Field, Panel, Select, fmt } from './components';
 import { scenarioSummary } from './scenario-summary';
 import type { Scenario } from './types';
+import { DecisionChecks } from './decision-checks';
+import { DecisionProgress } from './decision-progress';
 
 export type DecisionRequest = <T>(path: string, body?: unknown, signal?: AbortSignal, key?: string) => Promise<T>;
 export type DecisionCapabilities = { enabled: boolean; roles: string[]; warehouse_ids: string[]; workflow_enabled: boolean };
 type Revision = { id: string; number: number; created_at: string; payload: { scenario: Scenario; requires_revalidation: boolean; scope: { sku: string; order_id: string; warehouse_id: string } } };
 type Dossier = { id: string; title: string; warehouse_id: string; order_id: string; coordinator_id: string; status: string; version: number; current_revision: number; updated_at: string; revision: Revision; participants: { principal_id: string; role: string }[]; workflow_instance_ref?: string | null; actions?: {can_revise:boolean;can_submit:boolean} };
 type Summary = Omit<Dossier, 'revision' | 'participants'>;
-type Event = { id: string; event_type: string; created_at: string; payload: { number?: number; note?:string|null;role?:string;outcome?:string } };
+type Event = { id: string; event_type: string; created_at: string; payload: { number?: number; note?:string|null;role?:string;outcome?:string;event_type?:string;producer?:string;correlation_id?:string;occurred_at?:string } };
 const status: Record<string, string> = { DRAFT: 'Bản nháp', VALIDATING: 'Đang xác minh', NEEDS_REVISION: 'Cần sửa phương án', PENDING_APPROVAL: 'Chờ duyệt', APPROVED: 'Đã duyệt', EXECUTING: 'Đang thực hiện', COMPLETED: 'Đã bàn giao', STOPPED: 'Đã dừng' };
 const eventNames: Record<string, string> = { CASE_CREATED: 'Lập hồ sơ', REVISION_CREATED: 'Thêm phiên bản', SUBMISSION_REQUESTED:'Gửi xác minh', SUBMISSION_RESUMED:'Đối soát lần gửi', WORKFLOW_OBSERVED:'Cập nhật tiến độ quy trình', TASK_COMPLETED:'Hoàn tất nhiệm vụ',CARRIER_HANDOFF_VERIFIED:'Đã đối chiếu đủ bằng chứng bàn giao cho đơn vị vận chuyển' };
 const roleNames: Record<string,string> = {coordinator:'Người điều phối',warehouse:'Kho',logistics:'Vận chuyển',manager:'Quản lý'};
@@ -22,6 +24,7 @@ type Workflow = {instance_id:string;revision_id:string;status:string;tasks:Workf
 type WorkflowState = {case:Dossier;workflow:Workflow|null;warnings:string[]};
 
 function message(error: unknown) {
+  if (error instanceof ApiError && error.code === 'DECISION_REQUIRES_REVISION') return 'Dữ liệu làm thay đổi điều kiện hoặc nội dung phương án. Xem mục Hiệu lực phương án, tính lại và gửi xác minh phiên bản mới.';
   if (error instanceof ApiError && error.status === 409) return 'Hồ sơ đã thay đổi hoặc đơn này đã có hồ sơ đang xử lý. Tải lại danh sách trước khi sửa tiếp.';
   if (error instanceof ApiError && error.status === 403) return 'Phân công hoặc quyền đọc nguồn đã thay đổi. Không thể mở hồ sơ này.';
   if (error instanceof ApiError && error.status === 503) return 'Chưa đủ cấu hình người lập, Kho, Vận chuyển và người duyệt độc lập, hoặc dịch vụ chưa sẵn sàng. Nhờ IT kiểm tra.';
@@ -109,8 +112,9 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
   }
   async function submit() {
     if (!selected?.actions?.can_submit) return;
-    const path = '/decisions/' + selected.id + '/submit';
-    const body = {revision_id:selected.revision.id,expected_version:selected.version};
+    const pending = selected.status === 'VALIDATING' && !selected.workflow_instance_ref;
+    const path = '/decisions/' + selected.id + (pending ? '/reconcile-start' : '/submit');
+    const body = pending ? {} : {revision_id:selected.revision.id,expected_version:selected.version};
     setBusy(true); setError('');
     try { await request<WorkflowState>(path,body,undefined,key(path,body)); await open(selected.id); }
     catch (e) { failedCommand(e); } finally { setBusy(false); }
@@ -136,6 +140,12 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     catch(e){if(e instanceof ApiError&&e.status===409)setError('Chưa xác minh được bàn giao đầy đủ từ Kho hoặc quy trình chưa được duyệt. Hồ sơ vẫn chưa hoàn tất.');else failedCommand(e);}
     finally{setBusy(false);}
   }
+  async function refreshTimeline(){
+    if(!selected)return;
+    const result=await request<{items:Event[];has_more:boolean}>('/decisions/'+selected.id+'/timeline');
+    setEvents(result.items);
+    if(result.has_more)setNotice('Lịch sử dài; đang hiển thị một phần. Cần đối soát nguồn để xác định đầy đủ bước đã thực hiện.');
+  }
   const canRevise = selected && (selected.actions?.can_revise ?? capabilities.roles.includes('coordinator')) && ['DRAFT', 'NEEDS_REVISION'].includes(selected.status)
     && !!scenario?.id && !scenarioDirty && scenario.baseline.orders?.some(o => o.order_id === selected.order_id);
   return <div className="pw-dossiers">
@@ -151,6 +161,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
       <p>Hồ sơ lưu bằng chứng tại thời điểm tính. Cần xác minh lại dữ liệu trước khi trình duyệt hoặc thực hiện.</p>
       <p>{selected.participants.length} phân công phối hợp trong hồ sơ.</p>
       {capabilities.workflow_enabled && <>
+        <DecisionChecks key={selected.revision.id} request={request} caseId={selected.id} disabled={busy} onDenied={failedCommand} onSynced={refreshTimeline}/>
         <p>Nguồn dữ liệu và quyền truy cập được kiểm tra lại khi gửi, xác nhận và duyệt. Mọi thao tác gắn với phiên bản {selected.current_revision}.</p>
         {selected.actions?.can_submit && <Button disabled={busy} onClick={()=>void submit()}>{selected.status==='VALIDATING'?'Đối soát lần gửi trước':'Gửi Kho và Vận chuyển xác minh'}</Button>}
         {workflow?.tasks.some(task=>task.mine)&&<Field title="Nhận xét hoặc lý do phản hồi"><Input value={comment} maxLength={2000} disabled={busy} onChange={event=>setComment(event.target.value)} placeholder="Bắt buộc khi yêu cầu sửa hoặc không chấp thuận"/></Field>}
@@ -165,6 +176,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
       </>}
       {capabilities.roles.includes('coordinator') && <><Button disabled={busy || !canRevise} onClick={() => void revise()}>Thêm phương án đang xem thành phiên bản mới</Button><p className="dw-muted">So sánh và lưu phương án mới cho cùng đơn trước khi thêm. Phiên bản trước vẫn được giữ lại.</p></>}
       <h3>Lịch sử phiên bản</h3>{history.map(revision => <div key={revision.id}><strong>Phiên bản {revision.number}</strong><p>{new Date(revision.created_at).toLocaleString('vi-VN')} · Thiếu nguồn {fmt(scenarioSummary(revision.payload.scenario).after)}</p></div>)}
+      <DecisionProgress events={events} orderId={selected.order_id}/>
       <h3>Diễn biến</h3>{events.map(event => <div key={event.id}><p>{new Date(event.created_at).toLocaleString('vi-VN')} · {eventNames[event.event_type] || 'Cập nhật hồ sơ'}{event.payload.number ? ` · Phiên bản ${event.payload.number}` : ''}{event.payload.role?` · ${roleNames[event.payload.role]||event.payload.role}`:''}{event.payload.outcome?` · ${outcomeNames[event.payload.outcome]||event.payload.outcome}`:''}</p>{event.payload.note&&<p>{event.payload.note}</p>}</div>)}
       {!capabilities.workflow_enabled && <p className="dw-muted">Quy trình xác minh và phê duyệt chưa được kết nối. Hồ sơ đang ở bước lưu bản nháp.</p>}
     </Panel>}

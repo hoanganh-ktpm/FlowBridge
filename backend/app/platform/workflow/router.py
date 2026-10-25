@@ -247,6 +247,7 @@ from uuid import UUID  # noqa: E402
 
 from app.platform.workflow.decision_schemas import (  # noqa: E402
     DecisionHandoffCommand,
+    DecisionReconcileStart,
     DecisionStart,
     DecisionTaskCommand,
 )
@@ -258,6 +259,13 @@ from app.platform.workflow.decision_schemas import (  # noqa: E402
 async def start_decision_run(body: DecisionStart, request: Request, actor: Actor):
     _key(request)
     return await decision_port(request).start(actor, body, request.state.correlation_id)
+
+
+@workflow_router.post(
+    "/decision-runs/commands/reconcile-start", operation_id="reconcileDecisionStart"
+)
+async def reconcile_decision_start(body: DecisionReconcileStart, request: Request, actor: Actor):
+    return await decision_port(request).reconcile_start(actor, body)
 
 
 @workflow_router.get("/decision-runs/{instance_id}", operation_id="getDecisionWorkflow")

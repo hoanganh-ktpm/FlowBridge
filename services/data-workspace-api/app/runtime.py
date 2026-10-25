@@ -16,6 +16,7 @@ from .analytics import analyze, local_day, numeric, prepare
 from .connector import CoreConnector
 from .decision_api import install_decision_routes
 from .decision_freshness import digest, input_digest, ordered
+from .decision_impact import dependency_evidence
 from .decision_workflow import DecisionWorkflowClient
 from .forecasting import Forecaster
 from .handoff_readiness import preparation_policy
@@ -232,7 +233,10 @@ def create_app(
             history_product,
             known_event_entities={str(row[config.entity_column]) for row in history_rows},
         )
-        if historical["evidence"]["history_sha256"] != forecast["evidence"]["history_sha256"]:
+        if (
+            not payload.get("validation_baseline")
+            and historical["evidence"]["history_sha256"] != forecast["evidence"]["history_sha256"]
+        ):
             raise HTTPException(409, "Forecast history changed; recompute before submitting")
         inputs = await operational_inputs(body, ctx)
         current_digest = input_digest(
@@ -245,7 +249,7 @@ def create_app(
             inputs["preparation_rows"],
             forecast["points"],
         )
-        if current_digest != evidence["input_sha256"]:
+        if not payload.get("validation_baseline") and current_digest != evidence["input_sha256"]:
             raise HTTPException(
                 409, "Operational source facts changed; create a new scenario revision"
             )
@@ -373,6 +377,15 @@ def create_app(
             "order_contract_id": str(body.open_orders.contract_version_id),
             "sources": supplementary,
             "checked_at": datetime.now(UTC).isoformat(),
+            "impact_evidence": dependency_evidence(
+                payload,
+                inputs,
+                selected[0],
+                historical["evidence"]["history_sha256"],
+                facts["schedule"],
+                capacities,
+                policy,
+            ),
         }
         await reauthorize(ctx, {"sources": [*payload["sources"], *supplementary]})
         return proof
@@ -386,6 +399,7 @@ def create_app(
         case_repository,
         decision_bindings,
         inspector=inspect_decision if decision_workflow else None,
+        event_reader=getattr(connector, "decision_events", None),
         workflow=decision_workflow,
     )
 

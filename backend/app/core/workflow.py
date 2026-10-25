@@ -273,7 +273,7 @@ class CoreEventInbox:
                 ),
             )
 
-    async def once(self, key, payload_hash, dispatch, *, recover=None):
+    async def once(self, key, payload_hash, dispatch, *, recover=None, pending_result=None):
         resource_id = uuid5(WORKFLOW_NAMESPACE, "event:" + key)
         async with self.store.permission_lock(resource_id, WORKFLOW_NAMESPACE):
             async with self.store.transaction() as transaction:
@@ -318,7 +318,7 @@ class CoreEventInbox:
                             "id": str(resource_id),
                             "payload_hash": payload_hash,
                             "status": "DISPATCHING",
-                            "result_json": {},
+                            "result_json": pending_result or {},
                             "revision": 1,
                             "created_at": now,
                             "updated_at": now,
@@ -329,7 +329,7 @@ class CoreEventInbox:
             try:
                 result = await dispatch()
             except Exception:
-                await self.finish(resource_id, "UNCERTAIN", {})
+                await self.finish(resource_id, "UNCERTAIN", pending_result or {})
                 raise
             await self.finish(resource_id, "COMPLETED", result)
             return result

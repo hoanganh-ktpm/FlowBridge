@@ -279,3 +279,39 @@ These are owner capabilities and explicit role commands. Automatic event transpo
 consolidated execution/uncertain-start recovery and impact projection are M10;
 the live four-human SSO/Hasura/Portal path and hosted deployment are not claimed.
 No persistent hosted/shared business data was mutated by these tests.
+
+
+## M10 — scoped impact checks, source replay and lost-start recovery (25 October 2026)
+
+Source checks now compare a versioned obligation contract after whole-warehouse
+allocation: immutable original lines/deadlines, assumptions, forecast history,
+preparation, selected-order outcomes and carrier slot. Harmless changes record a
+NO_EFFECT check with a distinct observed hash; changed obligations/gates require
+revision and block confirmation/approval. Cutoff expiry is checked even when the
+raw source hash is unchanged. Checks and before/after diffs are visible in Portal.
+
+Three fixed native event read actions (23 contracts in total) expose scoped,
+redacted, checksummed summaries. Explicit sync replays the case window, dedups
+across users in the transactional decision-event ledger and retains late/out-of-order
+versions without changing case/engine state. Recorded steps remain historical
+facts; missing observations never prove an action did not run. Reading retained
+source observations rechecks native and Data Product permissions. Replay is
+bounded with an incomplete-history warning; no background push worker is claimed.
+
+New workflow starts retain a minimal durable intent. Read-only reconciliation
+finds the exact Flowable marker even after source facts changed, validates current
+participant assignment and attaches only matching scope/revision. Missing proof
+remains UNCONFIRMED, never permission to dispatch a duplicate process. The pending
+Portal button uses this reconciliation rather than attempting a new start.
+
+Validation: 54 isolated PostgreSQL tests passed, one real-engine bridge skipped
+in that profile; 11 tests passed in the dedicated PostgreSQL/Flowable profile.
+Four targeted mocked-browser cases passed; Portal TypeScript/build passed.
+Full fast suite passed 1,072 tests (92 deselected), with the two final added
+source-boundary cases passing separately. See DECISION-REVALIDATION.md for exact
+semantics, setup and limitations. Retained native actions remain independently
+authorized ERP operations; no generic autonomous Agent writer was added.
+
+M11–M12 (four-screen workspace, read-only Agent adapter and complete live acceptance)
+remain open. Four-human MFA, the shared hosted stack and production readiness are
+not inferred from these isolated/stubbed boundary tests.

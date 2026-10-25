@@ -4,11 +4,11 @@
 import re
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from app.core.applications.manifest import fingerprint
 from app.core.governance.policy import resolve_principal
-from app.core.workflow import CoreEventInbox
+from app.core.workflow import WORKFLOW_NAMESPACE, CoreEventInbox
 from app.platform.http.errors import CoreError, ErrorCode
 from app.platform.workflow.decision_schemas import Assignment
 
@@ -154,7 +154,70 @@ class CoreDecisionRuns:
             found = await self.engine.find_process(KEY, str(body.revision_id), dispatch_key)
             return {**record, "id": found[0]["id"]} if len(found) == 1 else None
 
-        return await self.inbox.once(dispatch_key, digest, dispatch, recover=recover)
+        return await self.inbox.once(
+            dispatch_key, digest, dispatch, recover=recover, pending_result={"intent": record}
+        )
+
+    async def reconcile_start(self, actor, body):
+        """Read-only engine lookup, including when the original source facts changed.
+
+        An absent process is uncertain: it cannot authorize a second dispatch.
+        Current roles remain mandatory. This port never evaluates a new plan or
+        grants approval; it only recovers a previously durably recorded intent.
+        """
+        await self.trusted(actor)
+        key = fingerprint(
+            [
+                "DECISION_RUN",
+                actor.issuer,
+                actor.subject,
+                str(body.org_id),
+                str(body.case_id),
+                str(body.revision_id),
+            ]
+        )
+        resource_id = uuid5(WORKFLOW_NAMESPACE, "event:" + key)
+        async with self.store.permission_lock(resource_id, WORKFLOW_NAMESPACE):
+            async with self.store.transaction(read_only=True) as tx:
+                try:
+                    receipt = await tx.get("workflow_event", resource_id)
+                except CoreError as error:
+                    if error.code != ErrorCode.NOT_FOUND:
+                        raise
+                    return {"state": "UNCONFIRMED", "outcome_certain": False}
+            stored = receipt.public["result_json"]
+            record = stored if stored.get("kind") == "DECISION_RUN" else stored.get("intent")
+            if not record or any(
+                record.get(field) != str(getattr(body, field))
+                for field in ("org_id", "case_id", "revision_id")
+            ):
+                raise CoreError(ErrorCode.INVALID_STATE)
+            if (record.get("owner_issuer"), record.get("owner_subject")) != (
+                actor.issuer,
+                actor.subject,
+            ):
+                raise CoreError(ErrorCode.FORBIDDEN)
+            roles = [
+                role
+                for role, principal in record["participants"].items()
+                if principal == str(body.actor_principal_id)
+            ]
+            if not roles:
+                raise CoreError(ErrorCode.FORBIDDEN)
+            for role in roles:
+                await self.assigned(
+                    body.actor_principal_id, role, record["org_id"], record["warehouse_id"]
+                )
+            if receipt.public["status"] == "COMPLETED":
+                return {"state": "FOUND", "outcome_certain": True, "run": record}
+            found = await self.engine.find_process(KEY, str(body.revision_id), key)
+            if len(found) != 1:
+                if len(found) > 1:
+                    raise CoreError(ErrorCode.VERSION_CONFLICT)
+                return {"state": "UNCONFIRMED", "outcome_certain": False}
+            record = {**record, "id": found[0]["id"]}
+            await self.inbox.finish(resource_id, "COMPLETED", record)
+            return {"state": "FOUND", "outcome_certain": True, "run": record}
 
     async def confirm_handoff(self, actor, instance_id, body, token, request_id):
         record = await self.record(actor, instance_id)

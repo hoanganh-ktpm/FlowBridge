@@ -61,3 +61,10 @@ class DecisionTaskCommand(Strict):
 class DecisionHandoffCommand(Strict):
     revision_id: UUID
     actor_principal_id: UUID
+
+
+class DecisionReconcileStart(Strict):
+    org_id: UUID
+    case_id: UUID
+    revision_id: UUID
+    actor_principal_id: UUID

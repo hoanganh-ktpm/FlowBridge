@@ -672,3 +672,40 @@ test('an already sufficient ML plan exposes extra ending inventory instead of ce
   await page.getByRole('heading', { name: 'So sánh kịch bản từ dự báo ML', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ animations: 'disabled', path: 'ref/qa/ml-scenario-extra-inventory.png', fullPage: true });
 });
+
+
+test('dossier impact report explains harmless and harmful changes without auto approval', async ({ page }) => {
+  await mock(page);
+  const scenario: any = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25' });
+  scenario.baseline.orders = [{ order_id: 'order-1', order_number: 'SO-001', lines: [] }];
+  const dossier = { id: 'case-1', title: 'Đối soát điều kiện SO-001', warehouse_id: warehouse, order_id: 'order-1', status: 'PENDING_APPROVAL', version: 4, current_revision: 1,
+    revision: { id: 'revision-1', number: 1, created_at: evidence.executed_at, payload: { scenario, requires_revalidation: true } }, participants: [1,2,3,4], actions: { can_submit: false, can_revise: false } };
+  let count = 0;
+  const checks: any[] = [];
+  await page.route('**/decision-capabilities', r => r.fulfill({ json: { enabled: true, roles: ['manager'], warehouse_ids: [warehouse], workflow_enabled: true } }));
+  await page.route('**/decisions**', r => {
+    const path = new URL(r.request().url()).pathname;
+    if (path.endsWith('/revalidate')) {
+      count++;
+      const impact = count === 1 ? { classification: 'NO_EFFECT', requires_revision: false, diff: [] } : { classification: 'REQUIRES_REVISION', requires_revision: true, diff: [{ path: 'preparation_minutes', before: 60, after: 120 }] };
+      checks.unshift({ id: 'check-' + count, created_at: evidence.executed_at, outcome: count === 1 ? 'VALID' : 'STALE', payload: { impact } });
+      return r.fulfill({ status: count === 1 ? 200 : 409, json: count === 1 ? { impact } : { detail: { code: 'DECISION_REQUIRES_REVISION', message: 'Source conditions changed', impact } } });
+    }
+    if (path.endsWith('/checks')) return r.fulfill({ json: { items: checks, has_more: false } });
+    if (path.endsWith('/workflow')) return r.fulfill({ json: { case: dossier, workflow: { instance_id: 'i-1', revision_id: 'revision-1', status: 'PENDING_APPROVAL', tasks: [] }, warnings: [] } });
+    if (path.endsWith('/revisions')) return r.fulfill({ json: { items: [dossier.revision], has_more: false } });
+    if (path.endsWith('/timeline')) return r.fulfill({ json: { items: [], has_more: false } });
+    if (path.endsWith('/case-1')) return r.fulfill({ json: dossier });
+    return r.fulfill({ json: { items: [dossier], warnings: [], has_more: false } });
+  });
+  await page.goto('/#data'); await page.getByRole('button', { name: 'Hồ sơ quyết định', exact: true }).click();
+  await page.getByRole('button', { name: 'Mở hồ sơ Đối soát điều kiện SO-001', exact: true }).click();
+  await page.getByRole('button', { name: 'Kiểm tra dữ liệu hiện tại', exact: true }).click();
+  await expect(page.getByText(/Có thay đổi nhưng điều kiện và nội dung phương án giữ nguyên/)).toBeVisible();
+  await page.getByRole('button', { name: 'Kiểm tra dữ liệu hiện tại', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Điều kiện hoặc nội dung phương án đã đổi');
+  await page.getByText(/Cần tính và xác minh lại/, { exact: false }).click();
+  await expect(page.getByText('Trước: 60 phút.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sau: 120 phút.', { exact: true })).toBeVisible();
+  expect(count).toBe(2);
+});

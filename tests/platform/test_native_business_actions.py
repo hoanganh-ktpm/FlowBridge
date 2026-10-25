@@ -20,8 +20,8 @@ def test_native_action_contracts_match_code_and_have_no_url_or_sql_inputs():
         )
         == contract
     )
-    assert len(contract["actions"]) == 20
-    assert len({a["action_id"] for a in contract["actions"]}) == 20
+    assert len(contract["actions"]) == 23
+    assert len({a["action_id"] for a in contract["actions"]}) == 23
     for entry in contract["actions"]:
         definition = ActionDefinition(**entry)
         assert definition.implementation_type == "HTTP" and definition.method == "POST"

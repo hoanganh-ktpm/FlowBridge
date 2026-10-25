@@ -61,6 +61,7 @@ def install_decision_routes(
     decision_bindings=None,
     inspector=None,
     workflow=None,
+    event_reader=None,
 ):
     policy = DecisionPolicy(
         decision_bindings
@@ -69,7 +70,9 @@ def install_decision_routes(
     )
     if case_repository is None and hasattr(repository, "engine"):
         case_repository = DecisionRepository(repository.engine)
-    service = DecisionService(case_repository, repository, policy, reauthorize, inspector, workflow)
+    service = DecisionService(
+        case_repository, repository, policy, reauthorize, inspector, workflow, event_reader
+    )
 
     def configured():
         if service.repository is None or not policy.bindings:
@@ -144,6 +147,26 @@ def install_decision_routes(
     async def state(case_id: UUID, ctx=actor_dependency):
         configured()
         return await service.workflow_state(ctx, case_id)
+
+    @app.post(prefix + "/decisions/{case_id}/revalidate")
+    async def revalidate(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.revalidate(ctx, case_id)
+
+    @app.post(prefix + "/decisions/{case_id}/reconcile-start")
+    async def reconcile_start(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.reconcile_start(ctx, case_id)
+
+    @app.get(prefix + "/decisions/{case_id}/checks")
+    async def checks(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.checks(ctx, case_id)
+
+    @app.post(prefix + "/decisions/{case_id}/sync-events")
+    async def sync_events(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.sync_events(ctx, case_id)
 
     @app.post(prefix + "/decisions/{case_id}/verify-handoff")
     async def verify(

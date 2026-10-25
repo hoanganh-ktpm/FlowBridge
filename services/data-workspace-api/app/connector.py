@@ -79,6 +79,27 @@ class CoreConnector:
             token, self.org_id, UUID(me["principal_id"]), me["platform_role"] == "PLATFORM_ADMIN"
         )
 
+    async def decision_events(self, ctx, producer, body):
+        if producer not in {"sales", "warehouse", "logistics"}:
+            raise ValueError("Unsupported native event owner")
+        try:
+            response = await self.http.post(
+                self.base_url
+                + "/api/v1/workflows/actions/"
+                + producer
+                + ".operations.events_read/execute",
+                headers={"Authorization": "Bearer " + ctx.token},
+                json=body,
+                follow_redirects=False,
+                timeout=30,
+            )
+            if response.status_code != 200:
+                status = response.status_code if response.status_code in {401, 403, 404} else 503
+                raise HTTPException(status, "Native event feed is denied or unavailable")
+            return response.json()["result"]
+        except (httpx.HTTPError, ValueError, KeyError):
+            raise HTTPException(503, "Native event feed unavailable; no local fallback") from None
+
     async def catalog(self, ctx):
         async def fetch():
             return (await self.request(ctx.token, "/authorized-data-products"))["items"]

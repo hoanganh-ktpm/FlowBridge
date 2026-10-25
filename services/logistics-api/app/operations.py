@@ -18,6 +18,7 @@ from app.platform.business_operations import (
     canonical,
     command_receipt,
     emit,
+    install_event_feed,
     lock_scope,
     processed_event,
     receive_verified_event,
@@ -394,6 +395,7 @@ class LogisticsOperations:
 def install(app, runtime, tables):
     operations = LogisticsOperations(runtime, tables)
     actor = Depends(authenticated_identity)
+    install_event_feed(app, runtime, tables, actor)
 
     @app.post("/api/v1/logistics/operations/commands/read")
     def receipt_status(body: CommandReceiptQuery, identity=actor):

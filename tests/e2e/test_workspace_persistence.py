@@ -504,6 +504,12 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                         self.lost = False
                         raise HTTPException(503, "Simulated lost start response")
                     return value
+                if path == "/decision-runs/commands/reconcile-start":
+                    from app.platform.workflow.decision_schemas import DecisionReconcileStart
+
+                    return await runs.reconcile_start(
+                        executor, DecisionReconcileStart.model_validate(body)
+                    )
                 fields = path.split("/")
                 if body is None:
                     return await runs.state(executor, fields[2], UUID(params["principal_id"]))
@@ -572,9 +578,12 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                 assert (
                     pending["status"] == "VALIDATING" and pending["workflow_instance_ref"] is None
                 )
-                retry = await api.post(
-                    route + "/submit", headers=headers(key="bridge-submit"), json=submit
+                # Sources change while the original response is missing. Recover
+                # the existing engine instance without dispatching/validating a new plan.
+                boundary.facts[boundary.refs["stock"]["data_product_id"]][0]["updated_at"] = (
+                    datetime.now(UTC).isoformat()
                 )
+                retry = await api.post(route + "/reconcile-start", headers=headers(), json={})
                 assert retry.status_code == 200, retry.text
                 state = retry.json()
                 assert len(state["workflow"]["tasks"]) == 2
@@ -627,6 +636,16 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                 stock = boundary.facts[boundary.refs["stock"]["data_product_id"]][0]
                 stock["on_hand_quantity"] += 1
                 stock["available_quantity"] += 1
+                harmless = await api.post(
+                    route + "/revalidate", headers=headers("manager"), json={}
+                )
+                assert harmless.status_code == 200, harmless.text
+                assert harmless.json()["impact"]["classification"] == "NO_EFFECT"
+                # A genuinely changed original obligation must still block the
+                # manager even when the modeled extra supply remains sufficient.
+                boundary.facts[boundary.refs["open_orders"]["data_product_id"]][0][
+                    "ordered_quantity"
+                ] += 1
                 approve = {"revision_id": case["revision"]["id"], "outcome": "approved"}
                 stale = await api.post(
                     route + "/tasks/" + task["id"] + "/complete",
@@ -634,6 +653,13 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                     json=approve,
                 )
                 assert stale.status_code == 409, stale.text
+                assert stale.json()["detail"]["impact"]["requires_revision"] is True
+                checks = await api.get(route + "/checks", headers=headers("manager"))
+                assert checks.status_code == 200
+                assert any(
+                    row["payload"].get("impact", {}).get("requires_revision")
+                    for row in checks.json()["items"]
+                )
                 assert (await engine.get_task(task["id"]))["taskDefinitionKey"] == "managerReview"
                 returned = await api.post(
                     route + "/tasks/" + task["id"] + "/complete",
@@ -665,3 +691,89 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                 assert not any("actions" in path for path, _ in calls)
         finally:
             await results.close()
+
+
+@pytest.mark.asyncio
+async def test_source_inbox_dedups_across_users_retains_late_events_and_restart(migrated_workspace):
+    from copy import deepcopy
+    from datetime import UTC, datetime, timedelta
+
+    from fastapi import HTTPException
+    from workspace_persistence_test.decision_repository import DecisionRepository
+
+    url, repository_type = migrated_workspace
+    results = repository_type(url)
+    repo = DecisionRepository(results.engine)
+    org, wh, owner, reviewer, order = [uuid4() for _ in range(5)]
+    ctx = SimpleNamespace(org_id=org, owner_id=owner)
+    other = SimpleNamespace(org_id=org, owner_id=reviewer)
+    run = await results.save("simulation", ctx, {"test": "inbox"})
+    case = await repo.create(
+        ctx,
+        order_id=order,
+        warehouse_id=wh,
+        simulation_id=UUID(run["id"]),
+        title="Theo dõi thay đổi nguồn",
+        key="inbox-case",
+        roster=[
+            {"principal_id": str(actor), "role": role}
+            for actor, role in ((owner, "coordinator"), (reviewer, "manager"))
+        ],
+        payload={"requires_revalidation": True},
+    )
+    identifier, revision_id = UUID(case["id"]), UUID(case["revision"]["id"])
+    aggregate = str(uuid4())
+
+    def source(version):
+        return dict(
+            id=str(uuid4()),
+            producer="warehouse",
+            org_id=str(org),
+            warehouse_id=str(wh),
+            aggregate_id=aggregate,
+            aggregate_version=version,
+            aggregate_type="reservation",
+            event_type="warehouse.order_reserved",
+            correlation_id=str(order),
+            occurred_at=(datetime.now(UTC) - timedelta(minutes=3 - version)).isoformat(),
+            summary_hash="a" * 64,
+            source_payload_hash="b" * 64,
+            schema_version=1,
+        )
+
+    newer, older = source(2), source(1)
+    try:
+        assert sorted(
+            await asyncio.gather(
+                repo.observe_source(ctx, identifier, revision_id, newer),
+                repo.observe_source(other, identifier, revision_id, newer),
+            )
+        ) == [False, True]
+        assert await repo.observe_source(ctx, identifier, revision_id, older) is True
+        assert (await repo.get(ctx, identifier))["status"] == "DRAFT"
+        for changed in ({"source_payload_hash": "c" * 64}, {"id": str(uuid4())}):
+            with pytest.raises(HTTPException) as conflict:
+                await repo.observe_source(ctx, identifier, revision_id, {**newer, **changed})
+            assert conflict.value.status_code == 409
+        foreign = deepcopy(older)
+        foreign["warehouse_id"] = str(uuid4())
+        with pytest.raises(HTTPException):
+            await repo.observe_source(ctx, identifier, revision_id, foreign)
+        await results.close()
+        results = repository_type(url)
+        repo = DecisionRepository(results.engine)
+        assert not await repo.observe_source(other, identifier, revision_id, newer)
+        observations = [
+            e for e in await repo.timeline(ctx, identifier) if e["event_type"] == "SOURCE_OBSERVED"
+        ]
+        assert len(observations) == 2
+        assert {e["payload"]["aggregate_version"] for e in observations} == {1, 2}
+        await repo.record_check(
+            ctx, identifier, revision_id, "STALE", {"impact": {"requires_revision": True}}
+        )
+        assert (await repo.check_history(other, identifier, revision_id))["items"][0][
+            "outcome"
+        ] == "STALE"
+        assert (await repo.get(ctx, identifier))["status"] == "DRAFT"
+    finally:
+        await results.close()

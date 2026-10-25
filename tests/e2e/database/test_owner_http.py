@@ -110,11 +110,16 @@ async def test_native_owner_http_and_core_actions_finish_at_verified_carrier_han
         "sales": {
             "warehouse-owner": ["operations.orders.read"],
             "logistics-owner": ["operations.orders.read"],
-            "sales-owner": ["operations.orders.read", "operations.orders.reconcile"],
+            "sales-owner": [
+                "operations.orders.read",
+                "operations.orders.reconcile",
+                "operations.events.read",
+            ],
         },
         "warehouse": {
             "warehouse-owner": [
                 "operations.inventory.read",
+                "operations.events.read",
                 "operations.inbound.read",
                 "operations.receipts.post",
                 "operations.stock.reserve",
@@ -130,6 +135,7 @@ async def test_native_owner_http_and_core_actions_finish_at_verified_carrier_han
             "warehouse-owner": ["operations.shipments.read"],
             "logistics-owner": [
                 "operations.shipments.book",
+                "operations.events.read",
                 "operations.shipments.reconcile",
                 "operations.shipments.read",
             ],
@@ -336,6 +342,39 @@ async def test_native_owner_http_and_core_actions_finish_at_verified_carrier_han
                 )
                 == closed
             )
+            # Real owner event summaries through the same Core HTTP action port.
+            # Human receiver/phone/address details are never included in this feed.
+            for domain, caller in (
+                ("sales", "sales-owner"),
+                ("warehouse", "warehouse-owner"),
+                ("logistics", "logistics-owner"),
+            ):
+                feed = await action(
+                    domain + ".operations.events_read",
+                    {
+                        "since": (now - timedelta(minutes=1)).isoformat(),
+                        "limit": 1,
+                    },
+                    caller,
+                )
+                assert len(feed["items"]) == 1
+                first = feed["items"][0]
+                assert first["org_id"] == str(org) and first["warehouse_id"] == str(wh)
+                assert not {"payload", "carrier_receiver_name", "recipient_phone"}.intersection(
+                    first
+                )
+                if feed["has_more"]:
+                    next_page = await action(
+                        domain + ".operations.events_read",
+                        {
+                            "since": (now - timedelta(minutes=1)).isoformat(),
+                            "limit": 100,
+                            "after_time": first["occurred_at"],
+                            "after_id": first["id"],
+                        },
+                        caller,
+                    )
+                    assert first["id"] not in {item["id"] for item in next_page["items"]}
     with owner.engine.connect() as conn:
         assert (
             conn.scalar(

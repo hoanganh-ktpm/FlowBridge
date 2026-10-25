@@ -32,12 +32,16 @@ def definitions():
     from app.platform.business_operations import (
         CommandReceiptQuery,
         EtaCommand,
+        EventQuery,
         PreparationCommand,
         WarehouseScope,
     )
 
     sales, warehouse, logistics = (module(domain) for domain in ("sales", "warehouse", "logistics"))
     specifications = [
+        ("sales", "events_read", "events/read", EventQuery),
+        ("warehouse", "events_read", "events/read", EventQuery),
+        ("logistics", "events_read", "events/read", EventQuery),
         ("sales", "command_receipt_read", "commands/read", CommandReceiptQuery),
         ("warehouse", "command_receipt_read", "commands/read", CommandReceiptQuery),
         ("logistics", "command_receipt_read", "commands/read", CommandReceiptQuery),
@@ -161,7 +165,7 @@ def main():
         DESTINATION.write_text(
             json.dumps(definitions(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
-        print("Exported 20 native owner action definitions; no registration or business writes")
+        print("Exported 23 native owner action definitions; no registration or business writes")
     else:
         register(args.core_url, os.environ.get("FLOWBRIDGE_ACTION_REGISTRATION_TOKEN", ""))
 

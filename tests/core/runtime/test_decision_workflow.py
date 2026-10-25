@@ -143,6 +143,57 @@ async def test_no_engine_match_after_uncertain_start_never_causes_blind_restart(
     assert runs.engine.start_process.await_count == 1
 
 
+async def test_read_only_start_reconciliation_ignores_changed_facts_but_not_revoked_roles(harness):
+    from app.platform.workflow.decision_schemas import DecisionReconcileStart
+
+    runs, actor, body, ids = await fixture(harness)
+    original = runs.engine.start_process
+    calls = []
+
+    async def lost(*args):
+        calls.append(args)
+        await original(*args)
+        raise CoreError(ErrorCode.UPSTREAM_TIMEOUT)
+
+    runs.engine.start_process = lost
+    with pytest.raises(CoreError):
+        await runs.start(actor, body, "lost")
+    # The original check is now old and the order source is unavailable. Neither
+    # permits redispatch; recovering an existing process needs no new source fact.
+    runs.data.decision_order.side_effect = CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+    command = DecisionReconcileStart(
+        org_id=body.org_id,
+        case_id=body.case_id,
+        revision_id=body.revision_id,
+        actor_principal_id=ids["coordinator"],
+    )
+    result = await runs.reconcile_start(actor, command)
+    assert result["state"] == "FOUND" and len(calls) == 1
+    assert (await runs.reconcile_start(actor, command))["run"] == result["run"]
+    runs.bindings.pop(str(ids["coordinator"]))
+    with pytest.raises(CoreError) as denied:
+        await runs.reconcile_start(actor, command)
+    assert denied.value.code == ErrorCode.FORBIDDEN
+
+
+async def test_reconciliation_absence_is_uncertain_and_never_dispatches(harness):
+    from app.platform.workflow.decision_schemas import DecisionReconcileStart
+
+    runs, actor, body, ids = await fixture(harness)
+    runs.engine.start_process = AsyncMock(side_effect=CoreError(ErrorCode.UPSTREAM_TIMEOUT))
+    query = DecisionReconcileStart(
+        org_id=body.org_id,
+        case_id=body.case_id,
+        revision_id=body.revision_id,
+        actor_principal_id=ids["coordinator"],
+    )
+    assert (await runs.reconcile_start(actor, query))["state"] == "UNCONFIRMED"
+    with pytest.raises(CoreError):
+        await runs.start(actor, body, "start")
+    assert (await runs.reconcile_start(actor, query))["outcome_certain"] is False
+    assert runs.engine.start_process.await_count == 1
+
+
 async def test_task_actor_revision_and_outcome_are_verified_not_admin_bypassed(harness):
     runs, actor, body, ids = await fixture(harness)
     started = await runs.start(actor, body, "start")

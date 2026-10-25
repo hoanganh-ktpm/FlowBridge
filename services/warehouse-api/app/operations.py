@@ -21,6 +21,7 @@ from app.platform.business_operations import (
     canonical,
     command_receipt,
     emit,
+    install_event_feed,
     lock_scope,
 )
 from app.platform.http.errors import CoreError, ErrorCode
@@ -1126,6 +1127,7 @@ class WarehouseOperations:
 def install(app, runtime, tables):
     operations = WarehouseOperations(runtime, tables)
     actor = Depends(authenticated_identity)
+    install_event_feed(app, runtime, tables, actor)
 
     @app.post("/api/v1/warehouse/operations/commands/read")
     def receipt_status(body: CommandReceiptQuery, identity=actor):

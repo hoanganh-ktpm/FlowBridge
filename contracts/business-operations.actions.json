@@ -2,6 +2,225 @@
   "schema_version": "1.0",
   "actions": [
     {
+      "action_id": "sales.operations.events_read",
+      "version": 1,
+      "owner_application": "sales",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "after_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Time"
+          },
+          "after_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Id"
+          },
+          "limit": {
+            "default": 100,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "since"
+        ],
+        "title": "EventQuery",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "sales",
+      "method": "POST",
+      "path": "/api/v1/sales/operations/events/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.events_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "after_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Time"
+          },
+          "after_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Id"
+          },
+          "limit": {
+            "default": 100,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "since"
+        ],
+        "title": "EventQuery",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/events/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "logistics.operations.events_read",
+      "version": 1,
+      "owner_application": "logistics",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "after_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Time"
+          },
+          "after_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Id"
+          },
+          "limit": {
+            "default": 100,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "since"
+        ],
+        "title": "EventQuery",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "logistics",
+      "method": "POST",
+      "path": "/api/v1/logistics/operations/events/read",
+      "timeout_seconds": 30
+    },
+    {
       "action_id": "sales.operations.command_receipt_read",
       "version": 1,
       "owner_application": "sales",

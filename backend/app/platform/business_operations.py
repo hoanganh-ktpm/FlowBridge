@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from fastapi.encoders import jsonable_encoder
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.platform.business import StrictBody
 from app.platform.http.errors import CoreError, ErrorCode
@@ -18,6 +18,81 @@ from app.platform.http.errors import CoreError, ErrorCode
 class WarehouseScope(StrictBody):
     org_id: UUID
     warehouse_id: UUID
+
+
+class EventQuery(WarehouseScope):
+    since: datetime
+    after_time: datetime | None = None
+    after_id: UUID | None = None
+    limit: int = Field(default=100, ge=1, le=200, strict=True)
+
+    @model_validator(mode="after")
+    def cursor(self):
+        if (self.after_time is None) != (self.after_id is None):
+            raise ValueError("Both event cursor fields are required")
+        if any(
+            value is not None and value.utcoffset() is None
+            for value in (self.since, self.after_time)
+        ):
+            raise ValueError("Event timestamps require timezone")
+        if self.after_time is not None and self.after_time < self.since:
+            raise ValueError("Cursor precedes replay window")
+        return self
+
+
+def event_feed(runtime, table, actor, body):
+    """Authorized summaries of native events; no receiver names or contact data.
+
+    The caller may replay from the beginning to catch late commits. A keyset
+    cursor is a bounded paging aid, never a guarantee that no older event can
+    still commit. Source reads remain mandatory regardless of this feed.
+    """
+    allow_scope(runtime, actor, body.org_id, body.warehouse_id, "operations.events.read")
+    query = sa.select(table).where(
+        table.c.org_id == body.org_id,
+        table.c.payload["warehouse_id"].astext == str(body.warehouse_id),
+        table.c.event_type.like(runtime.domain + ".%"),
+        table.c.occurred_at >= body.since,
+    )
+    if body.after_id is not None:
+        query = query.where(
+            sa.tuple_(table.c.occurred_at, table.c.id) > sa.tuple_(body.after_time, body.after_id)
+        )
+    with runtime.engine.connect() as conn:
+        rows = (
+            conn.execute(query.order_by(table.c.occurred_at, table.c.id).limit(body.limit + 1))
+            .mappings()
+            .all()
+        )
+    items = []
+    for row in rows[: body.limit]:
+        if row["payload_hash"] != canonical(row["payload"]):
+            raise CoreError(ErrorCode.INVALID_STATE)
+        summary = jsonable_encoder(
+            {
+                "id": row["id"],
+                "org_id": row["org_id"],
+                "warehouse_id": body.warehouse_id,
+                "producer": runtime.domain,
+                "event_type": row["event_type"],
+                "schema_version": row["event_schema_version"],
+                "aggregate_type": row["aggregate_type"],
+                "aggregate_id": row["aggregate_id"],
+                "aggregate_version": row["aggregate_version"],
+                "correlation_id": row["correlation_id"],
+                "occurred_at": row["occurred_at"],
+                "source_payload_hash": row["payload_hash"],
+            }
+        )
+        summary["summary_hash"] = canonical(summary)
+        items.append(summary)
+    return {"items": items, "has_more": len(rows) > body.limit}
+
+
+def install_event_feed(app, runtime, tables, actor):
+    @app.post("/api/v1/" + runtime.domain + "/operations/events/read")
+    def read(body: EventQuery, identity=actor):
+        return event_feed(runtime, tables["outbox_events"], identity, body)
 
 
 class CommandReceiptQuery(WarehouseScope):

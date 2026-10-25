@@ -16,6 +16,7 @@ from app.platform.business_operations import (
     allow_scope,
     command_receipt,
     emit,
+    install_event_feed,
     processed_event,
     receive_verified_event,
 )
@@ -202,6 +203,7 @@ class SalesOperations:
 
 def install(app, runtime, tables):
     actor = Depends(authenticated_identity)
+    install_event_feed(app, runtime, tables, actor)
     operations = SalesOperations(runtime, tables)
 
     @app.post("/api/v1/sales/operations/commands/read")
