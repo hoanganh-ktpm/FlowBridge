@@ -793,7 +793,7 @@
               "chronos2"
             ],
             "title": "Forecast Model",
-            "default": "seasonal_mean"
+            "default": "chronos2"
           }
         },
         "additionalProperties": false,
@@ -1000,7 +1000,7 @@
           "allow_statistical_fallback": {
             "type": "boolean",
             "title": "Allow Statistical Fallback",
-            "default": true
+            "default": false
           },
           "start_from_request_date": {
             "type": "boolean",
@@ -1542,10 +1542,11 @@
             "type": "string",
             "enum": [
               "seasonal_mean",
-              "ridge_lag"
+              "ridge_lag",
+              "chronos2"
             ],
             "title": "Forecast Model",
-            "default": "seasonal_mean"
+            "default": "chronos2"
           },
           "training_days": {
             "type": "integer",

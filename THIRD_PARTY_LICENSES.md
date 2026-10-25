@@ -68,3 +68,15 @@ The contract-only test suite retains the official OpenAPI 3.1 meta-schema from [
 ## Distribution
 
 Before a distributable release, produce a full lockfile/runtime SBOM including transitive packages, actual engine artifact versions, their complete licenses and applicable notices. Re-audit when versions or deployment artifacts change. No license conflict was identified for the direct open-source components used by this integration; this scoped audit does not certify unrelated components.
+
+
+## Pretrained forecasting runtime
+
+The optional `forecasting` group adds Chronos Forecasting 2.3.2 (Apache-2.0),
+PyTorch 2.8.0 CPU (BSD-3-Clause), Transformers 4.57.6 (Apache-2.0), and pandas
+2.3.3 (BSD-3-Clause). Their installed distribution metadata and license files
+are retained in the local environment. Transitive versions are pinned by
+`uv.lock`. Preserve all upstream license files and notices when redistributing
+an environment. Model-weight provenance, model-card license declaration and
+separately bundled Apache license text are documented in [MODEL_LICENSES](MODEL_LICENSES.md).
+No weights or third-party source are copied into the source distribution.

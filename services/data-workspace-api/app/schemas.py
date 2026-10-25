@@ -44,7 +44,7 @@ class AnalysisConfig(ProductRef):
     filters: dict[Identifier, str | Number | bool] = Field(default_factory=dict, max_length=10)
     forecast_horizon: int = Field(default=14, ge=1, le=90)
     forecast_start: date | None = None
-    forecast_model: Literal["auto", "seasonal_mean", "ridge_lag", "chronos2"] = "seasonal_mean"
+    forecast_model: Literal["auto", "seasonal_mean", "ridge_lag", "chronos2"] = "chronos2"
 
     @field_validator("timezone")
     @classmethod
@@ -76,7 +76,7 @@ class AnalysisConfig(ProductRef):
 
 class ForecastRequest(DTO):
     config: AnalysisConfig
-    allow_statistical_fallback: bool = True
+    allow_statistical_fallback: bool = False
     start_from_request_date: bool = False
     training_days: Literal[90, 180, 365] | None = None
     start_date: date | None = None
@@ -230,7 +230,7 @@ class PlanningRequest(DTO):
     horizon: int = Field(default=7, ge=1, le=90)
     history_days: Literal[7, 14, 30, 90, 365] = 30
     history_frequency: Literal["auto", "day", "week"] = "auto"
-    forecast_model: Literal["seasonal_mean", "ridge_lag"] = "seasonal_mean"
+    forecast_model: Literal["seasonal_mean", "ridge_lag", "chronos2"] = "chronos2"
     training_days: Literal[90, 180, 365] = 180
     history_start: date | None = None
     history_end: date | None = None

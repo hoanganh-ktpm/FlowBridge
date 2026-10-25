@@ -268,6 +268,9 @@ def main():
         return
     local = RUNTIME / "runtime.env"
     workspace_config = dict(dotenv_values(local)) if local.exists() else {}
+    model_config = RUNTIME / "chronos.env"
+    if model_config.exists():
+        workspace_config.update(dotenv_values(model_config))
     if args.operation in {"migrate", "serve"}:
         # Explicit process environment wins over saved local configuration.
         for key, value in workspace_config.items():

@@ -218,7 +218,13 @@ async def call(boundary, **changes):
         return await client.post(
             PREFIX + "/planning",
             headers={"Authorization": "Bearer caller"},
-            json={**boundary.refs, "horizon": 7, "history_days": 7, **changes},
+            json={
+                **boundary.refs,
+                "forecast_model": "seasonal_mean",
+                "horizon": 7,
+                "history_days": 7,
+                **changes,
+            },
         )
 
 
@@ -315,7 +321,11 @@ async def test_enterprise_aliases_continue_from_planning_into_scenario_and_sensi
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app), base_url="http://workspace"
     ) as client:
-        response = await client.post(PREFIX + "/planning", headers=headers, json=boundary.refs)
+        response = await client.post(
+            PREFIX + "/planning",
+            headers=headers,
+            json={**boundary.refs, "forecast_model": "seasonal_mean"},
+        )
         assert response.status_code == 200, response.text
         plan = response.json()
         scenario = await client.post(
@@ -399,7 +409,7 @@ async def test_planning_filters_at_core_before_paginating_large_multiwarehouse_h
             result = await client.post(
                 PREFIX + "/planning",
                 headers={"Authorization": "Bearer caller"},
-                json=boundary.refs,
+                json={**boundary.refs, "forecast_model": "seasonal_mean"},
             )
     assert result.status_code == 200, result.text
     assert result.json()["selected_sku"] == "A"
@@ -504,7 +514,11 @@ async def test_sensitivity_reuses_authorized_snapshot_and_serializes_without_new
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app), base_url="http://workspace"
     ) as client:
-        planning = await client.post(PREFIX + "/planning", headers=headers, json=boundary.refs)
+        planning = await client.post(
+            PREFIX + "/planning",
+            headers=headers,
+            json={**boundary.refs, "forecast_model": "seasonal_mean"},
+        )
         assert planning.status_code == 200, planning.text
         plan = planning.json()
         body = {

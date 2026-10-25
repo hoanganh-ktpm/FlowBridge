@@ -16,7 +16,7 @@ export function ScenarioComparison({ value, forecast, sku, unit, proposal, dirty
 }) {
   const decision=value?.decision;
   const model=forecast.model.entities?.[sku];
-  const score=model?.validation.ridge_lag;
+  const score=model?.validation[model.method];
   const balance=(value?.baseline.series || []).map((p,i)=>({day:p.day, original:value?.reference?.series[i]?.net_position, stressed:p.net_position, supplied:value?.proposed.series[i]?.net_position}));
   const flows=(value?.baseline.series || []).map((p,i)=>({day:p.day, original:value?.reference?.series[i]?.demand, adjusted:p.demand, due:p.known_demand_due, incoming:p.inbound, added:(value?.proposed.series[i]?.inbound || 0)-(p.inbound || 0)}));
   const rows:{key:keyof DecisionMeasure;label:string;suffix?:string}[]=[
@@ -36,7 +36,7 @@ export function ScenarioComparison({ value, forecast, sku, unit, proposal, dirty
     : verdict==='partial' ? 'Phương án giảm được một phần rủi ro. Lượng nhập hoặc ngày hàng về vẫn chưa đáp ứng hết nhu cầu và hạn đơn.'
     : 'Phương án chưa giải quyết được rủi ro đang có. Kiểm tra thời điểm hàng về, lượng bổ sung và các dòng sản phẩm khác cùng đơn.';
   return <Panel title="So sánh kịch bản từ dự báo ML" subtitle="Dự báo gốc → nhu cầu/tiến độ thay đổi → có bổ sung hàng" action={evidence}>
-    <div className="pw-scenario-model"><Badge variant="secondary">{forecast.model.method==='ridge_lag' || model?.method==='ridge_lag' ? 'Machine Learning' : 'Cần cập nhật dự báo ML'}</Badge>{model && <span>{model.observations} ngày học{score ? ` · sai lệch kiểm chứng ${fmt(score.mae)} ${unitLabel(unit)}/ngày` : ''}</span>}</div>
+    <div className="pw-scenario-model"><Badge variant="secondary">{forecast.model.method==='chronos2' || model?.method==='chronos2' ? 'Chronos-2 · huấn luyện sẵn' : forecast.model.method==='ridge_lag' || model?.method==='ridge_lag' ? 'Ridge · kết quả cũ' : 'Cần cập nhật dự báo ML'}</Badge>{model && <span>{model.observations} ngày tham chiếu{score ? ` · sai lệch kiểm chứng ${fmt(score.mae)} ${unitLabel(unit)}/ngày` : ''}</span>}</div>
     {!value && <div className="pw-scenario-start"><h3>Kiểm tra kế hoạch khi nhu cầu hoặc lịch hàng thay đổi</h3><p>Điều chỉnh giả định rồi bấm So sánh phương án. Kết quả tách tác động của biến động và tác động của lượng nhập thêm.</p></div>}
     {value && decision && <>
       <div className={`pw-scenario-verdict${dirty ? ' pw-scenario-outdated' : ''}`} aria-live="polite"><strong>{dirty ? 'Kết quả đang thuộc phương án trước' : verdict==='extra_without_risk_reduction' || verdict==='no_extra_needed' ? 'Lượng bổ sung cần được cân nhắc' : verdict==='covered' ? 'Đủ nguồn hàng theo kịch bản' : 'Còn rủi ro cần xử lý'}</strong><p>{summary}</p></div>

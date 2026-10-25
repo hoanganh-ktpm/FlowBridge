@@ -78,7 +78,7 @@ def simulate(
     selected_model = forecast.get("model", {}).get("entities", {}).get(request.sku, {})
     model_method = selected_model.get("method", forecast.get("model", {}).get("method", "unknown"))
     if request.require_ml and (
-        model_method != "ridge_lag"
+        model_method not in {"chronos2", "ridge_lag"}
         or str(config.get("filters", {}).get("warehouse_id")) != str(request.warehouse_id)
         or open_order_rows is None
         or commitment_rows is None

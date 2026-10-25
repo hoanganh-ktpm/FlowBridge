@@ -338,9 +338,9 @@ def create_app(connector=None, repository=None, forecaster=None):
     @app.post(PREFIX + "/planning")
     async def merchandise_plan(body: PlanningRequest, ctx=actor_dependency):
         try:
-            async with asyncio.timeout(60):
+            async with asyncio.timeout(180):
                 result, sources = await planning_report(
-                    body, ctx, connector, repository, source_names
+                    body, ctx, connector, repository, source_names, forecaster
                 )
                 await reauthorize(ctx, {"sources": sources})
         except TimeoutError:

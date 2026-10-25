@@ -11,15 +11,14 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 
 from .analytics import local_day, numeric, prepare
-from .forecasting import statistical_forecast
-from .learning import validated_forecast
+from .forecasting import Forecaster
 from .planning import known_orders, moment, project_orders
 from .schemas import AnalysisConfig
 
 logger = logging.getLogger(__name__)
 
 
-async def planning_report(body, ctx, connector, repository, source_names=None):
+async def planning_report(body, ctx, connector, repository, source_names=None, forecaster=None):
     now = datetime.now(UTC)
     zone = ZoneInfo("Asia/Ho_Chi_Minh")
     today = now.astimezone(zone).date()
@@ -250,7 +249,9 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
     runs, points = {}, {}
     jobs = []
     for unit, skus in groups.items():
-        if body.forecast_model == "ridge_lag" and selected in skus:
+        if body.forecast_model == "chronos2":
+            jobs.append((unit, skus, "chronos2"))
+        elif body.forecast_model == "ridge_lag" and selected in skus:
             jobs.append((unit, [selected], "ridge_lag"))
             if others := [sku for sku in skus if sku != selected]:
                 jobs.append((unit, others, "seasonal_mean"))
@@ -290,7 +291,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             known_event_entities={r["sku"] for r in history if r["uom"] == unit},
         )
         forecast, model = await asyncio.to_thread(
-            validated_forecast if method == "ridge_lag" else statistical_forecast, dataset, config
+            (forecaster or Forecaster()).run, dataset, config, False
         )
         payload = {
             "status": "SUCCEEDED",
@@ -731,7 +732,10 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             "Mỗi lần lấy mức thiếu lớn nhất trong kỳ và tại hạn đơn. Không cộng các ngày thiếu.",
             "Hàng còn phân bổ = tồn thực tế trừ hàng đã giữ. Đơn chờ đã trừ hàng giữ và bàn giao.",
             (
-                "Mặt hàng đang chọn dùng Machine Learning học đúng kho và đơn vị. "
+                "Dự báo dùng Chronos-2 huấn luyện sẵn với lịch sử của từng sản phẩm, kho "
+                "và đơn vị. Không huấn luyện lại mô hình."
+                if body.forecast_model == "chronos2"
+                else "Mặt hàng đang chọn dùng Machine Learning học đúng kho và đơn vị. "
                 "các mặt hàng khác vẫn dùng nhịp cùng thứ trong tuần."
                 if body.forecast_model == "ridge_lag"
                 else "Dự báo trên Tổng quan dùng nhịp cùng thứ trong tuần để lập kế hoạch. "

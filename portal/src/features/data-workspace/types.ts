@@ -75,7 +75,7 @@ export function initialConfig(product: Product): Config {
     aggregation: names.has("available_quantity") ? "LAST" : "SUM", frequency: "D",
     timezone: "Asia/Ho_Chi_Minh", missing_policy: "error", duplicate_policy: "error",
     start: localToday(), end: localToday(), entities: [], forecast_horizon: 14,
-    forecast_start: null, forecast_model: "auto",
+    forecast_start: null, forecast_model: "chronos2",
     filters: {},
   };
 }

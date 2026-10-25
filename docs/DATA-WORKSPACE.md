@@ -1,6 +1,6 @@
 # FlowBridge Data Workspace — triển khai và nghiệm thu
 
-Cập nhật kiểm tra: 25/10/2026. Chưa đánh dấu hoàn thành toàn bộ master prompt:
+Cập nhật kiểm tra: 25/10/2026. Mô hình hiện hành xem mục Q. Chưa đánh dấu hoàn thành toàn bộ master prompt:
 **Demo 7 cần phê duyệt phần mở rộng Warehouse Business API**, xem mục H.
 Không commit/push hoặc triển khai production trong nhiệm vụ này.
 
@@ -18,8 +18,8 @@ cho màn hình hoặc Data Product mới ở mục J.
   không âm thầm trộn nhiều warehouse/product grain.
 - Analytics thực: tổng/giá trị snapshot, MA 7 kỳ, tăng trưởng hai kỳ 7 ngày,
   OLS trend, độ lệch chuẩn và weekday averages khi là dữ liệu ngày.
-- Forecast thống kê nhiều chuỗi thực, quantiles có thứ tự, lưu/read PostgreSQL;
-  provider Chronos-2 tùy chọn có kiểm artifact/API nhưng chưa chạy inference ML.
+- Forecast Chronos-2 huấn luyện sẵn chạy CPU cục bộ, quantiles có thứ tự,
+  lưu/read PostgreSQL. Ridge/thống kê giữ dưới lựa chọn rõ và kết quả cũ.
 - What-if: baseline/proposed, thêm hàng và ngày về, demand multiplier, inbound
   delay, backlog chưa phân bổ, partial fulfillment/holds, deadline theo giờ,
   all-or-nothing và capacity theo bookings. Không chuyển SKU quantity thành dispatch.
@@ -167,8 +167,8 @@ là ước lượng empirical, không phải xác suất đã hiệu chỉnh tr�
 Forecast origin và last observation đều nằm trong provenance; lịch sử demo kết thúc
 20/10 nên dự báo bắt đầu 24/10 có khoảng trống quan sát được ghi rõ.
 
-Chronos-2 chưa được cài/provision weights; fallback được ghi nhãn statistical.
-Strict ML request trả 503 nếu model không khả dụng. Không tuyên bố ML đã chạy.
+Trạng thái cũ trước mục Q: Chronos-2 chưa được provision. Hiện tại đã có trọng số
+và chạy inference thật. Mặc định mới dùng Chronos-2 và trả 503 nếu không chạy được.
 Chi tiết artifact/license tại [MODEL_LICENSES](../MODEL_LICENSES.md).
 
 Công thức chính của planner:
@@ -224,7 +224,7 @@ sdist. Xem [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES.md) và
 | Kiểm tra bảo mật HTTP thật | PASS: thiếu/giả token401; consumer giả header admin vẫn403; saved forecast của owner khác404; X-Org-ID không đổi org; demo role NONE, 7 products |
 | Form đăng nhập và tài khoản mặc định local | PASS: kiểm tra lại sau UX mới; Keycloak theme thật, PKCE tự chuyển, demo consumer, reload/logout, mobile, password không gửi về Portal; ux-login.txt |
 | Lint / source distribution | PASS: Ruff, git diff --check, Hatch sdist; gói có service/migrations/contracts/license, không có .tmp/.env/cache/model weights |
-| Chronos-2 inference | SKIP: chưa cài provider/weights, không báo ML PASS |
+| Chronos-2 inference | PASS inference thật trên fixture, xem phạm vi mục Q |
 | Live Flowable regression mới | SKIP: không chạy lại fixture có bước provision event catalogs/engine; Workflow offline nằm trong suite đã chạy |
 | Demo 7 nghiệp vụ → refresh | BLOCKED: endpoint ghi Warehouse mới bị auto-review từ chối; chưa có thao tác ghi demo này |
 
@@ -284,8 +284,8 @@ so sánh baseline mới; on-hand phải không đổi. Cần tests quyền/org, 
 source refresh và ảnh hưởng chỉ từ đúng thời điểm về. Đây là phần xin phép thực
 hiện, không phải implementation đã hoàn thành.
 
-Chronos-2 và Monte Carlo không được nghiệm thu: statistical forecasting và
-deterministic planning là phương pháp đang hoạt động. Không thêm LLM/Agent Builder.
+Trạng thái tại vòng nghiệm thu ban đầu: Chronos-2 và Monte Carlo chưa được kiểm.
+Mục Q bổ sung kiểm chứng Chronos-2 thật. Monte Carlo vẫn chưa triển khai.
 
 ## I. Run Instructions
 
@@ -753,3 +753,64 @@ Warehouse/Logistics không đổi. Script quản trị có preflight/ID xác đ�
 `.tmp/data-workspace/unallocated-demo-evidence.json`. Không reset baseline,
 migration, republish, thay grants, restart, commit hay push. Không thực hiện
 browser/Core/Hasura E2E hoặc gọi tài khoản người dùng trong lần bổ sung này.
+
+
+## Q. Chronos-2 huấn luyện sẵn — 25/10/2026
+
+Phần này thay mô hình Ridge trong luồng hiện hành được mô tả tại L/N/O.
+Portal gửi `forecast_model=chronos2` cho dự báo riêng và tất cả màn hình lập kế
+hoạch. Forecast API và PlanningRequest cũng mặc định Chronos-2. `auto` trong
+provider chọn Chronos-2. Các phương pháp cũ vẫn có thể gọi rõ để so sánh hoặc tái
+hiện kết quả đã lưu, không được gắn nhãn Chronos-2.
+
+Dùng `amazon/chronos-2` revision `29ec3766d36d6f73f0696f85560a422f50e8498c`,
+`chronos-forecasting==2.3.2`, PyTorch CPU và Transformers khóa trong `uv.lock`.
+Trọng số chính thức đã tải vào cache bị ignore, không thêm model/binary vào Git.
+Giấy phép, nguồn và cách provision xem [MODEL_LICENSES](../MODEL_LICENSES.md).
+
+```powershell
+.tools/uv/bin/uv.exe sync --locked --group dev --group database --group forecasting
+.venv/Scripts/python.exe -m scripts.provision_chronos
+.venv/Scripts/python.exe -m scripts.data_workspace serve
+```
+
+Lệnh provision chỉ tải artifact công khai, không gửi dữ liệu nghiệp vụ. CLI serve
+nạp cấu hình model từ `.tmp/data-workspace/chronos.env`, biến môi trường tường minh
+có ưu tiên cao hơn. Triển khai bằng uvicorn trực tiếp cần tự cung cấp hai biến
+`FLOWBRIDGE_WORKSPACE_CHRONOS_PATH` và `FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION`.
+
+Đây là zero-shot inference: 90/180/365 ngày được chọn là ngữ cảnh lịch sử, không
+phải tập huấn luyện lại mô hình. Runtime dùng file local, kiểm hash, tái sử dụng
+một instance CPU, giới hạn tối đa 4 CPU threads. Các SKU cùng đơn vị được dự báo
+theo lô độc lập, không bật cross-learning hoặc thêm covariate chưa công bố.
+
+Hai đoạn lịch sử được tách để đo MAE/WAPE khi đủ dữ liệu. Nếu chỉ đủ tối thiểu
+14 kỳ cho inference thì vẫn dự báo, nhưng không bịa sai số kiểm chứng. Khoảng
+P10–P90 lấy trực tiếp từ mô hình, chưa được hiệu chỉnh độ phủ trên doanh nghiệp.
+Dữ liệu nhu cầu không âm được chặn dự báo âm về 0. Khoảng trống đến ngày bắt đầu
+được dự báo nối tiếp rồi bỏ phần trước kỳ yêu cầu. Ngày/tuần/tháng giữ đúng mốc kỳ.
+
+Mặc định không fallback thống kê. Portal luôn gửi strict cho dự báo riêng,
+planner gọi strict. Thiếu model/lỗi tương thích trả `503 CHRONOS_UNAVAILABLE`
+với thông báo người dùng. Timeout planner 180 giây, client 210 giây để có thời
+gian nạp mô hình lần đầu. Chưa có đo tải đồng thời hoặc cam kết SLA.
+
+Đã chạy Chronos-2 thật trên hai chuỗi tổng hợp với khoảng trống lịch, nhận 14 điểm
+P10/P50/P90 và provenance của đúng artifact. Lượt kiểm API dùng model thật với
+Core/repository fixture đã đi qua planning → scenario ML → lưu/đọc lại, model_method
+đều là chronos2. Lượt này mất 6,59 giây, lần planning kế tiếp trên cùng instance
+0,12 giây. Đây là dữ liệu fixture nhỏ, không đại diện hiệu năng hoặc độ chính xác
+trên doanh nghiệp. Lượt inference độc lập đầu tiên khi thư viện vừa cài mất
+129,36 giây. Các bằng chứng cục bộ được lưu trong hai file chronos-*-inference.json.
+
+Không thay schema, migration, realm, grants hoặc dữ liệu nghiệp vụ. Đã khởi động
+lại riêng Workspace local để nạp cấu hình model mới. E2E live Core/SSO/Hasura chưa
+chạy lại vì harness cũ dùng password-only không đáp ứng MFA hiện hành. Kiểm thử
+trình duyệt 24 ca dùng API/SSO mock, không thay bằng chứng model thật ở trên.
+
+
+Kiểm tra sau cùng của thay đổi Q: **510 Python passed** (Workspace, contracts,
+Core authorized catalog, bao gồm 112 test Workspace), **24 Playwright passed**
+với API/SSO mock, **10 Vitest passed**, frontend build, Ruff, lockfile offline
+check và git diff check đều đạt. Hai lượt model thật ở trên tách riêng với mocks.
+Harness live cũ đã cập nhật assert Chronos-2 nhưng chưa chạy lại với browser MFA.

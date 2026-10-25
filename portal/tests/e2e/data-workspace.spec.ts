@@ -39,7 +39,7 @@ function scenarioResult(body: any, opening = 20) {
   const measure = (v: ReturnType<typeof side>) => ({ peak_shortage: v.metrics.peak_shortage, shortage_days: v.series.filter(p => p.unmet_cumulative > 0).length, ending_inventory: v.series.at(-1)!.physical_inventory, new_demand: v.metrics.forecast_demand, known_orders_at_risk: v.metrics.known_orders_at_risk, demand_headroom_percent: v.metrics.demand_headroom_percent });
   const peak = baseline.metrics.peak_shortage, first = baseline.metrics.first_risk_date;
   return { ...(body.save ? { id: 'saved-scenario' } : {}), reference, baseline, proposed, evidence,
-    decision: { reference: measure(reference), stressed: measure(baseline), proposed: measure(proposed), minimum_additional_quantity: Math.ceil(peak * 1000) / 1000, latest_arrival_date: first, remaining_late_orders_after_suggestion: 0, model_method: 'ridge_lag', verdict: peak === 0 && baseline.metrics.known_orders_at_risk === 0 ? body.additional_quantity > 0 ? 'extra_without_risk_reduction' : 'no_extra_needed' : proposed.metrics.peak_shortage === 0 && proposed.metrics.known_orders_at_risk === 0 ? 'covered' : 'partial' },
+    decision: { reference: measure(reference), stressed: measure(baseline), proposed: measure(proposed), minimum_additional_quantity: Math.ceil(peak * 1000) / 1000, latest_arrival_date: first, remaining_late_orders_after_suggestion: 0, model_method: 'chronos2', verdict: peak === 0 && baseline.metrics.known_orders_at_risk === 0 ? body.additional_quantity > 0 ? 'extra_without_risk_reduction' : 'no_extra_needed' : proposed.metrics.peak_shortage === 0 && proposed.metrics.known_orders_at_risk === 0 ? 'covered' : 'partial' },
   };
 }
 
@@ -57,7 +57,7 @@ async function mock(page: Page, admin = false) {
     if (path.endsWith('/planning')) {
       if (state.status !== 200) return route.fulfill({ status: state.status, json: { detail: state.detail || { code: 'NO_DATA', message: 'Chưa đủ dữ liệu tại nguồn đang chọn.' } } });
       const result = structuredClone(plan); result.selected_sku = body.sku || 'SKU-A'; result.history.frequency = body.history_frequency || 'day';
-      if (body.forecast_model === 'ridge_lag') result.forecast = { ...result.forecast, config: { ...result.forecast.config, forecast_model: 'ridge_lag' }, model: { method: 'ridge_lag', kind: 'machine_learning', entities: { [result.selected_sku]: { method: 'ridge_lag', observations: body.training_days, validation: { ridge_lag: { mae: 2.4 } } } } } as any };
+      if (body.forecast_model === 'chronos2') result.forecast = { ...result.forecast, config: { ...result.forecast.config, forecast_model: 'chronos2' }, model: { method: 'chronos2', kind: 'machine_learning', entities: { [result.selected_sku]: { method: 'chronos2', observations: body.training_days, validation: { chronos2: { mae: 2.4 } } } } } as any };
       if (state.optionalMissing) { result.history.receipts_available = false; result.history.series = result.history.series.map(p => ({ ...p, received: null as any, difference: null as any })); result.missing_sources = ['receipts'] as any; }
       return route.fulfill({ json: result });
     }
@@ -76,7 +76,7 @@ async function mock(page: Page, admin = false) {
       const analytics = { series, metrics: [{ item_id: entity, total, latest: series.at(-1)!.target, recent_7_periods: series.slice(-7).reduce((n, p) => n + p.target, 0), period_growth_percent: body.days === 7 ? null : 12.5, average_per_period: total / series.length, standard_deviation: 2, coefficient_of_variation_percent: 16, peak_weekday: 4, day_of_week_average: { '0': 10, '1': 12, '2': 9, '3': 11, '4': 20, '5': 15, '6': 8 } }], quality: {}, evidence: { ...evidence, data_products: [{ name: logistics ? 'logistics.accepted_shipments_daily' : 'sales.confirmed_demand_daily' }] } };
       return route.fulfill({ json: { config: { ...config, start: series[0].timestamp, end: series.at(-1)!.timestamp, data_product_id: body.data_product_id, entities: [entity], entity_column: logistics ? 'carrier_code' : 'sku', unit: logistics ? 'shipments' : 'EA' }, entity, entities: logistics ? ['C1', 'C2'] : ['SKU-A', 'SKU-B'], entity_labels: logistics ? {} : { 'SKU-A': 'Cà phê rang', 'SKU-B': 'Trà xanh' }, source_start: '2026-08-30', source_end: '2026-10-24', source_age_days: 1, analytics, comparison: analytics, comparison_entities: [entity] } });
     }
-    if (path.endsWith('/forecasts')) return route.fulfill({ status: 201, json: { ...forecast, model: { method: 'ridge_lag', kind: 'machine_learning', entities: { [body.config.entities[0]]: { method: 'ridge_lag', kind: 'machine_learning', observations: body.training_days, validation: { ridge_lag: { mae: 2.4, wape_percent: 12, windows: [] } } } } }, config: { ...body.config, forecast_start: body.start_date, forecast_horizon: Math.round((Date.parse(body.end_date) - Date.parse(body.start_date)) / 86400000) + 1 }, points: Array.from({ length: Math.round((Date.parse(body.end_date) - Date.parse(body.start_date)) / 86400000) + 1 }, (_, i) => ({ item_id: body.config.entities[0], timestamp: new Date(Date.parse(body.start_date) + i * 86400000).toISOString().slice(0, 10), p10: 8, p50: 10, p90: 12 })) } });
+    if (path.endsWith('/forecasts')) return route.fulfill({ status: 201, json: { ...forecast, model: { method: 'chronos2', kind: 'machine_learning', entities: { [body.config.entities[0]]: { method: 'chronos2', kind: 'machine_learning', observations: body.training_days, validation: { chronos2: { mae: 2.4, wape_percent: 12, windows: [] } } } } }, config: { ...body.config, forecast_start: body.start_date, forecast_horizon: Math.round((Date.parse(body.end_date) - Date.parse(body.start_date)) / 86400000) + 1 }, points: Array.from({ length: Math.round((Date.parse(body.end_date) - Date.parse(body.start_date)) / 86400000) + 1 }, (_, i) => ({ item_id: body.config.entities[0], timestamp: new Date(Date.parse(body.start_date) + i * 86400000).toISOString().slice(0, 10), p10: 8, p50: 10, p90: 12 })) } });
     if (path.endsWith('/scenarios/saved')) return route.fulfill({ json: { items: [{ id: 'saved-scenario', baseline, proposed, evidence }] } });
     if (path.endsWith('/preview')) return route.fulfill({ json: { quality: {}, preview_before: [{ sku: 'SKU-A' }], preview_after: [], evidence } });
     if (path.endsWith('/configurations')) return route.fulfill({ status: 201, json: { id: 'config-1', config: body } });
@@ -160,14 +160,14 @@ test('dedicated forecast uses only ML and keeps stale settings from triggering a
   await expect(page.getByLabel('Dữ liệu tham chiếu', { exact: true })).toHaveValue('180');
   await expect(page.getByLabel('Mô hình', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Giải thích cách tạo dự báo', exact: true }).hover();
-  await expect(page.getByRole('tooltip')).toContainText('Mô hình học từ lịch sử');
+  await expect(page.getByRole('tooltip')).toContainText('Chronos-2 đã được huấn luyện sẵn');
   await page.keyboard.press('Escape');
   expect(count(s, '/forecasts')).toBe(0);
   await page.getByLabel('Ngày bắt đầu dự báo', { exact: true }).fill('2026-10-27');
   await page.getByLabel('Ngày kết thúc dự báo', { exact: true }).fill('2026-11-03');
   await page.getByRole('button', { name: 'Tạo dự báo', exact: true }).click();
   const body = s.calls.find(c => c.path.endsWith('/forecasts'))!.body;
-  expect(body.config.forecast_model).toBe('ridge_lag'); expect(body.allow_statistical_fallback).toBe(false);
+  expect(body.config.forecast_model).toBe('chronos2'); expect(body.allow_statistical_fallback).toBe(false);
   expect(body.start_date).toBe('2026-10-27'); expect(body.end_date).toBe('2026-11-03');
   await expect(page.getByRole('heading', { name: 'Lượng đặt dự báo', exact: true })).toBeVisible();
   await page.getByLabel('Ngày kết thúc dự báo', { exact: true }).fill('2026-11-04');
@@ -417,7 +417,7 @@ test('ML scenario separates the shock, shows a quantity/date response, and compa
   const s = await mock(page); await page.goto('/#data'); await apply(page);
   await page.getByRole('button', { name: 'Thử bổ sung hàng', exact: true }).click();
   const loading = s.calls.filter(c => c.path.endsWith('/planning')).at(-1)!.body;
-  expect(loading.forecast_model).toBe('ridge_lag'); expect(loading.training_days).toBe(180);
+  expect(loading.forecast_model).toBe('chronos2'); expect(loading.training_days).toBe(180);
   await page.getByRole('button', { name: 'Điều chỉnh giả định', exact: true }).click();
   await page.getByLabel('Giả sử lượng khách đặt tăng/giảm (%)', { exact: true }).fill('20');
   await page.getByLabel('Hàng đang chờ về trễ thêm (ngày)', { exact: true }).fill('2');

@@ -64,7 +64,7 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
   const future = forecast?.points.filter(p => p.item_id === result?.entity).map(p => ({ day: p.timestamp, predicted: p.p50, band: [p.p10, p.p90] })) || [];
   const forecastTotal = future.reduce((sum, p) => sum + p.predicted, 0);
   const model = result ? forecast?.model.entities?.[result.entity] : undefined;
-  const score = model?.validation.ridge_lag;
+  const score = model?.validation[model.method];
 
   async function apply() {
     if (!product) return;
@@ -80,7 +80,7 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
   async function predict() {
     if (!result || !validWindow) return;
     setForecast(null);
-    const next = await request<Forecast>('/forecasts', { config: { ...result.config, entities: [result.entity], forecast_model: 'ridge_lag' }, start_date: startDate, end_date: endDate, training_days: Number(training), allow_statistical_fallback: false });
+    const next = await request<Forecast>('/forecasts', { config: { ...result.config, entities: [result.entity], forecast_model: 'chronos2' }, start_date: startDate, end_date: endDate, training_days: Number(training), allow_statistical_fallback: false });
     setForecast(next); setForecastSettings(JSON.stringify({ startDate, endDate, training }));
   }
   function explain(kind: 'history' | 'rhythm' | 'forecast') {
@@ -89,8 +89,8 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
     onEvidence({ title: kind === 'forecast' ? 'Nguồn dữ liệu và phương pháp dự báo' : kind === 'rhythm' ? 'Nhịp trong tuần' : 'Số liệu đã ghi nhận',
       meaning: kind === 'forecast' ? 'Ước tính nhu cầu mới để tham khảo khi lập kế hoạch. Cần đối chiếu với các cam kết đã có.' : sales ? 'Lượng khách đặt đã được xác nhận. Số liệu này chưa phản ánh hàng đã giao hoặc doanh thu ròng.' : 'Số lượt vận chuyển đã tiếp nhận. Số liệu này chưa phản ánh số lượt giao thành công.',
       applications: sourceNames(evidence),
-      formula: kind === 'forecast' ? 'ML học từ lượng đặt các ngày trước, nhịp tuần và xu hướng. Kiểm chứng trên hai đoạn lịch sử theo đúng thứ tự thời gian.' : kind === 'rhythm' ? 'Tổng lượng phát sinh cùng thứ ÷ số ngày thuộc thứ đó.' : 'Tổng hợp các sự kiện đã ghi nhận theo ngày, đúng quyền nguồn.',
-      notes: [ ...(kind === 'forecast' ? ['Mô hình Ridge chỉ tạo dự báo khi có đủ lịch sử để học và kiểm chứng.', 'Vùng nhạt thể hiện mức dao động tham khảo từ sai lệch trong quá khứ. Kết quả thực tế có thể nằm ngoài vùng này.', 'Dữ liệu học phải đủ 56 ngày và hai kỳ kiểm chứng, cộng khoảng trống đến ngày dự báo.'] : []), `Dữ liệu được ghi nhận đến ${dateLabel(result.source_end)}. Thời điểm này cách ngày tạo kết quả ${result.source_age_days} ngày.`, 'Chỉ điền 0 cho ngày không có sự kiện trong nguồn tổng hợp đầy đủ đã đọc thành công.'],
+      formula: kind === 'forecast' ? 'Chronos-2 dùng trọng số huấn luyện sẵn để dự báo từ lịch sử được cấp quyền. Sai số được kiểm tra trên hai đoạn lịch sử khi đủ dữ liệu.' : kind === 'rhythm' ? 'Tổng lượng phát sinh cùng thứ ÷ số ngày thuộc thứ đó.' : 'Tổng hợp các sự kiện đã ghi nhận theo ngày, đúng quyền nguồn.',
+      notes: [ ...(kind === 'forecast' ? ['Sử dụng Chronos-2 huấn luyện sẵn, chạy trên máy chủ. Không huấn luyện lại và không gửi dữ liệu nghiệp vụ ra ngoài.', 'Vùng nhạt là các phân vị do Chronos-2 dự báo, chưa được hiệu chỉnh xác suất trên doanh nghiệp. Thực tế có thể nằm ngoài vùng này.', 'Cần ít nhất 14 kỳ lịch sử. Chỉ hiển thị sai số kiểm chứng khi đủ lịch sử cho hai kỳ đối chiếu tách biệt với ngữ cảnh đầu vào.'] : []), `Dữ liệu được ghi nhận đến ${dateLabel(result.source_end)}. Thời điểm này cách ngày tạo kết quả ${result.source_age_days} ngày.`, 'Chỉ điền 0 cho ngày không có sự kiện trong nguồn tổng hợp đầy đủ đã đọc thành công.'],
       start: kind === 'forecast' ? future[0]?.day : result.config.start, end: kind === 'forecast' ? future.at(-1)?.day : result.config.end,
       last_observation: result.source_end, read_at: forecast?.created_at, technical: evidence });
   }
@@ -99,7 +99,7 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
   const filters = <>
     <section className="dw-filterbar pw-analytics-filters">
       <Field title="Nội dung"><Select value={topic} disabled={busy} onChange={v => { setTopic(v); setEntity(''); setCompared([]); }}>{topics.map(p => <option key={p.id} value={p.id}>{p.name === salesName ? 'Lượng khách đặt hàng' : 'Lượt vận chuyển tiếp nhận'}</option>)}</Select></Field>
-      <Field title={mode === 'forecast' ? 'Khoảng xem lịch sử' : 'Xem số liệu đã ghi nhận trong'} hint="Khoảng số liệu quá khứ hiển thị trên biểu đồ. Dữ liệu học ML được chọn riêng ở bước tạo dự báo."><Select value={days} disabled={busy} onChange={setDays}>{['7', '14', '30', '90', '365'].map(n => <option key={n} value={n}>{n === '365' ? '12 tháng' : n + ' ngày'}</option>)}</Select></Field>
+      <Field title={mode === 'forecast' ? 'Khoảng xem lịch sử' : 'Xem số liệu đã ghi nhận trong'} hint="Khoảng số liệu quá khứ hiển thị trên biểu đồ. Lịch sử tham chiếu cho Chronos-2 được chọn riêng ở bước tạo dự báo."><Select value={days} disabled={busy} onChange={setDays}>{['7', '14', '30', '90', '365'].map(n => <option key={n} value={n}>{n === '365' ? '12 tháng' : n + ' ngày'}</option>)}</Select></Field>
       <Field title={product?.name === salesName ? 'Sản phẩm' : 'Nhà vận chuyển'}>{product?.name === salesName ? <ProductSelector items={(result?.entities || []).map(sku => ({ sku, name: labels[sku] }))} value={entity} onChange={v => { setEntity(v); setCompared([v, ...compared.filter(e => e !== v)].slice(0, 3)); }} disabled={busy || !result || topic !== applied.topic}/> : <Select value={entity} disabled={busy || !result || topic !== applied.topic} onChange={v => { setEntity(v); setCompared([v]); }}><option value="">Chọn sau khi cập nhật</option>{result?.entities.map(e => <option key={e}>{e}</option>)}</Select>}</Field>
       <Button disabled={busy} onClick={() => void perform('Đang cập nhật dữ liệu', apply)}>{mode === 'history' ? 'Cập nhật biểu đồ' : 'Cập nhật dữ liệu'}</Button>
       {dirty && <span className="pw-draft-note">Lựa chọn đã thay đổi. Cập nhật dữ liệu để tiếp tục.</span>}
@@ -122,12 +122,12 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
       <Panel title={sales ? 'Lượng đặt hàng theo thứ trong tuần' : 'Lượt vận chuyển theo thứ trong tuần'} subtitle={`${label(result.entity)} · ${unit}/ngày`} action={evidence('rhythm')}><Bars data={rhythm} category="day" unit={unit} lines={[{ key: 'quantity', name: sales ? 'Lượng đặt bình quân' : 'Lượt tiếp nhận bình quân', color: blue }]}/></Panel>
     </>}
     {result && !dirty && mode === 'forecast' && <>
-      <Panel title="Bước 2. Tạo dự báo" subtitle="Chọn dữ liệu tham chiếu và thời gian cần dự báo." action={<ForecastHelp label="Giải thích cách tạo dự báo">Mô hình học từ lịch sử và kiểm tra lại trên dữ liệu đã ghi nhận trước khi tạo dự báo. Nếu chưa đủ dữ liệu, hệ thống sẽ thông báo để bạn bổ sung.</ForecastHelp>}>
+      <Panel title="Bước 2. Tạo dự báo" subtitle="Chọn dữ liệu tham chiếu và thời gian cần dự báo." action={<ForecastHelp label="Giải thích cách tạo dự báo">Chronos-2 đã được huấn luyện sẵn. Hệ thống dùng lịch sử của bạn làm ngữ cảnh dự báo, đồng thời kiểm tra sai số trên dữ liệu cũ khi đủ lịch sử.</ForecastHelp>}>
         <div className="pw-forecast-controls">
-          <Field title="Dữ liệu tham chiếu" hint="Khoảng lịch sử dùng để học và kiểm chứng ML. Chọn khoảng dài hơn nếu kỳ dự báo xa hoặc dài."><Select value={training} disabled={busy} onChange={setTraining}><option value="90">3 tháng gần nhất</option><option value="180">6 tháng gần nhất</option><option value="365">12 tháng gần nhất</option></Select></Field>
+          <Field title="Dữ liệu tham chiếu" hint="Khoảng lịch sử làm ngữ cảnh cho mô hình huấn luyện sẵn và đối chiếu sai số. Không huấn luyện lại mô hình."><Select value={training} disabled={busy} onChange={setTraining}><option value="90">3 tháng gần nhất</option><option value="180">6 tháng gần nhất</option><option value="365">12 tháng gần nhất</option></Select></Field>
           <Field title="Ngày bắt đầu dự báo" hint="Ngày đầu tiên cần ước tính lượng đặt mới. Chọn từ hôm nay trở đi."><Input type="date" min={today} max={lastDate} value={startDate} disabled={busy} onChange={e => setStartDate(e.target.value)}/></Field>
-          <Field title="Ngày kết thúc dự báo" hint="Tính cả ngày kết thúc. Khoảng dự báo phải nằm trong 90 ngày tới và cần đủ lịch sử để kiểm chứng."><Input type="date" min={startDate || today} max={lastDate} value={endDate} disabled={busy} onChange={e => setEndDate(e.target.value)}/></Field>
-          <Button disabled={busy || dirty || !validWindow || result.source_age_days > 90} onClick={() => void perform('Đang học và kiểm chứng dự báo', predict)}>Tạo dự báo</Button>
+          <Field title="Ngày kết thúc dự báo" hint="Tính cả ngày kết thúc. Khoảng dự báo phải nằm trong 90 ngày tới. Sai số kiểm chứng chỉ hiện khi đủ lịch sử."><Input type="date" min={startDate || today} max={lastDate} value={endDate} disabled={busy} onChange={e => setEndDate(e.target.value)}/></Field>
+          <Button disabled={busy || dirty || !validWindow || result.source_age_days > 90} onClick={() => void perform('Đang dự báo bằng Chronos-2', predict)}>Tạo dự báo</Button>
         </div>
         {!validWindow && <p className="pw-panel-note">Chọn ngày bắt đầu từ hôm nay và ngày kết thúc không trước ngày bắt đầu, trong 90 ngày tới.</p>}
         {result.source_age_days > 90 && <p className="pw-panel-note">Dữ liệu nguồn đã quá cũ. Cần bổ sung dữ liệu mới trước khi tạo dự báo.</p>}
