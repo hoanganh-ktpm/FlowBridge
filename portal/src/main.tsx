@@ -11,10 +11,9 @@ async function main() {
     import.meta.env.DEV &&
     new URLSearchParams(location.search).has("auth-preview")
   ) {
-    const { loginPreview } = await import("./keycloak-theme/preview");
-    context = loginPreview(
-      new URLSearchParams(location.search).get("auth-preview") === "error",
-    );
+    const { loginPreview, totpPreview } = await import("./keycloak-theme/preview");
+    const preview = new URLSearchParams(location.search).get("auth-preview");
+    context = preview === 'totp' || preview === 'totp-manual' ? totpPreview(preview === 'totp-manual') : loginPreview(preview === 'error');
   }
   createRoot(document.getElementById("root")!).render(
     <Suspense

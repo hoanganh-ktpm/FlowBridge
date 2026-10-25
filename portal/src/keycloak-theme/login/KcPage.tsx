@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "./i18n";
 import type { KcContext } from "./KcContext";
+import { TotpSetup } from './totp-setup';
 
 const UserProfileFormFields = lazy(
   () => import("keycloakify/login/UserProfileFormFields"),
@@ -93,8 +94,10 @@ export default function KcPage({ kcContext }: { kcContext: KcContext }) {
   useEffect(() => {
     document.documentElement.lang = "vi";
     document.documentElement.dataset.theme = "light";
-    document.title = "Đăng nhập · FlowBridge";
-  }, []);
+    document.title = kcContext.pageId === 'login-config-totp.ftl' ? 'Thiết lập xác thực · FlowBridge' : 'Đăng nhập · FlowBridge';
+  }, [kcContext.pageId]);
+  if (kcContext.pageId === 'login-config-totp.ftl')
+    return <TotpSetup context={kcContext} message={<Message context={kcContext}/>}/>;
   if (
     kcContext.pageId === "login.ftl" &&
     kcContext.realm.password &&

@@ -89,6 +89,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [generation, setGeneration] = useState(0);
   const keycloak = useRef<Keycloak | null>(null);
   const invalidate = useCallback(() => {
+    if (keycloak.current) keycloak.current.loginRequired = false;
     keycloak.current?.clearToken?.();
     setAuthenticated(false);
     setProfile(null);
@@ -156,6 +157,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
     keycloak.current = kc;
     kc.onAuthLogout = () => {
+      // clearToken() otherwise starts another login-required redirect, racing logout
+      // and hiding callback/nonce failures behind a new authentication request.
+      kc.loginRequired = false;
       if (active) {
         setAuthenticated(false);
         setProfile(null);
@@ -166,6 +170,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .init({
         onLoad: "login-required",
         pkceMethod: "S256",
+        useNonce: true,
+        flow: "standard",
         checkLoginIframe: false,
         redirectUri: location.origin + "/",
         messageReceiveTimeout: 10000,
@@ -221,8 +227,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   };
   const logout = async () => {
+    const kc = keycloak.current;
     try {
-      await keycloak.current?.logout({ redirectUri: location.origin + "/" });
+      if (kc) kc.loginRequired = false;
+      // SDK captures the ID-token logout hint before credentials are cleared.
+      const navigation = kc?.logout({ redirectUri: location.origin + "/" });
+      kc?.clearToken?.();
+      setAuthenticated(false);
+      setProfile(null);
+      await navigation;
     } catch {
       setError("Chưa đăng xuất được. Vui lòng thử lại.");
     }

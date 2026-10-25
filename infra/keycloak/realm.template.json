@@ -10,6 +10,85 @@
   "ssoSessionMaxLifespan": 3600,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "authenticationFlows": [
+    {
+      "id": "b987b5aa-1345-43d9-b66c-83d932aa5729",
+      "alias": "flowbridge-browser-mfa-v2",
+      "description": "FlowBridge SSO accepts only LoA 2; password and native TOTP on fresh authentication",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10
+        },
+        {
+          "flowAlias": "flowbridge-forms-mfa-v2",
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 20
+        }
+      ]
+    },
+    {
+      "alias": "flowbridge-forms-mfa-v2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "flowAlias": "flowbridge-password-totp-v2",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "alias": "flowbridge-password-totp-v2",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorConfig": "flowbridge-loa2-v2",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10
+        },
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "flowbridge-loa2-v2",
+      "config": {
+        "loa-condition-level": "2",
+        "loa-max-age": "900"
+      }
+    }
+  ],
   "clientScopes": [
     {
       "name": "flowbridge-api-audience",
@@ -50,6 +129,21 @@
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "authenticationFlowBindingOverrides": {
+        "browser": "b987b5aa-1345-43d9-b66c-83d932aa5729"
+      },
+      "protocolMappers": [
+        {
+          "name": "flowbridge-acr",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-acr-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ],
       "redirectUris": [
         "${SSO_ORIGIN_A}/",
         "http://127.0.0.1:5174/"
@@ -60,7 +154,10 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/##http://127.0.0.1:5174/"
+        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/##http://127.0.0.1:5174/",
+        "minimum.acr.value": "2",
+        "default.acr.values": "2",
+        "acr.loa.map": "{\"2\":2}"
       },
       "defaultClientScopes": [
         "flowbridge-api-audience"

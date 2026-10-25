@@ -25,3 +25,11 @@ export function loginPreview(error = false) {
     },
   });
 }
+
+export function totpPreview(manual = false) {
+  return getKcContextMock({ pageId: 'login-config-totp.ftl', overrides: {
+    mode: manual ? 'manual' : 'qr',
+    url: { loginAction: '/auth-test-submit' },
+    totp: { manualUrl: '/?auth-preview=totp-manual', qrUrl: '/?auth-preview=totp' },
+  } });
+}

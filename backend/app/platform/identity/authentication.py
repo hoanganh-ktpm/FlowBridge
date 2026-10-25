@@ -99,6 +99,7 @@ async def verify_access_token(request: Request, token: str) -> VerifiedIdentity:
         or not isfinite(not_before)
         or not_before > time()
         or not isinstance(scope, str)
+        or (client_id in settings.oidc_mfa_clients and claims.get("acr") != "2")
     ):
         raise CoreError(ErrorCode.UNAUTHENTICATED)
     return VerifiedIdentity(

@@ -34,6 +34,7 @@ async def auth_client() -> AsyncIterator[tuple[httpx.AsyncClient, dict]]:
         "exp": time() + 300,
         "token_type": "Bearer",
         "client_id": "flowbridge-web-a",
+        "acr": "2",
     }
 
     def introspect(request: httpx.Request) -> httpx.Response:
@@ -107,6 +108,10 @@ async def test_active_token_is_mapped_by_exact_issuer_and_subject(auth_client: t
         {"nbf": 99999999999},
         {"exp": True},
         {"nbf": True},
+        {"acr": None},
+        {"acr": "1"},
+        {"acr": 2},
+        {"acr": ["2"]},
     ],
 )
 async def test_inactive_wrong_audience_issuer_or_expired_token_denied(
@@ -117,3 +122,30 @@ async def test_inactive_wrong_audience_issuer_or_expired_token_denied(
     response = await client.get("/identity", headers={"Authorization": "Bearer test-access-token"})
     assert response.status_code == 401
     assert "test-access-token" not in response.text and "only-a-test-secret" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_refresh_of_pre_mfa_browser_session_is_rejected(auth_client):
+    client, claims = auth_client
+    claims.pop("acr")
+    claims["exp"] = time() + 3600
+    response = await client.get("/identity", headers={"Authorization": "Bearer test-access-token"})
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_service_client_does_not_require_human_totp(auth_client):
+    client, claims = auth_client
+    claims["client_id"] = "flowbridge-directory"
+    claims.pop("acr")
+    response = await client.get("/identity", headers={"Authorization": "Bearer test-access-token"})
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_legacy_password_only_test_client_cannot_bypass_mfa(auth_client):
+    client, claims = auth_client
+    claims["client_id"] = "flowbridge-e2e"
+    claims.pop("acr")
+    response = await client.get("/identity", headers={"Authorization": "Bearer test-access-token"})
+    assert response.status_code == 401

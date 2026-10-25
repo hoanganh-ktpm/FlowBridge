@@ -5,19 +5,20 @@ import { ShieldCheck } from "lucide-react";
 import { Brand, BrandMark } from "@/components/brand";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function AuthShell({ title, description, children, footer }: {
+export function AuthShell({ title, description, children, footer, enrollment = false }: {
   title: ReactNode;
   description?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  enrollment?: boolean;
 }) {
   return (
-    <main className="auth-page auth-identity">
+    <main className={`auth-page auth-identity${enrollment ? ' auth-enrollment' : ''}`}>
       <header className="auth-header"><Brand /></header>
       <section className="auth-content">
         <Card className="auth-card">
           <CardHeader className="auth-card-heading">
-            <div className="auth-emblem"><BrandMark className="size-12" /></div>
+            {!enrollment && <div className="auth-emblem"><BrandMark className="size-12" /></div>}
             <CardTitle><h1>{title}</h1></CardTitle>
             {description && <CardDescription>{description}</CardDescription>}
           </CardHeader>

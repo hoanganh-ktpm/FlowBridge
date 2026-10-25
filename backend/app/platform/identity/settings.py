@@ -17,6 +17,10 @@ class IdentitySettings(BaseSettings):
     oidc_ca_bundle: Path | None = None
     oidc_allowed_clients: list[str] = Field(default_factory=list)
     oidc_service_clients: list[str] = Field(default_factory=list)
+    # Browser tokens issued before MFA rollout (including refreshed tokens) fail closed.
+    oidc_mfa_clients: list[str] = Field(
+        default_factory=lambda: ["flowbridge-web-a", "flowbridge-e2e"]
+    )
     oidc_admin_url: str | None = None
     oidc_admin_client_id: str | None = None
     oidc_admin_client_secret: SecretStr | None = None
@@ -41,7 +45,7 @@ class IdentitySettings(BaseSettings):
     def empty_secret_or_path(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
 
-    @field_validator("oidc_allowed_clients", "oidc_service_clients")
+    @field_validator("oidc_allowed_clients", "oidc_service_clients", "oidc_mfa_clients")
     @classmethod
     def validate_client_registry(cls, values: list[str]) -> list[str]:
         if any(not value.strip() or value != value.strip() for value in values):
