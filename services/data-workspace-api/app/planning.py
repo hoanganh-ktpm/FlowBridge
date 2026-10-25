@@ -31,6 +31,7 @@ class SnapshotCache:
                     request.inbound,
                     request.open_orders,
                     request.commitments,
+                    request.preparation,
                 )
             ),
         )
@@ -281,6 +282,10 @@ def project_orders(
                 "order_id": o["id"],
                 "order_number": o.get("number", o["id"]),
                 "deadline": o["deadline"].isoformat(),
+                "handoff_deadline": o.get("handoff_deadline", o["deadline"]).isoformat(),
+                "stock_ready_by": o["deadline"].isoformat()
+                if o.get("preparation_policy_revision") is not None
+                else None,
                 "at_risk": o["id"] in risk,
                 "fulfilled_at": filled_at.get(o["id"]),
                 "shortages_at_deadline": shortages.get(o["id"], []),

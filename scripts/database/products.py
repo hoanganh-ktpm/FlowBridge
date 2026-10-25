@@ -21,6 +21,7 @@ PRODUCTS = {
         "order_commitments": ("org_id", "order_line_id", "warehouse_id"),
         "planning_catalog": ("org_id", "warehouse_id", "product_id"),
         "receipts_daily": ("org_id", "warehouse_id", "sku", "day", "uom"),
+        "handoff_preparation_policy": ("org_id", "warehouse_id"),
     },
     "logistics": {
         "handoff_capacity": ("org_id", "carrier_code", "capacity_date"),

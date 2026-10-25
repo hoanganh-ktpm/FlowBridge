@@ -14,7 +14,7 @@ jobs:
           version: '0.13.1'
       - run: uv sync --locked --group dev --group database
       - run: uv run --locked python -m pytest tests/domain/data_workspace tests/platform/test_decision_test_environment.py -q
-      - run: uv run --locked python -m scripts.decision_test_environment --image postgres:${{ matrix.postgres }}
+      - run: uv run --locked python -m scripts.decision_test_environment --image postgres:${{ matrix.postgres }} --include-business
       - uses: actions/upload-artifact@v4
         if: always()
         with:

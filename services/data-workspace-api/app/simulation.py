@@ -8,6 +8,7 @@ from math import ceil
 from zoneinfo import ZoneInfo
 
 from .analytics import fail, local_day, numeric
+from .handoff_readiness import preparation_policy, shift_to_stock_ready_deadline
 from .planning import known_orders, moment, project_orders
 from .scenario_decision import METRIC_SEMANTICS_VERSION, assess, measures
 from .source_integrity import validate_planning_facts
@@ -74,6 +75,7 @@ def simulate(
     snapshot_at=None,
     source_names=None,
     include_decision=True,
+    preparation_rows=None,
 ):
     config = forecast["config"]
     selected_model = forecast.get("model", {}).get("entities", {}).get(request.sku, {})
@@ -170,6 +172,9 @@ def simulate(
         if orders_available
         else None
     )
+    policy = preparation_policy(preparation_rows, request.warehouse_id)
+    if orders is not None:
+        orders = shift_to_stock_ready_deadline(orders, policy)
 
     def evaluate(series, multiplier, delay, extra=0, arrival=None):
         if orders_available:
@@ -211,6 +216,8 @@ def simulate(
         "comparison": {"metrics_delta": delta},
         "evidence": {
             "metric_semantics_version": METRIC_SEMANTICS_VERSION,
+            "preparation_policy": policy,
+            "preparation_verified": policy is not None,
             "shortage_basis": before["shortage_basis"],
             "calculation_method": "deterministic supply-demand projection",
             "comparison_basis": "Both sides use the same demand and inbound-delay assumptions; "
@@ -362,6 +369,7 @@ def sensitivity(
     snapshot_at,
     reference_result,
     source_names=None,
+    preparation_rows=None,
 ):
     """A bounded decision grid using the same planner, inputs and demand assumptions.
 
@@ -410,6 +418,7 @@ def sensitivity(
                 snapshot_at=snapshot_at,
                 source_names=source_names,
                 include_decision=False,
+                preparation_rows=preparation_rows,
             )["proposed"]
             cells.append(
                 {

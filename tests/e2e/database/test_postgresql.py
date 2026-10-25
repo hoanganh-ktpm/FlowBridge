@@ -129,7 +129,7 @@ def test_seed_refuses_to_overwrite_modified_fixture(databases):
             tx.rollback()
 
 
-def test_migration_roundtrip_and_core_priority_boundaries(databases):
+def test_fresh_install_forward_only_guards_and_core_priority_boundaries(databases):
     import json
     from io import StringIO
 
@@ -146,7 +146,14 @@ def test_migration_roundtrip_and_core_priority_boundaries(databases):
         assert database_url(name).database.startswith("dxos_it_")
         config = alembic_config(name)
         config.attributes["allow_core_data_reset"] = name == "core"
-        command.downgrade(config, "base")
+        if name == "core":
+            command.downgrade(config, "base")
+        else:
+            from tests.e2e.database.disposable_reset import reset_owned_disposable
+
+            with pytest.raises(RuntimeError, match="Review"):
+                command.downgrade(config, "base")
+            reset_owned_disposable(databases[name], name)
         assert set(inspect(databases[name]).get_table_names(schema="public")) == {"alembic_version"}
     for revision, priorities in (
         ("core_0001", {"P0"}),

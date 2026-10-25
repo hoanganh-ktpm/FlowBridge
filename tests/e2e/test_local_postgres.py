@@ -222,6 +222,40 @@ def test_local_six_views_publish_read_update_revoke(local_live):
                     }
             finally:
                 core.dispose()
+        existing_objects = {
+            call(it, "GET", "/data-products/" + key)["object_name"]
+            for key in imported["data_product_ids"]
+        }
+        for declared in body["manifest"]["data_products"]:
+            if declared["object"]["name"] in existing_objects:
+                continue
+            # Add a new read interface through Core commands; never rewrite an active contract.
+            product = call(
+                it,
+                "POST",
+                "/data-products",
+                201,
+                json={
+                    "data_source_id": imported["data_source_ids"][0],
+                    "product_key": domain + "." + declared["key"],
+                    "name": declared["name"],
+                    "schema_name": declared["object"]["schema"],
+                    "object_name": declared["object"]["name"],
+                    "object_type": "VIEW",
+                    "classification": "INTERNAL",
+                },
+            )
+            proposal = next(
+                c for c in body["product_contracts"] if c["product_key"] == declared["key"]
+            )
+            call(
+                it,
+                "POST",
+                "/data-products/" + product["id"] + "/contracts",
+                201,
+                json={"version": proposal["version"], "contract_json": proposal["contract_json"]},
+            )
+            imported["data_product_ids"].append(product["id"])
         live.resources["imports"][domain] = {"application_id": app_id, **imported}
         live.save()
         app = live.application(app_id)
@@ -530,6 +564,7 @@ async def test_all_workspace_planning_roles_read_through_real_core(local_live):
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     from workspace_live_sources.connector import CoreConnector
+    from workspace_live_sources.handoff_readiness import preparation_policy
     from workspace_live_sources.schemas import ProductRef
     from workspace_live_sources.source_integrity import validate_planning_facts
 
@@ -545,6 +580,7 @@ async def test_all_workspace_planning_roles_read_through_real_core(local_live):
         "receipts": "warehouse.receipts_daily",
         "schedule": "logistics.handoff_schedule",
         "capacity": "logistics.handoff_capacity",
+        "preparation": "warehouse.handoff_preparation_policy",
     }
     refs = {}
     try:
@@ -609,6 +645,8 @@ async def test_all_workspace_planning_roles_read_through_real_core(local_live):
                 facts["catalog"],
             )
             assert units and facts["open_orders"] and facts["catalog"] and facts["receipts"]
+            policy = preparation_policy(facts["preparation"], WAREHOUSE_ID)
+            assert policy is None  # New nullable policy fields are not an implicit zero buffer.
         live.evidence(
             "workspace_sources",
             {

@@ -553,8 +553,29 @@ def create_app(connector=None, repository=None, forecaster=None):
                     "columns": commitment_columns,
                 },
             ]
+        preparation_rows = None
+        if body.preparation:
+            columns = [
+                "warehouse_id",
+                "preparation_minutes",
+                "preparation_policy_revision",
+                "preparation_confirmed_at",
+                "preparation_confirmed_by",
+            ]
+            product, preparation_rows = await connector.rows(
+                ctx,
+                body.preparation,
+                columns,
+                where={"warehouse_id": {"_eq": str(body.warehouse_id)}},
+            )
+            if product["name"] != source_names["preparation"]:
+                raise HTTPException(422, "Select the published warehouse preparation policy")
+            planning_sources.append(
+                {"ref": body.preparation.model_dump(mode="json"), "columns": columns}
+            )
         return {
             "stocks": stocks,
+            "preparation_rows": preparation_rows,
             "inbounds": inbounds,
             "open_rows": open_rows,
             "commitment_rows": commitment_rows,
@@ -595,6 +616,7 @@ def create_app(connector=None, repository=None, forecaster=None):
             inputs["commitment_rows"],
             snapshot_at=inputs["captured_at"],
             source_names=source_names,
+            preparation_rows=inputs.get("preparation_rows"),
         )
         if body.include_sensitivity:
             result["sensitivity"] = await asyncio.to_thread(
@@ -609,6 +631,7 @@ def create_app(connector=None, repository=None, forecaster=None):
                 snapshot_at=inputs["captured_at"],
                 reference_result=result,
                 source_names=source_names,
+                preparation_rows=inputs.get("preparation_rows"),
             )
         result["evidence"].update(
             {

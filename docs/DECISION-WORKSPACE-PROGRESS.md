@@ -118,3 +118,34 @@ guards), five new holdout regressions include unchanged predictions when only
 held-out targets change and preservation of the unseen gap. **16 frontend unit
 tests**, TypeScript and **four targeted mocked-browser tests passed**, including
 the P50-quality label and strict ML failure behavior.
+
+## M05 — preparation cutoff and handoff conditions (25 October 2026)
+
+Added additive Warehouse migration `warehouse_0005`: nullable preparation time,
+confirmed actor/time and policy revision on the warehouse, with a separate safe
+published view. Missing policy stays unknown; a confirmed zero is distinct.
+The original table/migration fingerprint fixture is preserved; a reviewed additive
+overlay records the changed warehouse model and the new revision.
+
+Planning and scenarios use the same warehouse policy to check stock availability
+before `handoff deadline − preparation time`, while preserving the original
+handoff time for display and carrier comparison. Supply, preparation, schedule
+and carrier capacity are separate conditions. A feasible projection is never
+reported as actual handoff. Portal shows the preparation cutoff or its absence.
+The owner write interface and workflow confirmation remain in M08/M09.
+
+Validation: **1043 fast Python tests passed, 76 deselected**; **45 real isolated
+PostgreSQL tests passed**, covering migrations/constraints and both database/schema
+layouts; **two live Core/Hasura tests passed** with the new preparation view added
+through Core commands and ten Workspace source roles read. Targeted browser checks
+for preparation policy/cutoff, sensitivity and order navigation passed; **16 frontend
+unit tests**, TypeScript and production build passed.
+
+The broader database run exposed two old tests assuming that all published-view
+migrations permit destructive downgrade. Those migrations remain protected. Fresh
+install tests now assert the downgrade refusal and reset only allowlisted objects
+in fixture-created loopback databases, without CASCADE, preserving neighbor schemas.
+
+Applied the additive migration and published the new view only to the existing
+local development stack. No confirmed preparation value was invented or written
+to business data, and no hosted/Supabase deployment was made.

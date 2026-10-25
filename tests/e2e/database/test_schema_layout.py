@@ -177,7 +177,7 @@ def test_core_seed_stays_unconnected_and_has_no_tenant_table(shared_database):
     assert "public.organizations" not in metadata_for("core").tables
 
 
-def test_schema_roundtrip_priorities_and_offline_ddl_preserve_neighbors(
+def test_schema_forward_only_guards_and_offline_ddl_preserve_neighbors(
     shared_database,
 ):
     import json
@@ -196,7 +196,14 @@ def test_schema_roundtrip_priorities_and_offline_ddl_preserve_neighbors(
     for name in DATABASES:
         config = alembic_config(name)
         config.attributes["allow_core_data_reset"] = name == "core"
-        command.downgrade(config, "base")
+        if name == "core":
+            command.downgrade(config, "base")
+        else:
+            from tests.e2e.database.disposable_reset import reset_owned_disposable
+
+            with pytest.raises(RuntimeError, match="Review"):
+                command.downgrade(config, "base")
+            reset_owned_disposable(raw, name)
         expected = {"alembic_version"}
         if name == "core":
             expected.add("legacy_sidecar")

@@ -14,6 +14,11 @@ FINGERPRINTS = json.loads(
         encoding="utf-8"
     )
 )
+ADDITIVE = json.loads(
+    (REPOSITORY_ROOT / "tests/fixtures/database/decision-workspace-fingerprints.json").read_text(
+        encoding="utf-8"
+    )
+)
 
 
 @pytest.mark.parametrize("database", ["sales", "warehouse", "logistics"])
@@ -28,7 +33,7 @@ def test_models_match_reviewed_handoff_and_additive_ddl(database):
             )
         )
         actual[table.name] = hashlib.sha256(ddl.encode()).hexdigest()
-    assert actual == FINGERPRINTS["tables"][database]
+    assert actual == {**FINGERPRINTS["tables"][database], **ADDITIVE["tables"].get(database, {})}
 
 
 @pytest.mark.parametrize("database", DATABASES)
@@ -38,7 +43,7 @@ def test_migration_content_and_history_are_preserved(database):
     heads = {
         "core": "core_0006",
         "sales": "sales_0005",
-        "warehouse": "warehouse_0004",
+        "warehouse": "warehouse_0005",
         "logistics": "logistics_0004",
     }
     assert scripts.get_heads() == [heads[database]]
@@ -47,7 +52,8 @@ def test_migration_content_and_history_are_preserved(database):
         assert path.parent == migration_path(database) / "versions"
         digest = hashlib.sha256(path.read_text(encoding="utf-8").encode()).hexdigest()
         if path.name not in {"core_0004.py", "core_0005.py", "core_0006.py"}:
-            assert digest == FINGERPRINTS["migrations"][path.name]
+            expected = {**FINGERPRINTS["migrations"], **ADDITIVE["migrations"]}
+            assert digest == expected[path.name]
 
 
 @pytest.mark.parametrize("database", DATABASES)

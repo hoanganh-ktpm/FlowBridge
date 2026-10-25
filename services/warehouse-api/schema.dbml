@@ -27,6 +27,10 @@ Table public.warehouses {
   id uuid [pk]
   org_id uuid [not null]
   warehouse_code varchar(50) [not null]
+  preparation_minutes integer [note: 'NULL until the warehouse confirms a preparation policy; 0 is an explicit confirmed policy.']
+  preparation_policy_revision integer [not null, default: 0]
+  preparation_confirmed_at timestamptz
+  preparation_confirmed_by varchar(255)
   name varchar(200) [not null]
   address text
   status varchar(20) [not null, default: 'ACTIVE']

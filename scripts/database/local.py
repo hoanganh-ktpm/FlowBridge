@@ -24,6 +24,7 @@ PRODUCT_VIEWS = {
         "v_order_commitments",
         "v_planning_catalog",
         "v_receipts_daily",
+        "v_handoff_preparation_policy",
     ),
     "logistics": ("v_handoff_capacity", "v_accepted_shipments_daily", "v_handoff_schedule"),
 }

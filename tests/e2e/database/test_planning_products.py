@@ -17,6 +17,7 @@ def test_six_product_views_and_gross_confirmed_demand(databases):
             "v_order_commitments",
             "v_planning_catalog",
             "v_receipts_daily",
+            "v_handoff_preparation_policy",
         },
         "logistics": {"v_handoff_capacity", "v_accepted_shipments_daily", "v_handoff_schedule"},
     }

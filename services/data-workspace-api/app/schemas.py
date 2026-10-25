@@ -121,6 +121,7 @@ class SimulationRequest(DTO):
     inbound: ProductRef
     open_orders: ProductRef | None = None
     commitments: ProductRef | None = None
+    preparation: ProductRef | None = None
     additional_quantity: Number = Field(default=0, ge=0, le=1e9)
     arrival_date: date
     demand_multiplier: Number = Field(default=1, ge=0, le=5)
@@ -225,6 +226,7 @@ class PlanningRequest(DTO):
     receipts: ProductRef | None = None
     schedule: ProductRef | None = None
     capacity: ProductRef | None = None
+    preparation: ProductRef | None = None
     warehouse_id: UUID | None = None
     sku: str | None = Field(default=None, min_length=1, max_length=80)
     horizon: int = Field(default=7, ge=1, le=90)

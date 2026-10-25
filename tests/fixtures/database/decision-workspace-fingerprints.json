@@ -1,0 +1,10 @@
+{
+  "tables": {
+    "warehouse": {
+      "warehouses": "9cd48bb83b5a8809a6a4a780be69f4aec48ac021ed742937b098c20bcafd84ba"
+    }
+  },
+  "migrations": {
+    "warehouse_0005_preparation_policy.py": "4b6dbeced9467314e2b060407ab2d40e14ca343b8efba2297d94290710083a08"
+  }
+}

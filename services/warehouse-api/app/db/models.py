@@ -335,12 +335,23 @@ class Warehouse(_OrgRow, WarehouseBase):
     __table_args__ = _args(
         __tablename__,
         _uq(__tablename__, "org_id", "warehouse_code"),
+        _ck(
+            __tablename__,
+            "preparation_policy",
+            "(preparation_policy_revision = 0 AND preparation_minutes IS NULL AND preparation_confirmed_at IS NULL AND preparation_confirmed_by IS NULL) OR (preparation_policy_revision > 0 AND preparation_minutes IS NOT NULL AND preparation_minutes BETWEEN 0 AND 10080 AND preparation_confirmed_at IS NOT NULL AND preparation_confirmed_by IS NOT NULL AND length(btrim(preparation_confirmed_by)) > 0)",
+        ),
         _ck(__tablename__, "status", "status IN ('ACTIVE', 'INACTIVE')"),
         _nonblank(__tablename__, "warehouse_code", "name"),
         comment="One selected warehouse per Sales order in the MVP. Transfers and multi-warehouse optimization are outside scope.",
     )
 
     warehouse_code: Mapped[str] = mapped_column(sa.String(50), nullable=False)
+    preparation_minutes: Mapped[int | None] = mapped_column(sa.Integer)
+    preparation_policy_revision: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default="0"
+    )
+    preparation_confirmed_at: Mapped[datetime | None] = _time()
+    preparation_confirmed_by: Mapped[str | None] = mapped_column(sa.String(255))
     name: Mapped[str] = mapped_column(sa.String(200), nullable=False)
     address: Mapped[str | None] = mapped_column(sa.Text)
     status: Mapped[str] = mapped_column(sa.String(20), nullable=False, server_default="ACTIVE")

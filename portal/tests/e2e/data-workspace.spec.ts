@@ -43,7 +43,7 @@ function scenarioResult(body: any, opening = 20) {
   };
 }
 
-type State = { calls: { path: string; body: any }[]; status: number; missing: boolean; optionalMissing: boolean; detail?: { code: string; message: string }; holdout?: number };
+type State = { calls: { path: string; body: any }[]; status: number; missing: boolean; optionalMissing: boolean; detail?: { code: string; message: string }; holdout?: number; prepared?: boolean };
 async function mock(page: Page, admin = false) {
   const state: State = { calls: [], status: 200, missing: false, optionalMissing: false };
   await page.route('**/config.json', r => r.fulfill({ json: { apiUrl: 'http://127.0.0.1:18000', issuer: 'https://identity.example.test/realms/flowbridge', clientId: 'flowbridge-web-a' } }));
@@ -57,6 +57,7 @@ async function mock(page: Page, admin = false) {
     if (path.endsWith('/planning')) {
       if (state.status !== 200) return route.fulfill({ status: state.status, json: { detail: state.detail || { code: 'NO_DATA', message: 'Chưa đủ dữ liệu tại nguồn đang chọn.' } } });
       const result = structuredClone(plan); result.selected_sku = body.sku || 'SKU-A'; result.history.frequency = body.history_frequency || 'day';
+      (result.orders[0] as any).readiness = { status: 'not_met', conditions: { supply: 'not_met', preparation: state.prepared ? 'met' : 'unknown', schedule: 'not_met', capacity: 'unknown' }, stock_ready_by: state.prepared ? '2026-10-28T07:00:00+07:00' : null, preparation_minutes: state.prepared ? 120 : null, preparation_policy_revision: state.prepared ? 1 : null, actual_handoff_verified: false };
       if (body.forecast_model === 'ridge_lag') result.forecast = { ...result.forecast, config: { ...result.forecast.config, forecast_model: 'ridge_lag' }, model: { method: 'ridge_lag', kind: 'machine_learning', entities: { [result.selected_sku]: { method: 'ridge_lag', observations: body.training_days, validation: { ridge_lag: { mae: 2.4 } } } } } as any };
       if (state.holdout !== undefined && body.forecast_model === 'ridge_lag') (result.forecast.model as any).entities[result.selected_sku].p50_holdout = { ridge_lag: { mae: state.holdout, observations: 7, training_end: '2026-10-17', validation_start: '2026-10-18', validation_end: '2026-10-24' } };
       if (state.optionalMissing) { result.history.receipts_available = false; result.history.series = result.history.series.map(p => ({ ...p, received: null as any, difference: null as any })); result.missing_sources = ['receipts'] as any; }
@@ -125,6 +126,19 @@ test('scenario quality labels the disjoint P50 holdout instead of base validatio
   await page.getByRole('button', { name: 'Thử bổ sung hàng', exact: true }).click();
   await expect(page.getByText(/MAE P50 trên kỳ kiểm tra độc lập: 1,2/)).toBeVisible();
   await expect(page.getByText(/sai lệch kiểm chứng dự báo nền/)).toHaveCount(0);
+});
+
+test('handoff details show the warehouse preparation cutoff and never treat missing policy as zero', async ({ page }) => {
+  const state = await mock(page);
+  await page.goto('/#data'); await apply(page);
+  await page.getByRole('button', { name: /Đơn cần phối hợp/ }).click();
+  await expect(page.getByText('Chưa có thời gian chuẩn bị được Kho xác nhận')).toBeVisible();
+  state.prepared = true;
+  await page.getByRole('button', { name: 'Tổng quan', exact: true }).click();
+  await apply(page);
+  await page.getByRole('button', { name: /Đơn cần phối hợp/ }).click();
+  await expect(page.getByText(/Hàng sẵn sàng trước.*07:00/)).toBeVisible();
+  await expect(page.getByText('Còn điều kiện chưa đáp ứng')).toBeVisible();
 });
 
 async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }

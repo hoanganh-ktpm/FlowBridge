@@ -14,6 +14,7 @@ DEFAULT_SOURCE_NAMES = {
     "receipts": "warehouse.receipts_daily",
     "schedule": "logistics.handoff_schedule",
     "capacity": "logistics.handoff_capacity",
+    "preparation": "warehouse.handoff_preparation_policy",
     "sales_history": "sales.confirmed_demand_daily",
     "transport_history": "logistics.accepted_shipments_daily",
 }

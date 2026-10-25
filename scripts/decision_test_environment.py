@@ -134,7 +134,8 @@ def disposable_workspace(image="postgres:16"):
         ) as conn:
             conn.execute(
                 sql.SQL(
-                    "CREATE ROLE workspace_owner LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                    "CREATE ROLE workspace_owner LOGIN PASSWORD {} "
+                    "NOSUPERUSER NOCREATEDB NOCREATEROLE"
                 ).format(sql.Literal(password))
             )
             conn.execute("CREATE DATABASE flowbridge_workspace_db OWNER workspace_owner")
@@ -145,7 +146,9 @@ def disposable_workspace(image="postgres:16"):
         validate_test_url(url)
         ledger.update(status="READY", port=port)
         record()
-        yield child_environment(url, run_id), directory
+        env = child_environment(url, run_id)
+        env["DXOS_TEST_ADMIN_URL"] = admin_url.render_as_string(hide_password=False)
+        yield env, directory
     finally:
         if identifier:
             owned_container(identifier, run_id)
@@ -158,6 +161,7 @@ def disposable_workspace(image="postgres:16"):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", default="postgres:16", choices=["postgres:16", "postgres:17"])
+    parser.add_argument("--include-business", action="store_true")
     args = parser.parse_args()
     with disposable_workspace(args.image) as (env, directory):
         import sys
@@ -167,6 +171,7 @@ def main():
             "-m",
             "pytest",
             "tests/e2e/test_workspace_persistence.py",
+            *(["tests/e2e/database"] if args.include_business else []),
             "-m",
             "integration",
             "-q",

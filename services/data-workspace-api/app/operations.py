@@ -14,6 +14,7 @@ from fastapi import HTTPException
 
 from .analytics import local_day, numeric, prepare
 from .forecasting import statistical_forecast
+from .handoff_readiness import handoff_conditions, preparation_policy, shift_to_stock_ready_deadline
 from .learning import validated_forecast
 from .planning import known_orders, moment, project_orders
 from .schemas import AnalysisConfig
@@ -121,6 +122,16 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         "capacity": (
             "logistics.handoff_capacity",
             ["carrier_code", "capacity_date", "max_dispatches", "used_dispatches", "status"],
+        ),
+        "preparation": (
+            "warehouse.handoff_preparation_policy",
+            [
+                "warehouse_id",
+                "preparation_minutes",
+                "preparation_policy_revision",
+                "preparation_confirmed_at",
+                "preparation_confirmed_by",
+            ],
         ),
     }
 
@@ -337,7 +348,10 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         for sku in skus:
             runs[sku] = run
             points[sku] = [p for p in forecast if p["item_id"] == sku]
-    known = known_orders(facts["open_orders"], facts["commitments"], wh, "Asia/Ho_Chi_Minh")
+    policy = preparation_policy(facts["preparation"], wh)
+    known = shift_to_stock_ready_deadline(
+        known_orders(facts["open_orders"], facts["commitments"], wh, "Asia/Ho_Chi_Minh"), policy
+    )
     plans, baselines = {}, {}
     for sku in all_skus:
         unit = unit_by_sku[sku]
@@ -459,7 +473,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         str(r["order_id"]): r for r in facts["open_orders"] if str(r["warehouse_id"]) == wh
     }
     for oid, h in order_headers.items():
-        if moment(h["requested_handoff_at"]) >= datetime.combine(
+        if oid not in orders_by_id and moment(h["requested_handoff_at"]) >= datetime.combine(
             end + timedelta(days=1), datetime.min.time(), zone
         ):
             continue
@@ -475,6 +489,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
                 "fulfilled_at": None,
             }
         o = orders_by_id[oid]
+        o["deadline"] = h["requested_handoff_at"]
         matching = [r for r in schedules if str(r["order_id"]) == oid and r["status"] == "ACCEPTED"]
         late = [
             r
@@ -520,6 +535,40 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             if not matching
             else "scheduled"
         )
+        capacity_checks = []
+        for shipment in matching:
+            if not shipment["scheduled_handoff_at"]:
+                capacity_checks.append("unknown")
+                continue
+            day = local_day(shipment["scheduled_handoff_at"], "Asia/Ho_Chi_Minh")
+            entries = [
+                r
+                for r in capacity or []
+                if r["carrier_code"] == shipment["carrier_code"]
+                and local_day(r["capacity_date"], "Asia/Ho_Chi_Minh") == day
+                and r["status"] == "ACTIVE"
+            ]
+            capacity_checks.append(
+                "unknown"
+                if len(entries) != 1
+                else "not_met"
+                if numeric(entries[0]["used_dispatches"]) > numeric(entries[0]["max_dispatches"])
+                or numeric(entries[0]["max_dispatches"]) <= 0
+                else "unknown"
+                if numeric(entries[0]["used_dispatches"]) < 1
+                else "met"
+            )
+        capacity_status = (
+            "not_met"
+            if "not_met" in capacity_checks
+            else "met"
+            if capacity_checks and all(s == "met" for s in capacity_checks)
+            else "unknown"
+        )
+        schedule_status = (
+            o["schedule_status"] if any(r["scheduled_handoff_at"] for r in matching) else "unknown"
+        )
+        o["readiness"] = handoff_conditions(o, policy, schedule_status, capacity_status)
     inbound_details = [
         {
             "plan_id": str(r["inbound_plan_id"]),
@@ -833,6 +882,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         "missing_sources": missing,
         "evidence": {
             "sources": sources,
+            "preparation_policy": policy,
             "executed_at": now.isoformat(),
             "last_observation": last.isoformat(),
             "period": {"start": today.isoformat(), "end": end.isoformat()},
