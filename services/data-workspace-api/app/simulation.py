@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from .analytics import fail, local_day, numeric
 from .planning import known_orders, moment, project_orders
 from .scenario_decision import METRIC_SEMANTICS_VERSION, assess, measures
+from .source_integrity import validate_planning_facts
 
 
 def project(points, initial, inbound, multiplier=1, delay=0, extra=0, arrival=None):
@@ -157,6 +158,9 @@ def simulate(
             continue  # Overdue plans are not receipts and never become opening stock.
         inbound.append((at, quantity))
     orders_available = open_order_rows is not None and commitment_rows is not None
+    validate_planning_facts(
+        stocks, inbound_rows, open_order_rows, commitment_rows, request.warehouse_id
+    )
     warehouse_stocks = [r for r in stocks if str(r["warehouse_id"]) == str(request.warehouse_id)]
     warehouse_inbound = [
         r for r in inbound_rows if str(r["warehouse_id"]) == str(request.warehouse_id)

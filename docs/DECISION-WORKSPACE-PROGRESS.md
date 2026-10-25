@@ -54,3 +54,38 @@ Validation performed locally:
 M02–M12 are not accepted merely because these tests pass. In particular,
 cross-application live reads, the new multi-role decision workflow, guarded
 execution and verified outcomes require separate evidence.
+
+## M02 — governed source identities and live reads (25 October 2026)
+
+Added validation for stock coverage, stock arithmetic, SKU/UOM, duplicated lines
+and Sales/commitment identity mismatches. Missing stock facts are unknown, not
+silently treated as zero. Each source has its own read window, row count, contract
+reference and input hash; no distributed atomic snapshot is claimed.
+
+The older local test's password-only human tokens correctly failed MFA checks.
+The API profile now provisions explicitly bound, short-lived machine clients in
+the local test realm. It does not change browser/MFA policy or impersonate humans.
+Owned clients are removed with a renewed admin token after testing; audit-linked
+Core principals are disabled and memberships revoked. Identity ledgers contain no
+credentials. Browser MFA acceptance remains a separate later gate.
+
+Validation performed locally:
+
+- Domain/guard/identity checks: **121 passed** before M03 additions.
+- Real local PostgreSQL + Keycloak + Core/worker + Hasura: **2 passed**. Published
+  all eleven source views, checked SQL-view values against governed HTTP results,
+  changed/restored a scoped source balance, tested outsider/admin denial and grant
+  revocation, and read all nine Workspace planning roles through CoreConnector.
+- A first teardown exceeded the short master-realm admin token lifetime. The
+  helper now renews that token for cleanup; the full rerun passed including cleanup.
+- Seeded 114 internally linked baseline fixture rows into previously empty **local**
+  business databases. No hosted/Supabase targets were used.
+
+Run the live API profile explicitly, with the local engines already configured:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.decision_local_acceptance
+```
+
+This profile temporarily creates/revokes local grants and tests a restored source
+update. It is not a read-only health check or a full human-user workflow test.

@@ -2,6 +2,8 @@
 """Decision workspace for a merchandise planner; only governed read interfaces."""
 
 import asyncio
+import hashlib
+import json
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -15,6 +17,7 @@ from .forecasting import statistical_forecast
 from .learning import validated_forecast
 from .planning import known_orders, moment, project_orders
 from .schemas import AnalysisConfig
+from .source_integrity import validate_planning_facts
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +126,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
 
     async def read(key, where=None):
         started = monotonic()
+        read_started_at = datetime.now(UTC).isoformat()
         reference = getattr(body, key)
         if reference is None:
             facts[key] = None
@@ -141,7 +145,17 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         logger.info("Planning source %s: %d rows in %.2fs", key, len(rows), monotonic() - started)
         facts[key] = rows
         sources.append(
-            {"ref": reference.model_dump(mode="json"), "columns": columns, "name": product["name"]}
+            {
+                "ref": reference.model_dump(mode="json"),
+                "columns": columns,
+                "name": product["name"],
+                "read_started_at": read_started_at,
+                "read_completed_at": datetime.now(UTC).isoformat(),
+                "rows": len(rows),
+                "input_sha256": hashlib.sha256(
+                    json.dumps(rows, sort_keys=True, default=str).encode()
+                ).hexdigest(),
+            }
         )
 
     # Resolve the warehouse from the small stock source before paginating history.
@@ -205,6 +219,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         if str(r["warehouse_id"]) == wh and r["status"] in {"APPROVED", "PARTIALLY_RECEIVED"}
     ]
     catalog = [r for r in (facts["catalog"] or []) if str(r["warehouse_id"]) == wh]
+    validate_planning_facts(stock, inbound, facts["open_orders"], facts["commitments"], wh, catalog)
     labels = {r["sku"]: r for r in catalog}
     all_skus = sorted({r["sku"] for r in stock})
     if len(all_skus) > 20:

@@ -7,7 +7,8 @@ The synthetic business snapshot is restored after the live-update assertion.
 import asyncio
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import httpx
@@ -33,7 +34,7 @@ pytestmark = pytest.mark.e2e
 
 
 @pytest.fixture(scope="module")
-def local_live():
+def local_live(request):
     if os.environ.get("FLOWBRIDGE_LOCAL_E2E") != "1":
         pytest.skip(
             "BLOCKED: set FLOWBRIDGE_LOCAL_E2E=1 after local "
@@ -47,7 +48,15 @@ def local_live():
         k: v for k, v in dotenv_values(identity_file).items() if k.startswith("FLOWBRIDGE_OIDC_")
     }
     state = json.loads((RUNTIME / "secrets.json").read_text())
-    auth = tokens()  # Actual Keycloak token issuance and introspection, no realm mutations.
+    if os.environ.get("FLOWBRIDGE_LOCAL_MACHINE_TESTS") == "1":
+        from scripts.decision_local_identity import machine_test_identities
+
+        profile = machine_test_identities()
+        auth, state, machine_settings = profile.__enter__()
+        request.addfinalizer(lambda: profile.__exit__(None, None, None))
+        identity.update(machine_settings)
+    else:
+        auth = tokens()  # Actual Keycloak issuance; legacy human fixtures require MFA policy.
     issuer = identity["FLOWBRIDGE_OIDC_ISSUER"]
     engine = make_engine("core", hide_parameters=True)
     principal_ids, departments = {}, {}
@@ -68,7 +77,8 @@ def local_live():
                         id=identifier,
                         issuer=issuer,
                         subject=state["users"][name],
-                        kind="human",
+                        kind="service" if name in state.get("service_clients", {}) else "human",
+                        service_client_id=state.get("service_clients", {}).get(name),
                         display_name="Local PostgreSQL smoke " + name,
                         platform_role="PLATFORM_ADMIN" if name == "it" else "NONE",
                         status="ACTIVE",
@@ -128,6 +138,31 @@ def local_live():
         runtime.close()
         for client in runtime.clients.values():
             client.close()
+        if state.get("service_clients"):
+            # Keep audit-referenced principals, but revoke the owned test identities.
+            engine = make_engine("core", hide_parameters=True)
+            try:
+                with engine.begin() as conn:
+                    conn.execute(
+                        models.department_memberships.update()
+                        .where(
+                            models.department_memberships.c.principal_id.in_(principal_ids.values())
+                        )
+                        .values(status="REVOKED")
+                    )
+                    conn.execute(
+                        models.principals.update()
+                        .where(
+                            models.principals.c.id.in_(principal_ids.values()),
+                            models.principals.c.kind == "service",
+                            models.principals.c.service_client_id.in_(
+                                state["service_clients"].values()
+                            ),
+                        )
+                        .values(status="DISABLED")
+                    )
+            finally:
+                engine.dispose()
 
 
 def test_local_six_views_publish_read_update_revoke(local_live):
@@ -334,10 +369,34 @@ def test_local_six_views_publish_read_update_revoke(local_live):
     path = "/data-products/" + stock_product + "/rows"
     params = {"contract_version_id": stock_contract, "columns": ",".join(columns), "limit": 100}
     rows = call(sales, "GET", path, params=params)["rows"]
-    assert len(rows) == 8
+    engine = make_engine("warehouse", hide_parameters=True)
+    with engine.connect() as conn:
+        expected = (
+            conn.execute(
+                sa.text(
+                    "SELECT org_id,warehouse_id,product_id,available_quantity "
+                    "FROM v_stock_availability"
+                )
+            )
+            .mappings()
+            .all()
+        )
+    assert 0 < len(expected) < 100, "Use a bounded local fixture or add explicit pagination"
+    expected_by_key = {
+        tuple(str(row[key]) for key in ("org_id", "warehouse_id", "product_id")): Decimal(
+            str(row["available_quantity"])
+        )
+        for row in expected
+    }
+    actual_by_key = {
+        tuple(str(row[key]) for key in ("org_id", "warehouse_id", "product_id")): Decimal(
+            str(row["available_quantity"])
+        )
+        for row in rows
+    }
+    assert actual_by_key == expected_by_key
     call(outsider, "GET", path, 403, params=params)
     call(it, "GET", path, 403, params=params)
-    engine = make_engine("warehouse", hide_parameters=True)
     original = rows[0]
     try:
         # A valid posted receipt line and ledger are updated together in a local
@@ -350,8 +409,13 @@ def test_local_six_views_publish_read_update_revoke(local_live):
                 FROM goods_receipt_lines l JOIN goods_receipts h ON h.id=l.receipt_id
                 JOIN stock_movements m ON m.goods_receipt_line_id=l.id
                 WHERE l.product_id=:id AND h.source_type='OPENING_BALANCE'
+                AND h.org_id=:org AND h.warehouse_id=:warehouse
             """),
-                    {"id": original["product_id"]},
+                    {
+                        "id": original["product_id"],
+                        "org": original["org_id"],
+                        "warehouse": original["warehouse_id"],
+                    },
                 )
                 .mappings()
                 .one()
@@ -372,8 +436,14 @@ def test_local_six_views_publish_read_update_revoke(local_live):
                 )
                 conn.execute(
                     sa.text("""UPDATE inventory_balances
-                    SET on_hand_quantity=on_hand_quantity+:delta WHERE product_id=:id"""),
-                    {"id": original["product_id"], "delta": delta},
+                    SET on_hand_quantity=on_hand_quantity+:delta WHERE product_id=:id
+                    AND org_id=:org AND warehouse_id=:warehouse"""),
+                    {
+                        "id": original["product_id"],
+                        "delta": delta,
+                        "org": original["org_id"],
+                        "warehouse": original["warehouse_id"],
+                    },
                 )
 
         adjust(1)
@@ -439,3 +509,126 @@ def test_local_six_views_publish_read_update_revoke(local_live):
     live.evidence(
         "read_grant_revoke", "PASS: approved real GraphQL read, outsider/IT denied, revoke denied"
     )
+
+
+@pytest.mark.asyncio
+async def test_all_workspace_planning_roles_read_through_real_core(local_live):
+    """Workspace HTTP adapter reads all nine published roles, not raw owner databases."""
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    from scripts.database.fixtures.business import ORG_ID, WAREHOUSE_ID
+
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "workspace_live_sources",
+        root / "services/data-workspace-api/app/__init__.py",
+        submodule_search_locations=[str(root / "services/data-workspace-api/app")],
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    from workspace_live_sources.connector import CoreConnector
+    from workspace_live_sources.schemas import ProductRef
+    from workspace_live_sources.source_integrity import validate_planning_facts
+
+    live, grants, facts = local_live, [], {}
+    it = live.clients["it"]
+    required = {
+        "demand": "sales.planning_demand_daily",
+        "stock": "warehouse.stock_availability",
+        "inbound": "warehouse.inbound_schedule",
+        "open_orders": "sales.open_orders",
+        "commitments": "warehouse.order_commitments",
+        "catalog": "warehouse.planning_catalog",
+        "receipts": "warehouse.receipts_daily",
+        "schedule": "logistics.handoff_schedule",
+        "capacity": "logistics.handoff_capacity",
+    }
+    refs = {}
+    try:
+        for imported in live.resources["imports"].values():
+            for identifier in imported["data_product_ids"]:
+                product = call(it, "GET", "/data-products/" + identifier)
+                if product["name"] not in required.values():
+                    continue
+                contract = call(it, "GET", "/data-contracts/" + product["active_contract_id"])
+                scope = {
+                    "action": "SELECT",
+                    "columns": [f["column"] for f in contract["contract_json"]["fields"]],
+                    "row_scope": {"kind": "ALL"},
+                }
+                request = call(
+                    it,
+                    "POST",
+                    "/access-requests",
+                    201,
+                    json={
+                        "data_product_id": identifier,
+                        "contract_version_id": contract["id"],
+                        "consumer_department_id": str(live.departments["sales"]),
+                        "consumer_principal_id": None,
+                        "requested_scope_json": scope,
+                        "reason": "Decision Workspace local source acceptance",
+                    },
+                )
+                approved = call(
+                    it,
+                    "POST",
+                    "/access-requests/" + request["id"] + "/approve",
+                    202,
+                    json={
+                        "expected_revision": request["revision"],
+                        "scope_json": scope,
+                        "expires_at": (datetime.now(UTC) + timedelta(minutes=15))
+                        .isoformat()
+                        .replace("+00:00", "Z"),
+                    },
+                )
+                grants.append(approved["grant"]["id"])
+                wait_job(it, approved["job"])
+                refs[product["name"]] = ProductRef(
+                    data_product_id=identifier, contract_version_id=contract["id"]
+                )
+        assert set(refs) == set(required.values())
+        async with httpx.AsyncClient(timeout=30) as http:
+            connector = CoreConnector(http, live.base_url, ORG_ID)
+            caller = live.clients["sales"].headers["Authorization"].partition(" ")[2]
+            ctx = await connector.context(caller)
+            async with connector.request_scope():
+                for role, name in required.items():
+                    _, facts[role] = await connector.rows(ctx, refs[name])
+                    assert all(str(row["org_id"]) == str(ORG_ID) for row in facts[role])
+            units = validate_planning_facts(
+                facts["stock"],
+                facts["inbound"],
+                facts["open_orders"],
+                facts["commitments"],
+                WAREHOUSE_ID,
+                facts["catalog"],
+            )
+            assert units and facts["open_orders"] and facts["catalog"] and facts["receipts"]
+        live.evidence(
+            "workspace_sources",
+            {
+                "status": "PASS",
+                "identity": "real service accounts",
+                "roles": {role: len(rows) for role, rows in facts.items()},
+            },
+        )
+    finally:
+        for identifier in grants:
+            grant = call(it, "GET", "/access-grants/" + identifier)
+            if grant["status"] not in {"REVOKED", "EXPIRED"}:
+                result = call(
+                    it,
+                    "POST",
+                    "/access-grants/" + identifier + "/revoke",
+                    202,
+                    json={
+                        "expected_desired_revision": grant["desired_revision"],
+                        "reason": "Decision Workspace local source test complete",
+                    },
+                )
+                wait_job(it, result)
