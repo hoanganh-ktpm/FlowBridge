@@ -9,11 +9,13 @@ from zoneinfo import ZoneInfo
 
 from .analytics import fail, local_day, numeric
 from .planning import known_orders, moment, project_orders
+from .scenario_decision import assess, measures
 
 
 def project(points, initial, inbound, multiplier=1, delay=0, extra=0, arrival=None):
     cumulative_demand, cumulative_supply, served, peak = 0, initial, 0, 0
     series, first_risk = [], None
+    capacity_demand, capacity_ratio = 0, None
     for point in points:
         day = date.fromisoformat(point["timestamp"])
         supply = sum(q for at, q in inbound if at + timedelta(days=delay) == day)
@@ -21,6 +23,10 @@ def project(points, initial, inbound, multiplier=1, delay=0, extra=0, arrival=No
             supply += extra
         demand = point["p50"] * multiplier
         cumulative_supply += supply
+        capacity_demand += point.get("reference_p50", point["p50"])
+        if capacity_demand > 1e-9:
+            ratio = cumulative_supply / capacity_demand
+            capacity_ratio = ratio if capacity_ratio is None else min(capacity_ratio, ratio)
         # Backordered quantities carry forward. Physical inventory is never negative.
         cumulative_demand += demand
         position = cumulative_supply - cumulative_demand
@@ -49,6 +55,9 @@ def project(points, initial, inbound, multiplier=1, delay=0, extra=0, arrival=No
             "fulfilled_quantity": served,
             "fulfillment_percent": 100 * served / cumulative_demand if cumulative_demand else None,
             "known_orders_at_risk": None,
+            "demand_headroom_percent": 100 * (capacity_ratio - 1)
+            if capacity_ratio is not None
+            else None,
         },
     }
 
@@ -62,8 +71,28 @@ def simulate(
     open_order_rows=None,
     commitment_rows=None,
     snapshot_at=None,
+    source_names=None,
+    include_decision=True,
 ):
     config = forecast["config"]
+    selected_model = forecast.get("model", {}).get("entities", {}).get(request.sku, {})
+    model_method = selected_model.get("method", forecast.get("model", {}).get("method", "unknown"))
+    if request.require_ml and (
+        model_method != "ridge_lag"
+        or str(config.get("filters", {}).get("warehouse_id")) != str(request.warehouse_id)
+        or open_order_rows is None
+        or commitment_rows is None
+    ):
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            422,
+            detail={
+                "code": "ML_SOURCE_REQUIRED",
+                "message": "Cần tạo lại dự báo Machine Learning cho đúng sản phẩm và kho "
+                "trước khi so sánh.",
+            },
+        )
     snapshot_at = snapshot_at or datetime.combine(
         snapshot_date, time.min, ZoneInfo(config["timezone"])
     ).astimezone(UTC)
@@ -73,15 +102,24 @@ def simulate(
         or config["aggregation"] != "SUM"
         or config["entity_column"] != "sku"
         or forecast["evidence"]["data_products"][0]["name"]
-        not in {"sales.confirmed_demand_daily", "sales.planning_demand_daily"}
+        not in {
+            (source_names or {}).get("sales_history", "sales.confirmed_demand_daily"),
+            (source_names or {}).get("demand", "sales.planning_demand_daily"),
+        }
     ):
         fail("Inventory planning requires daily SKU demand in product units")
-    points = sorted(
+    original_points = sorted(
         [p for p in forecast["points"] if p["item_id"] == request.sku], key=lambda p: p["timestamp"]
     )
     # Quantiles select a planning assumption, not a calibrated stockout probability.
-    points = [{**p, "p50": p[request.demand_quantile]} for p in points]
-    if not points or any(p["p50"] < 0 for p in points):
+    points = [
+        {**p, "reference_p50": p["p50"], "p50": p[request.demand_quantile]} for p in original_points
+    ]
+    if (
+        not points
+        or any(p["p50"] < 0 for p in points)
+        or any(p["p50"] < 0 for p in original_points)
+    ):
         fail("No valid nonnegative demand forecast for SKU")
     start = date.fromisoformat(points[0]["timestamp"])
     if start != snapshot_date:
@@ -118,58 +156,45 @@ def simulate(
             overdue += 1
             continue  # Overdue plans are not receipts and never become opening stock.
         inbound.append((at, quantity))
-    baseline = project(
-        points,
-        initial,
-        inbound,
-        multiplier=request.demand_multiplier,
-        delay=request.inbound_delay_days,
+    orders_available = open_order_rows is not None and commitment_rows is not None
+    warehouse_stocks = [r for r in stocks if str(r["warehouse_id"]) == str(request.warehouse_id)]
+    warehouse_inbound = [
+        r for r in inbound_rows if str(r["warehouse_id"]) == str(request.warehouse_id)
+    ]
+    orders = (
+        known_orders(open_order_rows, commitment_rows, request.warehouse_id, config["timezone"])
+        if orders_available
+        else None
     )
-    proposed = project(
+
+    def evaluate(series, multiplier, delay, extra=0, arrival=None):
+        if orders_available:
+            return project_orders(
+                series,
+                warehouse_stocks,
+                warehouse_inbound,
+                orders,
+                request.sku,
+                config["unit"],
+                start,
+                multiplier=multiplier,
+                delay=delay,
+                extra=extra,
+                arrival=arrival,
+                timezone=config["timezone"],
+                snapshot_at=snapshot_at,
+            )
+        return project(series, initial, inbound, multiplier, delay, extra, arrival)
+
+    baseline = evaluate(points, request.demand_multiplier, request.inbound_delay_days)
+    proposed = evaluate(
         points,
-        initial,
-        inbound,
         request.demand_multiplier,
         request.inbound_delay_days,
         request.additional_quantity,
         request.arrival_date,
     )
-    orders_available = open_order_rows is not None and commitment_rows is not None
-    if orders_available:
-        warehouse_stocks = [
-            r for r in stocks if str(r["warehouse_id"]) == str(request.warehouse_id)
-        ]
-        warehouse_inbound = [
-            r for r in inbound_rows if str(r["warehouse_id"]) == str(request.warehouse_id)
-        ]
-        orders = known_orders(
-            open_order_rows, commitment_rows, request.warehouse_id, config["timezone"]
-        )
-        args = (
-            points,
-            warehouse_stocks,
-            warehouse_inbound,
-            orders,
-            request.sku,
-            config["unit"],
-            start,
-        )
-        baseline = project_orders(
-            *args,
-            multiplier=request.demand_multiplier,
-            delay=request.inbound_delay_days,
-            timezone=config["timezone"],
-            snapshot_at=snapshot_at,
-        )
-        proposed = project_orders(
-            *args,
-            multiplier=request.demand_multiplier,
-            delay=request.inbound_delay_days,
-            extra=request.additional_quantity,
-            arrival=request.arrival_date,
-            timezone=config["timezone"],
-            snapshot_at=snapshot_at,
-        )
+    reference = evaluate(original_points, 1, 0) if include_decision else None
     delta = {
         key: proposed["metrics"][key] - baseline["metrics"][key]
         for key in ("peak_shortage", "forecast_demand", "fulfilled_quantity")
@@ -288,6 +313,32 @@ def simulate(
             "Lịch vận chuyển cần kiểm tra riêng; thêm hàng không tự xếp lịch bàn giao.",
         ],
     }
+    if include_decision:
+        result["reference"] = reference
+        result["decision"] = assess(
+            reference,
+            baseline,
+            proposed,
+            lambda quantity, arrival: evaluate(
+                points, request.demand_multiplier, request.inbound_delay_days, quantity, arrival
+            ),
+            model_method,
+            request.additional_quantity,
+        )
+        result["evidence"]["decision_version"] = "ml_three_case_event_v1"
+        result["evidence"]["formulas"]["demand_headroom"] = (
+            "100 × (min_t((opening + arrivals_through_t − known_due_through_t) / "
+            "original_ML_P50_through_t) − 1); undefined for no positive forecast "
+            "or known-order supply deficit even at zero new demand"
+        )
+        result["evidence"]["decision_basis"] = (
+            "Reference uses original model P50 and original inbound dates. Stressed/proposed "
+            "share selected demand quantile, multiplier and inbound delay; "
+            "only proposed adds supply. "
+            "Minimum quantity offsets the largest event-time physical supply deficit; "
+            "arrival is at the beginning of the first deficit day, or snapshot time today. "
+            "No supplier lead time, cost optimum or unique-customer forecast is inferred."
+        )
     return result
 
 
@@ -302,6 +353,7 @@ def sensitivity(
     *,
     snapshot_at,
     reference_result,
+    source_names=None,
 ):
     """A bounded decision grid using the same planner, inputs and demand assumptions.
 
@@ -320,7 +372,7 @@ def sensitivity(
             if start <= d <= end
         }
     )
-    shortage = reference_result["baseline"]["metrics"]["peak_shortage"]
+    shortage = measures(reference_result["baseline"])["peak_shortage"]
     quantities = sorted(
         {
             0,
@@ -348,14 +400,16 @@ def sensitivity(
                 open_orders,
                 commitments,
                 snapshot_at=snapshot_at,
-            )["proposed"]["metrics"]
+                source_names=source_names,
+                include_decision=False,
+            )["proposed"]
             cells.append(
                 {
                     "quantity": quantity,
                     "arrival_date": arrival.isoformat(),
-                    "peak_shortage": result["peak_shortage"],
-                    "known_orders_at_risk": result["known_orders_at_risk"],
-                    "first_risk_date": result["first_risk_date"],
+                    "peak_shortage": measures(result)["peak_shortage"],
+                    "known_orders_at_risk": result["metrics"]["known_orders_at_risk"],
+                    "first_risk_date": result["metrics"]["first_risk_date"],
                 }
             )
     return {

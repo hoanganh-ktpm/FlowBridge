@@ -17,6 +17,7 @@ from .connector import CoreConnector
 from .forecasting import Forecaster
 from .operations import planning_report
 from .planning import SnapshotCache
+from .planning_options import planning_options
 from .portfolio import carrier_summary, supply_reference
 from .reports import overview, recipe
 from .repository import PostgresRepository
@@ -28,6 +29,7 @@ from .schemas import (
     ForecastResult,
     OverviewRequest,
     OverviewResult,
+    PlanningOptionsRequest,
     PlanningRequest,
     ProductRef,
     ProfileRequest,
@@ -35,11 +37,42 @@ from .schemas import (
     SimulationRequest,
 )
 from .simulation import sensitivity, simulate
+from .source_roles import configured_source_names
 
 PREFIX = "/api/v1/data-workspace"
 
 
 def forecast_config_at_request(body, instant):
+    if body.start_date is not None:
+        today = instant.astimezone(ZoneInfo(body.config.timezone)).date()
+        if (
+            body.config.frequency != "D"
+            or body.start_date < today
+            or body.end_date > today + timedelta(days=89)
+        ):
+            raise HTTPException(
+                422,
+                detail={
+                    "code": "FORECAST_WINDOW_INVALID",
+                    "message": "Chọn ngày bắt đầu từ hôm nay và ngày kết thúc trong 90 ngày tới.",
+                },
+            )
+        try:
+            return AnalysisConfig.model_validate(
+                {
+                    **body.config.model_dump(),
+                    "forecast_start": body.start_date,
+                    "forecast_horizon": (body.end_date - body.start_date).days + 1,
+                }
+            )
+        except ValueError:
+            raise HTTPException(
+                422,
+                detail={
+                    "code": "STALE_HISTORY",
+                    "message": "Lịch sử quá cũ cho khoảng dự báo đã chọn. Hãy cập nhật dữ liệu.",
+                },
+            ) from None
     if not body.start_from_request_date:
         return body.config
     if body.config.frequency != "D":
@@ -83,6 +116,7 @@ def create_app(connector=None, repository=None, forecaster=None):
         os.environ.get("FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION"),
     )
     snapshots = SnapshotCache()
+    source_names = configured_source_names()
     authorization_slots = asyncio.Semaphore(4)
 
     @asynccontextmanager
@@ -97,7 +131,11 @@ def create_app(connector=None, repository=None, forecaster=None):
 
     @app.middleware("http")
     async def private(request, call_next):
-        response = await call_next(request)
+        if isinstance(connector, CoreConnector):
+            async with connector.request_scope():
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
@@ -154,6 +192,7 @@ def create_app(connector=None, repository=None, forecaster=None):
             "items": await connector.catalog(ctx),
             "org_id": str(ctx.org_id),
             "can_configure": ctx.admin,
+            "source_names": source_names,
         }
 
     @app.post(PREFIX + "/preview")
@@ -196,7 +235,7 @@ def create_app(connector=None, repository=None, forecaster=None):
         if mapping:
             columns = configured_columns(mapping)
         else:
-            _, entity_column, target_column, _ = recipe(product)
+            _, entity_column, target_column, _ = recipe(product, source_names)
             columns = ["day", entity_column, target_column]
             if any(f["name"] == "uom" for f in product["fields"]):
                 columns.append("uom")
@@ -208,7 +247,7 @@ def create_app(connector=None, repository=None, forecaster=None):
             if mapping
             else None,
         )
-        result = overview(product, rows, body, mapping=mapping)
+        result = overview(product, rows, body, mapping=mapping, source_names=source_names)
         issues, related, sources = (
             {},
             {},
@@ -228,7 +267,7 @@ def create_app(connector=None, repository=None, forecaster=None):
                 return
             try:
                 metadata, data = await connector.rows(ctx, reference)
-                if metadata["name"] != expected:
+                if metadata["name"] != source_names.get(name, expected):
                     raise HTTPException(422, "Related report source does not match its domain role")
                 related[name] = data
                 sources.append(
@@ -265,7 +304,7 @@ def create_app(connector=None, repository=None, forecaster=None):
             result["entity_labels"] = {
                 sku: next(iter(names)) for sku, names in labels.items() if len(names) == 1
             }
-        if (body.stock or body.inbound) and product["name"] == "sales.confirmed_demand_daily":
+        if (body.stock or body.inbound) and product["name"] == source_names["sales_history"]:
             result["portfolio"] = supply_reference(
                 result, related["stock"], related["inbound"], body.planning_days, instant
             )
@@ -300,7 +339,9 @@ def create_app(connector=None, repository=None, forecaster=None):
     async def merchandise_plan(body: PlanningRequest, ctx=actor_dependency):
         try:
             async with asyncio.timeout(60):
-                result, sources = await planning_report(body, ctx, connector, repository)
+                result, sources = await planning_report(
+                    body, ctx, connector, repository, source_names
+                )
                 await reauthorize(ctx, {"sources": sources})
         except TimeoutError:
             raise HTTPException(
@@ -310,6 +351,12 @@ def create_app(connector=None, repository=None, forecaster=None):
                     "message": "Đối chiếu dữ liệu mất quá lâu. Hãy thử lại sau hoặc chọn kho khác.",
                 },
             ) from None
+        return result
+
+    @app.post(PREFIX + "/planning-options")
+    async def available_planning_options(body: PlanningOptionsRequest, ctx=actor_dependency):
+        result, sources = await planning_options(body, ctx, connector, source_names)
+        await reauthorize(ctx, {"sources": sources})
         return result
 
     @app.post(PREFIX + "/configurations", status_code=201)
@@ -376,10 +423,10 @@ def create_app(connector=None, repository=None, forecaster=None):
             )
             known = None
             if product["name"] in {
-                "sales.confirmed_demand_daily",
-                "logistics.accepted_shipments_daily",
+                source_names["sales_history"],
+                source_names["transport_history"],
             }:
-                _, entity_col, target_col, _ = recipe(product)
+                _, entity_col, target_col, _ = recipe(product, source_names)
                 if (
                     config.time_column == "day"
                     and config.entity_column == entity_col
@@ -405,7 +452,9 @@ def create_app(connector=None, repository=None, forecaster=None):
                 **data["evidence"],
                 "model": model,
                 "requested_at": requested_at.isoformat(),
-                "origin_policy": "request_date"
+                "origin_policy": "selected_calendar_window"
+                if body.start_date is not None
+                else "request_date"
                 if body.start_from_request_date
                 else "explicit_or_history",
             },
@@ -446,11 +495,14 @@ def create_app(connector=None, repository=None, forecaster=None):
             "expected_at",
             "remaining_quantity",
         ]
-        stock_product, stocks = await connector.rows(ctx, body.stock, stock_columns)
-        inbound_product, inbounds = await connector.rows(ctx, body.inbound, inbound_columns)
-        if not stock_product["name"].endswith("stock_availability") or not inbound_product[
-            "name"
-        ].endswith("inbound_schedule"):
+        (stock_product, stocks), (inbound_product, inbounds) = await asyncio.gather(
+            connector.rows(ctx, body.stock, stock_columns),
+            connector.rows(ctx, body.inbound, inbound_columns),
+        )
+        if (
+            stock_product["name"] != source_names["stock"]
+            or inbound_product["name"] != source_names["inbound"]
+        ):
             raise HTTPException(422, "Select the published stock and inbound planning products")
         open_rows = commitment_rows = None
         planning_sources = []
@@ -476,9 +528,10 @@ def create_app(connector=None, repository=None, forecaster=None):
             ]
             open_product, open_rows = await connector.rows(ctx, body.open_orders, order_columns)
             commitment_product = await connector.product(ctx, body.commitments)
-            if not open_product["name"].endswith("open_orders") or not commitment_product[
-                "name"
-            ].endswith("order_commitments"):
+            if (
+                open_product["name"] != source_names["open_orders"]
+                or commitment_product["name"] != source_names["commitments"]
+            ):
                 raise HTTPException(422, "Select the published order/commitment products")
             order_ids = sorted({str(row["order_id"]) for row in open_rows})
             commitment_rows = []
@@ -531,7 +584,8 @@ def create_app(connector=None, repository=None, forecaster=None):
             inputs = await operational_inputs(body, ctx)
             await reauthorize(ctx, inputs)
             snapshot_id = snapshots.put(ctx, body, inputs)
-        result = simulate(
+        result = await asyncio.to_thread(
+            simulate,
             body,
             forecast,
             inputs["stocks"],
@@ -540,6 +594,7 @@ def create_app(connector=None, repository=None, forecaster=None):
             inputs["open_rows"],
             inputs["commitment_rows"],
             snapshot_at=inputs["captured_at"],
+            source_names=source_names,
         )
         if body.include_sensitivity:
             result["sensitivity"] = await asyncio.to_thread(
@@ -553,6 +608,7 @@ def create_app(connector=None, repository=None, forecaster=None):
                 inputs["commitment_rows"],
                 snapshot_at=inputs["captured_at"],
                 reference_result=result,
+                source_names=source_names,
             )
         result["evidence"].update(
             {
@@ -583,7 +639,7 @@ def create_app(connector=None, repository=None, forecaster=None):
     @app.post(PREFIX + "/stock-options")
     async def stock_options(body: ProductRef, ctx=actor_dependency):
         product, rows = await connector.rows(ctx, body)
-        if not product["name"].endswith("stock_availability"):
+        if product["name"] != source_names["stock"]:
             raise HTTPException(422, "Select stock availability")
         return {
             "items": rows,

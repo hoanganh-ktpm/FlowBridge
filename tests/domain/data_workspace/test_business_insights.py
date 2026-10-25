@@ -58,6 +58,47 @@ def training(count=180, trend=True):
     return cfg, {"points": data}
 
 
+def test_selected_calendar_window_is_inclusive_and_keeps_the_unseen_gap():
+    cfg, data = training()
+    today = cfg.end + timedelta(days=1)
+    first, last = today + timedelta(days=3), today + timedelta(days=10)
+    body = ForecastRequest(config=cfg, start_date=first, end_date=last)
+    actual = forecast_config_at_request(body, datetime.combine(today, datetime.min.time(), UTC))
+    assert actual.forecast_start == first and actual.forecast_horizon == 8
+    points, _ = validated_forecast(data, actual.model_copy(update={"forecast_model": "ridge_lag"}))
+    assert len(points) == 8
+    assert points[0]["timestamp"] == first.isoformat()
+    assert points[-1]["timestamp"] == last.isoformat()
+    assert data["points"][-1]["timestamp"] == cfg.end.isoformat()
+    assert cfg.forecast_start is None
+
+
+@pytest.mark.parametrize("offset,end_offset", [(-1, 3), (1, 90)])
+def test_selected_calendar_window_rejects_past_or_too_distant_dates(offset, end_offset):
+    today = date(2026, 10, 25)
+    body = ForecastRequest(
+        config=config(start="2026-10-01", end="2026-10-24"),
+        start_date=today + timedelta(days=offset),
+        end_date=today + timedelta(days=end_offset),
+    )
+    with pytest.raises(HTTPException) as error:
+        forecast_config_at_request(body, datetime(2026, 10, 24, 18, tzinfo=UTC))
+    assert error.value.detail["code"] == "FORECAST_WINDOW_INVALID"
+
+
+@pytest.mark.parametrize(
+    "window",
+    [
+        {"start_date": "2026-10-25"},
+        {"start_date": "2026-10-27", "end_date": "2026-10-26"},
+        {"start_date": "2026-10-25", "end_date": "2026-10-31", "start_from_request_date": True},
+    ],
+)
+def test_selected_calendar_window_requires_a_consistent_pair(window):
+    with pytest.raises(ValueError):
+        ForecastRequest(config=config(), **window)
+
+
 def test_click_date_is_resolved_at_forecast_request_in_business_timezone():
     cfg = config(start="2026-10-01", end="2026-10-20", forecast_start="2026-10-25")
     body = ForecastRequest(config=cfg, start_from_request_date=True)
@@ -112,6 +153,16 @@ def test_auto_keeps_exact_seasonal_baseline_instead_of_choosing_ml_for_its_name(
     _, model = validated_forecast(data, cfg)
     assert model["method"] == "seasonal_mean"
     assert model["entities"]["A"]["validation"]["seasonal_mean"]["mae"] == 0
+
+
+def test_ml_uses_the_requested_year_instead_of_silently_truncating_to_six_months():
+    cfg, data = training(365)
+    changed = [
+        {**p, "target": p["target"] * 0.1} if i < 185 else dict(p)
+        for i, p in enumerate(data["points"])
+    ]
+    origin = cfg.end + timedelta(days=1)
+    assert ridge(changed, origin, 7) != pytest.approx(ridge(data["points"], origin, 7))
 
 
 def test_short_history_uses_statistics_and_never_claims_ml_was_run():

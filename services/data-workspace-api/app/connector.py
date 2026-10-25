@@ -2,6 +2,9 @@
 """Core HTTP only. No Hasura credential, SQL, or source connection fallback."""
 
 import asyncio
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from copy import deepcopy
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -21,6 +24,25 @@ class CoreConnector:
     def __init__(self, http: httpx.AsyncClient, base_url: str, org_id: UUID):
         self.http, self.base_url, self.org_id = http, base_url.rstrip("/"), org_id
         self.query_slots = asyncio.Semaphore(4)
+        self._catalog_scope = ContextVar("workspace_catalog_scope", default=None)
+
+    @asynccontextmanager
+    async def request_scope(self):
+        """Single-flight metadata cache, discarded at the end of this HTTP request.
+
+        Every fact read and final check still calls Core's query authorization.
+        No caller rights or business rows are reused across HTTP requests.
+        """
+        pending = {}
+        handle = self._catalog_scope.set(pending)
+        try:
+            yield
+        finally:
+            self._catalog_scope.reset(handle)
+            for task in pending.values():
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*pending.values(), return_exceptions=True)
 
     async def request(self, token, path, params=None, body=None):
         try:
@@ -58,7 +80,16 @@ class CoreConnector:
         )
 
     async def catalog(self, ctx):
-        return (await self.request(ctx.token, "/authorized-data-products"))["items"]
+        async def fetch():
+            return (await self.request(ctx.token, "/authorized-data-products"))["items"]
+
+        scope = self._catalog_scope.get()
+        if scope is None:
+            return await fetch()
+        key = (ctx.token, ctx.org_id, ctx.owner_id)
+        if key not in scope:
+            scope[key] = asyncio.create_task(fetch())
+        return deepcopy(await scope[key])
 
     async def product(self, ctx, ref):
         for item in await self.catalog(ctx):

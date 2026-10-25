@@ -20,6 +20,11 @@ class ProductRef(DTO):
     contract_version_id: UUID
 
 
+class PlanningOptionsRequest(DTO):
+    stock: ProductRef
+    catalog: ProductRef | None = None
+
+
 class AnalysisConfig(ProductRef):
     name: str = Field(min_length=1, max_length=120)
     time_column: Identifier
@@ -74,6 +79,17 @@ class ForecastRequest(DTO):
     allow_statistical_fallback: bool = True
     start_from_request_date: bool = False
     training_days: Literal[90, 180, 365] | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @model_validator(mode="after")
+    def calendar_window(self):
+        if (self.start_date is None) != (self.end_date is None):
+            raise ValueError("Supply both forecast dates")
+        if self.start_date is not None:
+            if self.start_from_request_date or not 0 <= (self.end_date - self.start_date).days < 90:
+                raise ValueError("Choose one forecast window of 1–90 days")
+        return self
 
 
 class ProfileRequest(ProductRef):
@@ -111,6 +127,7 @@ class SimulationRequest(DTO):
     demand_quantile: Literal["p50", "p90"] = "p50"
     inbound_delay_days: int = Field(default=0, ge=0, le=90)
     include_sensitivity: bool = False
+    require_ml: bool = False
     save: bool = False
 
     @model_validator(mode="after")
@@ -182,11 +199,14 @@ class OverviewResult(DTO):
 class ScenarioMetrics(DTO):
     first_risk_date: date | None
     peak_shortage: Number
+    peak_shortage_at_deadline: Number | None = None
+    peak_supply_shortage: Number | None = None
     forecast_demand: Number
     fulfilled_quantity: Number
     fulfillment_percent: Number | None
     known_orders_at_risk: int | None
     known_unallocated_demand: Number | None = None
+    demand_headroom_percent: Number | None = None
 
 
 class ScenarioOutput(DTO):
@@ -207,8 +227,11 @@ class PlanningRequest(DTO):
     capacity: ProductRef | None = None
     warehouse_id: UUID | None = None
     sku: str | None = Field(default=None, min_length=1, max_length=80)
-    horizon: Literal[7, 14, 30, 90] = 7
+    horizon: int = Field(default=7, ge=1, le=90)
     history_days: Literal[7, 14, 30, 90, 365] = 30
+    history_frequency: Literal["auto", "day", "week"] = "auto"
+    forecast_model: Literal["seasonal_mean", "ridge_lag"] = "seasonal_mean"
+    training_days: Literal[90, 180, 365] = 180
     history_start: date | None = None
     history_end: date | None = None
 
@@ -236,10 +259,34 @@ class SensitivityResult(DTO):
     unit: str
 
 
+class DecisionMeasure(DTO):
+    peak_shortage: Number
+    shortage_days: int
+    ending_inventory: Number
+    new_demand: Number
+    known_orders_at_risk: int | None
+    demand_headroom_percent: Number | None = None
+
+
+class ScenarioDecision(DTO):
+    reference: DecisionMeasure
+    stressed: DecisionMeasure
+    proposed: DecisionMeasure
+    minimum_additional_quantity: Number
+    latest_arrival_date: date | None
+    remaining_late_orders_after_suggestion: int | None
+    verdict: Literal[
+        "no_extra_needed", "extra_without_risk_reduction", "covered", "partial", "still_at_risk"
+    ]
+    model_method: str
+
+
 class ScenarioResult(DTO):
     id: UUID | None = None
     baseline: ScenarioOutput
     proposed: ScenarioOutput
+    reference: ScenarioOutput | None = None
+    decision: ScenarioDecision | None = None
     comparison: dict[str, JsonValue]
     sensitivity: SensitivityResult | None = None
     evidence: dict[str, JsonValue]

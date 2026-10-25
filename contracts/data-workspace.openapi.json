@@ -235,6 +235,47 @@
         ]
       }
     },
+    "/api/v1/data-workspace/planning-options": {
+      "post": {
+        "summary": "Available Planning Options",
+        "operationId": "available_planning_options_api_v1_data_workspace_planning_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanningOptionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/data-workspace/configurations": {
       "post": {
         "summary": "Save Configuration",
@@ -864,6 +905,58 @@
         ],
         "title": "CapacityRequest"
       },
+      "DecisionMeasure": {
+        "properties": {
+          "peak_shortage": {
+            "type": "number",
+            "title": "Peak Shortage"
+          },
+          "shortage_days": {
+            "type": "integer",
+            "title": "Shortage Days"
+          },
+          "ending_inventory": {
+            "type": "number",
+            "title": "Ending Inventory"
+          },
+          "new_demand": {
+            "type": "number",
+            "title": "New Demand"
+          },
+          "known_orders_at_risk": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Orders At Risk"
+          },
+          "demand_headroom_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Headroom Percent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "peak_shortage",
+          "shortage_days",
+          "ending_inventory",
+          "new_demand",
+          "known_orders_at_risk"
+        ],
+        "title": "DecisionMeasure"
+      },
       "ForecastPoint": {
         "properties": {
           "item_id": {
@@ -929,6 +1022,30 @@
               }
             ],
             "title": "Training Days"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
           }
         },
         "additionalProperties": false,
@@ -1287,6 +1404,29 @@
         ],
         "title": "OverviewResult"
       },
+      "PlanningOptionsRequest": {
+        "properties": {
+          "stock": {
+            "$ref": "#/components/schemas/ProductRef"
+          },
+          "catalog": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stock"
+        ],
+        "title": "PlanningOptionsRequest"
+      },
       "PlanningRequest": {
         "properties": {
           "demand": {
@@ -1371,12 +1511,8 @@
           },
           "horizon": {
             "type": "integer",
-            "enum": [
-              7,
-              14,
-              30,
-              90
-            ],
+            "maximum": 90.0,
+            "minimum": 1.0,
             "title": "Horizon",
             "default": 7
           },
@@ -1391,6 +1527,35 @@
             ],
             "title": "History Days",
             "default": 30
+          },
+          "history_frequency": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "day",
+              "week"
+            ],
+            "title": "History Frequency",
+            "default": "auto"
+          },
+          "forecast_model": {
+            "type": "string",
+            "enum": [
+              "seasonal_mean",
+              "ridge_lag"
+            ],
+            "title": "Forecast Model",
+            "default": "seasonal_mean"
+          },
+          "training_days": {
+            "type": "integer",
+            "enum": [
+              90,
+              180,
+              365
+            ],
+            "title": "Training Days",
+            "default": 180
           },
           "history_start": {
             "anyOf": [
@@ -1487,6 +1652,74 @@
         ],
         "title": "ProfileRequest"
       },
+      "ScenarioDecision": {
+        "properties": {
+          "reference": {
+            "$ref": "#/components/schemas/DecisionMeasure"
+          },
+          "stressed": {
+            "$ref": "#/components/schemas/DecisionMeasure"
+          },
+          "proposed": {
+            "$ref": "#/components/schemas/DecisionMeasure"
+          },
+          "minimum_additional_quantity": {
+            "type": "number",
+            "title": "Minimum Additional Quantity"
+          },
+          "latest_arrival_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Arrival Date"
+          },
+          "remaining_late_orders_after_suggestion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Late Orders After Suggestion"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "no_extra_needed",
+              "extra_without_risk_reduction",
+              "covered",
+              "partial",
+              "still_at_risk"
+            ],
+            "title": "Verdict"
+          },
+          "model_method": {
+            "type": "string",
+            "title": "Model Method"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reference",
+          "stressed",
+          "proposed",
+          "minimum_additional_quantity",
+          "latest_arrival_date",
+          "remaining_late_orders_after_suggestion",
+          "verdict",
+          "model_method"
+        ],
+        "title": "ScenarioDecision"
+      },
       "ScenarioMetrics": {
         "properties": {
           "first_risk_date": {
@@ -1504,6 +1737,28 @@
           "peak_shortage": {
             "type": "number",
             "title": "Peak Shortage"
+          },
+          "peak_shortage_at_deadline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Shortage At Deadline"
+          },
+          "peak_supply_shortage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Supply Shortage"
           },
           "forecast_demand": {
             "type": "number",
@@ -1545,6 +1800,17 @@
               }
             ],
             "title": "Known Unallocated Demand"
+          },
+          "demand_headroom_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Headroom Percent"
           }
         },
         "additionalProperties": false,
@@ -1612,6 +1878,26 @@
           },
           "proposed": {
             "$ref": "#/components/schemas/ScenarioOutput"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScenarioOutput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScenarioDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "comparison": {
             "additionalProperties": {
@@ -1848,6 +2134,11 @@
           "include_sensitivity": {
             "type": "boolean",
             "title": "Include Sensitivity",
+            "default": false
+          },
+          "require_ml": {
+            "type": "boolean",
+            "title": "Require Ml",
             "default": false
           },
           "save": {

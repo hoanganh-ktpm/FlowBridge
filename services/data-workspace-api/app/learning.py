@@ -50,7 +50,6 @@ def features(values, index, day):
 
 
 def ridge(history, origin, horizon):
-    history = history[-180:]
     values = [p["target"] for p in history]
     if len(values) < 56:
         raise ValueError("At least 56 training days required")
@@ -153,7 +152,8 @@ def validated_forecast(dataset, config):
                 422,
                 detail={
                     "code": "ML_HISTORY_SHORT",
-                    "message": "Chưa đủ lịch sử kiểm chứng ML. Chọn Tự động hoặc thống kê.",
+                    "message": "Chưa đủ lịch sử để học và kiểm chứng Machine Learning. "
+                    "Hãy chọn lịch sử dài hơn hoặc giảm số ngày dự báo.",
                 },
             )
         if scores:

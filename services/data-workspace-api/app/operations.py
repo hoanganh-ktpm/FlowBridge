@@ -12,13 +12,14 @@ from fastapi import HTTPException
 
 from .analytics import local_day, numeric, prepare
 from .forecasting import statistical_forecast
+from .learning import validated_forecast
 from .planning import known_orders, moment, project_orders
 from .schemas import AnalysisConfig
 
 logger = logging.getLogger(__name__)
 
 
-async def planning_report(body, ctx, connector, repository):
+async def planning_report(body, ctx, connector, repository, source_names=None):
     now = datetime.now(UTC)
     zone = ZoneInfo("Asia/Ho_Chi_Minh")
     today = now.astimezone(zone).date()
@@ -128,6 +129,7 @@ async def planning_report(body, ctx, connector, repository):
             missing.append(key)
             return
         expected, columns = definitions[key]
+        expected = (source_names or {}).get(key, expected)
         rows = []
         for selection in where if isinstance(where, list) else [where]:
             product, batch = await connector.rows(ctx, reference, columns, where=selection)
@@ -156,7 +158,7 @@ async def planning_report(body, ctx, connector, repository):
     # Allow 180 training days even when the latest observation lags by 90 days.
     # Also cover the requested chart period; filtering must never trim its totals.
     history_floor = min(
-        today - timedelta(days=269),
+        today - timedelta(days=body.training_days + 89),
         body.history_start or today - timedelta(days=body.history_days + 89),
     )
 
@@ -185,7 +187,8 @@ async def planning_report(body, ctx, connector, repository):
         open_orders_task,
         *(
             asyncio.create_task(read_scoped(k))
-            for k in definitions if k not in {"stock", "open_orders"}
+            for k in definitions
+            if k not in {"stock", "open_orders"}
         ),
     ]
     try:
@@ -245,7 +248,15 @@ async def planning_report(body, ctx, connector, repository):
     else:
         groups = {unit_by_sku[eligible[0]]: eligible} if eligible else {}
     runs, points = {}, {}
+    jobs = []
     for unit, skus in groups.items():
+        if body.forecast_model == "ridge_lag" and selected in skus:
+            jobs.append((unit, [selected], "ridge_lag"))
+            if others := [sku for sku in skus if sku != selected]:
+                jobs.append((unit, others, "seasonal_mean"))
+        else:
+            jobs.append((unit, skus, "seasonal_mean"))
+    for unit, skus, method in jobs:
         config = AnalysisConfig(
             name="Kế hoạch hàng hóa",
             **body.demand.model_dump(),
@@ -258,14 +269,15 @@ async def planning_report(body, ctx, connector, repository):
             aggregation="SUM",
             frequency="D",
             missing_policy="zero",
-            start=max(first, last - timedelta(days=179)),
+            start=max(first, last - timedelta(days=body.training_days - 1)),
             end=last,
             entities=skus,
             forecast_start=today,
             forecast_horizon=body.horizon,
+            forecast_model=method,
         )
         product = {
-            "name": "sales.planning_demand_daily",
+            "name": (source_names or {}).get("demand", "sales.planning_demand_daily"),
             "fields": [
                 {"name": n} for n in ["day", "sku", "uom", "warehouse_id", "confirmed_quantity"]
             ],
@@ -277,7 +289,9 @@ async def planning_report(body, ctx, connector, repository):
             product,
             known_event_entities={r["sku"] for r in history if r["uom"] == unit},
         )
-        forecast, model = statistical_forecast(dataset, config)
+        forecast, model = await asyncio.to_thread(
+            validated_forecast if method == "ridge_lag" else statistical_forecast, dataset, config
+        )
         payload = {
             "status": "SUCCEEDED",
             "config": config.model_dump(mode="json"),
@@ -322,6 +336,18 @@ async def planning_report(body, ctx, connector, repository):
             if future
             else None
         )
+        # A second projection changes only new forecast demand to zero. This
+        # separates existing commitments from additional forecast exposure,
+        # including supply arriving after a deadline on the same calendar day.
+        zero_points = [
+            {"timestamp": (today + timedelta(days=i)).isoformat(), "p50": 0}
+            for i in range(body.horizon)
+        ]
+        known_only = project_orders(
+            zero_points, stock, inbound, known, sku, unit, today, snapshot_at=now
+        )
+        known_shortage = known_only["metrics"]["peak_supply_shortage"]
+        combined_shortage = baseline["metrics"]["peak_supply_shortage"] if baseline else None
         baselines[sku] = baseline
         coming = [
             r
@@ -338,7 +364,7 @@ async def planning_report(body, ctx, connector, repository):
             [
                 o
                 for o in baseline["orders"]
-                if o["at_risk"] and any(line["sku"] == sku for line in o["lines"])
+                if o["at_risk"] and any(line["sku"] == sku for line in o["shortages_at_deadline"])
             ]
             if baseline
             else []
@@ -348,12 +374,12 @@ async def planning_report(body, ctx, connector, repository):
                 (
                     p["day"]
                     for p in baseline["series"]
-                    if p["unmet_cumulative"] > 1e-9
+                    if p["supply_shortage"] > 1e-9
                     or any(
                         o["at_risk"]
                         and local_day(o["deadline"], "Asia/Ho_Chi_Minh")
                         <= local_day(p["day"], "Asia/Ho_Chi_Minh")
-                        and any(line["sku"] == sku for line in o["lines"])
+                        and any(line["sku"] == sku for line in o["shortages_at_deadline"])
                         for o in baseline["orders"]
                     )
                 ),
@@ -362,7 +388,7 @@ async def planning_report(body, ctx, connector, repository):
             if baseline
             else None
         )
-        shortage = b["peak_shortage"] if b else None
+        shortage = combined_shortage
         next_eta = min((r["expected_at"] for r in coming), default=None)
         attention = [
             r
@@ -382,6 +408,10 @@ async def planning_report(body, ctx, connector, repository):
             "known_quantity": b["known_unallocated_demand"] if b else None,
             "incoming_quantity": q,
             "shortage": shortage,
+            "known_order_shortage": known_shortage,
+            "forecast_added_shortage": max(0, combined_shortage - known_shortage)
+            if combined_shortage is not None
+            else None,
             "first_risk_date": first_risk,
             "orders_at_risk": len(risk_orders),
             "next_arrival": next_eta,
@@ -501,6 +531,12 @@ async def planning_report(body, ctx, connector, repository):
     receipts_days = defaultdict(float)
     if facts["receipts"] is not None:
         for row in facts["receipts"]:
+            if (
+                str(row["warehouse_id"]) == wh
+                and row["sku"] == selected
+                and row["uom"] != unit_by_sku[selected]
+            ):
+                raise HTTPException(422, "Receipts and demand UOM mismatch")
             day = local_day(row["day"], "Asia/Ho_Chi_Minh")
             if (
                 str(row["warehouse_id"]) == wh
@@ -607,12 +643,12 @@ async def planning_report(body, ctx, connector, repository):
         ),
         "balance": explain(
             "Nguy cơ thiếu hàng",
-            "Đối chiếu nguồn hàng theo thời điểm về và hạn từng đơn; "
+            "Đối chiếu nguồn hàng theo thời điểm về và hạn từng đơn. "
             "nhu cầu mới được xét cuối mỗi ngày.",
             ["demand", "stock", "inbound", "open_orders", "commitments"],
             [
                 {
-                    "label": "Khách dự kiến đặt thêm",
+                    "label": "Lượng đặt mới dự báo",
                     "value": card["forecast_quantity"],
                     "unit": card["uom"],
                 },
@@ -635,10 +671,10 @@ async def planning_report(body, ctx, connector, repository):
             "Hàng đầu kỳ + hàng về đúng thời điểm − đơn đang chờ − nhu cầu mới dự kiến",
             [
                 "Kế hoạch nhập chưa phải hàng đã nhận.",
-                "Đơn chưa phân bổ được xét khi đến hạn; "
+                "Đơn chưa phân bổ được xét khi đến hạn. "
                 "trong ngày ưu tiên đơn đến hạn trước nhu cầu mới dự kiến.",
-                "Lượng thiếu là lớn nhất qua từng ngày; không suy ra chỉ từ tổng cuối kỳ.",
-                "Đơn chỉ được đáp ứng khi tất cả các dòng đều đủ hàng; "
+                "Lượng thiếu là lớn nhất qua từng ngày. Không suy ra chỉ từ tổng cuối kỳ.",
+                "Đơn chỉ được đáp ứng khi tất cả các dòng đều đủ hàng. "
                 "hàng về sau hạn không xóa rủi ro đã trễ.",
             ],
         ),
@@ -670,7 +706,45 @@ async def planning_report(body, ctx, connector, repository):
     }
     explainers["history"]["start"] = history_start.isoformat()
     explainers["history"]["end"] = history_end.isoformat()
-    if body.history_days >= 90 and not body.history_start:
+    explainers["risk"] = {
+        **explainers["balance"],
+        "title": "Nguy cơ thiếu hàng theo sản phẩm",
+        "meaning": "Trục ngang là sản phẩm. Trục dọc là lượng thiếu cùng đơn vị. "
+        "Đây là thiếu hàng trước hạn đáp ứng, không phải hạn sử dụng hay xác suất.",
+        "items": [
+            {
+                "label": "Thiếu cho đơn đã nhận",
+                "value": card["known_order_shortage"],
+                "unit": card["uom"],
+            },
+            {
+                "label": "Thiếu tăng thêm khi xét dự báo",
+                "value": card["forecast_added_shortage"],
+                "unit": card["uom"],
+            },
+        ],
+        "formula": "Tính hai lần trên cùng dữ liệu và lịch hàng về: chỉ đơn đã nhận. "
+        "sau đó thêm nhu cầu dự báo. Cột dự báo là phần thiếu tăng thêm giữa hai lần tính.",
+        "notes": [
+            "Phần đơn đã nhận xét cả thời điểm đến hạn trong ngày. Hàng về muộn không bù "
+            "cho việc đã thiếu trước hạn.",
+            "Mỗi lần lấy mức thiếu lớn nhất trong kỳ và tại hạn đơn. Không cộng các ngày thiếu.",
+            "Hàng còn phân bổ = tồn thực tế trừ hàng đã giữ. Đơn chờ đã trừ hàng giữ và bàn giao.",
+            (
+                "Mặt hàng đang chọn dùng Machine Learning học đúng kho và đơn vị. "
+                "các mặt hàng khác vẫn dùng nhịp cùng thứ trong tuần."
+                if body.forecast_model == "ridge_lag"
+                else "Dự báo trên Tổng quan dùng nhịp cùng thứ trong tuần để lập kế hoạch. "
+                "mở Phương án nhập hàng để học Machine Learning theo kho."
+            ),
+            "Không xếp chung sản phẩm khác đơn vị. Chỉ hiển thị tối đa 8 sản phẩm, "
+            "ưu tiên ngày cần xử lý gần nhất.",
+        ],
+    }
+    history_weekly = body.history_frequency == "week" or (
+        body.history_frequency == "auto" and body.history_days >= 90 and not body.history_start
+    )
+    if history_weekly:
         weekly = defaultdict(
             lambda: {
                 "confirmed": 0,
@@ -733,7 +807,7 @@ async def planning_report(body, ctx, connector, repository):
             "end": history_end.isoformat(),
             "series": history_series,
             "receipts_available": facts["receipts"] is not None,
-            "frequency": "week" if body.history_days >= 90 and not body.history_start else "day",
+            "frequency": "week" if history_weekly else "day",
         },
         "kpis": {
             "risk_products": sum(r["priority"] == "urgent" for r in plans.values()),
@@ -749,16 +823,16 @@ async def planning_report(body, ctx, connector, repository):
             "period": {"start": today.isoformat(), "end": end.isoformat()},
             "limitations": [
                 "Nhu cầu dự báo là đơn mới sau thời điểm chốt, không thay thế đơn đã xác nhận.",
-                "Nhu cầu và nguồn hàng cùng kho, cùng mã và đơn vị; "
+                "Nhu cầu và nguồn hàng cùng kho, cùng mã và đơn vị. "
                 "không chuyển hàng giữa kho trong lần tính.",
-                "Số rủi ro đã biết xét đơn còn chưa phân bổ và lịch đã nhận sau hạn; "
+                "Số rủi ro đã biết xét đơn còn chưa phân bổ và lịch đã nhận sau hạn. "
                 "đơn chưa có lịch không mặc định là trễ.",
                 "Nguồn được đọc ở các thời điểm gần nhau, "
                 "không phải transaction xuyên ba database.",
                 "Lịch sử đặt hàng gồm xác nhận từng phát sinh, "
-                "kể cả hủy sau đó; không phải bán ròng.",
+                "kể cả hủy sau đó. Không phải bán ròng.",
                 "Hàng nhập lịch sử là accepted trên phiếu POSTED, "
-                "theo ngày nhận; khác kế hoạch hàng sẽ về.",
+                "theo ngày nhận. Khác kế hoạch hàng sẽ về.",
             ],
         },
     }

@@ -7,7 +7,7 @@ export function SensitivityChart({ value, baselineShortage, disabled, quantity, 
   quantity: number; arrival: string; onSelect: (quantity: number, arrival: string) => void;
 }) {
   return <>
-    <p className="pw-panel-note">Mỗi ô là một phương án nhập bổ sung độc lập: hàng ngang là lượng nhập, cột là ngày về. Số lớn là lượng thiếu cao nhất còn lại của sản phẩm; dòng nhỏ là số đơn thiếu hàng trước hạn trong toàn kho.</p>
+    <p className="pw-panel-note">Mỗi ô là một phương án nhập bổ sung độc lập: hàng ngang là lượng nhập, cột là ngày về. Số lớn là lượng thiếu cao nhất còn lại của sản phẩm. Dòng nhỏ là số đơn thiếu hàng trước hạn trong toàn kho.</p>
     <div className="pw-sensitivity-scroll"><table className="pw-sensitivity-table" aria-label="Ma trận lượng nhập và ngày hàng về"><thead><tr><th scope="col">Nhập thêm<br/><small>{unitLabel(value.unit)}</small></th>{value.dates.map(d => <th scope="col" key={d}>{dateLabel(d)}</th>)}</tr></thead><tbody>{value.quantities.map(q => <tr key={q}><th scope="row">{fmt(q)}</th>{value.dates.map(d => {
       const cell = value.cells.find(c => c.quantity === q && c.arrival_date === d);
       if (!cell) return <td key={d}>Chưa tính</td>;

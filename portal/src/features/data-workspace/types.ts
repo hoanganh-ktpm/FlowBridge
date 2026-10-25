@@ -37,18 +37,27 @@ export interface Forecast {
   model: { method: string; kind: string; fallback_reason?: string; entities?: Record<string,{method:string;kind:string;reason:string;observations:number;gap_days:number;validation:Record<string,{mae:number;wape_percent:number|null;windows:object[]}>}> };
 }
 export interface ScenarioSide {
-  series: { day: string; net_position: number; physical_inventory: number; unmet_cumulative: number; inbound?: number; known_demand_due?: number }[];
+  series: { day: string; net_position: number; physical_inventory: number; unmet_cumulative: number; demand?:number; inbound?: number; known_demand_due?: number }[];
   metrics: { first_risk_date: string | null; peak_shortage: number; forecast_demand: number;
     fulfilled_quantity: number; fulfillment_percent: number | null; known_orders_at_risk: number | null };
 }
 export interface Scenario {
   id?: string; baseline: ScenarioSide; proposed: ScenarioSide;
   comparison: { metrics_delta: Record<string, number> }; evidence: Evidence;
+  reference?: ScenarioSide | null;
+  decision?: {
+    reference: DecisionMeasure; stressed: DecisionMeasure; proposed: DecisionMeasure;
+    minimum_additional_quantity:number; latest_arrival_date:string|null;
+    remaining_late_orders_after_suggestion:number|null;
+    verdict:'no_extra_needed'|'extra_without_risk_reduction'|'covered'|'partial'|'still_at_risk';
+    model_method:string;
+  } | null;
   sensitivity?: {
     quantities: number[]; dates: string[]; unit: string;
     cells: { quantity: number; arrival_date: string; peak_shortage: number; known_orders_at_risk: number | null; first_risk_date: string | null }[];
   } | null;
 }
+export interface DecisionMeasure {peak_shortage:number;shortage_days:number;ending_inventory:number;new_demand:number;known_orders_at_risk:number|null;demand_headroom_percent?:number|null}
 export interface Stock { warehouse_id: string; sku: string; available_quantity: number; uom: string }
 export const localToday = () => new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit",

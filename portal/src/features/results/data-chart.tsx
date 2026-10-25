@@ -485,7 +485,7 @@ export function DataChart({
           {dataset.context.complete ? "Dữ liệu đầy đủ" : "Dữ liệu chưa đầy đủ"}{" "}
           · Mốc chốt: {date(dataset.context.as_of)}
           {dataset.columns.some((c) => c.type === "decimal") &&
-            " · Giá trị trên trục được làm tròn; bảng giữ số thập phân gốc."}
+            " · Giá trị trên trục được làm tròn. Bảng giữ số thập phân gốc."}
         </span>
       </div>
       {dataset.context.denominator_definition && (

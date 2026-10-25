@@ -59,6 +59,7 @@ def test_whole_order_reservation_and_late_receipt_never_repair_past_deadline():
     baseline = project_orders(points, [stock("A", 20), stock("B", 0)], [], orders, "A", "EA", today)
     assert baseline["series"][0]["physical_inventory"] == 20  # no partial A reservation
     assert baseline["metrics"]["known_orders_at_risk"] == 1
+    assert baseline["metrics"]["peak_supply_shortage"] == 0  # A has stock; B blocks the order
     inbound = [
         {
             "sku": "B",

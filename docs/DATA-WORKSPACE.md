@@ -511,3 +511,245 @@ Workspace **15 passed** dùng API/SSO mock kiểm tiêu đề, mẫu 7/56 ngày,
 ma trận chọn lượng/ngày, khóa lưu khi sửa, snapshot và mobile. Không coi các bằng
 chứng mock là nghiệm thu dữ liệu thật. Ảnh mới: `demand-distribution.png` và
 `replenishment-sensitivity.png` trong `portal/ref/qa/`.
+
+
+## L. Tổng quan gọn và dự báo riêng — 25/10/2026
+
+Phần này thay lựa chọn giao diện ở J/K: bỏ khẩu hiệu sidebar, hàng ngữ cảnh dài,
+thẻ tổng/tăng trưởng/bình quân và biểu đồ phân bố ngày. Độ mới, phạm vi và cách tính
+vẫn xem được qua Nguồn & cách tính; dữ liệu quá cũ vẫn bị chặn dự báo ở backend.
+Tổng quan mặc định có hai biểu đồ và danh sách xử lý. Phân tích lịch sử giữ đường
+xu hướng, tùy chọn so sánh/làm mượt và nhịp tuần trong tab riêng. Dự báo nhu cầu là
+mục điều hướng độc lập; kết quả đã lưu tiếp tục mở bằng nút Đã lưu.
+
+- Lượng đặt và thực nhập: hai đường của cùng SKU/kho/UOM; có thể gộp ngày hoặc tuần.
+  Chỉ dùng phiếu nhập thực tế từ receipts_daily, không dùng kế hoạch nhập làm thực nhập.
+  Thiếu nguồn receipts là unknown; khác UOM trả lỗi thay vì biến thành số 0.
+  Hai luồng không phải biến động tồn kho. Tuần ở đầu/cuối khoảng chọn có thể chưa đủ 7 ngày.
+- Nguy cơ thiếu hàng theo sản phẩm: X là SKU (tooltip có tên), Y là số lượng thiếu,
+  không phải hạn sử dụng hay xác suất. Cột chồng tách thiếu cho đơn đã nhận và thiếu
+  tăng thêm khi xét nhu cầu dự báo. Chỉ so cùng UOM, tối đa 8 sản phẩm ưu tiên ngày
+  cần xử lý gần nhất; bảng bên dưới có đủ sản phẩm và mở phương án bổ sung.
+- Cách tính: cùng snapshot và lịch hàng về, chạy project_orders một lần với nhu cầu
+  mới bằng 0, một lần với dự báo. Mỗi lần lấy mức thiếu nguồn cung cao nhất tại các
+  sự kiện đến hạn/hàng về/cuối ngày. Phần dự báo = max(0, mức thiếu khi có dự báo −
+  mức thiếu chỉ đơn đã nhận). Không cộng thiếu qua các ngày. Không gán thiếu vật lý
+  cho SKU đủ hàng chỉ vì đơn nhiều dòng bị chặn bởi một SKU khác. Hàng về sau hạn
+  trong cùng ngày vẫn giữ mức thiếu tại hạn. Các metric mới optional để đọc được
+  scenario đã lưu từ phiên bản cũ.
+
+Dự báo riêng chỉ gửi forecast_model=ridge_lag và allow_statistical_fallback=false.
+Học 90/180/365 ngày, dự báo 7/14/30 ngày, hai đoạn kiểm chứng đúng thứ tự thời gian.
+Thiếu lịch sử trả ML_HISTORY_SHORT bằng tiếng Việt, không tự đổi sang thống kê.
+Vùng P10–P90 là khoảng sai lệch tham khảo, chưa phải xác suất đảm bảo. Nút đối chiếu
+nguồn hàng tính lại theo dữ liệu từng kho; không phân bổ dự báo toàn doanh nghiệp
+vào một kho. Planner trên Tổng quan vẫn dùng nhịp cùng thứ trong tuần; drawer giải
+thích rõ sự khác biệt với chức năng dự báo ML riêng.
+
+Giao diện tái sử dụng Card/Tabs/Table/Badge/NativeSelect/Checkbox/Collapsible/Label/
+Button/Tooltip/Sheet của shadcn/ui có sẵn, không thêm package. Bộ lọc nháp và thao tác
+cập nhật vẫn tách biệt. Không còn component/hàm phân bố ngày không được sử dụng.
+
+### Cấu hình nguồn theo doanh nghiệp
+
+Deployment có thể đặt FLOWBRIDGE_WORKSPACE_SOURCE_NAMES thành JSON object, ví dụ:
+
+```json
+{"demand":"acme.orders_by_warehouse_daily","receipts":"acme.receipts_daily","sales_history":"acme.confirmed_daily"}
+```
+
+Các key hỗ trợ: demand, stock, inbound, open_orders, commitments, catalog, receipts,
+schedule, capacity, sales_history, transport_history. Không cấu hình thì giữ tên
+chuẩn hiện tại. /products trả tên đã resolve để Portal tự tìm nguồn được cấp quyền.
+Mỗi vai trò cần nguồn riêng và đúng contract cột/ngữ nghĩa hiện hành; thay tên không
+thay business key, policy, đơn vị hay quy tắc thiếu ngày. IT chuẩn hóa view công bố
+ở ứng dụng sở hữu nếu schema doanh nghiệp khác. Mapping analytics tùy chỉnh vẫn
+được lưu/preview riêng như trước. Đây là cấu hình từng deployment/org, không phải
+SaaS đa tenant hay chức năng tự cấp quyền. Không đọc DB nội bộ chéo service.
+
+
+Kiểm tra phần L: 84 tests Workspace/catalog; 10 Vitest (đã bỏ 4 tests cùng module
+phân bố không còn dùng); 35 Playwright Portal dùng API/SSO mock; hai màn hình mới
+đã kiểm tra desktop/mobile, build/Ruff/diff check qua. Hồi quy Python offline toàn
+repo ghi nhận 972 passed, 1 failed ở test_active_token_is_mapped_by_exact_issuer_and_subject
+(tests/platform/test_authentication.py), thuộc thay đổi MFA khác trong workspace.
+Không sửa lại phần auth để né lỗi. Chưa chạy live business E2E hay model trên nguồn
+thật cho thay đổi này. Ảnh compact-dashboard/compact-forecast trong portal/ref/qa
+là dữ liệu mock, không phải evidence nghiệp vụ thật.
+
+
+## M. Bộ chọn kho, bố cục ổn định và giảm truy vấn lặp — 25/10/2026
+
+Bỏ breadcrumb Không gian quyết định, bỏ icon ở empty state/nút thao tác và đổi
+icon điều hướng dự báo sang biểu đồ đường. Empty state chỉ còn tiêu đề và hướng
+dẫn ngắn. Các hộp điều khiển có padding riêng, không chịu quy tắc padding=0 của
+card biểu đồ. Tùy chọn lịch sử dùng DropdownMenu nổi; giả định mô phỏng dùng Sheet
+có bản nháp, Áp dụng/Hủy. Mở cài đặt không đổi chiều cao luồng nội dung chính.
+
+/planning-options đọc danh mục kho/SKU/UOM và tên từ hai giao diện được cấp quyền,
+không đọc số lượng tồn/đơn/dự báo. Frontend tải danh mục tên khi vào Workspace,
+giữ trong bộ nhớ của màn hình; chuyển chức năng không tải lại danh sách này.
+Danh sách kho chỉ gồm kho có trong nguồn stock được phép. Một kho duy nhất được
+hiện bằng tên thực; có nhiều kho thì yêu cầu chọn, không chọn ngầm kho đầu tiên.
+Tên hiển thị dạng Kho Hà Nội (HN); SKU giữ mã - tên. Nguồn thiếu tên được ghi rõ,
+không đặt tên kho giả. Đổi kho chỉ cập nhật lựa chọn; chưa đọc dữ liệu vận hành.
+
+CoreConnector dùng ContextVar để gom các lượt tải danh mục đồng thời trong đúng
+một HTTP request (single-flight). Toàn bộ nhiều nguồn của /planning dùng một lượt
+/authorized-data-products; test đếm xác nhận đúng một lượt. Cache bị bỏ khi request
+kết thúc, không chia giữa request/người dùng/tổ chức và không giữ business rows.
+Các lần đọc facts và check trước khi trả kết quả vẫn gửi query kiểm quyền mới tới
+Core; metadata cache không cho phép trả dữ liệu khi query hiện tại bị thu quyền.
+Snapshot cache mô phỏng hiện có giữ nguyên TTL và current permission checks.
+Stock và inbound cho mô phỏng được đọc song song. Không tuyên bố benchmark độ trễ
+trên dữ liệu thực; kiểm chứng giảm lượt gọi lặp qua boundary tests.
+
+UI QR TOTP có trang theme riêng: hai bước quét/xác nhận, QR nguyên ảnh Keycloak,
+khung trắng và khoảng trống quét, nhãn/OTP/device name rõ, cùng form action, hidden
+secret, logout-sessions và cancel-aia của Keycloak. Chế độ nhập khóa thủ công giữ
+đúng policy. Không đổi flow, realm, credential hay cách kiểm chứng TOTP. Preview
+chỉ development: ?auth-preview=totp hoặc totp-manual, sử dụng fixture công khai.
+
+Validation: 993 Python offline passed/73 integration-E2E deselected;88 tests
+Workspace/catalog;10 Vitest;28 Playwright Workspace/auth/OIDC mock passed sau sửa
+cuối, gồm lựa chọn nhiều kho, menu/Sheet không đẩy trang, OTP native POST, QR/mobile
+và manual. 13 browser cases Portal còn lại đã qua trong lần full trước; lỗi OIDC
+trong lần đó do test cố định port5174, đã sửa theo baseURL và chạy lại. Build/theme,
+Ruff/diff check qua. Không gọi tài khoản/model/dữ liệu nghiệp vụ thật để kiểm thử.
+
+Đã backup JAR cũ ở .tmp/data-workspace/theme-before-qr-polish.jar, copy JAR mới vào
+container Keycloak local và restart riêng container này; checksum SHA256 trùng
+artifact build. OIDC discovery TLS verified, Portal HTTP200. Restart đúng Workspace
+thuộc ledger và anonymous OpenAPI xác nhận /planning-options hoạt động. Không chạy
+migration, publish/grant, sửa realm hay tạo credential. Ảnh QA là mock fixtures.
+
+## N. So sánh kịch bản gắn với dự báo ML — 25/10/2026
+
+Phương án nhập hàng không còn lấy dự báo nhịp tuần của Tổng quan làm đầu vào.
+Mở chức năng này và cập nhật sẽ học Ridge ML cho SKU đã chọn, đúng kho/UOM và
+90/180/365 ngày tham chiếu. Thiếu lịch sử trả ML_HISTORY_SHORT, không fallback.
+Tổng quan và các SKU khác trong danh sách vẫn dùng thống kê; thay đổi này chỉ
+nâng dự báo cho mặt hàng đang thử phương án. Nút từ dự báo riêng chuyển cả lựa
+chọn số ngày học, nhưng tính lại theo kho; không gán dự báo toàn doanh nghiệp
+cho một kho. require_ml=true chặn scenario dùng model thống kê hoặc sai kho.
+
+Ba trường hợp dùng cùng snapshot nguồn và một lần học ML:
+
+1. Gốc: P50 từ ML, lịch hàng về hiện hành.
+2. Sau điều chỉnh: P50 hoặc mức cao tham khảo đã chọn × hệ số lượng đặt mới,
+   và số ngày lùi lịch hàng nhập.
+3. Có bổ sung: giữ nguyên giả định ở trường hợp 2, thêm lượng/ngày nhập thử.
+
+ML dự báo lượng sản phẩm, không dự báo số khách hàng riêng biệt. Tăng 20% là
+tăng lượng đặt mới, không đổi đơn đã xác nhận. Lùi hàng về là lịch inbound của
+Warehouse, không suy diễn thời gian giao khách của Logistics. Thay giả định
+không huấn luyện lại model bằng dữ liệu tương lai. Các kết quả là kiểm tra
+kịch bản có điều kiện, không phải xác suất thiếu hàng đã được hiệu chỉnh.
+
+Giao diện có ba tab: số dư đáp ứng; lượng đặt mới/đơn đến hạn/hàng về/bổ sung;
+và bảng chỉ tiêu ba trường hợp. Nguồn đầu vào đặt trong Sheet để không lặp biểu
+đồ lớn trên trang. Bảng tách mức thiếu vật lý, số ngày từng có thời điểm thiếu,
+hàng còn phân bổ cuối kỳ và đơn thiếu trước hạn toàn kho. Kiểm tra tại sự kiện
+trong ngày giữ lại thiếu trước giờ hàng về, dù số dư cuối ngày đã dương.
+
+Mức bổ sung tham khảo là mức thiếu vật lý cao nhất, làm tròn lên đến 0,001 theo
+độ chính xác hợp đồng. Ngày nhận là đầu ngày đầu tiên có thiếu (hoặc thời điểm
+snapshot nếu là hôm nay). Một lần chiếu bổ sung kiểm tra đơn còn trễ; thêm đúng
+SKU không giải quyết SKU khác, hạn đã qua hay khả năng giao hàng của đối tác.
+Đây là mức đủ theo mô hình, chưa tối ưu MOQ, giá mua, sức chứa hoặc lead time
+nhà cung cấp vì chưa có các nguồn đó. Điền mức bổ sung chỉ điền nháp; cần So sánh
+lại trước khi lưu/tải. Nếu vốn đã đủ, kết luận nêu nhập thêm chỉ tăng hàng cuối kỳ.
+
+Ngưỡng lượng đặt mới so với P50 ML gốc = 100 × (min theo sự kiện của
+(nguồn hàng lũy kế − nhu cầu đơn đã nhận lũy kế) / P50 lũy kế − 1), chỉ xét mẫu
+số dương. Nếu riêng đơn đã nhận đã vượt nguồn hàng tại một thời điểm, hoặc
+không có nhu cầu mới, không công bố ngưỡng. Ngưỡng giả định cùng nhịp nhu cầu
+ngày của ML; không đảm bảo đơn nhiều SKU hoặc giao nhận. Hệ số đang thử và
+P90 không đổi cơ sở P50 của ngưỡng này.
+
+Tính scenario và ML chạy ngoài event loop. Ma trận độ nhạy dùng lại cùng model,
+snapshot và kiểm quyền, chỉ chạy hai trường hợp cần thiết cho từng ô, không
+học lại hay đọc lại Core. Không thêm cache business rows hoặc vượt TTL hiện có.
+reference/decision và các metric mới optional để đọc kết quả đã lưu cũ.
+
+Kiểm tra: 1001 Python offline passed/73 integration-E2E deselected, gồm 96 tests
+Workspace/catalog;10 Vitest;43 Playwright API/SSO mock; build, Ruff và diff check
+qua. Browser kiểm tra ML đúng kho, ba trường hợp, điền gợi ý phải tính lại, nhập
+thừa và mobile. Python dùng dữ liệu tổng hợp tại boundary, không gọi model/tài
+khoản/dữ liệu nghiệp vụ thật. Ảnh ml-scenario-* trong portal/ref/qa là mock.
+Workspace local đã nạp lại đúng tiến trình thuộc ledger; OpenAPI ẩn danh xác
+nhận forecast_model/require_ml/decision và Portal5174 trả HTTP200.
+
+## O. Khoảng ngày dự báo và dữ liệu demo đúng thời điểm — 25/10/2026
+
+Dự báo nhu cầu chọn Ngày bắt đầu dự báo và Ngày kết thúc dự báo, thay lựa chọn
+7/14/30 ngày. ForecastRequest thêm start_date/end_date theo cặp, tính cả hai đầu
+khoảng. API xác minh từ ngày hiện tại theo timezone nguồn và kết thúc trong 90
+ngày tới. Không dùng đồng thời với start_from_request_date. Các client cũ giữ
+nguyên hành vi khi không gửi cặp ngày mới. Lịch sử vẫn phải là kỳ đã hoàn tất,
+không điền quan sát thật vào các ngày tương lai hay khoảng trống giữa nguồn và
+ngày bắt đầu. ML dự đoán qua khoảng trống để tạo đặc trưng trễ, chỉ trả điểm của
+khoảng được chọn. Kiểm chứng giữ cùng khoảng trống và độ dài kỳ, thiếu lịch sử
+vẫn trả lỗi ML_HISTORY_SHORT.
+
+Kết quả ghi khoảng ngày cụ thể. Sửa ngày hoặc dữ liệu học làm kết quả cũ chưa
+thể dùng cho quyết định. Đối chiếu kho tính lại từ hôm nay đến ngày kết thúc
+đã dự báo để không bỏ nhu cầu, đơn đến hạn hoặc hàng về trước ngày bắt đầu
+người dùng chọn. PlanningRequest.horizon nhận mọi số nguyên 1–90 để bao phủ
+đúng ngày kết thúc, không làm tròn thành 7/14/30. Giao diện giải thích quy tắc này.
+
+Field dùng Tooltip shadcn và icon thông tin cạnh kho, kỳ kế hoạch, khoảng lịch
+sử, cách gộp, sản phẩm, dữ liệu học và ngày dự báo/hàng về. Nội dung hỗ trợ hover,
+focus và bấm, không đẩy trang. Bỏ dấu chấm phẩy trong câu chữ giao diện, giải
+thích nghiệp vụ từ backend và đề xuất tải xuống. Cú pháp code, MIME và evidence
+thô của IT giữ nguyên. Lịch bàn giao được ghi là dự kiến, chưa phải kết quả
+giao sớm/trễ thực tế.
+
+Theo yêu cầu bổ sung demo local, đã thêm 5 đơn/7 dòng sản phẩm xác nhận ngày
+25/10, hạn bàn giao 27/10–3/11. Hai đơn đã giữ đủ SKU-B 12 và SKU-D 15, chuẩn bị
+manifest và được tiếp nhận lịch dự kiến 28/10,31/10. Ba đơn khác còn chờ phân
+bổ. Bổ sung ba kế hoạch APPROVED: SKU-A 120 về 28/10, SKU-C 60 về 30/10 và SKU-A
+90 về 2/11. Đây là kế hoạch, chưa có phiếu nhận/xuất tương lai hay handed_over_at.
+Sổ on-hand/phiếu nhập/xuất cũ giữ nguyên, reserved tăng đúng hai dòng giữ mới.
+
+Đối soát toàn bộ synthetic org theo thời điểm 25/10: tồn và sổ kho, giữ hàng,
+quan hệ chéo nguồn, manifest, capacity, chronology, completion, receipt/inbound
+và trùng lặp đều PASS. Ba domain commit độc lập với ID fixture xác định và kiểm
+trùng trước ghi, không thay dữ liệu tổ chức khác, Core/grants/realm/migration.
+Evidence và script quản trị bổ sung ở ignored .tmp/data-workspace/future-demo-* và
+add-future-demo.py. synthetic-run.json vẫn mô tả snapshot gốc 20/10, không ghi lại
+lịch sử generator hoặc reset demo. Kiểm bộ đã bổ sung phải dùng ngày đối soát
+25/10 như script, không áp ngày kết thúc 20/10 lên những sự kiện mới ngày 25/10.
+
+Kiểm tra code:103 Workspace/catalog tests,24 Playwright Workspace bằng API/SSO
+mock, build/Ruff/diff check. Test ngày bao gồm khoảng tùy chọn, ngày cuối tính cả,
+không dùng ngày quá khứ, timezone, giới hạn 90 ngày và kế hoạch đủ 10 ngày.
+Các screenshot compact-forecast* là mock. Chỉ đối soát dữ liệu demo local thật,
+không chạy ML trên nguồn thật hoặc gọi tài khoản người dùng để kiểm giao diện.
+
+## P. Bổ sung đơn demo đang chờ phân bổ — 25/10/2026
+
+Đã kiểm tra nguồn local: `sales.open_orders` ACTIVE với contract 1.1.0 PUBLISHED,
+`warehouse.order_commitments` ACTIVE với contract 1.0.0 PUBLISHED. Cả hai đã đủ
+cột kho, dòng đơn, SKU/UOM và số lượng để đối chiếu. Không cần công bố lại.
+Chỉ số chờ phân bổ là **lượng sản phẩm**, bằng lượng đặt trừ đã bàn giao và đang
+giữ, xét đơn đến hạn trong kỳ của kho đã chọn. Đơn đã giữ đủ không cộng lại.
+Trước bổ sung, kỳ 7 ngày chỉ có SKU-A 120 và SKU-C 20. SKU-E còn 20 đến hạn
+3/11 nên chưa thuộc kỳ 7 ngày, các mã khác đã giữ đủ hàng.
+
+Theo yêu cầu có thêm dữ liệu để xem, đã thêm 6 đơn CONFIRMED, mỗi đơn một dòng:
+SKU-B 18 hạn 26/10, SKU-D 24 hạn 27/10, SKU-E 25 hạn 28/10, SKU-F 30 hạn 29/10,
+SKU-G 36 hạn 30/10, SKU-H 42 hạn 31/10. Xác nhận ngày 25/10, chưa có giữ hàng,
+xuất kho hay giao nhận cho các đơn này. Chỉ thêm 18 bản ghi Sales gồm đơn, dòng
+và sự kiện xác nhận. Không sửa bản ghi cũ, Warehouse/Logistics, Core/grants hoặc
+schema. Các view đã công bố đọc dữ liệu mới khi người dùng cập nhật kế hoạch.
+
+Đối soát toàn bộ synthetic org tại ngày 25/10 PASS các invariant và patterns.
+Kiểm hàm planner trên facts từ view local, không chạy dự báo/model: lượng chờ
+phân bổ kỳ 7 ngày SKU-A…H là 120/18/20/24/25/30/36/42, kỳ 14 ngày là
+120/18/55/24/45/30/36/42. Hash toàn bộ bản ghi đã tồn tại không đổi và toàn bộ
+Warehouse/Logistics không đổi. Script quản trị có preflight/ID xác định và evidence
+ở ignored `.tmp/data-workspace/add-unallocated-demo.py`,
+`.tmp/data-workspace/unallocated-demo-evidence.json`. Không reset baseline,
+migration, republish, thay grants, restart, commit hay push. Không thực hiện
+browser/Core/Hasura E2E hoặc gọi tài khoản người dùng trong lần bổ sung này.

@@ -15,10 +15,11 @@ from .analytics import analyze, bucket, local_day, next_bucket, prepare
 from .schemas import AnalysisConfig
 
 
-def recipe(product):
-    if product["name"] == "sales.confirmed_demand_daily":
+def recipe(product, source_names=None):
+    names = source_names or {}
+    if product["name"] == names.get("sales_history", "sales.confirmed_demand_daily"):
         return "Nhu cầu bán hàng", "sku", "confirmed_quantity", "EA"
-    if product["name"] == "logistics.accepted_shipments_daily":
+    if product["name"] == names.get("transport_history", "logistics.accepted_shipments_daily"):
         return "Vận chuyển", "carrier_code", "accepted_shipments", "shipments"
     raise HTTPException(
         422,
@@ -29,11 +30,11 @@ def recipe(product):
     )
 
 
-def overview(product, rows, body, today=None, mapping=None):
+def overview(product, rows, body, today=None, mapping=None, source_names=None):
     title, entity_column, target_column, unit = (
         (mapping.name, mapping.entity_column, mapping.target_column, mapping.unit)
         if mapping
-        else recipe(product)
+        else recipe(product, source_names)
     )
     today = (
         today or datetime.now(ZoneInfo(mapping.timezone if mapping else "Asia/Ho_Chi_Minh")).date()

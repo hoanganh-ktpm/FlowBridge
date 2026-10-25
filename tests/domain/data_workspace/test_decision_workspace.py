@@ -2,7 +2,7 @@
 """Business decisions over API boundary fixtures; no business DB or live model."""
 
 from copy import deepcopy
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -232,6 +232,8 @@ async def test_decision_report_connects_orders_stock_receipts_and_schedule_by_wa
     assert a["name"] == "Cà phê rang" and a["known_quantity"] == 30
     assert a["incoming_quantity"] == 15  # cancelled plan never becomes expected supply
     assert a["orders_at_risk"] == 1  # another warehouse's hold cannot protect this order
+    assert a["known_order_shortage"] == 10  # receipt at 18:00 misses the 09:00 deadline
+    assert a["forecast_added_shortage"] >= 0
     assert report["kpis"]["risk_orders"] == 1
     assert report["warehouses"][0]["name"] == "Kho Hà Nội"
     assert sum(p["received"] for p in report["history"]["series"]) == 50
@@ -242,6 +244,94 @@ async def test_decision_report_connects_orders_stock_receipts_and_schedule_by_wa
     assert report["orders"][0]["schedule_status"] == "late"
     assert report["explanations"]["balance"]["formula"].startswith("Hàng đầu kỳ")
     assert {r["data_product_id"] for r in boundary.refs.values()} <= set(boundary.checked)
+
+
+@pytest.mark.asyncio
+async def test_calendar_handoff_plans_every_day_through_a_custom_end_date():
+    response = await call(PlanningBoundary(), horizon=10)
+    assert response.status_code == 200, response.text
+    report = response.json()
+    assert (date.fromisoformat(report["end"]) - date.fromisoformat(report["start"])).days == 9
+    assert len(report["baseline"]["series"]) == 10
+    assert report["baseline"]["series"][-1]["day"] == report["end"]
+
+
+@pytest.mark.asyncio
+async def test_explicit_history_grain_preserves_both_flow_totals():
+    boundary = PlanningBoundary()
+    daily = (await call(boundary, history_frequency="day")).json()["history"]
+    weekly = (await call(boundary, history_frequency="week")).json()["history"]
+    assert daily["frequency"] == "day" and weekly["frequency"] == "week"
+    assert len(weekly["series"]) < len(daily["series"])
+    for key in ("confirmed", "received"):
+        assert sum(p[key] for p in daily["series"]) == sum(p[key] for p in weekly["series"])
+
+
+@pytest.mark.asyncio
+async def test_receipts_with_another_unit_are_not_reported_as_zero():
+    boundary = PlanningBoundary()
+    boundary.facts[boundary.refs["receipts"]["data_product_id"]][0]["uom"] = "BOX"
+    response = await call(boundary)
+    assert response.status_code == 422
+    assert "UOM mismatch" in response.text
+
+
+@pytest.mark.asyncio
+async def test_source_bindings_accept_enterprise_names_without_relaxing_contract_or_permission(
+    monkeypatch,
+):
+    import json
+
+    boundary = PlanningBoundary()
+    identifier = boundary.refs["demand"]["data_product_id"]
+    boundary.products[identifier]["name"] = "acme.confirmed_orders_by_warehouse"
+    assert (await call(boundary)).status_code == 422
+    monkeypatch.setenv(
+        "FLOWBRIDGE_WORKSPACE_SOURCE_NAMES",
+        json.dumps(
+            {
+                "demand": "acme.confirmed_orders_by_warehouse",
+            }
+        ),
+    )
+    result = await call(boundary)
+    assert result.status_code == 200, result.text
+    assert result.json()["selected_sku"] == "A"
+    boundary.revoked = identifier
+    assert (await call(boundary)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_enterprise_aliases_continue_from_planning_into_scenario_and_sensitivity(monkeypatch):
+    import json
+
+    boundary = PlanningBoundary()
+    aliases = {key: f"acme.{key}" for key in boundary.refs}
+    for key, ref in boundary.refs.items():
+        boundary.products[ref["data_product_id"]]["name"] = aliases[key]
+    monkeypatch.setenv("FLOWBRIDGE_WORKSPACE_SOURCE_NAMES", json.dumps(aliases))
+    app = create_app(boundary, RepositoryBoundary())
+    headers = {"Authorization": "Bearer caller"}
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app), base_url="http://workspace"
+    ) as client:
+        response = await client.post(PREFIX + "/planning", headers=headers, json=boundary.refs)
+        assert response.status_code == 200, response.text
+        plan = response.json()
+        scenario = await client.post(
+            PREFIX + "/scenarios",
+            headers=headers,
+            json={
+                "forecast_run_id": plan["forecast"]["id"],
+                "warehouse_id": boundary.wh,
+                "sku": "A",
+                "arrival_date": plan["start"],
+                "include_sensitivity": True,
+                **{k: boundary.refs[k] for k in ["stock", "inbound", "open_orders", "commitments"]},
+            },
+        )
+    assert scenario.status_code == 200, scenario.text
+    assert scenario.json()["sensitivity"]["cells"]
 
 
 @pytest.mark.asyncio
@@ -259,7 +349,7 @@ async def test_planning_filters_at_core_before_paginating_large_multiwarehouse_h
         boundary.facts[identifier].extend(
             [{**boundary.facts[identifier][0], "order_id": "historical-order"}] * 11000
         )
-    queries = []
+    queries, catalog_reads = [], []
 
     def respond(request):
         if request.url.path.endswith("/me"):
@@ -272,6 +362,7 @@ async def test_planning_filters_at_core_before_paginating_large_multiwarehouse_h
                 },
             )
         if request.url.path.endswith("/authorized-data-products"):
+            catalog_reads.append(request)
             return httpx.Response(200, json={"items": list(boundary.products.values())})
         identifier = request.url.path.split("/")[-2]
         query = json.loads(request.content)
@@ -306,20 +397,23 @@ async def test_planning_filters_at_core_before_paginating_large_multiwarehouse_h
             transport=httpx.ASGITransport(app), base_url="http://workspace"
         ) as client:
             result = await client.post(
-                PREFIX + "/planning", headers={"Authorization": "Bearer caller"},
+                PREFIX + "/planning",
+                headers={"Authorization": "Bearer caller"},
                 json=boundary.refs,
             )
     assert result.status_code == 200, result.text
     assert result.json()["selected_sku"] == "A"
     assert result.json()["products"][0]["forecast_quantity"] == 70
     assert queries[0][0] == boundary.refs["stock"]["data_product_id"]
+    assert len(catalog_reads) == 1  # all source reads share only request-scoped metadata
     paginated = [q for identifier, q in queries if identifier == demand_id and q["limit"] == 100]
     assert paginated and max(q["offset"] for q in paginated) < 500
     assert all(q["where"]["warehouse_id"] == {"_eq": boundary.wh} for q in paginated)
     assert all("_gte" in q["where"]["day"] and "_lt" in q["where"]["day"] for q in paginated)
     for key in ["commitments", "schedule"]:
         queries_for_role = [
-            q for identifier, q in queries
+            q
+            for identifier, q in queries
             if identifier == boundary.refs[key]["data_product_id"] and q["limit"] == 100
         ]
         assert all(q["where"]["order_id"] == {"_in": ["order-1"]} for q in queries_for_role)

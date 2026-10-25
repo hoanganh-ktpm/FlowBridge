@@ -4,6 +4,9 @@ import { Info } from "lucide-react";
 import { CartesianGrid, Legend, Line, ComposedChart, ReferenceLine, ResponsiveContainer,
   Tooltip as ChartTooltip, XAxis, YAxis, Area, Bar } from "recharts";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { NativeSelect } from '@/components/ui/native-select';
+import { Label } from '@/components/ui/label';
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const fmt = (value: number | null | undefined) => value == null ? "—" : new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value);
 export const dateLabel = (value?: string | null) => value ? new Date(value.length === 10 ? value + "T00:00:00+07:00" : value).toLocaleDateString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }) : "—";
@@ -32,13 +35,13 @@ export function Field({ title, hint, children }: { title: string; hint?: string;
     const props = { id: element.props.id || `${id}-${index}`, "aria-label": element.props["aria-label"] || title };
     return cloneElement(element, child.type === Select ? { ...props, label: element.props.label || title } : props);
   });
-  return <div className="dw-field"><div className="dw-field-label"><label htmlFor={`${id}-0`}>{title}</label>{hint && <Hint label={`Giải thích ${title}`}>{hint}</Hint>}</div>{controls}</div>;
+  return <div className="dw-field"><div className="dw-field-label"><Label htmlFor={`${id}-0`}>{title}</Label>{hint && <Hint label={`Giải thích ${title}`}>{hint}</Hint>}</div>{controls}</div>;
 }
 export function Select({ value, onChange, children, label, disabled = false, id }: { value: string; onChange: (value: string) => void; children: ReactNode; label?: string; disabled?: boolean; id?: string }) {
-  return <select id={id} aria-label={label} disabled={disabled} value={value} onChange={e => onChange(e.target.value)}>{children}</select>;
+  return <NativeSelect id={id} aria-label={label} disabled={disabled} value={value} onChange={e => onChange(e.target.value)}>{children}</NativeSelect>;
 }
 export function Panel({ title, subtitle, children, action }: { title: string; subtitle?: string; children: ReactNode; action?: ReactNode }) {
-  return <section className="dw-panel"><div className="dw-panel-heading"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{action}</div>{children}</section>;
+  return <Card className="dw-panel"><CardHeader className="dw-panel-heading"><div><CardTitle><h2>{title}</h2></CardTitle>{subtitle && <CardDescription>{subtitle}</CardDescription>}</div>{action && <CardAction>{action}</CardAction>}</CardHeader>{children}</Card>;
 }
 export function Metric({ title, value, note, help, onDetail }: { title: string; value: string; note: string; help: string; onDetail?: () => void }) {
   return <article className="dw-metric"><div>{title}<Hint label={`Giải thích ${title}`} onDetail={onDetail}>{help}</Hint></div><strong>{value}</strong><span>{note}</span></article>;

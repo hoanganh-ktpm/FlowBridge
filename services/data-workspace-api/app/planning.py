@@ -159,7 +159,10 @@ def project_orders(
     shortages, filled_at = {}, {}
     new_backlog, demand_total, served_new, selected_order_demand = 0, 0, 0, 0
     supply_total, peak, first_risk, series = opening, 0, None, []
+    deadline_peak, supply_shortage_peak = 0, 0
+    capacity_demand, capacity_ratio, capacity_impossible = 0, None, False
     for point in points:
+        daily_supply_peak = 0
         day = date.fromisoformat(point["timestamp"])
         beginning = max(datetime.combine(day, time.min, zone).astimezone(UTC), snapshot_at)
         ending = datetime.combine(day + timedelta(days=1), time.min, zone).astimezone(UTC)
@@ -208,6 +211,11 @@ def project_orders(
                     filled_at[order["id"]] = _at.isoformat()
             if due is not None and due["id"] not in finished:
                 risk.add(due["id"])
+                deadline_peak = max(
+                    deadline_peak,
+                    sum(o["lines"].get(selected, 0) for o in pending if o["id"] not in finished)
+                    - balances.get(selected, 0),
+                )
                 shortages[due["id"]] = [
                     {
                         "sku": key[0],
@@ -218,12 +226,30 @@ def project_orders(
                     if quantity > balances.get(key, 0) + 1e-9
                 ]
             if kind == "forecast":
+                capacity_demand += point.get("reference_p50", point["p50"])
                 demand_total += payload
                 new_backlog += payload
                 served_today = min(new_backlog, balances.get(selected, 0))
                 served_new += served_today
                 balances[selected] = balances.get(selected, 0) - served_today
                 new_backlog -= served_today
+            # A line blocked by another SKU is not itself a physical shortage.
+            # Check every event, including a deadline before a same-day receipt.
+            pending_selected = sum(
+                o["lines"].get(selected, 0) for o in pending if o["id"] not in finished
+            )
+            supply_shortage_peak = max(
+                supply_shortage_peak, pending_selected + new_backlog - balances.get(selected, 0)
+            )
+            daily_supply_peak = max(
+                daily_supply_peak, pending_selected + new_backlog - balances.get(selected, 0)
+            )
+            remaining_for_new = supply_total - selected_order_demand
+            if remaining_for_new < -1e-9:
+                capacity_impossible = True
+            if capacity_demand > 1e-9:
+                ratio = remaining_for_new / capacity_demand
+                capacity_ratio = ratio if capacity_ratio is None else min(capacity_ratio, ratio)
         position = supply_total - selected_order_demand - demand_total
         unmet_known = sum(o["lines"].get(selected, 0) for o in pending if o["id"] not in finished)
         shortage = unmet_known + new_backlog
@@ -244,6 +270,8 @@ def project_orders(
                 "forecast_fulfilled_quantity": served_today,
                 "unmet_known_quantity": unmet_known,
                 "unmet_forecast_quantity": new_backlog,
+                "supply_shortage": max(0, unmet_known + new_backlog - balances.get(selected, 0)),
+                "daily_peak_supply_shortage": daily_supply_peak,
             }
         )
     return {
@@ -268,10 +296,15 @@ def project_orders(
         "metrics": {
             "first_risk_date": first_risk,
             "peak_shortage": peak,
+            "peak_shortage_at_deadline": deadline_peak,
+            "peak_supply_shortage": supply_shortage_peak,
             "forecast_demand": demand_total,
             "fulfilled_quantity": served_new,
             "fulfillment_percent": 100 * served_new / demand_total if demand_total else None,
             "known_orders_at_risk": len(risk),
             "known_unallocated_demand": selected_order_demand,
+            "demand_headroom_percent": 100 * (capacity_ratio - 1)
+            if capacity_ratio is not None and not capacity_impossible
+            else None,
         },
     }
