@@ -35,6 +35,10 @@ class SubmitDecision(DTO):
     expected_version: int = Field(ge=1, strict=True)
 
 
+class VerifyHandoff(DTO):
+    revision_id: UUID
+
+
 class CompleteDecisionTask(DTO):
     revision_id: UUID
     outcome: Literal["confirmed", "changes_required", "approved", "rejected", "acknowledged"]
@@ -140,6 +144,19 @@ def install_decision_routes(
     async def state(case_id: UUID, ctx=actor_dependency):
         configured()
         return await service.workflow_state(ctx, case_id)
+
+    @app.post(prefix + "/decisions/{case_id}/verify-handoff")
+    async def verify(
+        case_id: UUID,
+        body: VerifyHandoff,
+        ctx=actor_dependency,
+        idempotency_key: str = Header(default=""),
+    ):
+        configured()
+        from .decision_repository import command_key
+
+        command_key(idempotency_key)
+        return await service.verify_handoff(ctx, case_id, body, idempotency_key)
 
     @app.post(prefix + "/decisions/{case_id}/tasks/{task_id}/complete")
     async def complete(

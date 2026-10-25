@@ -245,7 +245,11 @@ def decision_port(request):
 
 from uuid import UUID  # noqa: E402
 
-from app.platform.workflow.decision_schemas import DecisionStart, DecisionTaskCommand  # noqa: E402
+from app.platform.workflow.decision_schemas import (  # noqa: E402
+    DecisionHandoffCommand,
+    DecisionStart,
+    DecisionTaskCommand,
+)
 
 
 @workflow_router.post(
@@ -269,6 +273,22 @@ async def complete_decision_task(
     instance_id: str, task_id: str, body: DecisionTaskCommand, request: Request, actor: Actor
 ):
     return await decision_port(request).complete(actor, instance_id, task_id, body, _key(request))
+
+
+@workflow_router.post(
+    "/decision-runs/{instance_id}/verify-handoff", operation_id="verifyDecisionCarrierHandoff"
+)
+async def verify_decision_handoff(
+    instance_id: str, body: DecisionHandoffCommand, request: Request, actor: Actor
+):
+    _key(request)
+    return await decision_port(request).confirm_handoff(
+        actor,
+        instance_id,
+        body,
+        request.headers.get("Authorization", "").partition(" ")[2],
+        request.state.correlation_id,
+    )
 
 
 @workflow_router.post("/events", operation_id="receiveWorkflowEvent", status_code=202)

@@ -493,6 +493,53 @@ class DecisionRepository:
                 conn, ctx, identifier, revision_id, "TASK_COMPLETED", event_key, result
             )
 
+    async def complete_handoff(self, ctx, identifier, revision_id, proof):
+        payload_check(proof)
+        async with self.engine.begin() as conn:
+            case = await self.get(ctx, identifier, conn=conn, lock=True)
+            if (
+                case["revision"]["id"] != str(revision_id)
+                or case["workflow_instance_ref"] != proof["instance_id"]
+                or proof["revision_id"] != str(revision_id)
+                or proof["kind"] != "DECISION_COMPLETED"
+            ):
+                raise HTTPException(409, "Handoff proof belongs to another process or revision")
+            if case["status"] == "COMPLETED":
+                return case
+            if case["status"] not in {"VALIDATING", "PENDING_APPROVAL", "APPROVED", "EXECUTING"}:
+                raise HTTPException(409, "Case cannot close from this state")
+            await conn.execute(
+                cases.update()
+                .where(cases.c.org_id == ctx.org_id, cases.c.id == identifier)
+                .values(
+                    status="COMPLETED",
+                    active=False,
+                    version=cases.c.version + 1,
+                    updated_at=sa.func.now(),
+                )
+            )
+            evidence = {
+                name: proof[name]
+                for name in (
+                    "kind",
+                    "instance_id",
+                    "revision_id",
+                    "completed_at",
+                    "source_event_ids",
+                    "proof_sha256",
+                )
+            }
+            await self.event(
+                conn,
+                ctx,
+                identifier,
+                revision_id,
+                "CARRIER_HANDOFF_VERIFIED",
+                "handoff:" + proof["proof_sha256"],
+                evidence,
+            )
+            return await self.get(ctx, identifier, conn=conn)
+
     @staticmethod
     async def event(conn, ctx, case_id, revision_id, event_type, key, payload):
         await conn.execute(

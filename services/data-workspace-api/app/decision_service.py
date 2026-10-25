@@ -249,9 +249,25 @@ class DecisionService:
             "case": case,
             "workflow": state,
             "warnings": ["Actual handoff still requires source proof"]
-            if state["status"] == "COMPLETED"
+            if state["status"] == "COMPLETED" and case["status"] != "COMPLETED"
             else [],
         }
+
+    async def verify_handoff(self, ctx, identifier, body, key):
+        case = await self.get(ctx, identifier)
+        if (
+            self.workflow is None
+            or not case["workflow_instance_ref"]
+            or case["revision"]["id"] != str(body.revision_id)
+        ):
+            raise HTTPException(409, "No matching submitted revision to verify")
+        result = await self.workflow.request(
+            "/decision-runs/" + case["workflow_instance_ref"] + "/verify-handoff",
+            {"revision_id": str(body.revision_id), "actor_principal_id": str(ctx.owner_id)},
+            key,
+        )
+        await self.repository.complete_handoff(ctx, identifier, body.revision_id, result)
+        return await self.workflow_state(ctx, identifier)
 
     async def complete_task(self, ctx, identifier, task_id, body, key):
         case = await self.get(ctx, identifier)

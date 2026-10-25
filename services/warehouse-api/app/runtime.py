@@ -414,4 +414,7 @@ def create_app():
 
         return runtime.command(identity, body, "stock.handoff", idempotency_key, write)
 
+    from .operations import install
+
+    install(app, runtime, tables)
     return app

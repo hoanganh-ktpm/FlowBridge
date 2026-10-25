@@ -14,7 +14,7 @@ type Dossier = { id: string; title: string; warehouse_id: string; order_id: stri
 type Summary = Omit<Dossier, 'revision' | 'participants'>;
 type Event = { id: string; event_type: string; created_at: string; payload: { number?: number; note?:string|null;role?:string;outcome?:string } };
 const status: Record<string, string> = { DRAFT: 'Bản nháp', VALIDATING: 'Đang xác minh', NEEDS_REVISION: 'Cần sửa phương án', PENDING_APPROVAL: 'Chờ duyệt', APPROVED: 'Đã duyệt', EXECUTING: 'Đang thực hiện', COMPLETED: 'Đã bàn giao', STOPPED: 'Đã dừng' };
-const eventNames: Record<string, string> = { CASE_CREATED: 'Lập hồ sơ', REVISION_CREATED: 'Thêm phiên bản', SUBMISSION_REQUESTED:'Gửi xác minh', SUBMISSION_RESUMED:'Đối soát lần gửi', WORKFLOW_OBSERVED:'Cập nhật tiến độ quy trình', TASK_COMPLETED:'Hoàn tất nhiệm vụ' };
+const eventNames: Record<string, string> = { CASE_CREATED: 'Lập hồ sơ', REVISION_CREATED: 'Thêm phiên bản', SUBMISSION_REQUESTED:'Gửi xác minh', SUBMISSION_RESUMED:'Đối soát lần gửi', WORKFLOW_OBSERVED:'Cập nhật tiến độ quy trình', TASK_COMPLETED:'Hoàn tất nhiệm vụ',CARRIER_HANDOFF_VERIFIED:'Đã đối chiếu đủ bằng chứng bàn giao cho đơn vị vận chuyển' };
 const roleNames: Record<string,string> = {coordinator:'Người điều phối',warehouse:'Kho',logistics:'Vận chuyển',manager:'Quản lý'};
 const outcomeNames: Record<string,string> = {confirmed:'Xác nhận điều kiện',changes_required:'Yêu cầu sửa',approved:'Duyệt',rejected:'Không chấp thuận',acknowledged:'Đã nhắc người phụ trách'};
 type WorkflowTask = {id:string;name:string;task_key:string;role:string;mine:boolean};
@@ -127,6 +127,15 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     try {await request<WorkflowState>(path,body,undefined,key(path,body));await open(selected.id);}
     catch(e){failedCommand(e);} finally{setBusy(false);}
   }
+  async function verifyHandoff(){
+    if(!selected)return;
+    const path='/decisions/'+selected.id+'/verify-handoff';
+    const body={revision_id:selected.revision.id};
+    setBusy(true);setError('');
+    try{await request<WorkflowState>(path,body,undefined,key(path,body));await open(selected.id);}
+    catch(e){if(e instanceof ApiError&&e.status===409)setError('Chưa xác minh được bàn giao đầy đủ từ Kho hoặc quy trình chưa được duyệt. Hồ sơ vẫn chưa hoàn tất.');else failedCommand(e);}
+    finally{setBusy(false);}
+  }
   const canRevise = selected && (selected.actions?.can_revise ?? capabilities.roles.includes('coordinator')) && ['DRAFT', 'NEEDS_REVISION'].includes(selected.status)
     && !!scenario?.id && !scenarioDirty && scenario.baseline.orders?.some(o => o.order_id === selected.order_id);
   return <div className="pw-dossiers">
@@ -151,6 +160,8 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
           {task.role==='coordinator'&&<Button disabled={busy} onClick={()=>void complete(task,'acknowledged')}>Đã nhắc người phụ trách</Button>}
         </>}</div>)}
         {selected.status==='APPROVED'&&<p>Đã duyệt phương án. Vẫn cần thực hiện nghiệp vụ và xác minh bàn giao thực tế; hồ sơ chưa hoàn tất.</p>}
+        {selected.status!=='COMPLETED'&&(['APPROVED','EXECUTING'].includes(selected.status)||workflow?.status==='COMPLETED')&&<Button variant="outline" disabled={busy} onClick={()=>void verifyHandoff()}>Kiểm tra bàn giao thực tế</Button>}
+        {selected.status==='COMPLETED'&&<p>Đã đối chiếu đủ các dòng hàng với bằng chứng Kho bàn giao cho đơn vị vận chuyển. Đây là mốc kết thúc quy trình.</p>}
       </>}
       {capabilities.roles.includes('coordinator') && <><Button disabled={busy || !canRevise} onClick={() => void revise()}>Thêm phương án đang xem thành phiên bản mới</Button><p className="dw-muted">So sánh và lưu phương án mới cho cùng đơn trước khi thêm. Phiên bản trước vẫn được giữ lại.</p></>}
       <h3>Lịch sử phiên bản</h3>{history.map(revision => <div key={revision.id}><strong>Phiên bản {revision.number}</strong><p>{new Date(revision.created_at).toLocaleString('vi-VN')} · Thiếu nguồn {fmt(scenarioSummary(revision.payload.scenario).after)}</p></div>)}

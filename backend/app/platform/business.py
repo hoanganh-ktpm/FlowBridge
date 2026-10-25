@@ -76,7 +76,18 @@ class BusinessRuntime:
             )
         return response.json()
 
-    def command(self, actor, body, action, key, operation):
+    def command(
+        self,
+        actor,
+        body,
+        action,
+        key,
+        operation,
+        *,
+        response_status=200,
+        resource_type=None,
+        resource_id=None,
+    ):
         self.allow(actor, body.org_id, action)  # Also before cached-result access.
         if not key or not 1 <= len(key) <= 128:
             raise CoreError(ErrorCode.VALIDATION_ERROR)
@@ -116,7 +127,9 @@ class BusinessRuntime:
                         actor_subject=actor.subject,
                         request_hash=digest,
                         status="SUCCEEDED",
-                        response_status=200,
+                        response_status=response_status,
+                        resource_type=resource_type,
+                        resource_id=resource_id,
                         response_body=result,
                         created_at=now,
                         completed_at=now,

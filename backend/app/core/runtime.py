@@ -142,12 +142,22 @@ def create_app():
                 async with bundle.store.transaction(read_only=True) as tx:
                     return await tx.identity_for_principal(workflow.decision_execution_principal)
 
+            async def decision_handoff_reader(actor, token, record, request_id):
+                return await gateway.execute(
+                    "warehouse.operations.handoff_proof_read",
+                    {key: record[key] for key in ("org_id", "warehouse_id", "order_id")},
+                    actor=actor,
+                    token=token,
+                    request_id=request_id,
+                )
+
             app.state.workflow.decisions = CoreDecisionRuns(
                 bundle.store,
                 client,
                 gateway.data,
                 decision_execution_identity,
                 workflow.decision_bindings,
+                handoff_reader=decision_handoff_reader,
             )
         if workflow.engine_token.get_secret_value():
 

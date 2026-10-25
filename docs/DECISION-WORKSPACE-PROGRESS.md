@@ -236,3 +236,46 @@ TypeScript/build passed. Detailed configuration and boundaries are documented in
 
 No production assignment, hosted database or human MFA policy was modified.
 M09–M12 and the full four-human live acceptance are not yet complete.
+
+## M09 — native owner transactions and evidenced handoff (25 October 2026)
+
+Added owner APIs on the actual Sales/Warehouse/Logistics tables without removing
+the old wf_e2e guards or changing their delivery semantics. Warehouse can confirm
+preparation, update ETA, post accepted receipts, reserve an entire original order,
+freeze a dispatch and record human-attested carrier handoff. Logistics serializes
+carrier/day bookings and reconciles actual Warehouse evidence. Sales closes only
+after all original line quantities are physically handed over, using the latest
+source handoff time. Ledger, holds, receipts and inbox/outbox remain owner-local
+transactions. Physical handoff requires a human receiver/receipt/time entry and
+refuses machine identities. The carrier receipt is an attestation/reference, not
+a cryptographically verified external signature or customer receipt.
+
+Exported 20 fixed, versioned native HTTP action contracts and an explicit admin
+registration CLI. Native permissions include organization and warehouse scope;
+platform admin alone grants nothing. Quantities preserve decimal strings. Scoped
+command-receipt lookup returns minimal references; missing receipts remain
+UNCONFIRMED, not a claim that a request cannot still commit.
+
+Core can read the registered owner handoff-proof action and release the approved
+Flowable message wait only after scoped per-line quantities, event identities,
+manifest hashes and nonfuture actual times validate. Lost message responses are
+reconciled against engine history. Workspace appends the proof references and
+closes the dossier atomically; Portal keeps approval separate from completion.
+See `docs/DECISION-OWNER-OPERATIONS.md` for roles, setup and partial-work boundaries.
+
+Validation: **53 isolated PostgreSQL tests passed, one Flowable-only bridge case
+skipped in that profile**; these include actual three-owner HTTP handlers through
+the Core Action Gateway adapter, competing stock/capacity requests, whole-order
+rollback, duplicate-SKU line identity, receipt rejection/over-receipt, handoff
+ledger effects and idempotent Sales/Logistics source reconciliation. IAM/network
+transport in the HTTP test is stubbed. **10 isolated Flowable/Workspace integration
+tests passed** in its dedicated profile, including strict physical-proof gates,
+lost completion-message response and persisted case closure. Full fast suite:
+**1061 passed, 91 deselected**. Three targeted mocked-browser tests passed,
+including refusing premature completion; TypeScript/build passed. The existing
+Starlette TestClient/httpx deprecation warning is retained, not hidden.
+
+These are owner capabilities and explicit role commands. Automatic event transport,
+consolidated execution/uncertain-start recovery and impact projection are M10;
+the live four-human SSO/Hasura/Portal path and hosted deployment are not claimed.
+No persistent hosted/shared business data was mutated by these tests.

@@ -190,6 +190,27 @@ async def test_decision_transactions_revision_history_and_scope(migrated_workspa
             "CASE_CREATED",
             "REVISION_CREATED",
         ]
+        current_revision = UUID(winner["revision"]["id"])
+        await repo.begin_submission(ctx, identifier, 2, current_revision, "submit-current")
+        await repo.workflow_projection(
+            ctx, identifier, current_revision, "scoped-engine-instance", "APPROVED"
+        )
+        proof = {
+            "kind": "DECISION_COMPLETED",
+            "instance_id": "scoped-engine-instance",
+            "revision_id": str(current_revision),
+            "completed_at": "2026-10-25T09:00:00+07:00",
+            "source_event_ids": [str(uuid4())],
+            "proof_sha256": "a" * 64,
+        }
+        with pytest.raises(HTTPException) as wrong_instance:
+            await repo.complete_handoff(
+                ctx, identifier, current_revision, {**proof, "instance_id": "foreign-instance"}
+            )
+        assert wrong_instance.value.status_code == 409
+        closed = await repo.complete_handoff(ctx, identifier, current_revision, proof)
+        assert closed["status"] == "COMPLETED" and closed["active"] is False
+        assert await repo.complete_handoff(ctx, identifier, current_revision, proof) == closed
         # The cross-scope simulation FK is enforced by PostgreSQL, not merely Python.
         foreign = await result_repo.save(
             "simulation", SimpleNamespace(org_id=uuid4(), owner_id=owner), {}
@@ -214,6 +235,7 @@ async def test_decision_transactions_revision_history_and_scope(migrated_workspa
         try:
             restored = await DecisionRepository(reopened.engine).get(review, identifier)
             assert restored["revision"] == winner["revision"]
+            assert restored["status"] == "COMPLETED"
         finally:
             await reopened.close()
     finally:

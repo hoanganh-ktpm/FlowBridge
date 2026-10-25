@@ -56,3 +56,8 @@ class DecisionTaskCommand(Strict):
         if self.outcome in {"changes_required", "rejected"} and not (self.note or "").strip():
             raise ValueError("State the reason for returning or rejecting the proposal")
         return self
+
+
+class DecisionHandoffCommand(Strict):
+    revision_id: UUID
+    actor_principal_id: UUID

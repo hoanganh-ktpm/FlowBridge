@@ -103,6 +103,113 @@ async def test_failed_verification_does_not_reach_manager(engine):
     assert (await engine.get_instance(instance["id"]))["endActivityId"] == "revisionRequired"
 
 
+async def test_core_completion_requires_current_scoped_physical_proof_and_reconciles_message_loss(
+    engine,
+):
+    from datetime import UTC, datetime, timedelta
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from tests.core.runtime.fakes import MemoryStore
+    from tests.core.runtime.test_decision_workflow import fixture as core_fixture
+
+    from app.platform.http.errors import CoreError, ErrorCode
+    from app.platform.workflow.decision_schemas import DecisionHandoffCommand, DecisionTaskCommand
+
+    runs, actor, body, principals = await core_fixture(SimpleNamespace(store=MemoryStore()))
+    runs.engine = engine
+    await engine.deploy(
+        "decision-proof",
+        (ROOT / "workflows/supply_handover_exception.bpmn20.xml").read_text(encoding="utf-8"),
+    )
+    started = await runs.start(actor, body, "proof-start")
+    identifier = started["id"]
+    command = DecisionHandoffCommand(
+        revision_id=body.revision_id, actor_principal_id=principals["coordinator"]
+    )
+    instant = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+    proof = {
+        "org_id": str(body.org_id),
+        "warehouse_id": str(body.warehouse_id),
+        "order_id": str(body.order_id),
+        "source_order_revision": 1,
+        "complete": True,
+        "completed_at": instant,
+        "evidence": [
+            {
+                "source_event_id": str(uuid4()),
+                "dispatch_id": str(uuid4()),
+                "source_version": 2,
+                "manifest_hash": "a" * 64,
+                "handed_over_at": instant,
+            }
+        ],
+        "lines": [
+            {
+                "order_line_id": str(uuid4()),
+                "sku": "COFFEE-500G",
+                "uom": "gói",
+                "ordered_quantity": "4.000",
+                "handed_over_quantity": "4.000",
+            }
+        ],
+    }
+    runs.handoff_reader = AsyncMock(return_value=proof)
+    with pytest.raises(CoreError) as early:
+        await runs.confirm_handoff(actor, identifier, command, "worker-token", "early")
+    assert early.value.code == ErrorCode.INVALID_STATE
+    assert len(await engine.list_tasks(process_instance_id=identifier)) == 2
+    tasks = await engine.list_tasks(process_instance_id=identifier)
+    for role, task_key in (("warehouse", "verifyWarehouse"), ("logistics", "verifyLogistics")):
+        task = next(t for t in tasks if t["taskDefinitionKey"] == task_key)
+        await runs.complete(
+            actor,
+            identifier,
+            task["id"],
+            DecisionTaskCommand(
+                actor_principal_id=principals[role], outcome="confirmed", check=body.check
+            ),
+            "confirm-" + role,
+        )
+    task = (await engine.list_tasks(process_instance_id=identifier))[0]
+    await runs.complete(
+        actor,
+        identifier,
+        task["id"],
+        DecisionTaskCommand(
+            actor_principal_id=principals["manager"], outcome="approved", check=body.check
+        ),
+        "approve",
+    )
+    for invalid in (
+        {**proof, "complete": False},
+        {**proof, "org_id": str(uuid4())},
+        {**proof, "lines": [{**proof["lines"][0], "handed_over_quantity": "3.000"}]},
+    ):
+        runs.handoff_reader.return_value = invalid
+        with pytest.raises(CoreError):
+            await runs.confirm_handoff(actor, identifier, command, "worker-token", "invalid")
+        assert await engine.awaits_message(identifier, "decision.carrier_handed_over")
+    runs.handoff_reader.return_value = proof
+    original = engine.message_event
+    calls = []
+
+    async def lost(*args, **kwargs):
+        calls.append(True)
+        await original(*args, **kwargs)
+        raise CoreError(ErrorCode.UPSTREAM_TIMEOUT)
+
+    engine.message_event = lost
+    with pytest.raises(CoreError):
+        await runs.confirm_handoff(actor, identifier, command, "worker-token", "lost")
+    complete = await runs.confirm_handoff(actor, identifier, command, "worker-token", "retry")
+    assert complete["reconciled"] and complete["source_event_ids"] == [
+        proof["evidence"][0]["source_event_id"]
+    ]
+    assert len(calls) == 1
+    assert (await engine.get_instance(identifier))["endActivityId"] == "handedOver"
+
+
 async def test_owned_engine_restart_keeps_parallel_tasks_and_timers_never_approve(engine):
     _, instance, roles = await start(engine, quick_timers=True)
     identifier = instance["id"]

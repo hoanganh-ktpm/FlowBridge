@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Explicit trusted Workspace execution port; Flowable remains workflow authority."""
 
+import re
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from app.core.applications.manifest import fingerprint
@@ -28,13 +30,14 @@ OUTCOMES = {
 
 
 class CoreDecisionRuns:
-    def __init__(self, store, engine, data, execution_identity, bindings):
+    def __init__(self, store, engine, data, execution_identity, bindings, handoff_reader=None):
         self.store, self.engine, self.data = store, engine, data
         self.execution_identity = execution_identity
         self.bindings = {
             str(UUID(key)): Assignment.model_validate(value) for key, value in bindings.items()
         }
         self.inbox = CoreEventInbox(store)
+        self.handoff_reader = handoff_reader
 
     async def trusted(self, actor):
         execution = await self.execution_identity()
@@ -152,6 +155,108 @@ class CoreDecisionRuns:
             return {**record, "id": found[0]["id"]} if len(found) == 1 else None
 
         return await self.inbox.once(dispatch_key, digest, dispatch, recover=recover)
+
+    async def confirm_handoff(self, actor, instance_id, body, token, request_id):
+        record = await self.record(actor, instance_id)
+        if str(body.revision_id) != record["revision_id"] or self.handoff_reader is None:
+            raise CoreError(ErrorCode.VERSION_CONFLICT)
+        roles = [
+            role
+            for role, pid in record["participants"].items()
+            if pid == str(body.actor_principal_id)
+        ]
+        if not roles:
+            raise CoreError(ErrorCode.FORBIDDEN)
+        for role in roles:
+            await self.assigned(
+                body.actor_principal_id, role, record["org_id"], record["warehouse_id"]
+            )
+        proof = await self.handoff_reader(actor, token, record, request_id)
+        if (
+            (proof.get("org_id"), proof.get("warehouse_id"), proof.get("order_id"))
+            != (record["org_id"], record["warehouse_id"], record["order_id"])
+            or proof.get("complete") is not True
+            or not proof.get("evidence")
+            or not proof.get("lines")
+            or len(proof["lines"]) > 20
+            or len(proof["evidence"]) > 100
+        ):
+            raise CoreError(ErrorCode.INVALID_STATE)
+        try:
+            completed = datetime.fromisoformat(proof["completed_at"].replace("Z", "+00:00"))
+            times = [
+                datetime.fromisoformat(item["handed_over_at"].replace("Z", "+00:00"))
+                for item in proof["evidence"]
+            ]
+            ids = [str(UUID(item["source_event_id"])) for item in proof["evidence"]]
+            line_ids = [str(UUID(line["order_line_id"])) for line in proof["lines"]]
+            quantities = [
+                (Decimal(line["ordered_quantity"]), Decimal(line["handed_over_quantity"]))
+                for line in proof["lines"]
+            ]
+            valid = (
+                completed.utcoffset() is not None
+                and all(at.utcoffset() is not None and at <= datetime.now(UTC) for at in times)
+                and max(times) == completed
+                and len(ids) == len(set(ids))
+                and len(line_ids) == len(set(line_ids))
+                and all(
+                    q.is_finite() and done.is_finite() and q > 0 and q == done
+                    for q, done in quantities
+                )
+            )
+            valid = (
+                valid
+                and type(proof["source_order_revision"]) is int
+                and proof["source_order_revision"] > 0
+            )
+            valid = valid and all(
+                type(item["source_version"]) is int
+                and item["source_version"] > 0
+                and re.fullmatch(r"[a-f0-9]{64}", item["manifest_hash"])
+                for item in proof["evidence"]
+            )
+        except (ValueError, KeyError, TypeError, InvalidOperation):
+            valid = False
+        if not valid:
+            raise CoreError(ErrorCode.VERSION_CONFLICT)
+        dispatch_key = fingerprint(["DECISION_HANDOFF", instance_id, record["revision_id"]])
+        content = fingerprint(proof)
+        result = {
+            "kind": "DECISION_COMPLETED",
+            "instance_id": instance_id,
+            "revision_id": record["revision_id"],
+            "completed_at": completed.isoformat(),
+            "source_event_ids": sorted(ids),
+            "proof_sha256": content,
+        }
+
+        current = await self.engine.get_instance(instance_id)
+        if not current.get("completed") and not await self.engine.awaits_message(
+            instance_id, "decision.carrier_handed_over"
+        ):
+            raise CoreError(ErrorCode.INVALID_STATE)
+
+        async def dispatch():
+            observed = await self.engine.get_instance(instance_id)
+            if observed.get("completed") and observed.get("endActivityId") == "handedOver":
+                return result
+            if not await self.engine.awaits_message(instance_id, "decision.carrier_handed_over"):
+                raise CoreError(ErrorCode.INVALID_STATE)
+            await self.engine.message_event(
+                "decision.carrier_handed_over", record["revision_id"], {}, workflow_key=KEY
+            )
+            return result
+
+        async def recover():
+            instance = await self.engine.get_instance(instance_id)
+            return (
+                result
+                if instance.get("completed") and instance.get("endActivityId") == "handedOver"
+                else None
+            )
+
+        return await self.inbox.once(dispatch_key, content, dispatch, recover=recover)
 
     async def record(self, actor, instance_id):
         await self.trusted(actor)

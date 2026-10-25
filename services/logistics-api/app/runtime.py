@@ -148,4 +148,7 @@ def create_app():
 
         return runtime.command(identity, body, "shipments.status", idempotency_key, write)
 
+    from .operations import install
+
+    install(app, runtime, {t.name: t for t in LogisticsBase.metadata.sorted_tables})
     return app

@@ -170,6 +170,38 @@ test('manager task stays on its revision, blocks stale approval and records retu
   expect(commands.map(c=>c.outcome)).toEqual(['approved','changes_required']);
 });
 
+test('approved dossier stays open until the server verifies physical handoff evidence',async({page})=>{
+  await mock(page);let attempts=0;let complete=false;
+  const scenario:any=scenarioResult({demand_multiplier:1,inbound_delay_days:0,additional_quantity:30,arrival_date:'2026-10-25'});
+  scenario.baseline.orders=[{order_id:'order-1',order_number:'SO-001',lines:[]}];
+  const dossier={id:'case-1',title:'Bàn giao SO-001',warehouse_id:warehouse,order_id:'order-1',status:'APPROVED',version:4,current_revision:1,
+    revision:{id:'revision-1',number:1,created_at:evidence.executed_at,payload:{scenario,requires_revalidation:true}},participants:[1,2,3,4],actions:{can_submit:false,can_revise:false}};
+  await page.route('**/decision-capabilities',r=>r.fulfill({json:{enabled:true,roles:['warehouse'],warehouse_ids:[warehouse],workflow_enabled:true}}));
+  await page.route('**/decisions**',r=>{
+    const path=new URL(r.request().url()).pathname;
+    if(r.request().method()==='POST'){
+      expect(path.endsWith('/verify-handoff')).toBe(true);expect(r.request().postDataJSON()).toEqual({revision_id:'revision-1'});
+      attempts++;
+      if(attempts===1)return r.fulfill({status:409,json:{detail:'Warehouse has not recorded the full handoff'}});
+      complete=true;return r.fulfill({json:{case:{...dossier,status:'COMPLETED'},workflow:{status:'COMPLETED',tasks:[]},warnings:[]}});
+    }
+    const detail={...dossier,status:complete?'COMPLETED':'APPROVED'};
+    if(path.endsWith('/workflow'))return r.fulfill({json:{case:detail,workflow:{instance_id:'instance-1',revision_id:'revision-1',status:detail.status,tasks:[]},warnings:[]}});
+    if(path.endsWith('/timeline'))return r.fulfill({json:{items:complete?[{id:'event-1',event_type:'CARRIER_HANDOFF_VERIFIED',created_at:evidence.executed_at,payload:{}}]:[],has_more:false}});
+    if(path.endsWith('/revisions'))return r.fulfill({json:{items:[dossier.revision],has_more:false}});
+    if(path.endsWith('/case-1'))return r.fulfill({json:detail});
+    return r.fulfill({json:{items:[detail],warnings:[],has_more:false}});
+  });
+  await page.goto('/#data');await page.getByRole('button',{name:'Hồ sơ quyết định',exact:true}).click();
+  await page.getByRole('button',{name:'Mở hồ sơ Bàn giao SO-001',exact:true}).click();
+  const verify=page.getByRole('button',{name:'Kiểm tra bàn giao thực tế',exact:true});
+  await expect(page.getByText('Đã duyệt phương án. Vẫn cần thực hiện nghiệp vụ và xác minh bàn giao thực tế; hồ sơ chưa hoàn tất.',{exact:true})).toBeVisible();
+  expect(attempts).toBe(0);
+  await verify.click();await expect(page.getByRole('alert')).toContainText('Hồ sơ vẫn chưa hoàn tất');
+  await verify.click();await expect(page.getByText('Đã đối chiếu đủ các dòng hàng với bằng chứng Kho bàn giao cho đơn vị vận chuyển. Đây là mốc kết thúc quy trình.',{exact:true})).toBeVisible();
+  await expect(verify).toHaveCount(0);expect(attempts).toBe(2);
+});
+
 test('saved scenario keeps intraday physical shortage instead of a zero day-end balance', async ({ page }) => {
   await mock(page);
   const saved = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25', save: true });

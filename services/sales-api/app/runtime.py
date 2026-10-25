@@ -164,4 +164,7 @@ def create_app():
 
         return runtime.command(identity, body, "orders.status", idempotency_key, write)
 
+    from .operations import install
+
+    install(app, runtime, {t.name: t for t in SalesBase.metadata.sorted_tables})
     return app

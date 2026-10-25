@@ -1,0 +1,1087 @@
+{
+  "schema_version": "1.0",
+  "actions": [
+    {
+      "action_id": "sales.operations.command_receipt_read",
+      "version": 1,
+      "owner_application": "sales",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "operations.preparation.confirm",
+              "operations.inbound.update_eta",
+              "operations.receipts.post",
+              "operations.stock.reserve",
+              "operations.dispatch.prepare",
+              "operations.dispatch.handoff",
+              "operations.shipments.book",
+              "operations.shipments.reconcile",
+              "operations.orders.reconcile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "operation",
+          "idempotency_key"
+        ],
+        "title": "CommandReceiptQuery",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "sales",
+      "method": "POST",
+      "path": "/api/v1/sales/operations/commands/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.command_receipt_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "operations.preparation.confirm",
+              "operations.inbound.update_eta",
+              "operations.receipts.post",
+              "operations.stock.reserve",
+              "operations.dispatch.prepare",
+              "operations.dispatch.handoff",
+              "operations.shipments.book",
+              "operations.shipments.reconcile",
+              "operations.orders.reconcile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "operation",
+          "idempotency_key"
+        ],
+        "title": "CommandReceiptQuery",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/commands/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "logistics.operations.command_receipt_read",
+      "version": 1,
+      "owner_application": "logistics",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "operations.preparation.confirm",
+              "operations.inbound.update_eta",
+              "operations.receipts.post",
+              "operations.stock.reserve",
+              "operations.dispatch.prepare",
+              "operations.dispatch.handoff",
+              "operations.shipments.book",
+              "operations.shipments.reconcile",
+              "operations.orders.reconcile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "operation",
+          "idempotency_key"
+        ],
+        "title": "CommandReceiptQuery",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "logistics",
+      "method": "POST",
+      "path": "/api/v1/logistics/operations/commands/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "sales.operations.order_read",
+      "version": 1,
+      "owner_application": "sales",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id"
+        ],
+        "title": "ReadOrder",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "sales",
+      "method": "POST",
+      "path": "/api/v1/sales/operations/orders/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "sales.operations.reconcile_handoff",
+      "version": 1,
+      "owner_application": "sales",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id",
+          "expected_version"
+        ],
+        "title": "ReconcileOrder",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "sales",
+      "method": "POST",
+      "path": "/api/v1/sales/operations/orders/reconcile",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.inventory_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id"
+        ],
+        "title": "WarehouseScope",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/inventory/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.inbound_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "inbound_plan_id": {
+            "format": "uuid",
+            "title": "Inbound Plan Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "inbound_plan_id"
+        ],
+        "title": "ReadInbound",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/inbound/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.reservation_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id"
+        ],
+        "title": "ReadOrder",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/reservations/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.dispatch_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "dispatch_id": {
+            "format": "uuid",
+            "title": "Dispatch Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "dispatch_id"
+        ],
+        "title": "ReadDispatch",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/dispatches/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.handoff_proof_read",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id"
+        ],
+        "title": "ReadOrder",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id",
+          "source_order_revision",
+          "complete",
+          "completed_at",
+          "lines",
+          "evidence"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "warehouse_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_order_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "maxItems": 20
+          },
+          "evidence": {
+            "type": "array",
+            "maxItems": 100
+          }
+        }
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/handoff-proof/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.confirm_preparation",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "preparation_minutes": {
+            "maximum": 10080,
+            "minimum": 0,
+            "title": "Preparation Minutes",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "preparation_minutes",
+          "expected_revision"
+        ],
+        "title": "PreparationCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/preparation",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.update_inbound_eta",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "inbound_plan_id": {
+            "format": "uuid",
+            "title": "Inbound Plan Id",
+            "type": "string"
+          },
+          "expected_updated_at": {
+            "format": "date-time",
+            "title": "Expected Updated At",
+            "type": "string"
+          },
+          "expected_at": {
+            "format": "date-time",
+            "title": "Expected At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "inbound_plan_id",
+          "expected_updated_at",
+          "expected_at"
+        ],
+        "title": "EtaCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/inbound/eta",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.post_receipt",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "inbound_plan_id": {
+            "format": "uuid",
+            "title": "Inbound Plan Id",
+            "type": "string"
+          },
+          "expected_updated_at": {
+            "format": "date-time",
+            "title": "Expected Updated At",
+            "type": "string"
+          },
+          "receipt_number": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Receipt Number",
+            "type": "string"
+          },
+          "received_quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Received Quantity"
+          },
+          "accepted_quantity": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Accepted Quantity"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rejection Reason"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "inbound_plan_id",
+          "expected_updated_at",
+          "receipt_number",
+          "received_quantity",
+          "accepted_quantity",
+          "received_at"
+        ],
+        "title": "ReceiveCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/receipts",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.reserve_order",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "expected_order_revision": {
+            "minimum": 1,
+            "title": "Expected Order Revision",
+            "type": "integer"
+          },
+          "inventory_versions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 20,
+            "minProperties": 1,
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Inventory Versions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id",
+          "expected_order_revision",
+          "inventory_versions"
+        ],
+        "title": "ReserveCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/reservations",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.prepare_dispatch",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "expected_reservation_version": {
+            "minimum": 1,
+            "title": "Expected Reservation Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "order_id",
+          "expected_reservation_version"
+        ],
+        "title": "PrepareCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/dispatches/prepare",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "warehouse.operations.record_carrier_handoff",
+      "version": 1,
+      "owner_application": "warehouse",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "dispatch_id": {
+            "format": "uuid",
+            "title": "Dispatch Id",
+            "type": "string"
+          },
+          "shipment_id": {
+            "format": "uuid",
+            "title": "Shipment Id",
+            "type": "string"
+          },
+          "expected_dispatch_version": {
+            "minimum": 1,
+            "title": "Expected Dispatch Version",
+            "type": "integer"
+          },
+          "expected_manifest_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Manifest Hash",
+            "type": "string"
+          },
+          "carrier_receiver_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Carrier Receiver Name",
+            "type": "string"
+          },
+          "carrier_receipt_number": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Carrier Receipt Number",
+            "type": "string"
+          },
+          "handed_over_at": {
+            "format": "date-time",
+            "title": "Handed Over At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "dispatch_id",
+          "shipment_id",
+          "expected_dispatch_version",
+          "expected_manifest_hash",
+          "carrier_receiver_name",
+          "carrier_receipt_number",
+          "handed_over_at"
+        ],
+        "title": "HandoffCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "warehouse",
+      "method": "POST",
+      "path": "/api/v1/warehouse/operations/dispatches/handoff",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "logistics.operations.capacity_read",
+      "version": 1,
+      "owner_application": "logistics",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id"
+        ],
+        "title": "WarehouseScope",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "logistics",
+      "method": "POST",
+      "path": "/api/v1/logistics/operations/capacity/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "logistics.operations.shipment_read",
+      "version": 1,
+      "owner_application": "logistics",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "shipment_id": {
+            "format": "uuid",
+            "title": "Shipment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "shipment_id"
+        ],
+        "title": "ReadShipment",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "logistics",
+      "method": "POST",
+      "path": "/api/v1/logistics/operations/shipments/read",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "logistics.operations.book_carrier",
+      "version": 1,
+      "owner_application": "logistics",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "dispatch_id": {
+            "format": "uuid",
+            "title": "Dispatch Id",
+            "type": "string"
+          },
+          "expected_dispatch_version": {
+            "minimum": 1,
+            "title": "Expected Dispatch Version",
+            "type": "integer"
+          },
+          "expected_manifest_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Manifest Hash",
+            "type": "string"
+          },
+          "carrier_code": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Carrier Code",
+            "type": "string"
+          },
+          "carrier_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Carrier Name",
+            "type": "string"
+          },
+          "scheduled_handoff_at": {
+            "format": "date-time",
+            "title": "Scheduled Handoff At",
+            "type": "string"
+          },
+          "expected_capacity_updated_at": {
+            "format": "date-time",
+            "title": "Expected Capacity Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "dispatch_id",
+          "expected_dispatch_version",
+          "expected_manifest_hash",
+          "carrier_code",
+          "carrier_name",
+          "scheduled_handoff_at",
+          "expected_capacity_updated_at"
+        ],
+        "title": "BookCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "logistics",
+      "method": "POST",
+      "path": "/api/v1/logistics/operations/shipments",
+      "timeout_seconds": 30
+    },
+    {
+      "action_id": "logistics.operations.reconcile_handoff",
+      "version": 1,
+      "owner_application": "logistics",
+      "implementation_type": "HTTP",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "shipment_id": {
+            "format": "uuid",
+            "title": "Shipment Id",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "org_id",
+          "warehouse_id",
+          "shipment_id",
+          "expected_version"
+        ],
+        "title": "ReconcileCommand",
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "service_ref": "logistics",
+      "method": "POST",
+      "path": "/api/v1/logistics/operations/shipments/reconcile",
+      "timeout_seconds": 30
+    }
+  ],
+  "manual_confirmation_required": [
+    "warehouse.operations.record_carrier_handoff"
+  ],
+  "notes": [
+    "Action registration does not grant native owner permissions or approve a decision case.",
+    "Actor bindings require org and warehouse scope at each owner API. Human MFA is unchanged.",
+    "Physical handoff rejects machine identities and requires an actual receiver, receipt number and nonfuture time."
+  ]
+}
