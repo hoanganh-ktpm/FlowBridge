@@ -42,8 +42,8 @@ def test_migration_content_and_history_are_preserved(database):
     scripts = ScriptDirectory.from_config(config)
     heads = {
         "core": "core_0006",
-        "sales": "sales_0005",
-        "warehouse": "warehouse_0005",
+        "sales": "sales_0006",
+        "warehouse": "warehouse_0006",
         "logistics": "logistics_0004",
     }
     assert scripts.get_heads() == [heads[database]]

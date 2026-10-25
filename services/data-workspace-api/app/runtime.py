@@ -25,6 +25,7 @@ from .operations import planning_report
 from .planning import SnapshotCache
 from .planning_options import planning_options
 from .portfolio import carrier_summary, supply_reference
+from .records import RecordsRequest, records_page
 from .reports import overview, recipe
 from .repository import PostgresRepository
 from .schemas import (
@@ -545,6 +546,10 @@ def create_app(
         result, sources = await planning_options(body, ctx, connector, source_names)
         await reauthorize(ctx, {"sources": sources})
         return result
+
+    @app.post(PREFIX + "/records")
+    async def organization_records(body: RecordsRequest, ctx=actor_dependency):
+        return await records_page(body, ctx, connector, source_names)
 
     @app.post(PREFIX + "/configurations", status_code=201)
     async def save_configuration(body: AnalysisConfig, ctx=actor_dependency):

@@ -17,6 +17,10 @@ DEFAULT_SOURCE_NAMES = {
     "preparation": "warehouse.handoff_preparation_policy",
     "sales_history": "sales.confirmed_demand_daily",
     "transport_history": "logistics.accepted_shipments_daily",
+    "records_warehouses": "warehouse.location_register",
+    "records_products": "warehouse.product_register",
+    "records_orders": "sales.order_register",
+    "records_order_lines": "sales.order_register_lines",
 }
 
 

@@ -5,6 +5,8 @@
     }
   },
   "migrations": {
-    "warehouse_0005_preparation_policy.py": "4b6dbeced9467314e2b060407ab2d40e14ca343b8efba2297d94290710083a08"
+    "warehouse_0005_preparation_policy.py": "4b6dbeced9467314e2b060407ab2d40e14ca343b8efba2297d94290710083a08",
+    "sales_0006_order_register.py": "2e01dd990f70fab1029fb082a9b5ddfe09e34c98c4373b7f0381efade1435cc6",
+    "warehouse_0006_org_registers.py": "c293072ce33a6ac35275aa0d46fd63d87548af12e67066341af5867b5546b84a"
   }
 }

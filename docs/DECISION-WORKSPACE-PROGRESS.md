@@ -476,3 +476,33 @@ stay ignored.
 
 Live source-change/revoke scenarios, concurrent latency measurements and the final
 timed walkthrough remain pending. M12 is not marked complete.
+
+## Current-organization registers (26 October 2026)
+
+Added **Dữ liệu tổ chức** for all authorized locations, products and order statuses,
+independent of the selected forecast horizon. The previous planning directory was
+stock-based and the operational order table intentionally showed open orders only;
+neither should be represented as a complete organization register. Locations and
+products without inventory balances now have dedicated safe read views. Order
+headers include drafts without lines, completed orders and cancellations; line
+details retain per-line units and historical names.
+
+Additive migrations sales_0006/warehouse_0006 introduce four views, without changing
+business rows or old contracts. All reads pass the caller token to Core/Hasura,
+bind org_id on the server, paginate 50 records and recheck permission before return.
+Missing grants, foreign rows, duplicate keys and truncated source pages fail closed.
+There is no seed/direct-SQL fallback in Workspace. Publication/access preparation
+is an explicit guarded local script; hosted deployments need their own Core review.
+
+Validation: 603 domain/Core-layout/contract checks passed; real disposable PostgreSQL
+suite passed 56 with two profile-specific skips; four targeted browser cases passed.
+The final fast suite passed 1,126 with 98 integration/E2E cases deselected (not counted
+as passed). TypeScript/build passed. Live executor OAuth traversal compared every order ID with
+the database: 4,708/4,708, no duplicate or foreign-org rows (4,357 completed, 351 open).
+Location/product reads returned 1/8. Human minhhung Portal checks separately covered
+page navigation, exact-code lookup and the completed acceptance order. The data is
+read from the real local database; its original fixture provenance is unchanged.
+
+The order planning table also explains specific stock/schedule/preparation/capacity
+conditions and shows both sides of a late-slot timestamp comparison. Its stock-ready
+cutoff is now labelled as a required preparation deadline, not proof of actual stock.

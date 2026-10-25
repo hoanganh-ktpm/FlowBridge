@@ -242,6 +242,39 @@ test('priority briefing links the nearest named order to its source-backed detai
   expect(count(state, '/planning')).toBe(1);
 });
 
+test('organization records include completed orders, page and filter without forecast or fixture fallback', async ({ page }) => {
+  const state=await mock(page);const requests:any[]=[];let denied=false;
+  await page.route('**/records', r=>{
+    const b=r.request().postDataJSON();requests.push(b);
+    if(denied)return r.fulfill({status:403,json:{detail:{message:'Quyền tra cứu đã thu hồi.'}}});
+    let items:any[]=[];
+    if(b.collection==='orders')items=Array.from({length:b.offset?1:50},(_,i)=>({order_id:'order-'+(i+b.offset),order_number:'SO-'+(i+b.offset),status:b.status||'COMPLETED',created_at:'2026-03-01T10:00:00+07:00',requested_handoff_at:'2026-03-05T10:00:00+07:00',completed_at:'2026-03-04T10:00:00+07:00',line_count:2}));
+    if(b.collection==='warehouses')items=[{warehouse_id:'empty-wh',warehouse_code:'KHO-MOI',warehouse_name:'Kho chưa phát sinh tồn',status:'ACTIVE'}];
+    if(b.collection==='products')items=[{product_id:'new-product',sku:'CHUA-NHAP',product_name:'Mặt hàng chưa nhập kho',uom:'cái',status:'INACTIVE'}];
+    if(b.collection==='order_lines')items=[{order_line_id:'line-1',line_no:1,sku:'SKU-A',product_name:'Cà phê rang',uom:'gói',ordered_quantity:'12.000'}];
+    return r.fulfill({json:{items,offset:b.offset||0,page_size:50,has_more:b.collection==='orders'&&!b.offset,read_at:evidence.executed_at}});
+  });
+  await page.goto('/#data');await page.getByRole('button',{name:'Dữ liệu tổ chức',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Danh sách dữ liệu tổ chức'})).toContainText('Đã bàn giao đủ');
+  expect(count(state,'/planning')).toBe(0);
+  await page.getByRole('button',{name:'Trang sau',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Danh sách dữ liệu tổ chức'})).toContainText('SO-50');
+  await page.getByRole('button',{name:'Xem hàng của SO-50',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Các dòng hàng của đơn'})).toContainText('Cà phê rang');
+  await page.getByLabel('Trạng thái dữ liệu',{exact:true}).selectOption('CONFIRMED');
+  await expect(page.getByRole('button',{name:'Trang trước',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'Lọc và tải dữ liệu',exact:true}).click();
+  expect(requests.at(-1)).toMatchObject({collection:'orders',offset:0,status:'CONFIRMED'});
+  await expect(page.getByRole('table',{name:'Các dòng hàng của đơn'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Tất cả kho',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Danh sách dữ liệu tổ chức'})).toContainText('Kho chưa phát sinh tồn');
+  await page.getByRole('button',{name:'Tất cả mặt hàng',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Danh sách dữ liệu tổ chức'})).toContainText('Mặt hàng chưa nhập kho');
+  denied=true;await page.getByRole('button',{name:'Lọc và tải dữ liệu',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Danh sách dữ liệu tổ chức'})).toHaveCount(0);
+  await expect(page.getByText('Mặt hàng chưa nhập kho',{exact:true})).toHaveCount(0);
+});
+
 test('scenario quality labels the disjoint P50 holdout instead of base validation MAE', async ({ page }) => {
   const state = await mock(page); state.holdout = 1.2;
   await page.goto('/#data'); await apply(page);
@@ -259,8 +292,50 @@ test('handoff details show the warehouse preparation cutoff and never treat miss
   await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click();
   await apply(page);
   await page.getByRole('button', { name: /Đơn cần phối hợp/ }).click();
-  await expect(page.getByText(/Hàng sẵn sàng trước.*07:00/)).toBeVisible();
-  await expect(page.getByText('Còn điều kiện chưa đáp ứng')).toBeVisible();
+  await expect(page.getByText(/Cần đủ hàng trước.*07:00.*120 phút/)).toBeVisible();
+  await expect(page.getByRole('list',{name:'Lý do cần xử lý SO-001'})).toContainText('Thiếu 10 sản phẩm Cà phê rang (SKU-A)');
+  await expect(page.getByText('Còn điều kiện chưa đáp ứng')).toHaveCount(0);
+});
+
+test('order problems explain a late carrier slot with both timestamps and distinguish unknown capacity', async ({ page }) => {
+  await mock(page);
+  await page.route('**/planning', route => {
+    const result = structuredClone(plan);
+    result.orders[0] = { ...result.orders[0], at_risk: false, reason: 'schedule_late',
+      shortages_at_deadline: [], schedule_status: 'late', deadline: '2026-10-07T17:00:00+07:00', already_overdue: true,
+      shipments: [{ shipment_number: 'SHP-001', carrier_code: 'C1', carrier_name: 'Giao hàng Miền Bắc', scheduled_handoff_at: '2026-10-07T18:00:00+07:00', status: 'ACCEPTED' }] };
+    (result.orders[0] as any).readiness = { status: 'not_met', conditions: { supply: 'met', preparation: 'met', schedule: 'not_met', capacity: 'unknown' }, stock_ready_by: '2026-10-07T15:00:00+07:00', preparation_minutes: 120, preparation_policy_revision: 1, actual_handoff_verified: false };
+    return route.fulfill({ json: result });
+  });
+  await page.goto('/#data'); await apply(page);
+  await page.getByRole('button', { name: 'Đơn hàng & giao nhận', exact: true }).click();
+  const reasons = page.getByRole('list', { name: 'Lý do cần xử lý SO-001' });
+  await expect(reasons).toContainText(/Đã quá hạn bàn giao cho đơn vị vận chuyển\. Hạn bàn giao:.*17:00.*07\/10\/2026\. Giao hàng Miền Bắc dự kiến đến nhận lúc.*18:00.*07\/10\/2026; lịch này muộn hơn hạn yêu cầu\./);
+  await expect(reasons).toContainText('Chưa xác minh được năng lực nhận hàng');
+  await expect(reasons).not.toContainText('Thiếu');
+  await expect(page.getByText(/Cần đủ hàng trước.*15:00.*120 phút/)).toBeVisible();
+  const carrierCell = page.getByRole('row').filter({ hasText: 'SO-001' }).getByRole('cell').nth(3);
+  await expect(carrierCell).toContainText(/18:00.*07\/10\/2026/);
+  await expect(page.getByText('Còn điều kiện chưa đáp ứng')).toHaveCount(0);
+});
+
+test('an unconfirmed carrier time is shown as missing data instead of proving a slot or shortage', async ({ page }) => {
+  await mock(page);
+  await page.route('**/planning', route => {
+    const result = structuredClone(plan);
+    result.orders[0] = { ...result.orders[0], at_risk: false, reason: 'scheduled', schedule_status: 'booked', shortages_at_deadline: [],
+      shipments: [{ ...result.orders[0].shipments[0], scheduled_handoff_at: null as any }] };
+    (result.orders[0] as any).readiness = { status: 'unknown', conditions: { supply: 'met', preparation: 'unknown', schedule: 'unknown', capacity: 'unknown' }, stock_ready_by: null, preparation_minutes: null, preparation_policy_revision: null, actual_handoff_verified: false };
+    return route.fulfill({ json: result });
+  });
+  await page.goto('/#data'); await apply(page);
+  await page.getByRole('button', { name: 'Đơn hàng & giao nhận', exact: true }).click();
+  const reasons = page.getByRole('list', { name: 'Lý do cần xử lý SO-001' });
+  await expect(reasons).toContainText('Chưa đủ dữ liệu ngày giờ nhận');
+  await expect(reasons).toContainText('Kho chưa xác nhận cần bao lâu');
+  await expect(reasons).not.toContainText('sau hạn');
+  await expect(reasons).not.toContainText('Thiếu');
+  await expect(page.getByText(/SHP-001 · Chưa xác nhận ngày giờ nhận/)).toBeVisible();
 });
 
 test('conditional recovery only fills an exact-hour simulation and never executes business writes', async ({ page }) => {

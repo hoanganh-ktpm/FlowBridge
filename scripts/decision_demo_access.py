@@ -85,7 +85,7 @@ def setup():
     selected = [p for p in products if p["name"] in expected]
     if len(selected) != len(expected) or len({p["name"] for p in selected}) != len(expected):
         raise ValueError(
-            "Publish the twelve reviewed local Data Products first; no metadata bypass"
+            "Publish the reviewed local Data Products first; no metadata bypass"
         )
     with httpx.Client(
         base_url=CORE,
@@ -185,7 +185,8 @@ def setup():
         access["configured"] = True
         record()
     print(
-        "Local demo: 12 read grants, 23 native actions and BPMN deployed through Core. "
+        f"Local demo: {len(expected)} read grants, 23 native actions "
+        "and BPMN deployed through Core. "
         "Human MFA acceptance is pending."
     )
 

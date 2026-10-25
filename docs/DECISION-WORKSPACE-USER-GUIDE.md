@@ -44,6 +44,14 @@ after matching all original line quantities with owner evidence and the approved
 Flowable instance. A carrier booking alone cannot close it. Stop/return is also a
 visible outcome, not a hidden deletion or invented rollback.
 
+## Browse all current-organization data
+
+Use **Dữ liệu tổ chức** to browse every authorized warehouse/product and all order
+statuses, including completed history, independently of the planning horizon.
+Pages contain 50 records with next/previous controls, exact-code and status filters,
+and per-order line details. Empty-inventory locations/products are not excluded.
+See [ORGANIZATION-REGISTERS.md](ORGANIZATION-REGISTERS.md) for scope and deployment.
+
 ## Ask the dossier, including without an LLM
 
 The four prompts explain evidence, compare scenarios, identify pending tasks and

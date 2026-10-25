@@ -1109,6 +1109,47 @@
         ]
       }
     },
+    "/api/v1/data-workspace/records": {
+      "post": {
+        "summary": "Organization Records",
+        "operationId": "organization_records_api_v1_data_workspace_records_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/data-workspace/configurations": {
       "post": {
         "summary": "Save Configuration",
@@ -2666,6 +2707,70 @@
           "entity_column"
         ],
         "title": "ProfileRequest"
+      },
+      "RecordsRequest": {
+        "properties": {
+          "collection": {
+            "type": "string",
+            "enum": [
+              "warehouses",
+              "products",
+              "orders",
+              "order_lines"
+            ],
+            "title": "Collection"
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z_]{1,30}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "collection"
+        ],
+        "title": "RecordsRequest"
       },
       "ReplanDecision": {
         "properties": {

@@ -10,7 +10,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
 def test_six_product_views_and_gross_confirmed_demand(databases):
     expected = {
-        "sales": {"v_confirmed_demand_daily", "v_open_orders", "v_planning_demand_daily"},
+        "sales": {"v_confirmed_demand_daily", "v_open_orders", "v_planning_demand_daily",
+                  "v_order_register", "v_order_register_lines"},
         "warehouse": {
             "v_stock_availability",
             "v_inbound_schedule",
@@ -18,6 +19,8 @@ def test_six_product_views_and_gross_confirmed_demand(databases):
             "v_planning_catalog",
             "v_receipts_daily",
             "v_handoff_preparation_policy",
+            "v_location_register",
+            "v_product_register",
         },
         "logistics": {"v_handoff_capacity", "v_accepted_shipments_daily", "v_handoff_schedule"},
     }

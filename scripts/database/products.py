@@ -14,6 +14,8 @@ PRODUCTS = {
         "confirmed_demand_daily": ("org_id", "sku", "day"),
         "open_orders": ("org_id", "order_line_id"),
         "planning_demand_daily": ("org_id", "warehouse_id", "sku", "uom", "day"),
+        "order_register": ("org_id", "order_id"),
+        "order_register_lines": ("org_id", "order_line_id"),
     },
     "warehouse": {
         "stock_availability": ("org_id", "warehouse_id", "product_id"),
@@ -22,6 +24,8 @@ PRODUCTS = {
         "planning_catalog": ("org_id", "warehouse_id", "product_id"),
         "receipts_daily": ("org_id", "warehouse_id", "sku", "day", "uom"),
         "handoff_preparation_policy": ("org_id", "warehouse_id"),
+        "location_register": ("org_id", "warehouse_id"),
+        "product_register": ("org_id", "product_id"),
     },
     "logistics": {
         "handoff_capacity": ("org_id", "carrier_code", "capacity_date"),
