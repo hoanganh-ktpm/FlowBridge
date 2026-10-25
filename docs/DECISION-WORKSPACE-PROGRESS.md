@@ -439,12 +439,40 @@ each completed task and showed the manager task only after both confirmations.
 These are four role accounts operated during the demo, not four independently
 observed people or a production separation-of-duties audit.
 
-The real completion check reached the native Sales/Warehouse read APIs and refused
-completion because there was no full physical Warehouse handoff proof. The case
-remains APPROVED; neither a shipment nor a physical stock transaction was invented
-by approval. Local screenshots/observation notes are ignored artifacts, not secrets
-or generated reports committed to Git.
+The initial completion check reached the native Sales/Warehouse read APIs and
+refused completion because there was no full Warehouse handoff proof. Approval
+did not invent a shipment or physical stock transaction.
 
-Positive native physical handoff with the real human/owner integrations, live
-source-change/revoke scenarios and the final timed walkthrough remain pending.
-M12 is not marked complete.
+Subsequent human SSO acceptance used the development-only, loopback native operator
+screen. Warehouse received 40 units early against an existing approved inbound
+plan, atomically reserved the full 188-unit order and prepared its frozen manifest.
+Logistics accepted ANTIN-EXPRESS for 27 October at 10:00. Warehouse then recorded
+a fictional handoff through the real authenticated owner API. Retrying the exact
+command/key returned the same event and version. Stock ended at 618 on hand,
+608 reserved and 10 available: precisely one 188-unit dispatch after the receipt.
+The native proof contains 188 ordered and 188 handed over, and Logistics reconciled
+the matching event to HANDED_OVER, version 2. The coordinator then reconciled Sales
+to COMPLETED, version 2. Core verified the current native proof and Flowable ended
+the exact approved revision at carrier handoff; both the Portal list and detail
+show Đã bàn giao. Replaying owner events added seven observations, including the
+linked reservation, prepared dispatch, booking, handoff and downstream projections.
+
+These are real local API/database transactions on fictional fixtures, not a
+shipment of real goods. This execution uses an early 40-unit receipt; it is not
+proof of executing the approved scenario's hypothetical 1,000-unit warehouse-wide
+addition. Full-order handoff and scenario implementation must not be conflated.
+
+Three new browser cases verify JSON validation, owner refusal/stale-result clearing,
+retry key preservation, physical-step attestation, preview exclusion and returning
+to Workspace without replacing SSO. That last live step found a hash-only navigation
+bug; the exit now changes React state while retaining the existing SSO session.
+The existing handoff browser regression also verifies that the completed dossier
+distinguishes its approved schedule from verified physical evidence. All four
+targeted browser cases, TypeScript and production build passed. Built JS/HTML
+contains no native operator module,
+entry flag or label. No token is entered/exported, and the tool grants no new
+permissions or Agent write capability. Local screenshots and observation notes
+stay ignored.
+
+Live source-change/revoke scenarios, concurrent latency measurements and the final
+timed walkthrough remain pending. M12 is not marked complete.

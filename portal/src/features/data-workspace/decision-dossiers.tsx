@@ -205,7 +205,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
       <p>Thiếu nguồn hàng nhiều nhất của sản phẩm đang xét trong kho: {fmt(scenarioSummary(selected.revision.payload.scenario).before)} → {fmt(scenarioSummary(selected.revision.payload.scenario).after)} {unitLabel(scenarioSummary(selected.revision.payload.scenario).unit || '')}</p>
       <p>Hồ sơ lưu bằng chứng tại thời điểm tính. Cần xác minh lại dữ liệu trước khi trình duyệt hoặc thực hiện.</p>
       <p>{selected.participants.length} phân công phối hợp trong hồ sơ.</p>
-      {selected.revision.payload.handoff_plan&&<p>Lịch dự kiến của phiên bản này: {selected.revision.payload.handoff_plan.carrier_code} · {new Date(selected.revision.payload.handoff_plan.scheduled_handoff_at).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}. Đây là điều kiện để xác minh, chưa chứng minh đã đặt lịch hoặc đã bàn giao.</p>}
+      {selected.revision.payload.handoff_plan&&<p>Lịch dự kiến của phiên bản này: {selected.revision.payload.handoff_plan.carrier_code} · {new Date(selected.revision.payload.handoff_plan.scheduled_handoff_at).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}. {selected.status==='COMPLETED'?'Đây là lịch trong phương án đã duyệt; kết quả bàn giao được xác minh riêng bằng bằng chứng Kho.':'Đây là điều kiện để xác minh, chưa chứng minh đã đặt lịch hoặc đã bàn giao.'}</p>}
       <DecisionAssistant key={'assistant-'+selected.revision.id} request={request} caseId={selected.id} revisionId={selected.revision.id} onDenied={failedCommand}/>
       {capabilities.workflow_enabled && <>
         <DecisionChecks key={selected.revision.id} request={request} caseId={selected.id} disabled={busy} onDenied={failedCommand} onSynced={refreshTimeline}/>

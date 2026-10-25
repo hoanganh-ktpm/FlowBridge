@@ -176,7 +176,7 @@ test('approved dossier stays open until the server verifies physical handoff evi
   const scenario:any=scenarioResult({demand_multiplier:1,inbound_delay_days:0,additional_quantity:30,arrival_date:'2026-10-25'});
   scenario.baseline.orders=[{order_id:'order-1',order_number:'SO-001',lines:[]}];
   const dossier={id:'case-1',title:'Bàn giao SO-001',warehouse_id:warehouse,order_id:'order-1',status:'APPROVED',version:4,current_revision:1,
-    revision:{id:'revision-1',number:1,created_at:evidence.executed_at,payload:{scenario,requires_revalidation:true}},participants:[1,2,3,4],actions:{can_submit:false,can_revise:false}};
+    revision:{id:'revision-1',number:1,created_at:evidence.executed_at,payload:{scenario,requires_revalidation:true,handoff_plan:{carrier_code:'CARRIER-1',scheduled_handoff_at:'2026-10-28T10:00:00+07:00'}}},participants:[1,2,3,4],actions:{can_submit:false,can_revise:false}};
   await page.route('**/decision-capabilities',r=>r.fulfill({json:{enabled:true,roles:['warehouse'],warehouse_ids:[warehouse],workflow_enabled:true}}));
   await page.route('**/decisions**',r=>{
     const path=new URL(r.request().url()).pathname;
@@ -201,6 +201,8 @@ test('approved dossier stays open until the server verifies physical handoff evi
   await verify.click();await expect(page.getByRole('alert')).toContainText('Hồ sơ vẫn chưa hoàn tất');
   await verify.click();await expect(page.getByText('Đã đối chiếu đủ các dòng hàng với bằng chứng Kho bàn giao cho đơn vị vận chuyển. Đây là mốc kết thúc quy trình.',{exact:true})).toBeVisible();
   await expect(verify).toHaveCount(0);expect(attempts).toBe(2);
+  await expect(page.getByText('Đây là lịch trong phương án đã duyệt; kết quả bàn giao được xác minh riêng bằng bằng chứng Kho.',{exact:false})).toBeVisible();
+  await expect(page.getByText('Đây là điều kiện để xác minh, chưa chứng minh đã đặt lịch hoặc đã bàn giao.',{exact:false})).toHaveCount(0);
   // Opening/refetching details also updates the existing list card; do not keep
   // showing APPROVED above a COMPLETED detail until a separate manual refresh.
   const card=page.locator('.pw-saved-card').filter({has:page.getByRole('button',{name:'Mở hồ sơ Bàn giao SO-001',exact:true})});

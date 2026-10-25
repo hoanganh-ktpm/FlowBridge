@@ -147,6 +147,15 @@ p95 hay kiểm thử tải production; vẫn cần đo khi nhiều người dùn
 
 ## Kiểm thử và phần nghiệm thu còn lại
 
+Để kiểm thử giao dịch owner bằng tài khoản SSO hiện tại, bản Vite development có
+trang `http://127.0.0.1:5174/?native-operator=1`. Trang này chỉ chạy trên loopback,
+không nhận token qua ô nhập, không cấp thêm quyền và không đăng ký công cụ ghi
+cho Agent. Chọn một action đã đăng ký, nhập DTO và giữ Idempotency-Key khi cần
+đối soát/thử lại. API chủ sở hữu vẫn quyết định quyền và kiểm tra phiên bản.
+Thao tác bàn giao có xác nhận riêng cho tình huống giả lập; không dùng trang này
+để xác nhận hàng thật chưa được bàn giao. Nút “Về Workspace” thoát chế độ kiểm thử.
+Trang này bị loại khỏi bản production; không phải màn nghiệp vụ dành cho khách hàng.
+
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m scripts.decision_test_environment --include-business --include-core-pool
@@ -155,6 +164,7 @@ cd portal
 npm test
 npm run build
 npm run test:e2e -- tests/e2e/data-workspace.spec.ts
+npm run test:e2e -- tests/e2e/native-owner.spec.ts
 ```
 
 Hai runner tích hợp tạo PostgreSQL/Flowable cô lập có ownership ledger rồi dọn
@@ -175,5 +185,12 @@ người dùng thật chưa chạy. Không đánh dấu nghiệm thu trọn vẹ
 Kết quả trực tiếp ngày 26/10/2026: bốn tài khoản vai trò đã đăng nhập MFA; hồ sơ
 SO-PHOIHOP-001 được trả lại ở phiên bản 1, lập phiên bản 2, được Kho/Vận chuyển
 xác nhận lại và quản lý duyệt. Kiểm tra thiếu bằng chứng bàn giao đã bị chặn,
-giữ hồ sơ ở APPROVED. Chưa chạy nhánh ghi đủ giao dịch owner và hoàn tất bàn giao
-trên phiên SSO thật; không dùng dữ liệu mô phỏng để giả nhận đã chạy nhánh đó.
+giữ hồ sơ ở APPROVED. Sau đó Kho đã ghi nhập sớm 40 cái, giữ đủ 188 cái và chuẩn
+bị phiếu xuất; Vận chuyển đặt lịch An Tín; Kho ghi bàn giao giả lập đủ 188/188 cái.
+Gửi lại cùng mã không tạo thêm sự kiện hoặc trừ tồn lần hai. Logistics đã đối
+chiếu sang HANDED_OVER; Sales đối chiếu sang COMPLETED. Core xác minh bằng chứng,
+Flowable kết thúc đúng phiên bản 2 và Portal hiển thị Đã bàn giao. Đối soát sự kiện
+nguồn thêm 7 quan sát vào lịch sử. Đây là giao dịch API/DB local thật trên dữ liệu giả lập,
+không phải hàng hóa thực ngoài đời. Đợt nhập 40 cái không được coi là thực hiện
+đủ giả định thêm 1.000 cái trong scenario đã duyệt. Còn kiểm thử live thay đổi
+nguồn/thu hồi quyền và đo tải/trình diễn trước khi đánh dấu M12 hoàn tất.
