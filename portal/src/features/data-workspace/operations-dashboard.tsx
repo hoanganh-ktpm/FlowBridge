@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Panel, Select, dateLabel, fmt, unitLabel } from './components';
 import { DemandReceiptsChart, ProductRiskChart } from './decision-charts';
 import type { Planning, PlanProduct } from './planning-types';
+import { priorityOrders } from './dashboard-summary';
 
 const status = { urgent: 'Cần bổ sung', watch: 'Cần xác nhận hàng về', clear: 'Đủ theo ước tính', unknown: 'Thiếu dữ liệu dự báo' };
 export function OperationsDashboard({ plan, selected, filter, onFilter, onInspect, onOrders, disabled, evidence }: {
@@ -15,8 +16,13 @@ export function OperationsDashboard({ plan, selected, filter, onFilter, onInspec
 }) {
   const rows = plan.products.filter(p => filter === 'all' || filter === 'urgent' && p.priority === 'urgent' || filter === 'watch' && p.late_plan_ids.length > 0);
   const productLabel = `${plan.selected_sku}${selected?.name ? ' - ' + selected.name : ''}`;
+  const attention = priorityOrders(plan.orders);
   function focus(value: string) { onFilter(value); document.getElementById('priority-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   return <div className="pw-overview">
+    <Panel title="Ưu tiên xử lý" subtitle={`Dữ liệu đọc lúc ${new Date(plan.as_of).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} · giờ Việt Nam`}>
+      {attention.length ? <ol>{attention.map(order => <li className="flex flex-wrap items-center" key={order.order_id}><Button className="h-auto max-w-full whitespace-normal text-left" variant="link" onClick={onOrders} disabled={disabled}>{order.order_number} · hạn {new Date(order.deadline).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</Button><span>{order.at_risk ? 'Chưa đủ hàng trước hạn' : order.schedule_status === 'late' ? 'Lịch nhận sau hạn' : 'Cần xác minh lịch nhận'}</span></li>)}</ol> : <p>Chưa có đơn cần phối hợp trong dữ liệu đã đọc. Dự báo nhu cầu mới vẫn được đánh giá riêng.</p>}
+      {plan.missing_sources.length > 0 && <p role="status">Một số nguồn chưa được chia sẻ; cần xem giới hạn trước khi kết luận kế hoạch đã đáp ứng đầy đủ.</p>}
+    </Panel>
     <div className="pw-summary-grid">
       <Card><Button variant="ghost" onClick={() => focus('urgent')}><span>Mặt hàng cần bổ sung</span><strong>{plan.kpis.risk_products}<small>/{plan.products.length}</small></strong></Button></Card>
       <Card><Button variant="ghost" onClick={onOrders}><span>Đơn cần phối hợp</span><strong>{plan.kpis.risk_orders}</strong></Button></Card>

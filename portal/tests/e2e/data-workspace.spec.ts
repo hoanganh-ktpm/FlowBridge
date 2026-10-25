@@ -107,6 +107,17 @@ test('old saved results with ambiguous shortage ask for recalculation', async ({
   await expect(page.locator('.pw-saved-card')).toContainText('Cần tính lại trước khi dùng');
 });
 
+test('priority briefing links the nearest named order to its source-backed details', async ({ page }) => {
+  const state = await mock(page);
+  await page.goto('/#data'); await apply(page);
+  await expect(page.getByRole('heading', { name: 'Ưu tiên xử lý', exact: true })).toBeVisible();
+  const action = page.getByRole('button', { name: /^SO-001 · hạn/ });
+  await expect(action).toBeVisible();
+  await action.click();
+  await expect(page.getByRole('heading', { name: 'Đơn hàng và tiến độ đáp ứng' })).toBeVisible();
+  expect(count(state, '/planning')).toBe(1);
+});
+
 async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }
 
 test('compact overview shows two governed business charts without the removed noise', async ({ page }) => {

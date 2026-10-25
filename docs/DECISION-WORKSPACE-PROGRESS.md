@@ -89,3 +89,17 @@ Run the live API profile explicitly, with the local engines already configured:
 
 This profile temporarily creates/revokes local grants and tests a restored source
 update. It is not a read-only health check or a full human-user workflow test.
+
+## M03 — historical analytics and dashboard foundation (25 October 2026)
+
+Retained the existing historical views and added a deterministic priority briefing
+with source-read time and the nearest orders needing coordination. It navigates
+to the existing source-backed order detail view and does not invent an ML score.
+Missing optional sources remain explicit. The later case/task integration and
+five-zone dashboard are still tracked under M07–M11.
+
+Validation: **35 historical/report/analytics tests passed**, including numeric
+oracles for moving averages, period growth and stock snapshots; **16 frontend
+unit tests passed**, **4 targeted mocked-browser tests passed** (priority action,
+desktop/mobile overview, order navigation and missing receipts); TypeScript and
+production build passed. Full domain plus environment/identity guards: **124 passed**.
