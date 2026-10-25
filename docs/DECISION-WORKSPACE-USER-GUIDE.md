@@ -72,6 +72,11 @@ projection; they never approve or write owner business records.
 
 ## Setup and acceptance boundaries
 
+For the guarded local profile, named data, four-role sign-in and current acceptance
+steps, see [DECISION-LOCAL-DEMO.md](DECISION-LOCAL-DEMO.md). It also explains why a
+full carrier day or a slot earlier than the proven preparation time must be returned
+for revision. The workflow does not waive those conditions to complete a demo.
+
 Operational assignments and the trusted workflow client must be configured as in
 DECISION-WORKFLOW.md. Missing configuration disables those capabilities; analytics
 remains available. Native operation/service setup is documented separately.

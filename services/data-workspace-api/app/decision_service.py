@@ -399,9 +399,12 @@ class DecisionService:
         if state["revision_id"] != case["revision"]["id"]:
             raise HTTPException(409, "Workflow state belongs to another revision")
         if state["status"] != "COMPLETED":
-            case = await self.repository.workflow_projection(
+            await self.repository.workflow_projection(
                 ctx, identifier, UUID(state["revision_id"]), state["instance_id"], state["status"]
             )
+            # Projection returns a storage record, not caller-specific actions.
+            # Recompute those from current state/assignment before returning it.
+            case = await self.get(ctx, identifier)
         return {
             "case": case,
             "workflow": state,
@@ -522,11 +525,31 @@ class DecisionService:
         if body.outcome == "confirmed" and (
             not verifier_roles or not all(proof[role + "_confirmable"] for role in verifier_roles)
         ):
-            raise HTTPException(409, "The relevant source conditions are not yet confirmed")
+            missing = []
+            if "warehouse" in verifier_roles and not proof["warehouse_confirmable"]:
+                missing.append("Kho chưa đủ điều kiện nguồn hàng và thời gian chuẩn bị.")
+            if "logistics" in verifier_roles and not proof["logistics_confirmable"]:
+                missing.extend(item["message"] for item in proof.get("logistics_reasons", []))
+                if not missing:
+                    missing.append("Vận chuyển chưa đủ điều kiện lịch nhận và năng lực tiếp nhận.")
+            raise HTTPException(
+                409,
+                {
+                    "code": "DECISION_CONDITIONS_UNMET",
+                    "message": " ".join(missing) + " Yêu cầu sửa phương án nếu cần đổi lịch.",
+                },
+            )
         if body.outcome == "approved" and not (
             proof["warehouse_confirmable"] and proof["logistics_confirmable"]
         ):
-            raise HTTPException(409, "Approval requires known Warehouse and Logistics conditions")
+            raise HTTPException(
+                409,
+                {
+                    "code": "DECISION_CONDITIONS_UNMET",
+                    "message": "Chưa thể duyệt: cần cả Kho và Vận chuyển "
+                    "đáp ứng điều kiện hiện tại.",
+                },
+            )
         result = await self.workflow.request(
             "/decision-runs/"
             + case["workflow_instance_ref"]

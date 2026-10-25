@@ -134,7 +134,7 @@ test('decision dossier saves one order with retry key and preserves draft semant
   expect(state.calls.some(c => /workflow|actions/.test(c.path))).toBe(false);
 });
 
-test('manager task stays on its revision, blocks stale approval and records return reason', async ({ page }) => {
+test('manager task stays on its revision, explains unmet conditions and records return reason', async ({ page }) => {
   await mock(page);
   const scenario: any = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25' });
   scenario.baseline.orders = [{ order_id: 'order-1', order_number: 'SO-001', lines: [] }];
@@ -147,7 +147,7 @@ test('manager task stays on its revision, blocks stale approval and records retu
     if(r.request().method()==='POST') {
       const body=r.request().postDataJSON();commands.push(body);
       expect(body.revision_id).toBe('revision-1');expect(body.actor_principal_id).toBeUndefined();
-      if(body.outcome==='approved')return r.fulfill({status:409,json:{detail:'Source conditions changed'}});
+      if(body.outcome==='approved')return r.fulfill({status:409,json:{detail:{code:'DECISION_CONDITIONS_UNMET',message:'Vận chuyển chưa đủ thời gian chuẩn bị trước lịch đã chọn.'}}});
       expect(body.note).toBe('Tồn kho đã thay đổi, cần Kho xác minh lại.');returned=true;
       return r.fulfill({json:{case:{...dossier,status:'NEEDS_REVISION'},workflow:{tasks:[]},warnings:[]}});
     }
@@ -162,7 +162,8 @@ test('manager task stays on its revision, blocks stale approval and records retu
   await page.getByRole('button',{name:'Mở hồ sơ Bổ sung cà phê cho SO-001',exact:true}).click();
   await expect(page.getByRole('button',{name:'Trả lại để sửa',exact:true})).toBeDisabled();
   await page.getByRole('button',{name:'Duyệt phiên bản 1',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('Hồ sơ đã thay đổi');
+  await expect(page.getByRole('alert')).toContainText('Vận chuyển chưa đủ thời gian chuẩn bị');
+  await expect(page.getByRole('alert')).not.toContainText('Hồ sơ đã thay đổi');
   await page.getByLabel('Nhận xét hoặc lý do phản hồi').fill('Tồn kho đã thay đổi, cần Kho xác minh lại.');
   await page.getByRole('button',{name:'Trả lại để sửa',exact:true}).click();
   await expect(page.getByText('Tồn kho đã thay đổi, cần Kho xác minh lại.',{exact:true})).toBeVisible();
@@ -200,6 +201,11 @@ test('approved dossier stays open until the server verifies physical handoff evi
   await verify.click();await expect(page.getByRole('alert')).toContainText('Hồ sơ vẫn chưa hoàn tất');
   await verify.click();await expect(page.getByText('Đã đối chiếu đủ các dòng hàng với bằng chứng Kho bàn giao cho đơn vị vận chuyển. Đây là mốc kết thúc quy trình.',{exact:true})).toBeVisible();
   await expect(verify).toHaveCount(0);expect(attempts).toBe(2);
+  // Opening/refetching details also updates the existing list card; do not keep
+  // showing APPROVED above a COMPLETED detail until a separate manual refresh.
+  const card=page.locator('.pw-saved-card').filter({has:page.getByRole('button',{name:'Mở hồ sơ Bàn giao SO-001',exact:true})});
+  await expect(card).toContainText('Đã bàn giao');
+  await expect(card).not.toContainText('Đã duyệt');
 });
 
 test('saved scenario keeps intraday physical shortage instead of a zero day-end balance', async ({ page }) => {

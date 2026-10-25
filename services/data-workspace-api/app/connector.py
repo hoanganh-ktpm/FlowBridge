@@ -2,6 +2,7 @@
 """Core HTTP only. No Hasura credential, SQL, or source connection fallback."""
 
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -21,8 +22,11 @@ class Context:
 
 
 class CoreConnector:
-    def __init__(self, http: httpx.AsyncClient, base_url: str, org_id: UUID):
+    def __init__(self, http: httpx.AsyncClient, base_url: str, org_id: UUID, *, scan_pages=1):
+        if type(scan_pages) is not int or not 1 <= scan_pages <= 4:
+            raise ValueError("Core bounded scans support one to four pages")
         self.http, self.base_url, self.org_id = http, base_url.rstrip("/"), org_id
+        self.scan_pages = scan_pages
         self.query_slots = asyncio.Semaphore(4)
         self._catalog_scope = ContextVar("workspace_catalog_scope", default=None)
 
@@ -126,6 +130,37 @@ class CoreConnector:
         columns = sorted(set(columns or allowed) | set(product["business_key"]) | {"org_id"})
         if not set(columns) <= allowed:
             raise HTTPException(403, "Required columns are not granted")
+        if self.scan_pages > 1:
+            rows, seen = [], set()
+            for offset in range(0, 10000 - (self.scan_pages - 1) * 100, 100 * self.scan_pages):
+                page = await self.scan(ctx, ref, columns, offset, where)
+                if (
+                    type(page.get("has_more")) is not bool
+                    or not isinstance(page.get("rows"), list)
+                    or len(page["rows"]) > 100 * self.scan_pages
+                    or page["has_more"]
+                    and len(page["rows"]) != 100 * self.scan_pages
+                ):
+                    raise HTTPException(422, "Inconsistent Core scan pagination")
+                for row in page["rows"]:
+                    key = json.dumps([row.get(field) for field in product["business_key"]])
+                    if key in seen:
+                        raise HTTPException(422, "Duplicate business key across Core scan pages")
+                    seen.add(key)
+                    rows.append(row)
+                if not page["has_more"]:
+                    if len(rows) > 10000:
+                        break
+                    await self.check(ctx, ref, columns)
+                    return product, rows
+            raise HTTPException(
+                422,
+                detail={
+                    "code": "DATASET_TOO_LARGE",
+                    "message": "Nguồn dữ liệu vượt giới hạn đọc an toàn. "
+                    "Hãy thu hẹp kho hoặc khoảng ngày; chưa thể tính từ dữ liệu thiếu.",
+                },
+            )
         first = await self.query(ctx, ref, columns, 100, 0, where)
         rows = first["rows"]
         if len(rows) > 100:
@@ -168,6 +203,32 @@ class CoreConnector:
             | {"org_id"}
         )
         await self.query(ctx, ref, selected, 1, 0)
+
+    async def scan(self, ctx, ref, columns, offset, where):
+        async with self.query_slots:
+            page = await self.request(
+                ctx.token,
+                f"/data-products/{ref.data_product_id}/scan",
+                body={
+                    "pages": self.scan_pages,
+                    "selection": {
+                        "contract_version_id": str(ref.contract_version_id),
+                        "select": columns,
+                        "where": {**(where or {}), "org_id": {"_eq": str(ctx.org_id)}},
+                        "limit": 100,
+                        "offset": offset,
+                    },
+                },
+            )
+        if (
+            not isinstance(page, dict)
+            or not isinstance(page.get("rows"), list)
+            or any(not isinstance(row, dict) for row in page["rows"])
+        ):
+            raise HTTPException(422, "Malformed Core scan rows")
+        if any(str(row.get("org_id")) != str(ctx.org_id) for row in page["rows"]):
+            raise HTTPException(422, "Mixed/foreign organization scan rejected")
+        return page
 
     async def query(self, ctx, ref, columns, limit, offset, where=None):
         async with self.query_slots:

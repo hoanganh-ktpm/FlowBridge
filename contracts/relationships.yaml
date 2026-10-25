@@ -498,8 +498,115 @@ paths:
           $ref: ./common.openapi.yaml#/components/responses/Error503
         '504':
           $ref: ./common.openapi.yaml#/components/responses/Error504
+  /api/v1/core/data-products/{data_product_id}/scan:
+    post:
+      operationId: scanDataProduct
+      summary: Bounded scan of up to four flat Data Product pages
+      tags:
+      - DataGovernance
+      x-priority: P0
+      x-database-alignment: PENDING_DB_ALIGNMENT
+      x-authorization-policy: DATA_GRANT
+      x-authorization: Every caller, including IT/PLATFORM_ADMIN, requires current grants for every selected
+        product, key and column, all under one common department role. Core checks before and after the
+        read; Hasura enforces SELECT. Relationship publication does not grant data access.
+      x-idempotency: NONE_READ_ONLY
+      parameters:
+      - $ref: ./common.openapi.yaml#/components/parameters/CorrelationId
+      - name: data_product_id
+        in: path
+        required: true
+        schema:
+          $ref: ./common.openapi.yaml#/components/schemas/UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./relationships.yaml#/components/schemas/BoundedDataProductScan
+      responses:
+        '200':
+          description: Validated governed response; no partial data.
+          headers:
+            X-Correlation-Id:
+              $ref: ./common.openapi.yaml#/components/headers/CorrelationId
+            Cache-Control:
+              $ref: ./common.openapi.yaml#/components/headers/CacheControl
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - data_product_id
+                - contract_version_id
+                - rows
+                - limit
+                - offset
+                properties:
+                  data_product_id:
+                    $ref: ./common.openapi.yaml#/components/schemas/UUID
+                  contract_version_id:
+                    $ref: ./common.openapi.yaml#/components/schemas/UUID
+                  rows:
+                    type: array
+                    maxItems: 400
+                    items:
+                      type: object
+                  limit:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                  offset:
+                    type: integer
+                    minimum: 0
+                    maximum: 10000
+                  pages:
+                    type: integer
+                    minimum: 2
+                    maximum: 4
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: ./common.openapi.yaml#/components/responses/Error400
+        '401':
+          $ref: ./common.openapi.yaml#/components/responses/Error401
+        '403':
+          $ref: ./common.openapi.yaml#/components/responses/Error403
+        '404':
+          $ref: ./common.openapi.yaml#/components/responses/Error404
+        '409':
+          $ref: ./common.openapi.yaml#/components/responses/Error409
+        '422':
+          $ref: ./common.openapi.yaml#/components/responses/Error422
+        '429':
+          $ref: ./common.openapi.yaml#/components/responses/Error429
+        '500':
+          $ref: ./common.openapi.yaml#/components/responses/Error500
+        '503':
+          $ref: ./common.openapi.yaml#/components/responses/Error503
+        '504':
+          $ref: ./common.openapi.yaml#/components/responses/Error504
 components:
   schemas:
+    BoundedDataProductScan:
+      type: object
+      additionalProperties: false
+      required:
+      - selection
+      properties:
+        selection:
+          $ref: ./relationships.yaml#/components/schemas/RelationshipQuerySelection
+        pages:
+          type: integer
+          minimum: 1
+          maximum: 4
+          default: 4
+      description: >-
+        Read-only bounded scan. Multi-page selections must include the complete business key,
+        cannot include relationships and cannot cross the configured complexity or offset bounds.
+        Authorization and metadata are checked before and after the complete scan; drift discards
+        every row. Pages use deterministic business-key ordering. This is not a database snapshot.
     RelationshipDefinition:
       type: object
       additionalProperties: false

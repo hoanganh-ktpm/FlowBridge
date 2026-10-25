@@ -372,3 +372,79 @@ pre-booked and unbooked-but-feasible proposals, mine-only queues and source chan
 The replan engine case covers role denial, lost response, exact historical end,
 removed handoff subscription and assignment revocation. The test restart fixture
 now retains Docker's changed dynamic port for following cases.
+
+
+## M12 — local live acceptance profile and query performance (26 October 2026, in progress)
+
+Four guarded local demo scripts now seed a coherent named 240-day ledger, compose
+the existing local infrastructure, register owned identities/grants/actions/BPMN,
+and probe actual service OAuth → Workspace → Core → Hasura → PostgreSQL. The scripts
+never load legacy hosted targets, reset existing owner data or enroll a human's MFA.
+Per-domain/resource ledgers preserve native changes across restarts. Administrative
+setup requires already prepared local PostgreSQL/Hasura/Keycloak; a fresh-clone
+one-command installer is not claimed. See DECISION-LOCAL-DEMO.md.
+
+An opt-in bounded Core scan reads at most four deterministic 100-row pages with
+full business keys, complexity/offset bounds, before/after grant/metadata checks,
+and no partial return on drift. Workspace detects duplicate keys across scans,
+filters organization/warehouse at Core and reauthorizes before returning results.
+Order-ID batches use bounded concurrency and cancel remaining reads on failure.
+Scenario inputs now retain the authorized order number, avoiding UUID-only choices.
+An opt-in bounded Core database pool retains NullPool as the default. Its PostgreSQL
+test checks transaction mode and advisory-lock cleanup after connection reuse.
+
+The live Portal exposed an alias setup defect: a role-based membership ID could
+still refer to the generated coordinator after selecting an existing human account.
+Membership setup now keys by principal, verifies the actual principal/department
+pair, is idempotent and refuses automatic reactivation of revoked memberships.
+The actual `minhhung` coordinator can see the shared catalog and use the Workspace.
+Portal list cards now follow the refreshed dossier status instead of retaining a
+draft/approved label above a newer detail result.
+
+Validation of the current increment: 1,115 fast tests passed (96 integration/e2e
+deselected); 54 isolated PostgreSQL tests passed with two explicit profile skips;
+two separate PostgreSQL pool/membership tests passed; 13 real PostgreSQL/Flowable
+bridge tests passed; 18 Vitest tests, 36 mocked browser cases and the Portal build
+passed. Dedicated bridge/source profiles remain distinct from real human MFA.
+The existing Starlette/httpx deprecation warning was not hidden.
+
+Two quiet live HTTP probes returned planning in 9.935/9.944 seconds and scenarios
+in 6.142/5.809 seconds; directories took 1.986/1.881 seconds. Both retained 1,723
+demand rows, 525 open-order lines, 522 commitment rows, the complete named two-line
+acceptance order and the same metric result. Earlier measured runs took 41/23
+seconds or timed out under the older query composition/load. These measurements
+are not concurrency/load-test evidence or a production latency guarantee.
+
+Human acceptance has started on the real Portal: the coordinator created and
+submitted SO-PHOIHOP-001; a separately MFA-enrolled Warehouse user saw only their
+task and confirmed it. The real assistant returned canonical table/chart output.
+Logistics correctly refused the first infeasible/full carrier slot and returned
+the dossier with a reason. The coordinator retained version 1 and submitted
+version 2 using the explicitly added alternative carrier and proven preparation
+cutoff. Existing bookings were not freed or overwritten to make the test pass.
+
+This found two further integration defects. A source-condition refusal now has
+DECISION_CONDITIONS_UNMET and specific preparation/capacity reasons instead of a
+generic conflict message. Workflow projection also re-decorates caller-specific
+actions, so a returned dossier actually shows its coordinator's revision fields.
+The real PostgreSQL/Flowable regression verifies the manager cannot revise while
+the assigned coordinator can after projection. Two browser checks passed again
+for the changed condition message and list/detail completion synchronization;
+TypeScript passed after the message change. The final bridge rerun passed 13 cases.
+
+Live four-role sign-in acceptance then passed: Warehouse and Logistics confirmed
+version 2 again, and the separately assigned MFA-enrolled manager approved that
+exact revision. The old confirmations were not reused. The mine-only queues cleared
+each completed task and showed the manager task only after both confirmations.
+These are four role accounts operated during the demo, not four independently
+observed people or a production separation-of-duties audit.
+
+The real completion check reached the native Sales/Warehouse read APIs and refused
+completion because there was no full physical Warehouse handoff proof. The case
+remains APPROVED; neither a shipment nor a physical stock transaction was invented
+by approval. Local screenshots/observation notes are ignored artifacts, not secrets
+or generated reports committed to Git.
+
+Positive native physical handoff with the real human/owner integrations, live
+source-change/revoke scenarios and the final timed walkthrough remain pending.
+M12 is not marked complete.

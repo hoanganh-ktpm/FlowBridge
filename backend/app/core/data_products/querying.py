@@ -49,6 +49,11 @@ class QuerySelection(DTO):
     offset: int = Field(default=0, ge=0, le=10000, strict=True)
 
 
+class QueryScan(DTO):
+    selection: QuerySelection
+    pages: int = Field(default=4, ge=1, le=4, strict=True)
+
+
 class QueryLimits(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="FLOWBRIDGE_QUERY_", env_file=".env", extra="ignore", hide_input_in_errors=True
@@ -435,10 +440,18 @@ class RelationshipQueries:
             ]
         )
 
-    async def run(self, identity, product_id, selection, correlation_id):
+    async def run(self, identity, product_id, selection, correlation_id, *, pages=1):
         started, actor, root = monotonic(), None, None
         outcome, code = "FAILURE", None
         try:
+            if (
+                type(pages) is not int
+                or not 1 <= pages <= 4
+                or pages > 1
+                and selection.include
+                or selection.offset + (pages - 1) * selection.limit > 10000
+            ):
+                raise CoreError(ErrorCode.VALIDATION_ERROR)
             encoded = json.dumps(selection.model_dump(mode="json")).encode()
             if len(encoded) > self.limits.max_request_bytes:
                 raise CoreError(ErrorCode.VALIDATION_ERROR)
@@ -447,20 +460,38 @@ class RelationshipQueries:
                 async with self.core.store.transaction(read_only=True) as transaction:
                     actor = (await resolve_principal(transaction, identity)).principal_id
                     root = await self.resolve(transaction, product_id, selection)
-                    if resolved_complexity(root) > self.limits.max_complexity:
+                    if pages > 1 and not set(root.document.business_key) <= set(selection.select):
+                        raise CoreError(ErrorCode.VALIDATION_ERROR)
+                    if resolved_complexity(root) * pages > self.limits.max_complexity:
                         raise CoreError(ErrorCode.VALIDATION_ERROR)
                     context = await self.authorize(transaction, identity, root)
                     metadata_version = await self.verify(transaction, root, context)
                     context = await self.authorize(transaction, identity, root)
                     signature = self.state_signature(root)
-                query, variables = compile_query(root)
-                result = await self.core.reader.execute_graphql(context, query, variables)
-                if set(result["data"]) != {root.source["hasura_source_name"]}:
-                    raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
-                namespace = result["data"].get(root.source["hasura_source_name"])
-                if not isinstance(namespace, dict) or set(namespace) != {"rows"}:
-                    raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
-                rows = validate_nested(root, namespace["rows"])
+                rows, has_more, seen = [], True, set()
+                for index in range(pages):
+                    root.selection = selection.model_copy(
+                        update={"offset": selection.offset + index * selection.limit}
+                    )
+                    query, variables = compile_query(root)
+                    result = await self.core.reader.execute_graphql(context, query, variables)
+                    if set(result["data"]) != {root.source["hasura_source_name"]}:
+                        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+                    namespace = result["data"].get(root.source["hasura_source_name"])
+                    if not isinstance(namespace, dict) or set(namespace) != {"rows"}:
+                        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+                    batch = validate_nested(root, namespace["rows"])
+                    if pages > 1:
+                        for row in batch:
+                            key = fingerprint([row[field] for field in root.document.business_key])
+                            if key in seen:
+                                raise CoreError(ErrorCode.VERSION_CONFLICT)
+                            seen.add(key)
+                    rows.extend(batch)
+                    if len(batch) < selection.limit:
+                        has_more = False
+                        break
+                root.selection = selection
                 if (await self.metadata.export_metadata()).resource_version != metadata_version:
                     raise CoreError(ErrorCode.VERSION_CONFLICT)
                 await self.metadata.require_consistent()
@@ -476,6 +507,7 @@ class RelationshipQueries:
                     "rows": rows,
                     "limit": selection.limit,
                     "offset": selection.offset,
+                    **({"pages": pages, "has_more": has_more} if pages > 1 else {}),
                 }
         except TimeoutError:
             code = ErrorCode.UPSTREAM_TIMEOUT
@@ -513,6 +545,7 @@ class RelationshipQueries:
                     outcome=outcome,
                     error_code=code.value if code else None,
                     details={
+                        "scan_pages": pages,
                         "relationship_ids": relationships,
                         "paths": paths,
                         "duration_ms": elapsed,

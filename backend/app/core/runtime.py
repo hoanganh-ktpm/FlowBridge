@@ -43,6 +43,7 @@ class RuntimeSettings(BaseSettings):
     source_scopes: dict[str, tuple[TableRef, ...]] = Field(default_factory=dict)
     source_view_keys: dict[str, dict[str, tuple[str, ...]]] = Field(default_factory=dict)
     worker_poll_seconds: float = Field(default=2, ge=0.2, le=60)
+    database_pool_size: int = Field(default=0, ge=0, le=10)
     verified_hasura_auth_profile: bool = False
     hasura_jwt_signing_key: SecretStr | None = Field(default=None, repr=False)
     hasura_jwt_issuer: str = "flowbridge-core"
@@ -53,7 +54,9 @@ def dependencies():
     runtime = RuntimeSettings()
     identity = IdentitySettings()
     settings = HasuraSettings()
-    engine = core_engine(runtime.database_url.get_secret_value())
+    engine = core_engine(
+        runtime.database_url.get_secret_value(), pool_size=runtime.database_pool_size
+    )
     tls = (
         ssl.create_default_context(cafile=str(identity.oidc_ca_bundle))
         if identity.oidc_ca_bundle

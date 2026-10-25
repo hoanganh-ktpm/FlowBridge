@@ -30,7 +30,9 @@ async def wait_for_database(engine, *, attempts=5, delay=0.5, timeout=15):
     ) from None
 
 
-def core_engine(database_url: str):
+def core_engine(database_url: str, *, pool_size: int = 0):
+    if type(pool_size) is not int or not 0 <= pool_size <= 10:
+        raise ValueError("Core connection pool size must be an integer from 0 to 10")
     url = make_url(database_url)
     if url.drivername not in {"postgresql", "postgresql+asyncpg", "postgresql+psycopg"}:
         raise ValueError("Core requires a PostgreSQL URL")
@@ -49,7 +51,17 @@ def core_engine(database_url: str):
         context.check_hostname = False
     return create_async_engine(
         url.set(drivername="postgresql+asyncpg", query={}),
-        poolclass=NullPool,
+        **(
+            {
+                "pool_size": pool_size,
+                "max_overflow": 0,
+                "pool_pre_ping": True,
+                "pool_timeout": 15,
+                "pool_recycle": 300,
+            }
+            if pool_size
+            else {"poolclass": NullPool}
+        ),
         echo=False,
         hide_parameters=True,
         connect_args={

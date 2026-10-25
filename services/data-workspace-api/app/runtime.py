@@ -122,6 +122,7 @@ def create_app(
             http,
             os.environ["FLOWBRIDGE_WORKSPACE_CORE_URL"],
             UUID(os.environ["FLOWBRIDGE_WORKSPACE_ORG_ID"]),
+            scan_pages=int(os.environ.get("FLOWBRIDGE_WORKSPACE_SCAN_PAGES", "1")),
         )
     if repository is None:
         repository = PostgresRepository(os.environ["FLOWBRIDGE_WORKSPACE_DATABASE_URL"])
@@ -340,6 +341,7 @@ def create_app(
             ),
             "warehouse_confirmable": warehouse_ok,
             "logistics_confirmable": bool(logistics_ok),
+            "logistics_reasons": slot["reasons"],
             "booking_status": slot["booking_status"],
             "order_source_id": str(body.open_orders.data_product_id),
             "order_contract_id": str(body.open_orders.contract_version_id),
@@ -668,6 +670,9 @@ def create_app(
         return payload
 
     async def operational_inputs(body, ctx):
+        warehouse_filter = (
+            {"warehouse_id": {"_eq": str(body.warehouse_id)}} if body.warehouse_id else None
+        )
         stock_columns = ["warehouse_id", "sku", "uom", "on_hand_quantity", "reserved_quantity"]
         stock_metadata = await connector.product(ctx, body.stock)
         if any(f["name"] == "updated_at" for f in stock_metadata["fields"]):
@@ -681,8 +686,8 @@ def create_app(
             "remaining_quantity",
         ]
         (stock_product, stocks), (inbound_product, inbounds) = await asyncio.gather(
-            connector.rows(ctx, body.stock, stock_columns),
-            connector.rows(ctx, body.inbound, inbound_columns),
+            connector.rows(ctx, body.stock, stock_columns, where=warehouse_filter),
+            connector.rows(ctx, body.inbound, inbound_columns, where=warehouse_filter),
         )
         if (
             stock_product["name"] != source_names["stock"]
@@ -702,6 +707,9 @@ def create_app(
                 "status",
                 "requested_handoff_at",
             ]
+            order_metadata = await connector.product(ctx, body.open_orders)
+            if any(f["name"] == "order_number" for f in order_metadata["fields"]):
+                order_columns.append("order_number")
             commitment_columns = [
                 "warehouse_id",
                 "order_id",
@@ -711,7 +719,9 @@ def create_app(
                 "dispatched_quantity",
                 "held_quantity",
             ]
-            open_product, open_rows = await connector.rows(ctx, body.open_orders, order_columns)
+            open_product, open_rows = await connector.rows(
+                ctx, body.open_orders, order_columns, where=warehouse_filter
+            )
             commitment_product = await connector.product(ctx, body.commitments)
             if (
                 open_product["name"] != source_names["open_orders"]
@@ -719,15 +729,29 @@ def create_app(
             ):
                 raise HTTPException(422, "Select the published order/commitment products")
             order_ids = sorted({str(row["order_id"]) for row in open_rows})
-            commitment_rows = []
-            for index in range(0, len(order_ids), 50):
-                _, rows = await connector.rows(
-                    ctx,
-                    body.commitments,
-                    commitment_columns,
-                    where={"order_id": {"_in": order_ids[index : index + 50]}},
-                )
-                commitment_rows.extend(rows)
+            batch_slots = asyncio.Semaphore(4)
+
+            async def read_commitments(ids):
+                async with batch_slots:
+                    _, rows = await connector.rows(
+                        ctx,
+                        body.commitments,
+                        commitment_columns,
+                        where={**(warehouse_filter or {}), "order_id": {"_in": ids}},
+                    )
+                    return rows
+
+            pending = [
+                asyncio.create_task(read_commitments(order_ids[index : index + 100]))
+                for index in range(0, len(order_ids), 100)
+            ]
+            try:
+                commitment_rows = [row for batch in await asyncio.gather(*pending) for row in batch]
+            except BaseException:
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                raise
             planning_sources = [
                 {
                     "ref": body.open_orders.model_dump(mode="json"),

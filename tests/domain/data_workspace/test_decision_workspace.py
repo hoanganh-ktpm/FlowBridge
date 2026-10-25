@@ -318,6 +318,14 @@ async def test_enterprise_aliases_continue_from_planning_into_scenario_and_sensi
         response = await client.post(PREFIX + "/planning", headers=headers, json=boundary.refs)
         assert response.status_code == 200, response.text
         plan = response.json()
+        selected_reads = []
+        original_rows = boundary.rows
+
+        async def scoped_rows(ctx, ref, columns=None, where=None):
+            selected_reads.append((str(ref.data_product_id), columns, where))
+            return await original_rows(ctx, ref, columns, where)
+
+        boundary.rows = scoped_rows
         scenario = await client.post(
             PREFIX + "/scenarios",
             headers=headers,
@@ -332,6 +340,11 @@ async def test_enterprise_aliases_continue_from_planning_into_scenario_and_sensi
         )
     assert scenario.status_code == 200, scenario.text
     assert scenario.json()["sensitivity"]["cells"]
+    assert scenario.json()["baseline"]["orders"][0]["order_number"] == "SO-001"
+    for identifier, columns, where in selected_reads:
+        assert where["warehouse_id"] == {"_eq": boundary.wh}
+        if identifier == boundary.refs["open_orders"]["data_product_id"]:
+            assert "order_number" in columns
 
 
 @pytest.mark.asyncio

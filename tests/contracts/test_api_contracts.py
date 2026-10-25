@@ -174,14 +174,14 @@ def test_preserves_supported_legacy_http_paths_and_operation_ids():
             assert previous["operationId"] == retired[key]
             continue
         assert actual[(previous["path"], previous["method"])] == previous["operationId"]
-    assert len(actual) == 94  # 93 Layer 1 operations + grant-filtered Workspace discovery.
+    assert len(actual) == 95  # Layer 1, Workspace discovery and bounded governed scans.
 
 
 def test_operation_ids_service_boundaries_and_priorities():
     identifiers = [operation["operationId"] for _, _, _, operation, _ in OPERATIONS]
     assert len(identifiers) == len(set(identifiers))
     priorities = Counter(operation["x-priority"] for _, _, _, operation, _ in OPERATIONS)
-    assert priorities == {"P0": 56, "P1": 38}
+    assert priorities == {"P0": 57, "P1": 38}
     for path, route, _, operation, _ in OPERATIONS:
         if path.name in {
             "sales-api.openapi.yaml",
@@ -344,7 +344,7 @@ def test_three_layer_authorization_policy_matrix(item):
     }
     if route.startswith("/api/v1/core/"):
         expected = (
-            "DATA_GRANT" if route.endswith("/query")
+            "DATA_GRANT" if route.endswith(("/query", "/scan"))
             else consumer_reads.get(route, "IT_ADMIN") if method == "get" else "IT_ADMIN"
         )
     elif route == "/api/v1/platform/operations/execute":

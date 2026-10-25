@@ -145,14 +145,31 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             return
         expected, columns = definitions[key]
         expected = (source_names or {}).get(key, expected)
-        rows = []
-        for selection in where if isinstance(where, list) else [where]:
-            product, batch = await connector.rows(ctx, reference, columns, where=selection)
+        selections = where if isinstance(where, list) else [where]
+        # Each disjoint order-id batch still crosses Core authorization and its
+        # final permission check. Bounded fanout removes serial network waits;
+        # connector.query_slots remains the global cap for actual page requests.
+        batch_slots = asyncio.Semaphore(4)
+
+        async def read_selection(selection):
+            async with batch_slots:
+                product, batch = await connector.rows(ctx, reference, columns, where=selection)
             if product["name"] != expected:
                 raise HTTPException(
                     422, "Published source does not match the requested planning role"
                 )
-            rows.extend(batch)
+            return product, batch
+
+        pending = [asyncio.create_task(read_selection(selection)) for selection in selections]
+        try:
+            batches = await asyncio.gather(*pending)
+        except BaseException:
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            raise
+        product = batches[0][0]
+        rows = [row for _, batch in batches for row in batch]
         logger.info("Planning source %s: %d rows in %.2fs", key, len(rows), monotonic() - started)
         facts[key] = rows
         sources.append(

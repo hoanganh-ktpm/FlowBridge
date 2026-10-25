@@ -26,6 +26,7 @@ type Workflow = {instance_id:string;revision_id:string;status:string;tasks:Workf
 type WorkflowState = {case:Dossier;workflow:Workflow|null;warnings:string[]};
 
 function message(error: unknown) {
+  if (error instanceof ApiError && error.code === 'DECISION_CONDITIONS_UNMET') return error.message;
   if (error instanceof ApiError && error.code === 'DECISION_REQUIRES_REVISION') return 'Dữ liệu làm thay đổi điều kiện hoặc nội dung phương án. Xem mục Hiệu lực phương án, tính lại và gửi xác minh phiên bản mới.';
   if (error instanceof ApiError && error.status === 409) return 'Hồ sơ đã thay đổi hoặc đơn này đã có hồ sơ đang xử lý. Tải lại danh sách trước khi sửa tiếp.';
   if (error instanceof ApiError && error.status === 403) return 'Phân công hoặc quyền đọc nguồn đã thay đổi. Không thể mở hồ sơ này.';
@@ -102,16 +103,23 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     } catch (e) { setItems([]); setQueue([]); setError(message(e)); } finally { setBusy(false); }
   }
   useEffect(() => { setQueue([]);void listing(); }, [request,mode]);
+  function applyDetail(detail:Dossier) {
+    setSelected(detail);
+    setItems(previous=>previous.map(item=>item.id===detail.id?{
+      ...item,status:detail.status,version:detail.version,current_revision:detail.current_revision,
+      updated_at:detail.updated_at,workflow_instance_ref:detail.workflow_instance_ref,
+    }:item));
+  }
   async function open(id: string) {
     setBusy(true); setError(''); setSelected(null); setHistory([]); setEvents([]); setWorkflow(null);setComment('');
     try {
       const [detail, revisions, timeline] = await Promise.all([
         request<Dossier>('/decisions/' + id), request<{ items: Revision[]; has_more: boolean }>('/decisions/' + id + '/revisions'), request<{ items: Event[]; has_more: boolean }>('/decisions/' + id + '/timeline'),
       ]);
-      setSelected(detail);setHandoff(carrierDraft(detail.revision.payload.handoff_plan)); setHistory(revisions.items); setEvents(timeline.items);
+      applyDetail(detail);setHandoff(carrierDraft(detail.revision.payload.handoff_plan)); setHistory(revisions.items); setEvents(timeline.items);
       if (capabilities.workflow_enabled) {
         const current = await request<WorkflowState>('/decisions/' + id + '/workflow');
-        setSelected(current.case); setWorkflow(current.workflow);
+        applyDetail(current.case); setWorkflow(current.workflow);
         if (current.warnings.length && current.workflow) setNotice(current.warnings.join(' '));
       }
       if (revisions.has_more || timeline.has_more) setNotice('Lịch sử dài; đang hiển thị một phần.');

@@ -707,6 +707,10 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(
                 )
                 assert returned.status_code == 200, returned.text
                 assert returned.json()["case"]["status"] == "NEEDS_REVISION"
+                assert returned.json()["case"]["actions"]["can_revise"] is False
+                coordinator_state = await api.get(route + "/workflow", headers=headers())
+                assert coordinator_state.status_code == 200, coordinator_state.text
+                assert coordinator_state.json()["case"]["actions"]["can_revise"] is True
                 async with results.engine.connect() as conn:
                     values = (
                         (

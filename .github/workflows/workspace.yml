@@ -13,13 +13,15 @@ jobs:
         with:
           version: '0.13.1'
       - run: uv sync --locked --group dev --group database
-      - run: uv run --locked python -m pytest tests/domain/data_workspace tests/platform/test_decision_test_environment.py -q
-      - run: uv run --locked python -m scripts.decision_test_environment --image postgres:${{ matrix.postgres }} --include-business
+      - run: uv run --locked python -m pytest tests/domain/data_workspace tests/platform/test_decision_test_environment.py tests/platform/test_decision_demo_data.py tests/platform/test_decision_demo_runtime.py -q
+      - run: uv run --locked python -m scripts.decision_test_environment --image postgres:${{ matrix.postgres }} --include-business --include-core-pool
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: workspace-test-evidence-pg${{ matrix.postgres }}
-          path: .tmp/decision-tests/*/results.xml
+          path: |
+            .tmp/decision-tests/*/results.xml
+            .tmp/decision-tests/*/core-pool-results.xml
   workflow:
     runs-on: ubuntu-latest
     timeout-minutes: 15

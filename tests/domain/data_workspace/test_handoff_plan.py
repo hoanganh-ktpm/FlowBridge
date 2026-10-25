@@ -72,3 +72,13 @@ def test_planned_time_requires_timezone_and_rejects_forged_booking_status():
     for change in ({"status": "ACCEPTED"}, {"scheduled_handoff_at": "2026-10-27T10:00:00"}):
         with pytest.raises(ValidationError):
             HandoffPlan.model_validate({**plan, **change})
+
+
+def test_early_slot_explains_the_proven_preparation_time_without_claiming_earliest_readiness():
+    selected, capacity, planned = facts()
+    planned["scheduled_handoff_at"] = "2026-10-27T08:00:00+07:00"
+    result = assess_slot(selected, [], capacity, {"minutes": 120}, "Asia/Ho_Chi_Minh", planned)
+    assert result["confirmable"] is False
+    assert result["reasons"][0]["code"] == "BEFORE_PREPARATION_COMPLETE"
+    assert "09:30 27/10/2026" in result["reasons"][0]["message"]
+    assert "sớm nhất" in result["reasons"][0]["message"]

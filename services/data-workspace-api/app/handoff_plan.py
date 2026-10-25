@@ -2,6 +2,7 @@
 """A proposed carrier slot is a condition, distinct from a committed booking."""
 
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, field_validator
 
@@ -23,6 +24,12 @@ class HandoffPlan(DTO):
 
 
 def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
+    reasons = []
+
+    def missing(code, message):
+        if code not in {item["code"] for item in reasons}:
+            reasons.append({"code": code, "message": message})
+
     booked = [
         row for row in schedule if row["status"] == "ACCEPTED" and row["scheduled_handoff_at"]
     ]
@@ -47,8 +54,29 @@ def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
     deadline = moment(selected.get("handoff_deadline", selected["deadline"]))
     ready = moment(selected["fulfilled_at"]) if selected.get("fulfilled_at") else None
     feasible = bool(slots) and matches and policy is not None and ready is not None
+    if not slots:
+        missing("SCHEDULE_MISSING", "Chưa có lịch bàn giao để xác minh.")
+    if not matches:
+        missing("BOOKING_CONFLICT", "Lịch dự kiến khác lịch đã được đơn vị vận chuyển xác nhận.")
+    if policy is None:
+        missing("PREPARATION_UNKNOWN", "Kho chưa xác nhận thời gian chuẩn bị.")
+    if ready is None:
+        missing("SUPPLY_UNPROVEN", "Phương án chưa chứng minh đủ hàng cho toàn đơn.")
     for slot in slots:
         at = moment(slot["scheduled_handoff_at"])
+        if at > deadline:
+            missing("AFTER_DEADLINE", "Lịch bàn giao dự kiến sau hạn của đơn.")
+        if ready is not None and policy is not None:
+            prepared = ready + timedelta(minutes=policy["minutes"])
+            if prepared > at:
+                label = prepared.astimezone(ZoneInfo(timezone)).strftime("%H:%M %d/%m/%Y")
+                missing(
+                    "BEFORE_PREPARATION_COMPLETE",
+                    "Lịch dự kiến sớm hơn mốc đủ hàng cộng thời gian chuẩn bị mà mô phỏng "
+                    f"đang chứng minh: {label} (giờ Việt Nam). "
+                    "Đây là mốc phân bổ theo hạn trong mô phỏng, chưa phải thời điểm "
+                    "chuẩn bị sớm nhất có thể.",
+                )
         feasible = (
             feasible and at <= deadline and ready + timedelta(minutes=policy["minutes"]) <= at
         )
@@ -58,12 +86,21 @@ def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
         ]
         if len(values) != 1:
             feasible = False
+            missing("CAPACITY_UNKNOWN", "Chưa có một bản năng lực vận chuyển hợp lệ cho ngày chọn.")
             continue
         value = values[0]
         used, maximum = numeric(value["used_dispatches"]), numeric(value["max_dispatches"])
         # An actual matching booking is already included in used_dispatches.
         # Otherwise this proposed whole-order handoff needs one additional slot.
         needed = 1 if proposal and not booked else 0
+        if value["status"] != "ACTIVE" or not 0 <= used <= maximum:
+            missing(
+                "CAPACITY_INVALID", "Năng lực vận chuyển chưa hoạt động hoặc số lượt không hợp lệ."
+            )
+        elif used + needed > maximum:
+            missing("CAPACITY_FULL", "Ngày đã chọn không còn đủ lượt để nhận thêm đơn.")
+        elif needed == 0 and used < 1:
+            missing("BOOKING_UNPROVEN", "Lượt đã đặt chưa đối chiếu được với số lượt sử dụng.")
         feasible = (
             feasible
             and value["status"] == "ACTIVE"
@@ -76,4 +113,5 @@ def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
         "capacities": capacities,
         "contract_schedule": slots,
         "booking_status": "BOOKED" if booked else "PROPOSED_CAPACITY" if proposal else "UNKNOWN",
+        "reasons": reasons,
     }

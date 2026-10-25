@@ -162,6 +162,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", default="postgres:16", choices=["postgres:16", "postgres:17"])
     parser.add_argument("--include-business", action="store_true")
+    parser.add_argument("--include-core-pool", action="store_true")
     args = parser.parse_args()
     with disposable_workspace(args.image) as (env, directory):
         import sys
@@ -180,6 +181,34 @@ def main():
             str(directory / "results.xml"),
         ]
         result = subprocess.run(command, cwd=ROOT, env=env, check=False)
+        if args.include_core_pool:
+            # This container is disposable and bound only to loopback. Do not
+            # weaken the application TLS policy or pass this to other profiles.
+            pool_env = dict(env)
+            pool_env["DXOS_TEST_ADMIN_URL"] = (
+                make_url(env["DXOS_TEST_ADMIN_URL"])
+                .update_query_dict({"sslmode": "disable"})
+                .render_as_string(hide_password=False)
+            )
+            pool_result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "tests/core/persistence/test_connection_pool.py",
+                    "-m",
+                    "integration",
+                    "-q",
+                    "--tb=short",
+                    "--junitxml",
+                    str(directory / "core-pool-results.xml"),
+                ],
+                cwd=ROOT,
+                env=pool_env,
+                check=False,
+            )
+            if pool_result.returncode:
+                result = pool_result
         print(f"Workspace integration evidence: {directory}")
     raise SystemExit(result.returncode)
 

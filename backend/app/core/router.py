@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse
 
 from app.core.applications.runtime import ImportRequest, OnboardingSubmission, PlanRequest
 from app.core.applications.schemas import ApplicationCreate, ApplicationPatch
-from app.core.data_products.querying import QuerySelection
+from app.core.data_products.querying import QueryScan, QuerySelection
 from app.core.data_products.relationships import RelationshipDefinition, RelationshipPatch
 from app.core.data_products.schemas import (
     ContractCreate,
@@ -413,4 +413,11 @@ async def query_product(
 ):
     return await request.app.state.relationship_queries.run(
         actor, data_product_id, body, request.state.correlation_id
+    )
+
+
+@router.post("/data-products/{data_product_id}/scan", operation_id="scanDataProduct")
+async def scan_product(data_product_id: UUID, body: QueryScan, request: Request, actor: Actor):
+    return await request.app.state.relationship_queries.run(
+        actor, data_product_id, body.selection, request.state.correlation_id, pages=body.pages
     )

@@ -664,3 +664,61 @@ async def test_metadata_version_change_during_query_discards_response(harness):
     engine.on_read = drift
     response = await query(harness, endpoints[0], {"select": ["sku"]})
     assert response.status_code == 409 and "DO-NOT-RETURN" not in response.text
+
+
+@pytest.mark.parametrize("failure", [None, "revoked", "metadata", "duplicate"])
+async def test_bounded_scan_authorizes_the_entire_response_and_rejects_drift(harness, failure):
+    endpoints, engine = await graph(harness)
+    root = endpoints[0]
+    values = [{"sku": f"SKU-{i:03}"} for i in range(205)]
+
+    def page():
+        variables = engine.requests[-1]["variables"]
+        offset, limit = variables["v1"], variables["v0"]
+        engine.nested_rows = deepcopy(values[offset : offset + limit])
+        if offset == 100:
+            if failure == "revoked":
+                harness.record("grant", root[3]["id"])["status"] = "REVOKING"
+            elif failure == "metadata":
+                harness.engine.version += 1
+            elif failure == "duplicate":
+                engine.nested_rows[0] = deepcopy(values[0])
+
+    engine.on_read = page
+    response = await harness.request(
+        "POST",
+        f"/data-products/{root[1]['id']}/scan",
+        actor="consumer",
+        json={"selection": {"select": ["sku"], "limit": 100}, "pages": 4},
+    )
+    if failure is None:
+        assert response.status_code == 200, response.text
+        assert response.json()["rows"] == values
+        assert response.json()["has_more"] is False
+        assert len(engine.requests) == 3
+    else:
+        assert response.status_code == (403 if failure == "revoked" else 409), response.text
+        assert "SKU-000" not in response.text
+    assert harness.store.audits[-1][-1]["details"]["scan_pages"] == 4
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"pages": 5},
+        {"pages": True},
+        {"selection": {"select": ["sku"], "offset": 9900, "limit": 100}},
+        {"selection": {"select": ["available"], "limit": 100}},
+        {"selection": {"select": ["sku"], "include": {"related": {"select": ["sku"]}}}},
+    ],
+)
+async def test_scan_never_expands_page_depth_or_unbounded_offsets(harness, extra):
+    endpoints, engine = await graph(harness)
+    response = await harness.request(
+        "POST",
+        f"/data-products/{endpoints[0][1]['id']}/scan",
+        actor="consumer",
+        json={"selection": {"select": ["sku"], "limit": 100}, "pages": 4, **extra},
+    )
+    assert response.status_code == 422, response.text
+    assert not engine.requests
