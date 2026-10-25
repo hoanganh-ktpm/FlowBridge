@@ -1150,6 +1150,68 @@
         ]
       }
     },
+    "/api/v1/data-workspace/warehouse-coverage": {
+      "get": {
+        "summary": "Warehouse Coverage",
+        "operationId": "warehouse_coverage_api_v1_data_workspace_warehouse_coverage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/data-workspace/all-warehouses": {
+      "post": {
+        "summary": "All Warehouses",
+        "operationId": "all_warehouses_api_v1_data_workspace_all_warehouses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WarehouseOverviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/data-workspace/configurations": {
       "post": {
         "summary": "Save Configuration",
@@ -3468,6 +3530,20 @@
           "revision_id"
         ],
         "title": "VerifyHandoff"
+      },
+      "WarehouseOverviewRequest": {
+        "properties": {
+          "horizon": {
+            "type": "integer",
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Horizon",
+            "default": 7
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "WarehouseOverviewRequest"
       }
     },
     "securitySchemes": {

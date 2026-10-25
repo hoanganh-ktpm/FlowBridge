@@ -506,3 +506,35 @@ read from the real local database; its original fixture provenance is unchanged.
 The order planning table also explains specific stock/schedule/preparation/capacity
 conditions and shows both sides of a late-slot timestamp comparison. Its stock-ready
 cutoff is now labelled as a required preparation deadline, not proof of actual stock.
+
+## Administrative overview of every existing local warehouse (26 October 2026)
+
+The user explicitly widened the request from the signed-in organization's data
+to every warehouse already stored locally. The initial one-org update omitted
+WH-HCM01 because it belongs to a different fixture org. Its three remaining open
+fixture orders now have future deadlines, and the accepted shipment's deadline
+snapshot matches Sales. Completed/cancelled history and physical quantities were
+preserved; no carrier pickup time was fabricated when the source had none.
+
+Added **Cần xử lý · Tất cả kho** for platform administrators with an explicit,
+bounded server-side organization allowlist. Each organization is read separately
+through Core using the actual caller, with its own org equality filter and final
+grant rechecks. No client-provided organization expansion, administrator grant
+bypass, direct business SQL fallback or mixing of units/identities is introduced.
+Single-org behavior remains the default unless deployment configuration opts in.
+The guarded local enable command records current scopes and preserves them across
+runtime reconfiguration; later organizations are not silently added.
+
+Live source reads and the minhhung Portal show **two warehouses, 11 products by
+warehouse and 354 open orders**: Bình Dương 8/351, TP.HCM 3/3. Bình Dương planning
+was recomputed. TP.HCM has only three demand-event dates and no preparation policy;
+its actual stock/orders are shown, while forecast shortage remains unknown with
+INSUFFICIENT_HISTORY instead of being reported as zero or omitted from coverage.
+Human UI verification expanded its three orders and confirmed future deadlines.
+
+Validation: 1,129 fast cases passed, 98 integration/E2E cases deselected, three
+targeted browser cases passed, and TypeScript/production build passed. Live admin
+OAuth exercised the real Core/Hasura/database chain; separate human SSO verified
+the combined view. Unit coverage checks default single scope, non-admin refusal,
+separate organizations and revocation discarding the whole result. M12's remaining
+live revoke/source-change and timed/load acceptance criteria are still open.

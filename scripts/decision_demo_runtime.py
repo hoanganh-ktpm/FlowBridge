@@ -372,6 +372,9 @@ def configure(coordinator_username=None):
 
     validate_test_url(workspace_db)
     workspace = {
+        "FLOWBRIDGE_WORKSPACE_OVERVIEW_ORGS": dotenv_values(DIRECTORY / "workspace.env").get(
+            "FLOWBRIDGE_WORKSPACE_OVERVIEW_ORGS", "[]"
+        ),
         "FLOWBRIDGE_WORKSPACE_DATABASE_URL": workspace_db,
         "FLOWBRIDGE_WORKSPACE_CORE_URL": "http://127.0.0.1:18000",
         "FLOWBRIDGE_WORKSPACE_ORG_ID": org,

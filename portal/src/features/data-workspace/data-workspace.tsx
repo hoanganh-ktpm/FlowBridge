@@ -15,6 +15,7 @@ import { ProductSelector } from './product-selector';
 import { OperationsDashboard } from './operations-dashboard';
 import { OrderReadinessReasons, orderDateTime } from './order-readiness';
 import { OrganizationRecords } from './organization-records';
+import { AllWarehouses } from './all-warehouses';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SensitivityChart } from './sensitivity-chart';
 import { warehouseLabel, type PlanningDirectory, type Planning, type PlanProduct } from './planning-types';
@@ -26,7 +27,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { Forecast, Overview, Product, Scenario } from './types';
 import './workspace.css';
 
-type View = 'analytics' | 'forecast' | 'dashboard' | 'plan' | 'orders' | 'configuration' | 'decisions' | 'tasks' | 'outcomes' | 'records';
+type View = 'analytics' | 'forecast' | 'dashboard' | 'plan' | 'orders' | 'configuration' | 'decisions' | 'tasks' | 'outcomes' | 'records' | 'all-warehouses';
 type Draft = { warehouse: string; sku: string; horizon: string; history: string; frequency: string; training: string };
 const initialDraft: Draft = { warehouse: '', sku: '', horizon: '7', history: '30', frequency: 'day', training: '180' };
 const sourceRoles = {
@@ -50,6 +51,7 @@ const orderReason: Record<string, string> = { stock: 'Chưa đủ hàng trước
 export function DataWorkspace() {
   const session = useSession();
   const [view, setView] = useState<View>('dashboard');
+  const [allWarehousesEnabled,setAllWarehousesEnabled]=useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
   const [directory, setDirectory] = useState<PlanningDirectory>({ warehouses: [], products: [] });
@@ -136,6 +138,14 @@ export function DataWorkspace() {
     return () => controller.abort();
   }, [request]);
 
+  useEffect(() => {
+    const controller=new AbortController();
+    void request<{all_warehouses_enabled:boolean}>('/warehouse-coverage',undefined,controller.signal)
+      .then(value=>{if(!controller.signal.aborted){setAllWarehousesEnabled(value.all_warehouses_enabled);if(value.all_warehouses_enabled)setView(current=>current==='dashboard'?'all-warehouses':current);}})
+      .catch(()=>{if(!controller.signal.aborted)setAllWarehousesEnabled(false);});
+    return()=>controller.abort();
+  },[request]);
+
   const sources = Object.fromEntries(Object.entries(sourceRoles).map(([key, [name]]) => [key, products.find(p => p.name === (sourceNames[key] || name))]));
   const missing = required.filter(k => !sources[k]);
   const selected = plan?.products.find(p => p.sku === plan.selected_sku);
@@ -143,7 +153,7 @@ export function DataWorkspace() {
   const scenarioDirty = JSON.stringify(proposal) !== JSON.stringify(calculated);
   const hasML = (plan?.forecast.model.entities?.[plan.selected_sku]?.method || plan?.forecast.model.method) === 'ridge_lag';
   const blocked = !!busy || !!missing.length || !catalogLoaded || !directoryLoaded || !draft.warehouse;
-  const title = view === 'records' ? 'Dữ liệu tổ chức' : view === 'tasks' ? 'Việc của tôi' : view === 'outcomes' ? 'Theo dõi kết quả' : view === 'decisions' ? 'Hồ sơ quyết định' : view === 'analytics' ? 'Tổng quan' : view === 'forecast' ? 'Dự báo nhu cầu' : view === 'plan' ? 'Thử phương án nhập hàng' : view === 'orders' ? 'Đơn hàng & giao nhận' : view === 'configuration' ? 'Thiết lập cho IT' : 'Tổng quan';
+  const title = view === 'all-warehouses' ? 'Cần xử lý · Tất cả kho' : view === 'records' ? 'Dữ liệu tổ chức' : view === 'tasks' ? 'Việc của tôi' : view === 'outcomes' ? 'Theo dõi kết quả' : view === 'decisions' ? 'Hồ sơ quyết định' : view === 'analytics' ? 'Tổng quan' : view === 'forecast' ? 'Dự báo nhu cầu' : view === 'plan' ? 'Thử phương án nhập hàng' : view === 'orders' ? 'Đơn hàng & giao nhận' : view === 'configuration' ? 'Thiết lập cho IT' : 'Tổng quan';
   function patch<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft(d => ({ ...d, [key]: value })); }
   async function load(next = draft, nextView?: View) {
     generation.current++; controllers.current.forEach(c => c.abort());
@@ -224,9 +234,9 @@ export function DataWorkspace() {
   return <div className="dw-shell pw-shell">
     <aside className="dw-sidebar"><Brand/>
       <p className="dw-nav-label">Quy trình quyết định</p>
-      <nav aria-label="Quy trình quyết định">{([[ 'dashboard', BarChart3, 'Cần xử lý' ], [ 'plan', Package, 'Chi tiết & phương án' ], ...(decisionCapabilities?.enabled ? [[ 'tasks', Package, 'Việc của tôi' ], [ 'outcomes', Truck, 'Theo dõi kết quả' ]] : [])] as const).map(([id, Icon, label]) => <button key={String(id)} aria-current={view===id?'page':undefined} className={view===id?'active':''} onClick={()=>setView(id as View)}><Icon size={18}/><span>{String(label)}</span></button>)}</nav>
+      <nav aria-label="Quy trình quyết định">{([[ 'dashboard', BarChart3, 'Cần xử lý' ], [ 'plan', Package, 'Chi tiết & phương án' ], ...(decisionCapabilities?.enabled ? [[ 'tasks', Package, 'Việc của tôi' ], [ 'outcomes', Truck, 'Theo dõi kết quả' ]] : [])] as const).map(([id, Icon, label]) => <button key={String(id)} aria-current={view===id||id==='dashboard'&&view==='all-warehouses'?'page':undefined} className={view===id||id==='dashboard'&&view==='all-warehouses'?'active':''} onClick={()=>setView(id==='dashboard'&&allWarehousesEnabled?'all-warehouses':id as View)}><Icon size={18}/><span>{String(label)}</span></button>)}</nav>
       <p className="dw-nav-label">Dữ liệu và công cụ</p>
-      <nav aria-label="Dữ liệu và công cụ">{([[ 'forecast', ChartLine, 'Dự báo nhu cầu' ], [ 'orders', Truck, 'Đơn hàng & giao nhận' ], [ 'records', Package, 'Dữ liệu tổ chức' ], ...(decisionCapabilities?.enabled ? [[ 'decisions', Package, 'Hồ sơ quyết định' ]] : []), ...(admin ? [[ 'configuration', Settings2, 'Thiết lập cho IT' ]] : [])] as const).map(([id, Icon, label]) => <button key={String(id)} aria-current={view===id?'page':undefined} className={view===id?'active':''} onClick={()=>setView(id as View)}><Icon size={18}/><span>{String(label)}</span></button>)}</nav>
+      <nav aria-label="Dữ liệu và công cụ">{([[ 'forecast', ChartLine, 'Dự báo nhu cầu' ], [ 'orders', Truck, 'Đơn hàng & giao nhận' ], [ 'records', Package, 'Dữ liệu tổ chức' ], ...(decisionCapabilities?.enabled ? [[ 'decisions', Package, 'Hồ sơ quyết định' ]] : []), ...(admin ? [[ 'configuration', Settings2, 'Thiết lập cho IT' ]] : [])] as const).map(([id, Icon, label]) => <button key={String(id)} aria-current={view===id||id==='dashboard'&&view==='all-warehouses'?'page':undefined} className={view===id||id==='dashboard'&&view==='all-warehouses'?'active':''} onClick={()=>setView(id==='dashboard'&&allWarehousesEnabled?'all-warehouses':id as View)}><Icon size={18}/><span>{String(label)}</span></button>)}</nav>
       <div className="dw-user"><span className="dw-avatar">{session.profile?.user.display_name?.[0] || 'F'}</span><span>{session.profile?.user.display_name || 'Người dùng'}<small>{admin ? 'Quản trị dữ liệu' : 'Điều hành doanh nghiệp'}</small></span></div><button className="pw-logout" onClick={() => void session.logout()}>Đăng xuất</button>
     </aside>
     <main className="dw-main" ref={mainRef}>
@@ -235,9 +245,10 @@ export function DataWorkspace() {
         {catalogLoaded && !products.length && !error && <div className="pw-source-setup"><Info size={24}/><div><h2>Chưa có dữ liệu được chia sẻ</h2><p>Liên hệ IT để được cấp quyền xem dữ liệu Bán hàng, Kho hoặc Vận chuyển.</p></div></div>}
         {(view === 'dashboard' || view === 'analytics') && <Tabs value={view} onValueChange={v => setView(v as View)} className="pw-overview-tabs"><TabsList><TabsTrigger value="dashboard">Đặt hàng & nguồn hàng</TabsTrigger><TabsTrigger value="analytics">Phân tích lịch sử</TabsTrigger></TabsList></Tabs>}
         {products.length > 0 && <div hidden={view !== 'analytics' && view !== 'forecast'}><BusinessAnalytics mode={view === 'forecast' ? 'forecast' : 'history'} products={products} busy={!!busy} request={request} perform={perform} onEvidence={setExplanation} canPlan={!missing.length} names={sourceNames} onPlan={(sku, horizon, training = 180) => { const nextView = sku ? 'plan' : 'orders'; if (!draft.warehouse) { setDraft(d => ({ ...d, sku, horizon: String(horizon), training: String(training) })); setView(nextView); return; } void perform('Đang đối chiếu kế hoạch', () => load({ ...draft, sku, horizon: String(horizon), training: String(training) }, nextView)); }}/></div>}
+        {view === 'all-warehouses' && allWarehousesEnabled && <AllWarehouses request={request} onDenied={report} onLocal={()=>setView('dashboard')}/>}
         {view === 'records' && <OrganizationRecords request={request} onDenied={report}/>}
         {['decisions','tasks','outcomes'].includes(view) && decisionCapabilities?.enabled && <DecisionDossiers handoffOptions={plan?.capacity_calendar||[]} key={view} mode={view==='tasks'?'tasks':view==='outcomes'?'outcomes':'all'} request={request} capabilities={decisionCapabilities} scenario={scenario} scenarioDirty={dirty || scenarioDirty}/>}
-        {!['decisions','tasks','outcomes','records'].includes(view) && view !== 'configuration' && view !== 'analytics' && view !== 'forecast' && <>
+        {!['decisions','tasks','outcomes','records','all-warehouses'].includes(view) && view !== 'configuration' && view !== 'analytics' && view !== 'forecast' && <>
           <section className={`dw-filterbar pw-filters${view === 'plan' ? ' pw-ml-filters' : ''}`}><Field title="Kho phân tích" hint="Chỉ đối chiếu đơn hàng và nguồn hàng của kho đã chọn trong phạm vi bạn được cấp quyền."><Select value={draft.warehouse} onChange={warehouse => setDraft({ ...draft, warehouse, sku: directory.products.find(p => p.warehouse_id === warehouse)?.sku || '' })} disabled={!!busy || !directoryLoaded}><option value="" disabled>{!directoryLoaded ? 'Đang tải danh sách kho…' : 'Chọn kho'}</option>{directory.warehouses.map(w => <option key={w.id} value={w.id}>{warehouseLabel(w)}</option>)}</Select></Field><Field title="Kỳ kế hoạch" hint="Khoảng thời gian từ hôm nay để đối chiếu đơn đến hạn, hàng sẽ về và lượng đặt mới dự báo. Chọn kỳ dài hơn để chuẩn bị sớm."><Select value={draft.horizon} onChange={v => patch('horizon', v)} disabled={!!busy}>{[...new Set(['7', '14', '30', '90', draft.horizon])].sort((a, b) => Number(a) - Number(b)).map(n => <option key={n} value={n}>{n} ngày tới</option>)}</Select></Field>{view === 'dashboard' && <Field title="Xem đặt hàng và nhập kho trong" hint="Khoảng dữ liệu đã ghi nhận dùng cho biểu đồ đặt hàng và thực nhập. Đây là lịch sử, không phải kỳ dự báo."><Select value={draft.history} onChange={v => patch('history', v)} disabled={!!busy}>{['7', '14', '30', '90', '365'].map(n => <option key={n} value={n}>{n === '365' ? '12 tháng' : n + ' ngày gần nhất'}</option>)}</Select></Field>}{view === 'dashboard' && <Field title="Gộp theo" hint="Gộp số liệu theo từng ngày hoặc tổng từng tuần. Tuần đầu và cuối có thể chưa đủ bảy ngày."><Select value={draft.frequency} onChange={v => patch('frequency', v)} disabled={!!busy}><option value="day">Ngày</option><option value="week">Tuần</option></Select></Field>}{view === 'plan' && <Field title="Dữ liệu học ML" hint="Lịch sử của đúng sản phẩm và kho dùng để học dự báo. Kỳ dự báo dài cần nhiều dữ liệu hơn để kiểm chứng."><Select value={draft.training} disabled={!!busy} onChange={v => patch('training', v)}><option value="90">3 tháng</option><option value="180">6 tháng</option><option value="365">12 tháng</option></Select></Field>}<Field title="Sản phẩm" hint="Tìm và chọn theo mã hoặc tên. Các kết quả dùng cùng sản phẩm và đơn vị của kho đã chọn."><ProductSelector items={directory.products.filter(p => p.warehouse_id === draft.warehouse)} value={draft.sku} onChange={v => patch('sku', v)} disabled={!draft.warehouse || !directoryLoaded || !!busy}/></Field><Button disabled={blocked} onClick={() => void perform('Đang đối chiếu dữ liệu các phòng ban', () => load())}>{view === 'plan' ? 'Cập nhật dự báo ML' : 'Cập nhật kế hoạch'}</Button>{dirty && <span className="pw-draft-note">Có thay đổi chưa áp dụng</span>}{!directoryLoaded && !busy && catalogLoaded && sources.stock && <Button variant="outline" onClick={() => void perform('Đang tải danh sách kho', () => loadDirectory())}>Tải lại danh sách kho</Button>}</section>
           {catalogLoaded && !!missing.length && <div className="pw-source-setup" role="status"><Info size={24}/><div><h2>Cần bổ sung nguồn để phân tích đúng kho và từng đơn hàng</h2><p>Nhờ IT công bố hoặc cấp quyền các nguồn sau: {missing.map(k => sourceRoles[k][1]).join(', ')}. Báo cáo chỉ tính khi có đủ các nguồn bắt buộc.</p>{admin && <details><summary>Tên giao diện dữ liệu cần kết nối</summary><ul>{missing.map(k => <li key={k}>{sourceRoles[k][0]}</li>)}</ul></details>}</div></div>}
           {!plan && !busy && !error && !missing.length && <Card className="pw-empty-state"><CardContent><h2>Chưa có kế hoạch được tải</h2><p>Chọn kho và kỳ kế hoạch, sau đó bấm {view === 'plan' ? 'Cập nhật dự báo ML' : 'Cập nhật kế hoạch'} để đối chiếu đơn hàng và nguồn hàng.</p></CardContent></Card>}

@@ -54,3 +54,34 @@ Các deployment khác phải công bố/cấp quyền qua quy trình Core của 
 Đã đối chiếu local ngày 26/10/2026: tổ chức đang dùng có 1 kho, 8 sản phẩm,
 4.708 đơn (351 mở, 4.357 hoàn tất). Đây là số liệu thực đọc từ database local;
 nguồn gốc các bản ghi vẫn là fixture giả lập, không phải dữ liệu doanh nghiệp thật.
+
+## Tổng quan tất cả kho cho người quản trị
+
+Theo yêu cầu mở rộng phạm vi của người dùng, **Cần xử lý** có chế độ tổng quan
+tất cả kho thuộc các tổ chức đã được cấu hình rõ ràng cho quản trị. Người dùng
+thường vẫn giữ phạm vi một tổ chức; màn Dữ liệu tổ chức phía trên không đổi phạm vi.
+
+`POST /all-warehouses` yêu cầu PLATFORM_ADMIN. Server lấy danh sách tổ chức từ
+`FLOWBRIDGE_WORKSPACE_OVERVIEW_ORGS`, không nhận tổ chức từ body người gọi. Mỗi
+nguồn vẫn được đọc riêng với org_id tương ứng và token thật của người gọi,
+kiểm grant qua Core rồi kiểm lại quyền trước khi trả kết quả. Quyền quản trị
+không thay thế grant của Data Product. Nếu bị từ chối nguồn thì không trả một
+kết quả thiếu như thể đã đọc đủ tất cả kho.
+
+Để bật rõ phạm vi tất cả các kho **đã có trên profile local**, chạy:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.decision_register_access enable-all-warehouses
+.\.venv\Scripts\python.exe -m scripts.decision_demo_runtime restart workspace
+```
+
+Lệnh ghi danh sách scope đã xem xét vào ledger local, không tạo kho/sản phẩm và
+không cấp thêm grant. Nếu sau này có tổ chức mới, cần cấu hình lại rõ ràng; không
+tự mở rộng quyền khi phát hiện org mới. Runtime configure giữ danh sách đã duyệt.
+
+Đã đọc trực tiếp hai kho hiện có: Bình Dương (8 mặt hàng, 351 đơn mở) và TP.HCM
+(3 mặt hàng, 3 đơn mở). Tổng 11 mặt hàng theo kho, 354 đơn mở. Đơn mở TP.HCM đã
+được chỉnh hạn tương lai trong đợt bảo trì fixture, giữ số lượng và lịch sử bàn
+giao. Kho TP.HCM chỉ có ba ngày phát sinh lịch sử và chưa có thời gian chuẩn bị
+được xác nhận, nên hiện số tồn/đơn nguồn và thông báo chưa đủ lịch sử dự báo;
+không tạo thêm lịch sử giả hay ghi thiếu hàng bằng 0 để làm báo cáo qua.

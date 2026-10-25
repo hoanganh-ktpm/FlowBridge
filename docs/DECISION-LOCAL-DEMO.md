@@ -10,6 +10,13 @@ Mở `http://127.0.0.1:5174/#data`, đăng nhập SSO. Tài khoản `minhhung` �
 làm người điều phối trong profile local này. Các vai trò Kho, Vận chuyển và Quản lý
 là ba tài khoản độc lập. Không dùng tài khoản điều phối để xác nhận thay họ.
 
+Tài khoản quản trị `minhhung` hiện mở **Cần xử lý · Tất cả kho** theo cấu hình đã
+duyệt: Bình Dương và TP.HCM đều được đọc từ database. Nút **Cập nhật toàn bộ kho**
+đọc lại cả hai; kho thiếu lịch sử vẫn hiện tồn/đơn nguồn và lý do chưa tính được
+dự báo. Chọn **Phân tích chi tiết kho đang chọn** để dùng màn phân tích Bình Dương
+theo các bước dưới. Đây là tổng quan quản trị đã cấu hình, không mở rộng phạm vi
+cho tài khoản Kho/Vận chuyển thông thường. Xem ORGANIZATION-REGISTERS.md.
+
 1. **Cần xử lý:** chọn Kho trung tâm Bình Dương, sản phẩm KB-K120 và cập nhật kế hoạch.
    Bảng và biểu đồ đối chiếu đơn đã nhận, tồn kho, hàng về và lịch bàn giao.
 2. **Chi tiết & phương án:** cập nhật dự báo ML, nhập lượng và ngày/giờ bổ sung,

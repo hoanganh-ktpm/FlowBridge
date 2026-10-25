@@ -45,6 +45,7 @@ from .schemas import (
 )
 from .simulation import sensitivity, simulate
 from .source_roles import configured_source_names
+from .warehouse_overview import WarehouseOverviewRequest, warehouse_overview
 
 PREFIX = "/api/v1/data-workspace"
 
@@ -550,6 +551,14 @@ def create_app(
     @app.post(PREFIX + "/records")
     async def organization_records(body: RecordsRequest, ctx=actor_dependency):
         return await records_page(body, ctx, connector, source_names)
+
+    @app.get(PREFIX + "/warehouse-coverage")
+    async def warehouse_coverage(ctx=actor_dependency):
+        return {"all_warehouses_enabled": ctx.admin}
+
+    @app.post(PREFIX + "/all-warehouses")
+    async def all_warehouses(body: WarehouseOverviewRequest, ctx=actor_dependency):
+        return await warehouse_overview(body,ctx,connector,repository,source_names)
 
     @app.post(PREFIX + "/configurations", status_code=201)
     async def save_configuration(body: AnalysisConfig, ctx=actor_dependency):

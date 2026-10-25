@@ -20,6 +20,48 @@ REGISTER_KEYS = {
 }
 
 
+def enable_all_warehouses():
+    """Explicitly review current local warehouse orgs; never grants a new permission."""
+    from scripts.database.engine import make_engine
+    from scripts.integration_utils import write_env
+
+    local_configuration()
+    engine = make_engine("warehouse", hide_parameters=True)
+    try:
+        with engine.connect() as conn:
+            organizations = [
+                str(value)
+                for value in conn.scalars(
+                    sa.text("SELECT DISTINCT org_id FROM public.warehouses ORDER BY org_id")
+                )
+            ]
+    finally:
+        engine.dispose()
+    if not organizations or len(organizations) > 20:
+        raise ValueError("Review the bounded overview organization list")
+    target = DIRECTORY / "workspace.env"
+    current = dict(dotenv_values(target))
+    if not current.get("FLOWBRIDGE_WORKSPACE_ORG_ID"):
+        raise ValueError("Configure the owned Workspace first")
+    write_env(target, {**current, "FLOWBRIDGE_WORKSPACE_OVERVIEW_ORGS": json.dumps(organizations)})
+    (DIRECTORY / "overview-resources.json").write_text(
+        json.dumps(
+            {
+                "reviewed_local_warehouse_organizations": organizations,
+                "access": "Platform admin only; every source still requires current Core grants",
+                "purpose": "Explicit user request to cover every warehouse "
+                "already in local databases",
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(
+        f"Configured {len(organizations)} existing organization scopes "
+        "for admin warehouse overview."
+    )
+
+
 def prepare():
     from scripts.database.cli import run_migrations
     from scripts.database.engine import make_engine
@@ -202,6 +244,9 @@ def publish():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("prepare", "publish"))
+    parser.add_argument("operation", choices=("prepare", "publish", "enable-all-warehouses"))
     args = parser.parse_args()
-    prepare() if args.operation == "prepare" else publish()
+    if args.operation == "enable-all-warehouses":
+        enable_all_warehouses()
+    else:
+        prepare() if args.operation == "prepare" else publish()

@@ -275,6 +275,34 @@ test('organization records include completed orders, page and filter without for
   await expect(page.getByText('Mặt hàng chưa nhập kho',{exact:true})).toHaveCount(0);
 });
 
+test('all-warehouse overview includes a second scoped warehouse without inventing a forecast', async ({ page }) => {
+  await mock(page);const calls:any[]=[];let denied=false;
+  await page.route('**/warehouse-coverage',r=>r.fulfill({json:{all_warehouses_enabled:true}}));
+  await page.route('**/all-warehouses',r=>{
+    const body=r.request().postDataJSON();calls.push(body);
+    if(denied)return r.fulfill({status:403,json:{detail:'Scope revoked'}});
+    const common={products:[{sku:'SAME-SKU',name:'Giấy A4',uom:'ram',on_hand:12,reserved:2,available:10,shortage:3}],open_orders:[],planning_status:'calculated',planning_issue:null};
+    return r.fulfill({json:{warehouse_count:2,horizon:body.horizon,read_at:evidence.executed_at,items:[
+      {...common,organization_id:'org-1',warehouse_id:'wh-1',warehouse_name:'Kho Bình Dương',warehouse_code:'BD'},
+      {...common,organization_id:'org-2',warehouse_id:'wh-2',warehouse_name:'Kho Hồ Chí Minh',warehouse_code:'HCM',planning_status:'needs_data',planning_issue:{code:'INSUFFICIENT_HISTORY',message:'Cần ít nhất 14 kỳ lịch sử.'},products:[{...common.products[0],shortage:null}]},
+    ]}});
+  });
+  await page.goto('/#data');
+  await expect(page.getByRole('heading',{name:'Cần xử lý · Tất cả kho',exact:true})).toBeVisible();
+  await expect(page.getByText(/Đã đọc 2 kho/)).toBeVisible();
+  await expect(page.getByRole('table',{name:'Tồn và kế hoạch BD'})).toContainText('3');
+  await expect(page.getByRole('table',{name:'Tồn và kế hoạch HCM'})).toContainText('Chưa đủ dữ liệu để tính');
+  await expect(page.getByText(/Cần ít nhất 14 kỳ lịch sử/)).toBeVisible();
+  await page.getByLabel('Kỳ tổng quan tất cả kho',{exact:true}).selectOption('14');
+  await expect(page.getByText('Đã đổi kỳ nhưng chưa áp dụng. Bấm Cập nhật toàn bộ kho.')).toBeVisible();
+  await page.getByRole('button',{name:'Cập nhật toàn bộ kho',exact:true}).click();
+  expect(calls.at(-1)).toEqual({horizon:14});
+  await expect(page.getByRole('table',{name:'Tồn và kế hoạch HCM'})).toBeVisible();
+  denied=true;await page.getByRole('button',{name:'Cập nhật toàn bộ kho',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Tồn và kế hoạch BD'})).toHaveCount(0);
+  await expect(page.getByRole('table',{name:'Tồn và kế hoạch HCM'})).toHaveCount(0);
+});
+
 test('scenario quality labels the disjoint P50 holdout instead of base validation MAE', async ({ page }) => {
   const state = await mock(page); state.holdout = 1.2;
   await page.goto('/#data'); await apply(page);
