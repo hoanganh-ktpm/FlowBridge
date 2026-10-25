@@ -58,6 +58,8 @@ def configure(port=55432):
             "key": values["JWT_KEY"],
             "issuer": "flowbridge-core",
             "audience": "flowbridge-data",
+            # Native Windows Core and Docker can differ by a fraction of a second.
+            "allowed_skew": 2,
         },
         separators=(",", ":"),
     )
