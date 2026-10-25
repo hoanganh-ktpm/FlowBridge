@@ -43,7 +43,7 @@ function scenarioResult(body: any, opening = 20) {
   };
 }
 
-type State = { calls: { path: string; body: any }[]; status: number; missing: boolean; optionalMissing: boolean; detail?: { code: string; message: string } };
+type State = { calls: { path: string; body: any }[]; status: number; missing: boolean; optionalMissing: boolean; detail?: { code: string; message: string }; holdout?: number };
 async function mock(page: Page, admin = false) {
   const state: State = { calls: [], status: 200, missing: false, optionalMissing: false };
   await page.route('**/config.json', r => r.fulfill({ json: { apiUrl: 'http://127.0.0.1:18000', issuer: 'https://identity.example.test/realms/flowbridge', clientId: 'flowbridge-web-a' } }));
@@ -58,6 +58,7 @@ async function mock(page: Page, admin = false) {
       if (state.status !== 200) return route.fulfill({ status: state.status, json: { detail: state.detail || { code: 'NO_DATA', message: 'Chưa đủ dữ liệu tại nguồn đang chọn.' } } });
       const result = structuredClone(plan); result.selected_sku = body.sku || 'SKU-A'; result.history.frequency = body.history_frequency || 'day';
       if (body.forecast_model === 'ridge_lag') result.forecast = { ...result.forecast, config: { ...result.forecast.config, forecast_model: 'ridge_lag' }, model: { method: 'ridge_lag', kind: 'machine_learning', entities: { [result.selected_sku]: { method: 'ridge_lag', observations: body.training_days, validation: { ridge_lag: { mae: 2.4 } } } } } as any };
+      if (state.holdout !== undefined && body.forecast_model === 'ridge_lag') (result.forecast.model as any).entities[result.selected_sku].p50_holdout = { ridge_lag: { mae: state.holdout, observations: 7, training_end: '2026-10-17', validation_start: '2026-10-18', validation_end: '2026-10-24' } };
       if (state.optionalMissing) { result.history.receipts_available = false; result.history.series = result.history.series.map(p => ({ ...p, received: null as any, difference: null as any })); result.missing_sources = ['receipts'] as any; }
       return route.fulfill({ json: result });
     }
@@ -116,6 +117,14 @@ test('priority briefing links the nearest named order to its source-backed detai
   await action.click();
   await expect(page.getByRole('heading', { name: 'Đơn hàng và tiến độ đáp ứng' })).toBeVisible();
   expect(count(state, '/planning')).toBe(1);
+});
+
+test('scenario quality labels the disjoint P50 holdout instead of base validation MAE', async ({ page }) => {
+  const state = await mock(page); state.holdout = 1.2;
+  await page.goto('/#data'); await apply(page);
+  await page.getByRole('button', { name: 'Thử bổ sung hàng', exact: true }).click();
+  await expect(page.getByText(/MAE P50 trên kỳ kiểm tra độc lập: 1,2/)).toBeVisible();
+  await expect(page.getByText(/sai lệch kiểm chứng dự báo nền/)).toHaveCount(0);
 });
 
 async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }

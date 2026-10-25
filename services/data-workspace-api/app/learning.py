@@ -128,6 +128,54 @@ def validate(history, config, gap):
     return result
 
 
+def p50_holdout(history, config, gap):
+    """Evaluate bias-corrected P50 after calibration, on a disjoint final time block.
+
+    This evaluates each fitting procedure at an earlier origin, not a probability
+    guarantee or the final model refitted on all available observations.
+    """
+    horizon = config.forecast_horizon
+    cut = len(history) - horizon - gap
+    if cut < 56 + 2 * horizon + gap:
+        return None
+    training, actual = history[:cut], history[-horizon:]
+    origin = date.fromisoformat(actual[0]["timestamp"])
+    calibration = validate(training, config, gap)
+    nonnegative = min(p["target"] for p in training) >= 0
+    result = {}
+    for method, score in calibration.items():
+        residuals = quantiles(score["errors"], n=10, method="inclusive")
+        low, median, high = residuals[0], residuals[4], residuals[-1]
+        base = predict(method, training, config, origin, horizon)
+        points = [
+            (max(0, p + low), max(0, p + median), max(0, p + high))
+            if nonnegative
+            else (p + low, p + median, p + high)
+            for p in base
+        ]
+        observed = [p["target"] for p in actual]
+        errors = [abs(y - point[1]) for y, point in zip(observed, points, strict=True)]
+        absolute = sum(errors)
+        total = sum(abs(y) for y in observed)
+        result[method] = {
+            "mae": absolute / horizon,
+            "wape_percent": 100 * absolute / total if total else None,
+            "observed_interval_coverage_percent": 100
+            * sum(
+                lower <= y <= upper for y, (lower, _, upper) in zip(observed, points, strict=True)
+            )
+            / horizon,
+            "observations": horizon,
+            "training_end": training[-1]["timestamp"],
+            "calibration_end": max(w["validation_end"] for w in score["windows"]),
+            "validation_start": actual[0]["timestamp"],
+            "validation_end": actual[-1]["timestamp"],
+            "predictions": [p[1] for p in points],
+            "actuals": observed,
+        }
+    return result
+
+
 def validated_forecast(dataset, config):
     requested = config.forecast_model
     if config.frequency != "D":
@@ -201,6 +249,7 @@ def validated_forecast(dataset, config):
                 key: {k: v for k, v in score.items() if k != "errors"}
                 for key, score in scores.items()
             },
+            "p50_holdout": p50_holdout(history, config, gap),
             "training_input_sha256": hashlib.sha256(
                 json.dumps(history, sort_keys=True).encode()
             ).hexdigest(),
@@ -223,6 +272,8 @@ def validated_forecast(dataset, config):
         else "Weekday means plus empirical residual envelope",
         "interval": "Held-out residual quantiles; not calibrated future probabilities",
         "validation_basis": "Base predictions before held-out residual median bias correction",
+        "p50_holdout_basis": "Separate final time block after earlier residual calibration; "
+        "per-method historical procedure, not a guarantee for the final refit or future coverage",
         "features": FEATURES if "ridge_lag" in methods else [],
         "weights": "Fitted locally from authorized history; no pretrained weights"
         if "ridge_lag" in methods

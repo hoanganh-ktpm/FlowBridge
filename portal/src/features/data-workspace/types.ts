@@ -34,7 +34,7 @@ export interface Forecast {
   id: string; config: Config; evidence: Evidence; created_at: string;
   points: { item_id: string; timestamp: string; p10: number; p50: number; p90: number }[];
   metrics: { item_id: string; forecast_total: number }[];
-  model: { method: string; kind: string; fallback_reason?: string; entities?: Record<string,{method:string;kind:string;reason:string;observations:number;gap_days:number;validation:Record<string,{mae:number;wape_percent:number|null;windows:object[]}>}> };
+  model: { method: string; kind: string; fallback_reason?: string; entities?: Record<string,{method:string;kind:string;reason:string;observations:number;gap_days:number;validation:Record<string,{mae:number;wape_percent:number|null;windows:object[]}>;p50_holdout?:Record<string,{mae:number;observations:number;training_end:string;validation_start:string;validation_end:string}>|null}> };
 }
 export interface ScenarioSide {
   series: { day: string; net_position: number; physical_inventory: number; unmet_cumulative: number; demand?:number; inbound?: number; known_demand_due?: number }[];

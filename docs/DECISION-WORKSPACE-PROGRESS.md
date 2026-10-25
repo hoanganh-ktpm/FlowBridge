@@ -103,3 +103,18 @@ oracles for moving averages, period growth and stock snapshots; **16 frontend
 unit tests passed**, **4 targeted mocked-browser tests passed** (priority action,
 desktop/mobile overview, order navigation and missing receipts); TypeScript and
 production build passed. Full domain plus environment/identity guards: **124 passed**.
+
+## M04 — forecast validation and separate corrected-P50 holdout (25 October 2026)
+
+Added a final chronological holdout after earlier residual calibration. The
+reported P50 quality has disjoint training/calibration and evaluation dates,
+per-method MAE/WAPE and empirical interval coverage. Short histories explicitly
+return no independent post-calibration score. Existing base-model validation is
+kept separately and labeled accordingly. Historical holdout coverage is not a
+future probability guarantee or a measurement of the final refitted model.
+
+Validation: **122 Workspace domain tests passed** (129 including runner/identity
+guards), five new holdout regressions include unchanged predictions when only
+held-out targets change and preservation of the unseen gap. **16 frontend unit
+tests**, TypeScript and **four targeted mocked-browser tests passed**, including
+the P50-quality label and strict ML failure behavior.
