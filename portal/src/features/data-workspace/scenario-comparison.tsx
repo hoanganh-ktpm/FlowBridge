@@ -7,12 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Panel, Plot, dateLabel, fmt, unitLabel } from './components';
 import type { Forecast, Scenario, DecisionMeasure } from './types';
 import type { Proposal } from './scenario-assumptions';
+import { RecoveryOptions } from './recovery-options';
 
 const blue='var(--fb-brand-blue)', purple='var(--fb-brand-purple)', cyan='var(--fb-brand-cyan)';
 const quantity = (v:number) => new Intl.NumberFormat('vi-VN',{maximumFractionDigits:3}).format(v);
 export function ScenarioComparison({ value, forecast, sku, unit, proposal, dirty, busy, onSuggest, onSave, onExport, evidence }: {
   value:Scenario|null;forecast:Forecast;sku:string;unit:string;proposal:Proposal|null;dirty:boolean;busy:boolean;
-  onSuggest:(quantity:number,arrival:string)=>void;onSave:()=>void;onExport:()=>void;evidence:ReactNode;
+  onSuggest:(quantity:number,arrival:string,time?:string)=>void;onSave:()=>void;onExport:()=>void;evidence:ReactNode;
 }) {
   const decision=value?.decision;
   const model=forecast.model.entities?.[sku];
@@ -47,10 +48,11 @@ export function ScenarioComparison({ value, forecast, sku, unit, proposal, dirty
         <TabsContent value="flows"><Plot data={flows} unit={unitLabel(unit)} lines={[{key:'original',name:'Lượng đặt mới · ML gốc',color:'var(--fb-text-muted)',dash:'4 4'},{key:'adjusted',name:'Lượng đặt mới sau điều chỉnh',color:purple},{key:'due',name:'Đơn đã nhận đến hạn',color:'var(--fb-border-strong)',kind:'bar'},{key:'incoming',name:'Hàng về theo lịch đã điều chỉnh',color:cyan,kind:'bar'},{key:'added',name:'Nhập bổ sung',color:blue,kind:'bar'}]}/><p className="pw-panel-note">Dự báo chỉ là lượng đặt mới. Đơn đã xác nhận được giữ nguyên. Hàng nhập hiện có được lùi theo số ngày trễ đã chọn.</p></TabsContent>
         <TabsContent value="metrics"><div className="pw-scenario-table"><Table aria-label="Đối chiếu ba kịch bản"><TableHeader><TableRow><TableHead>Chỉ tiêu</TableHead><TableHead>ML gốc</TableHead><TableHead>Sau điều chỉnh</TableHead><TableHead>Có bổ sung</TableHead></TableRow></TableHeader><TableBody>{rows.map(row=><TableRow key={row.key}><TableCell>{row.label}<small>{row.suffix}</small></TableCell>{[decision.reference,decision.stressed,decision.proposed].map((measure,i)=>{const amount=measure[row.key];return <TableCell key={i}>{row.key==='demand_headroom_percent' ? typeof amount==='number' ? amount>=0 ? `Tới +${fmt(amount)}%` : `Cần giảm ${fmt(-amount)}%` : 'Chưa có ngưỡng' : fmt(amount)}</TableCell>;})}</TableRow>)}</TableBody></Table></div></TabsContent>
       </Tabs>
-      <div className="pw-scenario-assumptions"><span>Thay đổi lượng đặt mới {proposal ? `${proposal.multiplier>=100 ? '+' : ''}${fmt(proposal.multiplier-100)}% so với ${proposal.quantile==='p90' ? 'mức cao tham khảo' : 'ML gốc'}` : 'theo giả định đã tính'}</span><span>Hàng nhập trễ {proposal?.delay || 0} ngày</span><span>Nhập thêm {fmt(proposal?.quantity)} {unitLabel(unit)} · {dateLabel(proposal?.arrival)}</span></div>
+      <div className="pw-scenario-assumptions"><span>Thay đổi lượng đặt mới {proposal ? `${proposal.multiplier>=100 ? '+' : ''}${fmt(proposal.multiplier-100)}% so với ${proposal.quantile==='p90' ? 'mức cao tham khảo' : 'ML gốc'}` : 'theo giả định đã tính'}</span><span>Hàng nhập trễ {proposal?.delay || 0} ngày</span><span>Nhập thêm {fmt(proposal?.quantity)} {unitLabel(unit)} · {dateLabel(proposal?.arrival)}{proposal?.arrivalTime ? ` lúc ${proposal.arrivalTime}` : ' (đầu ngày)'}</span></div>
 
 
       <div className="pw-proposal-actions"><Button variant="outline" disabled={busy || dirty} onClick={onSave}>Lưu phương án</Button><Button disabled={busy || dirty} onClick={onExport}>Tải đề xuất phối hợp</Button></div>
+      <RecoveryOptions options={value.recovery_options || []} disabled={busy || dirty} onFill={onSuggest}/>
     </>}
   </Panel>;
 }

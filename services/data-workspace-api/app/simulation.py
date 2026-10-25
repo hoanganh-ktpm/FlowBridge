@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from .analytics import fail, local_day, numeric
 from .handoff_readiness import preparation_policy, shift_to_stock_ready_deadline
 from .planning import known_orders, moment, project_orders
+from .recovery import recovery_options
 from .scenario_decision import METRIC_SEMANTICS_VERSION, assess, measures
 from .source_integrity import validate_planning_facts
 
@@ -160,6 +161,14 @@ def simulate(
             continue  # Overdue plans are not receipts and never become opening stock.
         inbound.append((at, quantity))
     orders_available = open_order_rows is not None and commitment_rows is not None
+    if request.arrival_at is not None:
+        if not orders_available:
+            fail("Exact arrival time requires published order and commitment sources")
+        if (
+            request.arrival_at.astimezone(ZoneInfo(config["timezone"])).date()
+            != request.arrival_date
+        ):
+            fail("Arrival timestamp and date must match in the business timezone")
     validate_planning_facts(
         stocks, inbound_rows, open_order_rows, commitment_rows, request.warehouse_id
     )
@@ -176,7 +185,7 @@ def simulate(
     if orders is not None:
         orders = shift_to_stock_ready_deadline(orders, policy)
 
-    def evaluate(series, multiplier, delay, extra=0, arrival=None):
+    def evaluate(series, multiplier, delay, extra=0, arrival=None, arrival_at=None):
         if orders_available:
             return project_orders(
                 series,
@@ -192,6 +201,7 @@ def simulate(
                 arrival=arrival,
                 timezone=config["timezone"],
                 snapshot_at=snapshot_at,
+                arrival_at=arrival_at,
             )
         return project(series, initial, inbound, multiplier, delay, extra, arrival)
 
@@ -202,6 +212,7 @@ def simulate(
         request.inbound_delay_days,
         request.additional_quantity,
         request.arrival_date,
+        request.arrival_at,
     )
     reference = evaluate(original_points, 1, 0) if include_decision else None
     before, after = measures(baseline), measures(proposed)
@@ -245,6 +256,7 @@ def simulate(
                         "forecast": forecast["points"],
                         "open_orders": open_order_rows,
                         "commitments": commitment_rows,
+                        "preparation": preparation_rows,
                     },
                     sort_keys=True,
                     default=str,
@@ -354,6 +366,20 @@ def simulate(
             "arrival is at the beginning of the first deficit day, or snapshot time today. "
             "No supplier lead time, cost optimum or unique-customer forecast is inferred."
         )
+        result["recovery_options"] = recovery_options(
+            result,
+            request,
+            lambda quantity, at: evaluate(
+                points,
+                request.demand_multiplier,
+                request.inbound_delay_days,
+                quantity,
+                at.astimezone(ZoneInfo(config["timezone"])).date(),
+                at,
+            ),
+            snapshot_at,
+            config["timezone"],
+        )
     return result
 
 
@@ -403,6 +429,7 @@ def sensitivity(
                 update={
                     "additional_quantity": quantity,
                     "arrival_date": arrival,
+                    "arrival_at": None,
                     "include_sensitivity": False,
                     "save": False,
                 }

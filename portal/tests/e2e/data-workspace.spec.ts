@@ -141,6 +141,37 @@ test('handoff details show the warehouse preparation cutoff and never treat miss
   await expect(page.getByText('Còn điều kiện chưa đáp ứng')).toBeVisible();
 });
 
+test('conditional recovery only fills an exact-hour simulation and never executes business writes', async ({ page }) => {
+  await mock(page); const submitted: any[] = [];
+  await page.route('**/scenarios', route => {
+    const body = route.request().postDataJSON(); submitted.push(body);
+    return route.fulfill({ json: { ...scenarioResult(body), recovery_options: [{
+      kind:'additional_supply',title:'Bổ sung nguồn hàng trước giờ cần',quantity:30,unit:'EA',
+      arrival_at:'2026-10-28T01:00:00+00:00',projected_shortage:0,remaining_at_risk_orders:0,
+      can_fill_simulation:true,requires_confirmation:['Kho xác nhận nguồn hàng','Logistics xác nhận lịch'],
+      assumptions:['Chưa tạo phiếu nhập hay đơn mua.'],
+    }] } });
+  });
+  await page.goto('/#data'); await apply(page);
+  await page.getByRole('button', { name: 'Thử bổ sung hàng', exact: true }).click();
+  await page.getByRole('button', { name: 'So sánh phương án', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Gợi ý phục hồi phương án' })).toBeVisible();
+  await page.getByRole('button', { name: 'Điền phương án thử', exact: true }).click();
+  await expect(page.getByLabel('Số lượng nhập thêm')).toHaveValue('30');
+  await expect(page.getByLabel('Ngày dự kiến hàng về', { exact:true })).toHaveValue('2026-10-28');
+  await expect(page.getByLabel('Giờ dự kiến hàng về (giờ Việt Nam)', { exact:true })).toHaveValue('08:00');
+  expect(submitted).toHaveLength(1);
+  await expect(page.getByRole('button', { name:'Lưu phương án',exact:true })).toBeDisabled();
+  await page.getByRole('button', { name:'So sánh phương án',exact:true }).click();
+  expect(submitted[1].arrival_at).toBe('2026-10-28T08:00:00+07:00');
+  await expect(page.getByRole('button', { name:'Lưu phương án',exact:true })).toBeEnabled();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name:'Tải đề xuất phối hợp',exact:true }).click();
+  const file = await (await download).path();
+  const { readFile } = await import('node:fs/promises');
+  expect(await readFile(file!, 'utf8')).toContain('lúc 08:00 (giờ Việt Nam)');
+});
+
 async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }
 
 test('compact overview shows two governed business charts without the removed noise', async ({ page }) => {
@@ -173,7 +204,9 @@ test('sensitivity grid selects quantity and date without silently calculating or
   await expect(matrix).toBeVisible();
   expect(s.calls.find(c => c.path.endsWith('/scenarios'))!.body.include_sensitivity).toBe(true);
   const early = matrix.getByRole('button', { name: 'Nhập 100 sản phẩm, về 25/10/2026: thiếu 0, 0 đơn thiếu hàng trước hạn', exact: true });
+  await page.getByLabel('Giờ dự kiến hàng về (giờ Việt Nam)', { exact:true }).fill('14:00');
   await early.click();
+  await expect(page.getByLabel('Giờ dự kiến hàng về (giờ Việt Nam)', { exact:true })).toHaveValue('');
   await expect(page.getByLabel('Số lượng nhập thêm')).toHaveValue('100');
   await expect(page.getByLabel('Ngày dự kiến hàng về', { exact: true })).toHaveValue('2026-10-25');
   expect(count(s, '/scenarios')).toBe(1);

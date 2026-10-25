@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Field, Select, fmt, unitLabel } from './components';
 
-export interface Proposal { quantity: number; arrival: string; multiplier: number; delay: number; quantile: string }
+export interface Proposal { quantity: number; arrival: string; arrivalTime?:string; multiplier: number; delay: number; quantile: string }
 export function ScenarioAssumptions({ value, bases, unit, disabled, onApply }: {
   value: Proposal; bases: {p50: number;p90: number}; unit: string; disabled: boolean; onApply: (v: Proposal) => void;
 }) {

@@ -42,6 +42,7 @@ export interface ScenarioSide {
     fulfilled_quantity: number; fulfillment_percent: number | null; known_orders_at_risk: number | null };
 }
 export interface Scenario {
+  recovery_options?:RecoveryOption[];
   id?: string; baseline: ScenarioSide; proposed: ScenarioSide;
   comparison: { metrics_delta: Record<string, number> }; evidence: Evidence;
   reference?: ScenarioSide | null;
@@ -56,6 +57,12 @@ export interface Scenario {
     quantities: number[]; dates: string[]; unit: string;
     cells: { quantity: number; arrival_date: string; peak_shortage: number; known_orders_at_risk: number | null; first_risk_date: string | null }[];
   } | null;
+}
+export interface RecoveryOption {
+  kind:'additional_supply'|'review_commitment'|'verify_constraints'; title:string;
+  quantity?:number;unit?:string;arrival_at?:string;suggested_handoff_at?:string;
+  projected_shortage?:number;remaining_at_risk_orders?:number|null;
+  can_fill_simulation:boolean;requires_confirmation:string[];assumptions:string[];
 }
 export interface DecisionMeasure {peak_shortage:number;shortage_days:number;ending_inventory:number;new_demand:number;known_orders_at_risk:number|null;demand_headroom_percent?:number|null;shortage_basis?:'event_time_physical_supply'|'day_end_supply'|null;first_shortage_date?:string|null}
 export interface Stock { warehouse_id: string; sku: string; available_quantity: number; uom: string }

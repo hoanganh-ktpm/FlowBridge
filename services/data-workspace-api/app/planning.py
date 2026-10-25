@@ -128,6 +128,7 @@ def project_orders(
     arrival=None,
     timezone="Asia/Ho_Chi_Minh",
     snapshot_at=None,
+    arrival_at=None,
 ):
     zone = ZoneInfo(timezone)
     snapshot_at = snapshot_at or datetime.combine(start, time.min, zone).astimezone(UTC)
@@ -154,7 +155,13 @@ def project_orders(
             fail("Invalid inbound quantity")
         inbound_events.append((at + timedelta(days=delay), (row["sku"], row["uom"]), quantity))
     if arrival:
-        at = max(datetime.combine(arrival, time.min, zone).astimezone(UTC), snapshot_at)
+        at = (
+            moment(arrival_at)
+            if arrival_at
+            else max(datetime.combine(arrival, time.min, zone).astimezone(UTC), snapshot_at)
+        )
+        if at < snapshot_at:
+            fail("Additional supply cannot arrive before the source snapshot")
         inbound_events.append((at, selected, extra))
     pending, risk, finished, introduced = [], set(), set(), set()
     shortages, filled_at = {}, {}

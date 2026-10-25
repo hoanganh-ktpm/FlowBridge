@@ -124,6 +124,7 @@ class SimulationRequest(DTO):
     preparation: ProductRef | None = None
     additional_quantity: Number = Field(default=0, ge=0, le=1e9)
     arrival_date: date
+    arrival_at: datetime | None = None
     demand_multiplier: Number = Field(default=1, ge=0, le=5)
     demand_quantile: Literal["p50", "p90"] = "p50"
     inbound_delay_days: int = Field(default=0, ge=0, le=90)
@@ -136,6 +137,13 @@ class SimulationRequest(DTO):
         if (self.open_orders is None) != (self.commitments is None):
             raise ValueError("Open orders and warehouse commitment facts must be supplied together")
         return self
+
+    @field_validator("arrival_at")
+    @classmethod
+    def arrival_timezone(cls, value):
+        if value is not None and value.utcoffset() is None:
+            raise ValueError("Arrival timestamp requires timezone")
+        return value
 
 
 class CapacityRequest(ProductRef):
@@ -255,6 +263,7 @@ class SensitivityCell(DTO):
 
 
 class SensitivityResult(DTO):
+    arrival_basis: Literal["day_start_or_snapshot"] = "day_start_or_snapshot"
     quantities: list[Number] = Field(max_length=5)
     dates: list[date] = Field(max_length=5)
     cells: list[SensitivityCell] = Field(max_length=25)
@@ -293,6 +302,7 @@ class ScenarioResult(DTO):
     decision: ScenarioDecision | None = None
     comparison: dict[str, JsonValue]
     sensitivity: SensitivityResult | None = None
+    recovery_options: list[dict[str, JsonValue]] = Field(default_factory=list, max_length=3)
     evidence: dict[str, JsonValue]
     sources: list[SourceRead]
     created_at: datetime

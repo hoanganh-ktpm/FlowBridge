@@ -911,6 +911,33 @@
             "type": "number",
             "title": "Peak Shortage"
           },
+          "shortage_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "event_time_physical_supply",
+                  "day_end_supply"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortage Basis"
+          },
+          "first_shortage_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Shortage Date"
+          },
           "shortage_days": {
             "type": "integer",
             "title": "Shortage Days"
@@ -1484,6 +1511,16 @@
               }
             ]
           },
+          "preparation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "warehouse_id": {
             "anyOf": [
               {
@@ -1916,6 +1953,17 @@
               }
             ]
           },
+          "recovery_options": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Recovery Options"
+          },
           "evidence": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
@@ -2000,6 +2048,12 @@
       },
       "SensitivityResult": {
         "properties": {
+          "arrival_basis": {
+            "type": "string",
+            "const": "day_start_or_snapshot",
+            "title": "Arrival Basis",
+            "default": "day_start_or_snapshot"
+          },
           "quantities": {
             "items": {
               "type": "number"
@@ -2096,6 +2150,16 @@
               }
             ]
           },
+          "preparation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "additional_quantity": {
             "type": "number",
             "maximum": 1000000000.0,
@@ -2107,6 +2171,18 @@
             "type": "string",
             "format": "date",
             "title": "Arrival Date"
+          },
+          "arrival_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrival At"
           },
           "demand_multiplier": {
             "type": "number",

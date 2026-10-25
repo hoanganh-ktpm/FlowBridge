@@ -149,3 +149,24 @@ in fixture-created loopback databases, without CASCADE, preserving neighbor sche
 Applied the additive migration and published the new view only to the existing
 local development stack. No confirmed preparation value was invented or written
 to business data, and no hosted/Supabase deployment was made.
+
+## M06 — exact-hour simulations and conditional recovery (25 October 2026)
+
+Added optional timezone-aware arrival timestamps with date/snapshot validation.
+The default date-only mode remains explicit day-start/snapshot planning. Bounded
+recovery suggestions use the same ledger and show quantity/cutoff, remaining
+shortage/at-risk orders and required Warehouse/Logistics confirmations. A later
+handoff reference needs Sales and carrier agreement and cannot be applied as a
+business command. An already sufficient plan does not invent a recovery purchase.
+
+Portal can fill a suggested quantity/date/time without calculating, saving or
+executing anything automatically. Editing invalidates the old result; explicit
+comparison is required. Selecting a day-only matrix cell clears a previously
+entered time. Export includes the actual arrival-time assumption. Updated the
+checked-in OpenAPI contract, and included preparation policy in input fingerprints.
+
+Validation: **137 Workspace domain tests passed**; **18 frontend unit tests passed**;
+TypeScript and production build passed; **four targeted mocked-browser tests passed**
+including recovery prefill/no automatic writes/export time and matrix semantics;
+**402 contract/OpenAPI tests passed**. There is still no approval or business write
+claim from a simulation; those are separate M07–M10 milestones.
