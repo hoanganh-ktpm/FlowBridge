@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api';
-import { Field, Panel, Select, fmt } from './components';
+import { Field, Panel, Select, fmt, unitLabel } from './components';
 import { scenarioSummary } from './scenario-summary';
 import type { Scenario } from './types';
 import { DecisionChecks } from './decision-checks';
 import { DecisionProgress } from './decision-progress';
+import { DecisionAssistant } from './decision-assistant';
 
 export type DecisionRequest = <T>(path: string, body?: unknown, signal?: AbortSignal, key?: string) => Promise<T>;
 export type DecisionCapabilities = { enabled: boolean; roles: string[]; warehouse_ids: string[]; workflow_enabled: boolean };
@@ -16,7 +17,7 @@ type Dossier = { id: string; title: string; warehouse_id: string; order_id: stri
 type Summary = Omit<Dossier, 'revision' | 'participants'>;
 type Event = { id: string; event_type: string; created_at: string; payload: { number?: number; note?:string|null;role?:string;outcome?:string;event_type?:string;producer?:string;correlation_id?:string;occurred_at?:string } };
 const status: Record<string, string> = { DRAFT: 'Bản nháp', VALIDATING: 'Đang xác minh', NEEDS_REVISION: 'Cần sửa phương án', PENDING_APPROVAL: 'Chờ duyệt', APPROVED: 'Đã duyệt', EXECUTING: 'Đang thực hiện', COMPLETED: 'Đã bàn giao', STOPPED: 'Đã dừng' };
-const eventNames: Record<string, string> = { CASE_CREATED: 'Lập hồ sơ', REVISION_CREATED: 'Thêm phiên bản', SUBMISSION_REQUESTED:'Gửi xác minh', SUBMISSION_RESUMED:'Đối soát lần gửi', WORKFLOW_OBSERVED:'Cập nhật tiến độ quy trình', TASK_COMPLETED:'Hoàn tất nhiệm vụ',CARRIER_HANDOFF_VERIFIED:'Đã đối chiếu đủ bằng chứng bàn giao cho đơn vị vận chuyển' };
+const eventNames: Record<string, string> = { CASE_CREATED: 'Lập hồ sơ', REVISION_CREATED: 'Thêm phiên bản', SUBMISSION_REQUESTED:'Gửi xác minh', SUBMISSION_RESUMED:'Đối soát lần gửi', WORKFLOW_OBSERVED:'Cập nhật tiến độ quy trình', TASK_COMPLETED:'Hoàn tất nhiệm vụ',SOURCE_OBSERVED:'Đối soát sự kiện nguồn',CARRIER_HANDOFF_VERIFIED:'Đã đối chiếu đủ bằng chứng bàn giao cho đơn vị vận chuyển' };
 const roleNames: Record<string,string> = {coordinator:'Người điều phối',warehouse:'Kho',logistics:'Vận chuyển',manager:'Quản lý'};
 const outcomeNames: Record<string,string> = {confirmed:'Xác nhận điều kiện',changes_required:'Yêu cầu sửa',approved:'Duyệt',rejected:'Không chấp thuận',acknowledged:'Đã nhắc người phụ trách'};
 type WorkflowTask = {id:string;name:string;task_key:string;role:string;mine:boolean};
@@ -70,23 +71,31 @@ export function CreateDossier({ request, scenario, warehouse, capabilities, disa
   </Panel>;
 }
 
-export function DecisionDossiers({ request, capabilities, scenario, scenarioDirty }: {
+export function DecisionDossiers({ request, capabilities, scenario, scenarioDirty, mode = 'all' }: {
   request: DecisionRequest; capabilities: DecisionCapabilities; scenario: Scenario | null; scenarioDirty: boolean;
+  mode?: 'all' | 'tasks' | 'outcomes';
 }) {
   const [items, setItems] = useState<Summary[]>([]), [selected, setSelected] = useState<Dossier | null>(null);
   const [history, setHistory] = useState<Revision[]>([]), [events, setEvents] = useState<Event[]>([]);
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [queue, setQueue] = useState<{case_id:string;title:string;revision_id:string;task:WorkflowTask}[]>([]);
   const [comment,setComment] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const key = useCommandKey();
   async function listing() {
     setBusy(true); setError(''); setSelected(null); setHistory([]); setEvents([]); setWorkflow(null);setComment('');
     try {
+      if(mode==='tasks'){
+        const result=await request<{items:{case_id:string;title:string;revision_id:string;task:WorkflowTask}[];has_more:boolean;warnings:string[]}>('/decision-tasks');
+        setQueue(result.items);setItems([]);
+        setNotice(result.warnings.length||result.has_more?'Danh sách nhiệm vụ chưa xác minh đầy đủ. Một số nguồn hoặc lượt quy trình cần đối soát; chưa thể kết luận đã hết việc.':'');
+        return;
+      }
       const page = await request<{ items: Summary[]; has_more: boolean; warnings: string[] }>('/decisions');
-      setItems(page.items); setNotice([...(page.warnings.length ? ['Một số hồ sơ không còn quyền truy cập.'] : []), ...(page.has_more ? ['Đang hiển thị 100 hồ sơ cập nhật gần nhất.'] : [])].join(' '));
-    } catch (e) { setItems([]); setError(message(e)); } finally { setBusy(false); }
+      setItems(mode==='outcomes'?page.items.filter(item=>item.status!=='DRAFT'):page.items); setNotice([...(page.warnings.length ? ['Một số hồ sơ không còn quyền truy cập.'] : []), ...(page.has_more ? ['Đang hiển thị 100 hồ sơ cập nhật gần nhất.'] : [])].join(' '));
+    } catch (e) { setItems([]); setQueue([]); setError(message(e)); } finally { setBusy(false); }
   }
-  useEffect(() => { void listing(); }, [request]);
+  useEffect(() => { setQueue([]);void listing(); }, [request,mode]);
   async function open(id: string) {
     setBusy(true); setError(''); setSelected(null); setHistory([]); setEvents([]); setWorkflow(null);setComment('');
     try {
@@ -100,7 +109,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
         if (current.warnings.length && current.workflow) setNotice(current.warnings.join(' '));
       }
       if (revisions.has_more || timeline.has_more) setNotice('Lịch sử dài; đang hiển thị một phần.');
-    } catch (e) { setSelected(null); setWorkflow(null); setError(message(e)); } finally { setBusy(false); }
+    } catch (e) { setSelected(null);setHistory([]);setEvents([]);setWorkflow(null);if(e instanceof ApiError && [401,403].includes(e.status)){setItems([]);setQueue([]);} setError(message(e)); } finally { setBusy(false); }
   }
   async function revise() {
     if (!selected || !scenario?.id || scenarioDirty) return;
@@ -120,7 +129,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     catch (e) { failedCommand(e); } finally { setBusy(false); }
   }
   function failedCommand(e:unknown) {
-    if(e instanceof ApiError && [401,403].includes(e.status)){setSelected(null);setHistory([]);setEvents([]);setWorkflow(null);}
+    if(e instanceof ApiError && [401,403].includes(e.status)){setSelected(null);setHistory([]);setEvents([]);setWorkflow(null);setItems([]);setQueue([]);}
     setError(message(e));
   }
   async function complete(task:WorkflowTask,outcome:string) {
@@ -128,7 +137,17 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     const path='/decisions/'+selected.id+'/tasks/'+task.id+'/complete';
     const body={revision_id:selected.revision.id,outcome,note:comment.trim()||null};
     setBusy(true); setError('');
-    try {await request<WorkflowState>(path,body,undefined,key(path,body));await open(selected.id);}
+    try {
+      await request<WorkflowState>(path,body,undefined,key(path,body));await open(selected.id);
+      if(mode==='tasks'){
+        setQueue([]);
+        try{
+          const result=await request<{items:typeof queue;warnings:string[];has_more:boolean}>('/decision-tasks');
+          setQueue(result.items);
+          if(result.warnings.length||result.has_more)setNotice('Nhiệm vụ đã phản hồi. Danh sách còn một số lượt cần đối soát.');
+        }catch(e){failedCommand(e);}
+      }
+    }
     catch(e){failedCommand(e);} finally{setBusy(false);}
   }
   async function verifyHandoff(){
@@ -151,15 +170,20 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
   return <div className="pw-dossiers">
     <Button variant="outline" disabled={busy} onClick={() => void listing()}>Tải lại hồ sơ</Button>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <Panel title="Hồ sơ được phân công" subtitle="Chỉ hiện hồ sơ trong tổ chức, phân công và quyền đọc nguồn còn hiệu lực.">
+    <Panel title={mode==='tasks'?'Việc đến lượt bạn':mode==='outcomes'?'Tiến độ và kết quả hồ sơ':'Hồ sơ được phân công'} subtitle="Chỉ hiện hồ sơ trong tổ chức, phân công và quyền đọc nguồn còn hiệu lực.">
+      <div className="pw-dossier-body">
+      {mode==='tasks'&&queue.map(item=><div key={item.task.id} className="pw-saved-card"><h3>{item.task.name}</h3><p>{item.title}</p><Button disabled={busy} variant="outline" onClick={()=>void open(item.case_id)}>Mở nhiệm vụ {item.title}</Button></div>)}
       {items.map(item => <div key={item.id} className="pw-saved-card"><h3>{item.title}</h3><p>{status[item.status] || item.status} · Phiên bản {item.current_revision}</p><Button disabled={busy} variant="outline" onClick={() => void open(item.id)}>Mở hồ sơ {item.title}</Button></div>)}
-      {!busy && !items.length && <p>Chưa có hồ sơ được phân công cho bạn.</p>}
+      {!busy && !items.length && <p>{mode==='tasks'?(queue.length?'Chọn một nhiệm vụ để kiểm tra đúng phiên bản và phản hồi.':'Chưa có nhiệm vụ xác nhận được trong danh sách vừa đọc. Xem cảnh báo nếu dữ liệu chưa đầy đủ.'):mode==='outcomes'?'Chưa có hồ sơ đã gửi trong phần dữ liệu được phép xem.':'Chưa có hồ sơ được phân công cho bạn.'}</p>}
+      </div>
     </Panel>
     {selected && <Panel title={selected.title} subtitle={`${status[selected.status] || selected.status} · Phiên bản ${selected.current_revision}`}>
+      <div className="pw-dossier-body">
       <p>Đơn: {selected.revision.payload.scenario.baseline.orders?.[0]?.order_number || selected.order_id}</p>
-      <p>Thiếu nguồn hàng nhiều nhất: {fmt(scenarioSummary(selected.revision.payload.scenario).before)} → {fmt(scenarioSummary(selected.revision.payload.scenario).after)}</p>
+      <p>Thiếu nguồn hàng nhiều nhất của sản phẩm đang xét trong kho: {fmt(scenarioSummary(selected.revision.payload.scenario).before)} → {fmt(scenarioSummary(selected.revision.payload.scenario).after)} {unitLabel(scenarioSummary(selected.revision.payload.scenario).unit || '')}</p>
       <p>Hồ sơ lưu bằng chứng tại thời điểm tính. Cần xác minh lại dữ liệu trước khi trình duyệt hoặc thực hiện.</p>
       <p>{selected.participants.length} phân công phối hợp trong hồ sơ.</p>
+      <DecisionAssistant key={'assistant-'+selected.revision.id} request={request} caseId={selected.id} revisionId={selected.revision.id} onDenied={failedCommand}/>
       {capabilities.workflow_enabled && <>
         <DecisionChecks key={selected.revision.id} request={request} caseId={selected.id} disabled={busy} onDenied={failedCommand} onSynced={refreshTimeline}/>
         <p>Nguồn dữ liệu và quyền truy cập được kiểm tra lại khi gửi, xác nhận và duyệt. Mọi thao tác gắn với phiên bản {selected.current_revision}.</p>
@@ -179,6 +203,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
       <DecisionProgress events={events} orderId={selected.order_id}/>
       <h3>Diễn biến</h3>{events.map(event => <div key={event.id}><p>{new Date(event.created_at).toLocaleString('vi-VN')} · {eventNames[event.event_type] || 'Cập nhật hồ sơ'}{event.payload.number ? ` · Phiên bản ${event.payload.number}` : ''}{event.payload.role?` · ${roleNames[event.payload.role]||event.payload.role}`:''}{event.payload.outcome?` · ${outcomeNames[event.payload.outcome]||event.payload.outcome}`:''}</p>{event.payload.note&&<p>{event.payload.note}</p>}</div>)}
       {!capabilities.workflow_enabled && <p className="dw-muted">Quy trình xác minh và phê duyệt chưa được kết nối. Hồ sơ đang ở bước lưu bản nháp.</p>}
+      </div>
     </Panel>}
   </div>;
 }

@@ -117,7 +117,7 @@ test('decision dossier saves one order with retry key and preserves draft semant
     return route.fulfill({ json: { items: dossier ? [dossier] : [], warnings: [], has_more: false } });
   });
   await page.goto('/#data');
-  await page.getByRole('button', { name: 'Phương án nhập hàng', exact: true }).click();
+  await page.getByRole('button', { name: 'Chi tiết & phương án', exact: true }).click();
   await page.getByRole('button', { name: 'Cập nhật dự báo ML', exact: true }).click();
   await page.getByRole('button', { name: 'So sánh phương án', exact: true }).click();
   const create = page.getByRole('button', { name: 'Lưu hồ sơ quyết định', exact: true });
@@ -248,7 +248,7 @@ test('handoff details show the warehouse preparation cutoff and never treat miss
   await page.getByRole('button', { name: /Đơn cần phối hợp/ }).click();
   await expect(page.getByText('Chưa có thời gian chuẩn bị được Kho xác nhận')).toBeVisible();
   state.prepared = true;
-  await page.getByRole('button', { name: 'Tổng quan', exact: true }).click();
+  await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click();
   await apply(page);
   await page.getByRole('button', { name: /Đơn cần phối hợp/ }).click();
   await expect(page.getByText(/Hàng sẵn sàng trước.*07:00/)).toBeVisible();
@@ -286,7 +286,7 @@ test('conditional recovery only fills an exact-hour simulation and never execute
   expect(await readFile(file!, 'utf8')).toContain('lúc 08:00 (giờ Việt Nam)');
 });
 
-async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }
+async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }
 
 test('compact overview shows two governed business charts without the removed noise', async ({ page }) => {
   const s = await mock(page); await page.goto('/#data'); await apply(page);
@@ -424,7 +424,7 @@ test('transport charts keep shipment units and saved forecasts remain viewable',
 
 test('weekly decisions use explicit Apply; search by product name or code keeps applied context', async ({ page }) => {
   const s = await mock(page); await page.goto('/#data');
-  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Tổng quan', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click();
   await page.getByLabel('Xem đặt hàng và nhập kho trong', { exact: true }).selectOption('7');
   expect(count(s, '/planning')).toBe(0); await apply(page);
   expect(s.calls.find(c => c.path.endsWith('/planning'))!.body.history_days).toBe(7);
@@ -501,7 +501,7 @@ test('missing optional receipts never become zero or a misleading chart legend',
 });
 
 test('missing required per-warehouse demand explains the setup and does not call facts', async ({ page }) => {
-  const s = await mock(page); s.missing = true; await page.goto('/#data'); await page.getByRole('button', { name: 'Tổng quan', exact: true }).click();
+  const s = await mock(page); s.missing = true; await page.goto('/#data'); await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Lượng đặt hàng theo kho');
   await expect(page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true })).toBeDisabled(); expect(count(s, '/planning')).toBe(0);
 });
@@ -530,7 +530,7 @@ for (const [code, message, status] of [
   ['PLANNING_TIMEOUT', 'Đối chiếu dữ liệu mất quá lâu. Hãy thử lại sau hoặc chọn kho khác.', 504],
 ] as const) test(`planning reports ${code} accurately and releases the loading state`, async ({ page }) => {
   const s = await mock(page); s.status = status; s.detail = { code, message };
-  await page.goto('/#data'); await page.getByRole('button', { name: 'Tổng quan', exact: true }).click();
+  await page.goto('/#data'); await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click();
   await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveText(message);
   await expect(page.locator('.dw-progress')).toHaveCount(0);
@@ -547,7 +547,7 @@ test('a slow planning read can be stopped and retried without stale results', as
     await waiting;
     await route.fulfill({ json: plan }).catch(() => {});
   });
-  await page.goto('/#data'); await page.getByRole('button', { name: 'Tổng quan', exact: true }).click();
+  await page.goto('/#data'); await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click();
   await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Đang đối chiếu dữ liệu');
   await page.getByRole('button', { name: 'Dừng chờ', exact: true }).click();
@@ -593,7 +593,7 @@ test('chart options float above the page and assumptions only apply on confirmat
   await expect(page.getByRole('menu')).toBeVisible();
   expect(await page.locator('.dw-main').evaluate(e => e.scrollHeight)).toBe(historyHeight);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await apply(page);
+  await page.getByRole('button', { name: 'Cần xử lý', exact: true }).click(); await apply(page);
   await page.getByRole('button', { name: 'Thử bổ sung hàng', exact: true }).click();
   const controls = page.locator('.dw-controls');
   expect(await controls.evaluate(e => parseFloat(getComputedStyle(e).paddingLeft))).toBeGreaterThanOrEqual(16);
@@ -708,4 +708,52 @@ test('dossier impact report explains harmless and harmful changes without auto a
   await expect(page.getByText('Trước: 60 phút.', { exact: true })).toBeVisible();
   await expect(page.getByText('Sau: 120 phút.', { exact: true })).toBeVisible();
   expect(count).toBe(2);
+});
+
+
+test('my tasks opens the assigned revision and assistant reuses the canonical chart renderer', async ({ page }) => {
+  await mock(page);
+  const scenario: any = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25' });
+  scenario.baseline.orders = [{ order_id: 'order-1', order_number: 'SO-001', lines: [] }];
+  const task = { id: 'task-1', name: 'Kho xác nhận điều kiện', task_key: 'verifyWarehouse', role: 'warehouse', mine: true };
+  const dossier = { id: 'case-1', title: 'Giữ đúng phiên bản SO-001', warehouse_id: warehouse, order_id: 'order-1', status: 'VALIDATING', version: 3, current_revision: 1, workflow_instance_ref: 'i-1',
+    revision: { id: 'revision-1', number: 1, created_at: evidence.executed_at, payload: { scenario, requires_revalidation: true } }, participants: [1,2,3,4], actions: { can_submit: false, can_revise: false } };
+  const writes: string[] = [];
+  let revoked = false;
+  await page.route('**/decision-capabilities', r => r.fulfill({ json: { enabled: true, roles: ['warehouse'], warehouse_ids: [warehouse], workflow_enabled: true } }));
+  await page.route('**/decision-tasks', r => r.fulfill({ json: { items: [{ case_id: 'case-1', title: dossier.title, revision_id: 'revision-1', task }], warnings: [], has_more: false } }));
+  await page.route('**/decisions**', r => {
+    const path = new URL(r.request().url()).pathname;
+    if (r.request().method() === 'POST') {
+      writes.push(path); expect(path.endsWith('/assistant')).toBe(true);
+      expect(r.request().postDataJSON()).toEqual({ revision_id: 'revision-1', intent: 'comparison' });
+      if (revoked) return r.fulfill({ status: 403, json: { detail: 'Source grant revoked' } });
+      return r.fulfill({ json: { schema_version: '1.0', status: 'completed', run_id: 'answer-1', answer: 'Đây là bằng chứng phương án, chưa phải đã bàn giao.',
+        datasets: [{ id: 'scenario-supply', title: 'So sánh nguồn hàng', columns: [{ field: 'scenario', label: 'Phương án', type: 'string' }, { field: 'shortage', label: 'Thiếu nguồn', type: 'number', unit: 'EA' }], rows: [{ scenario: 'Trước', shortage: 30 }, { scenario: 'Sau', shortage: 0 }], context: { as_of: evidence.executed_at, complete: true }, source_ids: ['source-1'] }],
+        tables: [{ id: 'table-1', title: 'Nguồn hàng trước và sau', dataset_id: 'scenario-supply', fields: ['scenario', 'shortage'] }],
+        charts: [{ id: 'chart-1', title: 'Thiếu nguồn của phương án', dataset_id: 'scenario-supply', type: 'bar', orientation: 'vertical', stacking: 'none', x_field: 'scenario', x_label: 'Phương án', y_label: 'Thiếu nguồn', y_unit: 'EA', series: [{ field: 'shortage', label: 'Thiếu nguồn' }] }], sources: [{ id: 'source-1', kind: 'tool', tool: 'workspace.decision.read' }], warnings: [], questions: [], error: null } });
+    }
+    if (path.endsWith('/workflow')) return r.fulfill({ json: { case: dossier, workflow: { instance_id: 'i-1', revision_id: 'revision-1', status: 'VALIDATING', tasks: [task] }, warnings: [] } });
+    if (path.endsWith('/revisions')) return r.fulfill({ json: { items: [dossier.revision], has_more: false } });
+    if (path.endsWith('/timeline')) return r.fulfill({ json: { items: [], has_more: false } });
+    if (path.endsWith('/case-1')) return r.fulfill({ json: dossier });
+    return r.fulfill({ json: { items: [dossier], warnings: [], has_more: false } });
+  });
+  await page.goto('/#data');
+  await page.getByRole('button', { name: 'Việc của tôi', exact: true }).click();
+  await page.getByRole('button', { name: 'Mở nhiệm vụ Giữ đúng phiên bản SO-001', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Xác nhận điều kiện Kho', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'So sánh trước và sau', exact: true }).click();
+  await expect(page.getByRole('img', { name: /Thiếu nguồn của phương án/ })).toBeVisible();
+  await expect(page.getByText('Đây là bằng chứng phương án, chưa phải đã bàn giao.', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'ref/qa/decision-assistant.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'ref/qa/decision-assistant-mobile.png',fullPage:true,animations:'disabled'});
+  await page.setViewportSize({width:1440,height:1000});
+  revoked = true;
+  await page.getByRole('button', { name: 'So sánh trước và sau', exact: true }).click();
+  await expect(page.getByRole('img', { name: /Thiếu nguồn của phương án/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xác nhận điều kiện Kho', exact: true })).toHaveCount(0);
+  expect(writes.every(path => path.endsWith('/assistant'))).toBe(true);
 });

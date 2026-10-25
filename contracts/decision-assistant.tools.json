@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "status": "IMPLEMENTED_READ_PORTS",
+  "description": "Bounded tools for a caller-authorized assistant. These are Workspace HTTP ports, not auto-registered Langflow nodes or privileged native writers.",
+  "authentication": "Forward the actual caller Bearer token to Workspace; never substitute an administrator or another human identity.",
+  "tools": [
+    {
+      "name": "workspace_decisions",
+      "method": "GET",
+      "path": "/api/v1/data-workspace/decisions",
+      "purpose": "List scoped, assigned dossiers; retain has_more and warnings."
+    },
+    {
+      "name": "workspace_my_tasks",
+      "method": "GET",
+      "path": "/api/v1/data-workspace/decision-tasks",
+      "purpose": "Read mine-only Flowable tasks; a partial or failed read never means all tasks are complete."
+    },
+    {
+      "name": "workspace_explain_decision",
+      "method": "POST",
+      "path": "/api/v1/data-workspace/decisions/{case_id}/assistant",
+      "path_parameters": {"case_id": "uuid returned by workspace_decisions"},
+      "input": {
+        "revision_id": "current revision UUID from the dossier",
+        "intent": ["evidence", "comparison", "tasks", "outcome"]
+      },
+      "purpose": "Read current-authorized evidence and return contracts/portal/schemas/run-result.schema.json. All numbers come from stored canonical calculations; the model does not compute KPIs."
+    }
+  ],
+  "rules": [
+    "Ask for a dossier or supported intent when the request is ambiguous. Respect revision conflicts and never silently switch revisions.",
+    "Do not synthesize SQL, JavaScript, chart expressions, data values or source references.",
+    "Do not expose submit, task completion, approve, event sync, handoff verification or native business write ports as autonomous assistant tools.",
+    "Reads may refresh the local workflow status projection; they never approve a process, complete a human task or write business-owner records.",
+    "RunResult completed means the answer is built. Only the verified dossier status proves physical carrier handoff; it never means delivery to the customer.",
+    "No existing Langflow node or connection is changed by this manifest."
+  ]
+}

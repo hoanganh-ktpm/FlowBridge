@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Governed decision dossiers; workflow authority remains in Core/Flowable."""
 
+import asyncio
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -11,6 +12,7 @@ from pydantic import Field, ValidationError
 
 from .decision_events import validate_event
 from .decision_impact import assess_change
+from .decision_presentation import presentation, resolve_intent
 from .schemas import DTO, SourceRead
 
 Role = Literal["coordinator", "warehouse", "logistics", "manager"]
@@ -230,6 +232,59 @@ class DecisionService:
     async def checks(self, ctx, identifier):
         case = await self.get(ctx, identifier)
         return await self.repository.check_history(ctx, identifier, UUID(case["revision"]["id"]))
+
+    async def explain(self, ctx, identifier, body):
+        case = await self.get(ctx, identifier)
+        if case["revision"]["id"] != str(body.revision_id):
+            raise HTTPException(409, "Explanation refers to an old revision")
+        intent = body.intent or resolve_intent(body.question)
+        workflow = None
+        if intent == "tasks" and case["workflow_instance_ref"]:
+            state = await self.workflow_state(ctx, identifier)
+            case, workflow = state["case"], state["workflow"]
+            if case["revision"]["id"] != str(body.revision_id):
+                raise HTTPException(409, "Case revision changed during explanation")
+        return presentation(case, intent, workflow)
+
+    async def tasks(self, ctx):
+        listing = await self.list(ctx)
+        if self.workflow is None:
+            raise HTTPException(503, "Workflow service is not configured")
+        slots, warnings = asyncio.Semaphore(4), list(listing["warnings"])
+
+        async def read(item):
+            if item["status"] not in {"VALIDATING", "PENDING_APPROVAL"}:
+                return []
+            async with slots:
+                try:
+                    state = await self.workflow_state(ctx, UUID(item["id"]))
+                except HTTPException as error:
+                    if error.status_code == 401:
+                        raise
+                    warnings.append(
+                        "Some workflow states are unconfirmed; do not assume no tasks remain"
+                    )
+                    return []
+            if state["workflow"] is None:
+                warnings.append("Some workflow starts remain unconfirmed")
+                return []
+            return [
+                {
+                    "case_id": item["id"],
+                    "title": item["title"],
+                    "revision_id": state["case"]["revision"]["id"],
+                    "task": task,
+                }
+                for task in state["workflow"]["tasks"]
+                if task["mine"]
+            ]
+
+        groups = await asyncio.gather(*(read(item) for item in listing["items"]))
+        return {
+            "items": [task for group in groups for task in group],
+            "has_more": listing["has_more"],
+            "warnings": sorted(set(warnings)),
+        }
 
     async def sync_events(self, ctx, identifier):
         case = await self.get(ctx, identifier)

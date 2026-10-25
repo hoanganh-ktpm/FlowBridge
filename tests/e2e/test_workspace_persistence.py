@@ -587,6 +587,25 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                 assert retry.status_code == 200, retry.text
                 state = retry.json()
                 assert len(state["workflow"]["tasks"]) == 2
+                for role in ("warehouse", "logistics", "manager"):
+                    queue = await api.get(PREFIX + "/decision-tasks", headers=headers(role))
+                    assert queue.status_code == 200, queue.text
+                    expected = 0 if role == "manager" else 1
+                    assert len(queue.json()["items"]) == expected
+                    assert all(row["task"]["mine"] for row in queue.json()["items"])
+                explanation = await api.post(
+                    route + "/assistant",
+                    headers=headers("manager"),
+                    json={"revision_id": case["revision"]["id"], "intent": "comparison"},
+                )
+                assert explanation.status_code == 200, explanation.text
+                assert explanation.json()["datasets"] and explanation.json()["charts"]
+                obsolete = await api.post(
+                    route + "/assistant",
+                    headers=headers("manager"),
+                    json={"revision_id": str(uuid4()), "intent": "comparison"},
+                )
+                assert obsolete.status_code == 409
                 assert (
                     len(
                         await engine.find_process(
@@ -632,6 +651,9 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                     assert accepted.status_code == 200, accepted.text
                 state = accepted.json()
                 assert state["case"]["status"] == "PENDING_APPROVAL"
+                queue = await api.get(PREFIX + "/decision-tasks", headers=headers("manager"))
+                assert len(queue.json()["items"]) == 1
+                assert queue.json()["items"][0]["task"]["role"] == "manager"
                 task = next(t for t in state["workflow"]["tasks"] if t["role"] == "manager")
                 stock = boundary.facts[boundary.refs["stock"]["data_product_id"]][0]
                 stock["on_hand_quantity"] += 1

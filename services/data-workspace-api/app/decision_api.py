@@ -39,6 +39,18 @@ class VerifyHandoff(DTO):
     revision_id: UUID
 
 
+class ExplainDecision(DTO):
+    revision_id: UUID
+    intent: Literal["evidence", "comparison", "tasks", "outcome"] | None = None
+    question: str | None = Field(default=None, min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def one_intent(self):
+        if (self.intent is None) == (self.question is None):
+            raise ValueError("Choose an intent or ask one supported read-only question")
+        return self
+
+
 class CompleteDecisionTask(DTO):
     revision_id: UUID
     outcome: Literal["confirmed", "changes_required", "approved", "rejected", "acknowledged"]
@@ -105,6 +117,11 @@ def install_decision_routes(
         configured()
         return await service.list(ctx)
 
+    @app.get(prefix + "/decision-tasks")
+    async def tasks(ctx=actor_dependency):
+        configured()
+        return await service.tasks(ctx)
+
     @app.get(prefix + "/decisions/{case_id}")
     async def detail(case_id: UUID, ctx=actor_dependency):
         configured()
@@ -152,6 +169,11 @@ def install_decision_routes(
     async def revalidate(case_id: UUID, ctx=actor_dependency):
         configured()
         return await service.revalidate(ctx, case_id)
+
+    @app.post(prefix + "/decisions/{case_id}/assistant")
+    async def explain(case_id: UUID, body: ExplainDecision, ctx=actor_dependency):
+        configured()
+        return await service.explain(ctx, case_id, body)
 
     @app.post(prefix + "/decisions/{case_id}/reconcile-start")
     async def reconcile_start(case_id: UUID, ctx=actor_dependency):

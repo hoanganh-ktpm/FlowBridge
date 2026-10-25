@@ -315,3 +315,31 @@ authorized ERP operations; no generic autonomous Agent writer was added.
 M11–M12 (four-screen workspace, read-only Agent adapter and complete live acceptance)
 remain open. Four-human MFA, the shared hosted stack and production readiness are
 not inferred from these isolated/stubbed boundary tests.
+
+
+## M11 — four-screen workspace, assigned work and structured explanations (26 October 2026)
+
+Primary navigation now follows Cần xử lý → Chi tiết & phương án → Việc của tôi →
+Theo dõi kết quả; analytical utilities and dossier lookup remain secondary.
+The dashboard connects summaries, exceptions, the event-aware daily deficit,
+conditional scenarios and work/outcomes. No dashboard value is calculated by an LLM.
+
+The actual Flowable mine-only queue reauthorizes each dossier and warns on partial
+or unavailable state. Details remain bound to the revision, with role-specific
+confirmation/approval and reasoned return. Outcomes preserve the distinction
+between approval, recorded owner actions and proven full carrier handoff.
+
+A bounded Vietnamese intent adapter exposes four read intents and returns the
+existing Portal RunResult schema. The existing renderer provides tables/charts;
+order-line units remain separate from the selected SKU's warehouse-wide scenario
+metric. Unsupported or mutating questions request clarification, not execution.
+Current source/revision checks and UI revocation clearing apply. Existing Langflow
+nodes were not changed. See DECISION-WORKSPACE-USER-GUIDE.md and the read-port manifest.
+
+Validation: 34 Workspace browser regression cases passed, plus the new task/assistant
+case; the final four targeted browser cases passed, including mobile width and
+revocation after rendering. TypeScript/build passed. Eight presentation/permission/
+queue unit cases passed; the targeted domain/Core suite passed (see local logs).
+The dedicated real PostgreSQL/Flowable suite passed 11 tests with additional HTTP
+assertions for per-role queues and the canonical explanation endpoint. Source/IAM
+transport in that bridge is stubbed; M12 live acceptance remains open.
