@@ -135,6 +135,20 @@ def create_app():
         app.state.workflow = WorkflowRuntime(
             client, registry, gateway, events, CoreWorkflowPolicy(bundle.store), workflow
         )
+        if workflow.decision_execution_principal is not None and workflow.decision_bindings:
+            from app.core.decision_workflow import CoreDecisionRuns
+
+            async def decision_execution_identity():
+                async with bundle.store.transaction(read_only=True) as tx:
+                    return await tx.identity_for_principal(workflow.decision_execution_principal)
+
+            app.state.workflow.decisions = CoreDecisionRuns(
+                bundle.store,
+                client,
+                gateway.data,
+                decision_execution_identity,
+                workflow.decision_bindings,
+            )
         if workflow.engine_token.get_secret_value():
 
             async def execution_identity():

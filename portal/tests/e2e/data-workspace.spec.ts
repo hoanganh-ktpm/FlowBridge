@@ -134,6 +134,42 @@ test('decision dossier saves one order with retry key and preserves draft semant
   expect(state.calls.some(c => /workflow|actions/.test(c.path))).toBe(false);
 });
 
+test('manager task stays on its revision, blocks stale approval and records return reason', async ({ page }) => {
+  await mock(page);
+  const scenario: any = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25' });
+  scenario.baseline.orders = [{ order_id: 'order-1', order_number: 'SO-001', lines: [] }];
+  const dossier = { id:'case-1',title:'Bổ sung cà phê cho SO-001',warehouse_id:warehouse,order_id:'order-1',status:'PENDING_APPROVAL',version:4,current_revision:1,
+    revision:{id:'revision-1',number:1,created_at:evidence.executed_at,payload:{scenario,requires_revalidation:true}},participants:[1,2,3,4],actions:{can_submit:false,can_revise:false} };
+  let returned = false; const commands:any[] = [];
+  await page.route('**/decision-capabilities', r=>r.fulfill({json:{enabled:true,roles:['manager'],warehouse_ids:[warehouse],workflow_enabled:true}}));
+  await page.route('**/decisions**', r=>{
+    const path = new URL(r.request().url()).pathname;
+    if(r.request().method()==='POST') {
+      const body=r.request().postDataJSON();commands.push(body);
+      expect(body.revision_id).toBe('revision-1');expect(body.actor_principal_id).toBeUndefined();
+      if(body.outcome==='approved')return r.fulfill({status:409,json:{detail:'Source conditions changed'}});
+      expect(body.note).toBe('Tồn kho đã thay đổi, cần Kho xác minh lại.');returned=true;
+      return r.fulfill({json:{case:{...dossier,status:'NEEDS_REVISION'},workflow:{tasks:[]},warnings:[]}});
+    }
+    const detail={...dossier,status:returned?'NEEDS_REVISION':'PENDING_APPROVAL'};
+    if(path.endsWith('/workflow'))return r.fulfill({json:{case:detail,workflow:{instance_id:'instance-1',revision_id:'revision-1',status:detail.status,tasks:returned?[]:[{id:'task-1',name:'Quản lý duyệt đúng phiên bản đã xác minh',task_key:'managerReview',role:'manager',mine:true}]},warnings:[]}});
+    if(path.endsWith('/timeline'))return r.fulfill({json:{items:returned?[{id:'event-1',event_type:'TASK_COMPLETED',created_at:evidence.executed_at,payload:{note:'Tồn kho đã thay đổi, cần Kho xác minh lại.',role:'manager',outcome:'changes_required'}}]:[],has_more:false}});
+    if(path.endsWith('/revisions'))return r.fulfill({json:{items:[dossier.revision],has_more:false}});
+    if(path.endsWith('/case-1'))return r.fulfill({json:detail});
+    return r.fulfill({json:{items:[detail],warnings:[],has_more:false}});
+  });
+  await page.goto('/#data');await page.getByRole('button',{name:'Hồ sơ quyết định',exact:true}).click();
+  await page.getByRole('button',{name:'Mở hồ sơ Bổ sung cà phê cho SO-001',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Trả lại để sửa',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'Duyệt phiên bản 1',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('Hồ sơ đã thay đổi');
+  await page.getByLabel('Nhận xét hoặc lý do phản hồi').fill('Tồn kho đã thay đổi, cần Kho xác minh lại.');
+  await page.getByRole('button',{name:'Trả lại để sửa',exact:true}).click();
+  await expect(page.getByText('Tồn kho đã thay đổi, cần Kho xác minh lại.',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Duyệt phiên bản 1',exact:true})).toHaveCount(0);
+  expect(commands.map(c=>c.outcome)).toEqual(['approved','changes_required']);
+});
+
 test('saved scenario keeps intraday physical shortage instead of a zero day-end balance', async ({ page }) => {
   await mock(page);
   const saved = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25', save: true });

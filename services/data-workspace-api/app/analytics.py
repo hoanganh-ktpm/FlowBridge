@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 
+from .decision_freshness import digest
 from .schemas import AnalysisConfig
 
 
@@ -164,6 +165,7 @@ def prepare(config: AnalysisConfig, rows: list[dict], product: dict, *, known_ev
             "entity_count": len(entities),
         },
         "evidence": {
+            "history_sha256": digest(points),
             "data_products": [
                 {
                     "data_product_id": str(config.data_product_id),

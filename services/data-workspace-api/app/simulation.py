@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Supply-demand projections, independent of forecasting and UI."""
 
-import hashlib
-import json
 from datetime import UTC, date, datetime, time, timedelta
 from math import ceil
 from zoneinfo import ZoneInfo
 
 from .analytics import fail, local_day, numeric
+from .decision_freshness import input_digest
 from .handoff_readiness import preparation_policy, shift_to_stock_ready_deadline
 from .planning import known_orders, moment, project_orders
 from .recovery import recovery_options
@@ -248,20 +247,17 @@ def simulate(
             "snapshot_date": snapshot_date.isoformat(),
             "snapshot_at": snapshot_at.isoformat(),
             "stock_updated_at": stock[0].get("updated_at"),
-            "input_sha256": hashlib.sha256(
-                json.dumps(
-                    {
-                        "stock": stocks,
-                        "inbound": inbound_rows,
-                        "forecast": forecast["points"],
-                        "open_orders": open_order_rows,
-                        "commitments": commitment_rows,
-                        "preparation": preparation_rows,
-                    },
-                    sort_keys=True,
-                    default=str,
-                ).encode()
-            ).hexdigest(),
+            "input_digest_version": "warehouse_operational_v2",
+            "input_sha256": input_digest(
+                request.warehouse_id,
+                request.sku,
+                stocks,
+                inbound_rows,
+                open_order_rows,
+                commitment_rows,
+                preparation_rows,
+                forecast["points"],
+            ),
             "excluded_overdue_inbound_plans": overdue,
             "formulas": {
                 "available": "on_hand − reserved",

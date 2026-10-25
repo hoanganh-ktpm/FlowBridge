@@ -20,3 +20,20 @@ jobs:
         with:
           name: workspace-test-evidence-pg${{ matrix.postgres }}
           path: .tmp/decision-tests/*/results.xml
+  workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.13.1'
+      - run: uv sync --locked --group dev --group database
+      - run: uv run --locked python -m scripts.decision_workflow_test_environment
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: decision-flowable-test-evidence
+          path: |
+            .tmp/decision-tests/*/workflow-results.xml
+            .tmp/decision-tests/*/workflow-test.log

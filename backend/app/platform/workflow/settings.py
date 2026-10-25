@@ -8,6 +8,7 @@
 # environment/secret storage, never in Git.
 
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -89,6 +90,8 @@ class WorkflowApiSettings(BaseSettings):
     event_webhook_secret: SecretStr = Field(default=SecretStr(""), repr=False)
     engine_token: SecretStr = Field(default=SecretStr(""), repr=False)
     task_assignee_subjects: frozenset[str] = frozenset()
+    decision_execution_principal: UUID | None = None
+    decision_bindings: dict[str, dict] = Field(default_factory=dict)
     hasura_relay_header_secret: SecretStr = Field(default=SecretStr(""), repr=False)
     hasura_relay_bindings: dict[str, dict] = Field(default_factory=dict)
     hasura_relay_target: str = "http://127.0.0.1:18000/api/v1/workflows/events"

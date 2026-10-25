@@ -2,6 +2,7 @@
 """Governed decision dossiers; workflow authority remains in Core/Flowable."""
 
 from copy import deepcopy
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -82,9 +83,10 @@ class DecisionPolicy:
 
 
 class DecisionService:
-    def __init__(self, repository, results, policy, reauthorize):
+    def __init__(self, repository, results, policy, reauthorize, inspector=None, workflow=None):
         self.repository, self.results = repository, results
         self.policy, self.reauthorize = policy, reauthorize
+        self.inspector, self.workflow = inspector, workflow
 
     async def permitted_payload(self, ctx, payload):
         # SourceRead rejects arbitrary fields/URLs and enforces bounded column identifiers.
@@ -147,7 +149,166 @@ class DecisionService:
             },
             "requires_revalidation": True,
         }
+        if self.inspector:
+            baseline = await self.inspector(ctx, payload)
+            payload["validation_baseline"] = baseline
+            payload["sources"].extend(baseline["sources"])
         return warehouse_id, payload
+
+    async def checked(self, ctx, case):
+        if self.workflow is None or self.inspector is None:
+            raise HTTPException(503, "Configure the governed Core workflow service first")
+        payload, revision = case["revision"]["payload"], UUID(case["revision"]["id"])
+        try:
+            proof = await self.inspector(ctx, payload)
+            baseline = payload.get("validation_baseline")
+            if not baseline or baseline["input_sha256"] != proof["input_sha256"]:
+                raise HTTPException(
+                    409, "Source conditions changed; create and verify a new revision"
+                )
+        except HTTPException as error:
+            outcome = (
+                "DENIED"
+                if error.status_code == 403
+                else "UNAVAILABLE"
+                if error.status_code >= 500
+                else "STALE"
+            )
+            await self.repository.record_check(
+                ctx,
+                UUID(case["id"]),
+                revision,
+                outcome,
+                {"http_status": error.status_code, "requires_revalidation": True},
+            )
+            raise
+        await self.repository.record_check(ctx, UUID(case["id"]), revision, "VALID", proof)
+        return proof
+
+    async def submit(self, ctx, identifier, body, key):
+        case = await self.get(ctx, identifier)
+        if "coordinator" not in self.policy.roles(ctx, case["warehouse_id"]):
+            raise HTTPException(403, "Only the coordinator can submit")
+        if case["revision"]["id"] != str(body.revision_id):
+            raise HTTPException(409, "Submission refers to an old revision")
+        proof = await self.checked(ctx, case)
+        # Durable intent freezes this revision before crossing the process boundary.
+        case = await self.repository.begin_submission(
+            ctx, identifier, body.expected_version, body.revision_id, key
+        )
+        selected = {
+            role: sorted(p["principal_id"] for p in case["participants"] if p["role"] == role)[0]
+            for role in ("coordinator", "warehouse", "logistics", "manager")
+        }
+        command = {
+            "org_id": str(ctx.org_id),
+            "warehouse_id": case["warehouse_id"],
+            "order_id": case["order_id"],
+            "case_id": case["id"],
+            "revision_id": str(body.revision_id),
+            "revision_number": case["current_revision"],
+            "participants": selected,
+            "check": {
+                "revision_id": str(body.revision_id),
+                "input_sha256": proof["input_sha256"],
+                "checked_at": proof["checked_at"],
+            },
+            "order_source_id": proof["order_source_id"],
+            "order_contract_id": proof["order_contract_id"],
+        }
+        started = await self.workflow.request("/decision-runs/commands/start", command, key)
+        if started["case_id"] != case["id"] or started["revision_id"] != str(body.revision_id):
+            raise HTTPException(502, "Workflow returned a different revision")
+        if not case["workflow_instance_ref"]:
+            await self.repository.workflow_projection(
+                ctx, identifier, body.revision_id, started["id"], "VALIDATING"
+            )
+        return await self.workflow_state(ctx, identifier)
+
+    async def workflow_state(self, ctx, identifier):
+        case = await self.get(ctx, identifier)
+        if self.workflow is None:
+            raise HTTPException(503, "Workflow service is not configured")
+        if not case["workflow_instance_ref"]:
+            return {
+                "case": case,
+                "workflow": None,
+                "warnings": ["Not submitted or awaiting start reconciliation"],
+            }
+        state = await self.workflow.request(
+            "/decision-runs/" + case["workflow_instance_ref"],
+            params={"principal_id": str(ctx.owner_id)},
+        )
+        if state["revision_id"] != case["revision"]["id"]:
+            raise HTTPException(409, "Workflow state belongs to another revision")
+        if state["status"] != "COMPLETED":
+            case = await self.repository.workflow_projection(
+                ctx, identifier, UUID(state["revision_id"]), state["instance_id"], state["status"]
+            )
+        return {
+            "case": case,
+            "workflow": state,
+            "warnings": ["Actual handoff still requires source proof"]
+            if state["status"] == "COMPLETED"
+            else [],
+        }
+
+    async def complete_task(self, ctx, identifier, task_id, body, key):
+        case = await self.get(ctx, identifier)
+        if case["revision"]["id"] != str(body.revision_id) or not case["workflow_instance_ref"]:
+            raise HTTPException(409, "This task does not belong to the current submitted revision")
+        condition_status = "VALID"
+        try:
+            proof = await self.checked(ctx, case)
+        except HTTPException as error:
+            if body.outcome not in {"changes_required", "rejected"} or error.status_code not in {
+                409,
+                422,
+            }:
+                raise
+            # Returning/rejecting an obsolete plan does not assert it is valid.
+            baseline = case["revision"]["payload"].get("validation_baseline")
+            if not baseline:
+                raise
+            proof = {**baseline, "checked_at": datetime.now(UTC).isoformat()}
+            condition_status = "STALE"
+        roles = {p["role"] for p in case["participants"] if p["principal_id"] == str(ctx.owner_id)}
+        verifier_roles = roles.intersection({"warehouse", "logistics"})
+        if body.outcome == "confirmed" and not verifier_roles:
+            raise HTTPException(403, "Only an assigned verifier can confirm")
+        if body.outcome == "confirmed" and (
+            not verifier_roles or not all(proof[role + "_confirmable"] for role in verifier_roles)
+        ):
+            raise HTTPException(409, "The relevant source conditions are not yet confirmed")
+        if body.outcome == "approved" and not (
+            proof["warehouse_confirmable"] and proof["logistics_confirmable"]
+        ):
+            raise HTTPException(409, "Approval requires known Warehouse and Logistics conditions")
+        result = await self.workflow.request(
+            "/decision-runs/"
+            + case["workflow_instance_ref"]
+            + "/tasks/"
+            + str(task_id)
+            + "/complete",
+            {
+                "actor_principal_id": str(ctx.owner_id),
+                "outcome": body.outcome,
+                "note": body.note,
+                "check": {
+                    "revision_id": str(body.revision_id),
+                    "input_sha256": proof["input_sha256"],
+                    "checked_at": proof["checked_at"],
+                    "condition_status": condition_status,
+                },
+            },
+            key,
+        )
+        receipt = {
+            name: result[name]
+            for name in ("task_id", "actor_principal_id", "outcome", "note", "role")
+        }
+        await self.repository.record_workflow_task(ctx, identifier, body.revision_id, key, receipt)
+        return await self.workflow_state(ctx, identifier)
 
     async def create(self, ctx, body, key):
         warehouse, payload = await self.snapshot(ctx, body.simulation_run_id, body.order_id)
@@ -169,6 +330,19 @@ class DecisionService:
         value = await self.repository.get(ctx, identifier)
         self.policy.require_case(ctx, value)
         await self.permitted_payload(ctx, value["revision"]["payload"])
+        coordinator = value["coordinator_id"] == str(
+            ctx.owner_id
+        ) and "coordinator" in self.policy.roles(ctx, value["warehouse_id"])
+        value["actions"] = {
+            "can_revise": coordinator and value["status"] in {"DRAFT", "NEEDS_REVISION"},
+            "can_submit": coordinator
+            and self.workflow is not None
+            and (
+                value["status"] == "DRAFT"
+                or value["status"] == "VALIDATING"
+                and not value["workflow_instance_ref"]
+            ),
+        }
         return value
 
     async def list(self, ctx):

@@ -199,3 +199,40 @@ This is the draft persistence/collaboration part of M07. CAS-08 (process-start
 crash reconciliation), submission/approval and live multi-role Flowable acceptance
 remain dependent on M08. No draft is described as freshly validated or approved.
 No hosted/shared database was changed for this milestone.
+
+## M08 — multi-role Flowable validation and approval (25 October 2026)
+
+Added the separate `supply_handover_exception` BPMN template: parallel Warehouse
+and Logistics checks, manager approve/return/reject, coordinator reminders, and a
+wait for actual third-party carrier handoff. Existing templates are unchanged.
+Tasks are directly assigned by trusted principal mapping; no self-assignment,
+admin override or implicit group claim is exposed. Return/reject requires a reason.
+
+Added a machine-only Core workflow port and renewable Workspace OAuth client.
+Core independently resolves active principals, operational scope and distinct
+manager identity. The generic task-completion endpoint refuses this template.
+Workspace stores a durable submission intent, immutable revision binding, check
+results and task receipts. Engine-marker/history reconciliation handles lost start
+and task responses without blindly redispatching. A slower status observation
+cannot regress the current revision. The Portal submits, shows assigned tasks,
+records reasons and keeps approval separate from physical completion.
+
+Minimum pre-command revalidation now bypasses the input cache and checks current
+history, scoped stock/orders/commitments/inbound/preparation, schedule and relevant
+capacity. A stale revision cannot be confirmed/approved; an authorized reviewer
+can return/reject it explicitly as stale. Full impact classification, events and
+the source-change-during-uncertain-start recovery path remain in M10.
+
+Validation: **9 isolated PostgreSQL/Flowable integration tests passed**, including
+the Workspace HTTP + real PostgreSQL + Core workflow logic + actual Flowable bridge;
+lost engine task response, start-response retry, role denial, stale approval and
+reasoned return. The source/IAM boundaries in that bridge are mocked, not live SSO.
+Five actual-engine cases cover parallelism, all manager branches, timers and engine
+restart. **543 targeted domain/Core/contract tests passed**; the final full fast
+run passed **1059 tests, 84 deselected**.
+Three targeted mocked-browser cases passed, including manager stale/return behavior;
+TypeScript/build passed. Detailed configuration and boundaries are documented in
+`docs/DECISION-WORKFLOW.md`; the isolated runner is added to CI.
+
+No production assignment, hosted database or human MFA policy was modified.
+M09–M12 and the full four-human live acceptance are not yet complete.

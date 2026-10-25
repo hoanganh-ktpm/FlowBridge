@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 
-from .decision_models import cases, events, participants, revisions
+from .decision_models import cases, checks, events, participants, revisions
 
 
 def fingerprint(value):
@@ -257,6 +257,7 @@ class DecisionRepository:
                     version=case["version"] + 1,
                     current_revision=number,
                     status="DRAFT",
+                    workflow_instance_ref=None,
                     updated_at=sa.func.now(),
                 )
             )
@@ -330,6 +331,167 @@ class DecisionRepository:
         if len(rows) != len(identifiers):
             raise HTTPException(409, "Incomplete decision history")
         return jsonable_encoder([dict(row) for row in rows])
+
+    async def record_check(self, ctx, identifier, revision_id, outcome, payload):
+        async with self.engine.begin() as conn:
+            case = await self.get(ctx, identifier, conn=conn, lock=True)
+            if case["revision"]["id"] != str(revision_id):
+                raise HTTPException(409, "Case revision changed during validation")
+            await conn.execute(
+                checks.insert().values(
+                    id=uuid4(),
+                    org_id=ctx.org_id,
+                    case_id=identifier,
+                    revision_id=revision_id,
+                    actor_id=ctx.owner_id,
+                    outcome=outcome,
+                    payload=payload,
+                )
+            )
+
+    async def begin_submission(self, ctx, identifier, expected_version, revision_id, key):
+        command_key(key)
+        digest = fingerprint(
+            {"expected_version": expected_version, "revision_id": str(revision_id)}
+        )
+        async with self.engine.begin() as conn:
+            case = await self.get(ctx, identifier, conn=conn, lock=True)
+            if case["coordinator_id"] != str(ctx.owner_id) or case["revision"]["id"] != str(
+                revision_id
+            ):
+                raise HTTPException(403, "Only the current coordinator can submit this revision")
+            event_key = "submit:" + fingerprint(key)
+            previous = (
+                (
+                    await conn.execute(
+                        sa.select(events).where(
+                            events.c.org_id == ctx.org_id,
+                            events.c.case_id == identifier,
+                            events.c.actor_id == ctx.owner_id,
+                            events.c.event_key == event_key,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if previous:
+                if previous["payload_hash"] != digest:
+                    raise HTTPException(409, "Submission key was used for a different version")
+                return case
+            if (
+                case["status"] == "VALIDATING"
+                and not case["workflow_instance_ref"]
+                and case["version"] == expected_version
+            ):
+                await self.event(
+                    conn,
+                    ctx,
+                    identifier,
+                    revision_id,
+                    "SUBMISSION_RESUMED",
+                    event_key,
+                    {"expected_version": expected_version, "revision_id": str(revision_id)},
+                )
+                return case
+            if case["version"] != expected_version or case["status"] != "DRAFT":
+                raise HTTPException(409, "Only the unchanged draft can be submitted")
+            await self.event(
+                conn,
+                ctx,
+                identifier,
+                revision_id,
+                "SUBMISSION_REQUESTED",
+                event_key,
+                {"expected_version": expected_version, "revision_id": str(revision_id)},
+            )
+            await conn.execute(
+                cases.update()
+                .where(cases.c.id == identifier, cases.c.org_id == ctx.org_id)
+                .values(status="VALIDATING", version=case["version"] + 1, updated_at=sa.func.now())
+            )
+            return await self.get(ctx, identifier, conn=conn)
+
+    async def workflow_projection(self, ctx, identifier, revision_id, instance_id, status):
+        if status not in {
+            "VALIDATING",
+            "PENDING_APPROVAL",
+            "NEEDS_REVISION",
+            "STOPPED",
+            "APPROVED",
+        }:
+            raise HTTPException(409, "Workflow completion requires verified business handoff proof")
+        async with self.engine.begin() as conn:
+            case = await self.get(ctx, identifier, conn=conn, lock=True)
+            if case["revision"]["id"] != str(revision_id) or case["workflow_instance_ref"] not in {
+                None,
+                instance_id,
+            }:
+                raise HTTPException(409, "Workflow projection belongs to a different case revision")
+            if case["workflow_instance_ref"] == instance_id and case["status"] == status:
+                return case
+            rank = {
+                "DRAFT": -1,
+                "VALIDATING": 0,
+                "PENDING_APPROVAL": 1,
+                "APPROVED": 2,
+                "NEEDS_REVISION": 3,
+                "STOPPED": 3,
+            }
+            if rank.get(case["status"], 4) > rank[status]:
+                return case  # A slower observation cannot roll the same revision backwards.
+            await conn.execute(
+                cases.update()
+                .where(cases.c.id == identifier, cases.c.org_id == ctx.org_id)
+                .values(
+                    status=status,
+                    active=status != "STOPPED",
+                    workflow_instance_ref=instance_id,
+                    version=case["version"] + 1,
+                    updated_at=sa.func.now(),
+                )
+            )
+            await self.event(
+                conn,
+                ctx,
+                identifier,
+                revision_id,
+                "WORKFLOW_OBSERVED",
+                "workflow:" + uuid4().hex,
+                {"instance_id": instance_id, "status": status},
+            )
+            return await self.get(ctx, identifier, conn=conn)
+
+    async def record_workflow_task(self, ctx, identifier, revision_id, key, result):
+        payload_check(result)
+        event_key = "task:" + fingerprint(key)
+        async with self.engine.begin() as conn:
+            case = await self.get(ctx, identifier, conn=conn, lock=True)
+            if case["revision"]["id"] != str(revision_id) or result.get(
+                "actor_principal_id"
+            ) != str(ctx.owner_id):
+                raise HTTPException(409, "Task receipt belongs to a different revision or actor")
+            previous = (
+                (
+                    await conn.execute(
+                        sa.select(events).where(
+                            events.c.org_id == ctx.org_id,
+                            events.c.case_id == identifier,
+                            events.c.actor_id == ctx.owner_id,
+                            events.c.event_key == event_key,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if previous:
+                if previous["payload_hash"] != fingerprint(result):
+                    raise HTTPException(409, "Task command key conflicts with recorded outcome")
+                return
+            await self.event(
+                conn, ctx, identifier, revision_id, "TASK_COMPLETED", event_key, result
+            )
 
     @staticmethod
     async def event(conn, ctx, case_id, revision_id, event_type, key, payload):

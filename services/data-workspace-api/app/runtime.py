@@ -15,9 +15,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from .analytics import analyze, local_day, numeric, prepare
 from .connector import CoreConnector
 from .decision_api import install_decision_routes
+from .decision_freshness import digest, input_digest, ordered
+from .decision_workflow import DecisionWorkflowClient
 from .forecasting import Forecaster
+from .handoff_readiness import preparation_policy
 from .operations import planning_report
-from .planning import SnapshotCache
+from .planning import SnapshotCache, moment
 from .planning_options import planning_options
 from .portfolio import carrier_summary, supply_reference
 from .reports import overview, recipe
@@ -108,6 +111,7 @@ def create_app(
     *,
     case_repository=None,
     decision_bindings=None,
+    decision_workflow=None,
 ):
     http = None
     if connector is None:
@@ -126,12 +130,17 @@ def create_app(
     snapshots = SnapshotCache()
     source_names = configured_source_names()
     authorization_slots = asyncio.Semaphore(4)
+    owned_workflow = decision_workflow is None and isinstance(connector, CoreConnector)
+    if owned_workflow:
+        decision_workflow = DecisionWorkflowClient.configured(connector.base_url)
 
     @asynccontextmanager
     async def lifespan(application):
         yield
         if http:
             await http.aclose()
+        if owned_workflow and decision_workflow:
+            await decision_workflow.close()
         if hasattr(repository, "close"):
             await repository.close()
 
@@ -194,8 +203,190 @@ def create_app(
             "columns": configured_columns(config),
         }
 
+    async def inspect_decision(ctx, payload):
+        """Never uses SnapshotCache: every decision command re-reads governed APIs."""
+        scenario, forecast = payload["scenario"], payload["forecast"]
+        evidence = scenario["evidence"]
+        if evidence.get("input_digest_version") != "warehouse_operational_v2" or not forecast[
+            "evidence"
+        ].get("history_sha256"):
+            raise HTTPException(409, "Recompute this scenario and forecast before submitting")
+        body = SimulationRequest.model_validate(
+            {
+                **evidence["assumptions"],
+                "snapshot_id": None,
+                "include_sensitivity": False,
+                "save": False,
+            }
+        )
+        config = AnalysisConfig.model_validate(forecast["config"])
+        history_product, history_rows = await connector.rows(
+            ctx,
+            config,
+            configured_columns(config),
+            where={key: {"_eq": value} for key, value in config.filters.items()},
+        )
+        historical = prepare(
+            config,
+            history_rows,
+            history_product,
+            known_event_entities={str(row[config.entity_column]) for row in history_rows},
+        )
+        if historical["evidence"]["history_sha256"] != forecast["evidence"]["history_sha256"]:
+            raise HTTPException(409, "Forecast history changed; recompute before submitting")
+        inputs = await operational_inputs(body, ctx)
+        current_digest = input_digest(
+            body.warehouse_id,
+            body.sku,
+            inputs["stocks"],
+            inputs["inbounds"],
+            inputs["open_rows"],
+            inputs["commitment_rows"],
+            inputs["preparation_rows"],
+            forecast["points"],
+        )
+        if current_digest != evidence["input_sha256"]:
+            raise HTTPException(
+                409, "Operational source facts changed; create a new scenario revision"
+            )
+        fresh = await asyncio.to_thread(
+            simulate,
+            body,
+            forecast,
+            inputs["stocks"],
+            inputs["inbounds"],
+            inputs["captured_at"].astimezone(ZoneInfo(config.timezone)).date(),
+            inputs["open_rows"],
+            inputs["commitment_rows"],
+            snapshot_at=inputs["captured_at"],
+            source_names=source_names,
+            preparation_rows=inputs["preparation_rows"],
+        )
+        selected = [
+            row
+            for row in fresh["proposed"].get("orders", [])
+            if row["order_id"] == payload["scope"]["order_id"]
+        ]
+        if len(selected) != 1:
+            raise HTTPException(409, "Selected order is no longer eligible for this proposal")
+        catalog = await connector.catalog(ctx)
+        supplementary, facts = [], {}
+        for role, columns in {
+            "schedule": [
+                "order_id",
+                "warehouse_id",
+                "carrier_code",
+                "scheduled_handoff_at",
+                "status",
+            ],
+            "capacity": [
+                "carrier_code",
+                "capacity_date",
+                "max_dispatches",
+                "used_dispatches",
+                "status",
+            ],
+        }.items():
+            matches = [p for p in catalog if p["name"] == source_names[role]]
+            if len(matches) != 1:
+                raise HTTPException(
+                    409, "Grant current Logistics schedule and capacity sources before submitting"
+                )
+            ref = ProductRef(
+                data_product_id=matches[0]["id"],
+                contract_version_id=matches[0]["contract_version_id"],
+            )
+            where = (
+                {
+                    "order_id": {"_eq": payload["scope"]["order_id"]},
+                    "warehouse_id": {"_eq": str(body.warehouse_id)},
+                }
+                if role == "schedule"
+                else None
+            )
+            _, rows = await connector.rows(ctx, ref, columns, where=where)
+            facts[role] = rows
+            supplementary.append({"ref": ref.model_dump(mode="json"), "columns": columns})
+        scheduled = [
+            row
+            for row in facts["schedule"]
+            if row["status"] == "ACCEPTED" and row["scheduled_handoff_at"]
+        ]
+        capacity_keys = {
+            (
+                row["carrier_code"],
+                local_day(row["scheduled_handoff_at"], config.timezone).isoformat(),
+            )
+            for row in scheduled
+        }
+        capacities = [
+            row
+            for row in facts["capacity"]
+            if (row["carrier_code"], str(row["capacity_date"])) in capacity_keys
+        ]
+        deadline = moment(selected[0].get("handoff_deadline", selected[0]["deadline"]))
+        logistics_ok = bool(scheduled) and all(
+            moment(row["scheduled_handoff_at"]) <= deadline for row in scheduled
+        )
+        for carrier, day in capacity_keys:
+            values = [
+                row
+                for row in capacities
+                if row["carrier_code"] == carrier and str(row["capacity_date"]) == day
+            ]
+            logistics_ok = (
+                logistics_ok
+                and len(values) == 1
+                and values[0]["status"] == "ACTIVE"
+                and 1
+                <= numeric(values[0]["used_dispatches"])
+                <= numeric(values[0]["max_dispatches"])
+            )
+        warehouse_ok = (
+            preparation_policy(inputs["preparation_rows"], body.warehouse_id) is not None
+            and not selected[0]["at_risk"]
+        )
+        policy = preparation_policy(inputs["preparation_rows"], body.warehouse_id)
+        ready_at = moment(selected[0]["fulfilled_at"]) if selected[0].get("fulfilled_at") else None
+        logistics_ok = (
+            logistics_ok
+            and policy is not None
+            and ready_at is not None
+            and all(
+                ready_at + timedelta(minutes=policy["minutes"])
+                <= moment(row["scheduled_handoff_at"])
+                for row in scheduled
+            )
+        )
+        proof = {
+            "input_sha256": digest(
+                {
+                    "operational": current_digest,
+                    "history": historical["evidence"]["history_sha256"],
+                    "schedule": ordered(facts["schedule"]),
+                    "capacity": ordered(capacities),
+                }
+            ),
+            "warehouse_confirmable": warehouse_ok,
+            "logistics_confirmable": bool(logistics_ok),
+            "order_source_id": str(body.open_orders.data_product_id),
+            "order_contract_id": str(body.open_orders.contract_version_id),
+            "sources": supplementary,
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+        await reauthorize(ctx, {"sources": [*payload["sources"], *supplementary]})
+        return proof
+
     install_decision_routes(
-        app, PREFIX, actor_dependency, repository, reauthorize, case_repository, decision_bindings
+        app,
+        PREFIX,
+        actor_dependency,
+        repository,
+        reauthorize,
+        case_repository,
+        decision_bindings,
+        inspector=inspect_decision if decision_workflow else None,
+        workflow=decision_workflow,
     )
 
     @app.get(PREFIX + "/products")

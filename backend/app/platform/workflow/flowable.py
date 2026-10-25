@@ -26,6 +26,7 @@ def engine_id(value):
 
 
 class FlowablePort(Protocol):
+    async def awaits_message(self, instance_id: str, message_name: str) -> bool: ...
     async def deploy(self, name: str, bpmn_xml: str) -> dict[str, Any]: ...
     async def delete_deployment(self, deployment_id: str) -> None: ...
     async def list_definitions(self, key: str | None = None) -> list[dict[str, Any]]: ...
@@ -108,6 +109,21 @@ class FlowableClient:
 
     async def get_task(self, task_id):
         return await self.request("GET", f"/runtime/tasks/{engine_id(task_id)}")
+
+    async def awaits_message(self, instance_id, message_name):
+        result = await self.request(
+            "GET",
+            "/runtime/executions",
+            params={
+                "processInstanceId": engine_id(instance_id),
+                "messageEventSubscriptionName": message_name,
+                "size": 2,
+            },
+        )
+        rows = result.get("data", [])
+        if result.get("total", len(rows)) > 1:
+            raise CoreError(ErrorCode.VERSION_CONFLICT)
+        return len(rows) == 1
 
     async def find_process(self, key, business_key, marker=None):
         # Flowable 7.2 query DTO uses processBusinessKey; an unknown JSON field

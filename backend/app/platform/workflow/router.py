@@ -48,6 +48,7 @@ class WorkflowRuntime:
     admin_policy: Any
     configuration: WorkflowApiSettings
     runs: Any = None
+    decisions: Any = None
 
 
 def _gateway_state(request: Request) -> WorkflowRuntime:
@@ -222,11 +223,52 @@ async def complete_task(task_id: str, body: CompleteTask, request: Request, acto
     await _actor(state, actor)
     _variables(body.variables, state.configuration.task_variable_names)
     task = await state.engine.get_task(task_id)
+    if str(task.get("processDefinitionId", "")).split(":", 1)[0] == "supply_handover_exception":
+        # Decision approvals require the trusted Workspace freshness port below.
+        raise CoreError(ErrorCode.FORBIDDEN)
     assignee = task.get("assignee")
     if assignee != actor.subject:
         raise CoreError(ErrorCode.FORBIDDEN)
     await state.engine.complete_task(task_id, body.variables)
     return {"task_id": task_id, "completed": True}
+
+
+def decision_port(request):
+    state = _gateway_state(request)
+    if (
+        state.decisions is None
+        or "supply_handover_exception" not in state.configuration.allowed_workflows
+    ):
+        raise CoreError(ErrorCode.UPSTREAM_UNAVAILABLE)
+    return state.decisions
+
+
+from uuid import UUID  # noqa: E402
+
+from app.platform.workflow.decision_schemas import DecisionStart, DecisionTaskCommand  # noqa: E402
+
+
+@workflow_router.post(
+    "/decision-runs/commands/start", operation_id="startDecisionWorkflow", status_code=201
+)
+async def start_decision_run(body: DecisionStart, request: Request, actor: Actor):
+    _key(request)
+    return await decision_port(request).start(actor, body, request.state.correlation_id)
+
+
+@workflow_router.get("/decision-runs/{instance_id}", operation_id="getDecisionWorkflow")
+async def get_decision_run(instance_id: str, principal_id: UUID, request: Request, actor: Actor):
+    return await decision_port(request).state(actor, instance_id, principal_id)
+
+
+@workflow_router.post(
+    "/decision-runs/{instance_id}/tasks/{task_id}/complete",
+    operation_id="completeDecisionWorkflowTask",
+)
+async def complete_decision_task(
+    instance_id: str, task_id: str, body: DecisionTaskCommand, request: Request, actor: Actor
+):
+    return await decision_port(request).complete(actor, instance_id, task_id, body, _key(request))
 
 
 @workflow_router.post("/events", operation_id="receiveWorkflowEvent", status_code=202)
@@ -249,9 +291,13 @@ async def hasura_event(request: Request):
     from app.platform.workflow.relay import forward_hasura
 
     state = _gateway_state(request)
-    return await forward_hasura(await request.body(), request.headers.get("X-Hasura-Event-Secret"),
-                                state.configuration, request.app.state.resources.http,
-                                request.headers.get("X-FlowBridge-Source"))
+    return await forward_hasura(
+        await request.body(),
+        request.headers.get("X-Hasura-Event-Secret"),
+        state.configuration,
+        request.app.state.resources.http,
+        request.headers.get("X-FlowBridge-Source"),
+    )
 
 
 @workflow_router.post("/actions", operation_id="registerCustomAction", status_code=201)

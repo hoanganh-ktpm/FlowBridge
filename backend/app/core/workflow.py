@@ -121,6 +121,24 @@ class CoreDataAccess(DataAccessPort):
     def __init__(self, queries):
         self.queries = queries
 
+    async def decision_order(
+        self, actor, product_id, contract_id, org_id, warehouse_id, order_id, request_id
+    ):
+        selection = QuerySelection(
+            select=["org_id", "warehouse_id", "order_id"],
+            contract_version_id=contract_id,
+            where={
+                "org_id": {"_eq": str(org_id)},
+                "warehouse_id": {"_eq": str(warehouse_id)},
+                "order_id": {"_eq": str(order_id)},
+            },
+            limit=1,
+        )
+        result = await self.queries.run(actor, product_id, selection, request_id)
+        if not result["rows"]:
+            raise CoreError(ErrorCode.NOT_FOUND)
+        return result["rows"][0]
+
     async def execute(self, action_id, payload, actor, request_id):
         if action_id not in {"data.get_record", "data.query"}:
             raise CoreError(ErrorCode.FORBIDDEN)
@@ -255,7 +273,7 @@ class CoreEventInbox:
                 ),
             )
 
-    async def once(self, key, payload_hash, dispatch):
+    async def once(self, key, payload_hash, dispatch, *, recover=None):
         resource_id = uuid5(WORKFLOW_NAMESPACE, "event:" + key)
         async with self.store.permission_lock(resource_id, WORKFLOW_NAMESPACE):
             async with self.store.transaction() as transaction:
@@ -269,8 +287,29 @@ class CoreEventInbox:
                     if previous.public["payload_hash"] != payload_hash:
                         raise CoreError(ErrorCode.IDEMPOTENCY_CONFLICT)
                     if previous.public["status"] != "COMPLETED":
+                        if recover is None:
+                            raise CoreError(ErrorCode.INVALID_STATE)
+                    else:
+                        return {**previous.public["result_json"], "deduped": True}
+                if previous is not None:
+                    # Reconciliation is explicitly read-only; absence never authorizes redispatch.
+                    result = await recover()
+                    if result is None:
                         raise CoreError(ErrorCode.INVALID_STATE)
-                    return {**previous.public["result_json"], "deduped": True}
+                    await transaction.replace(
+                        "workflow_event",
+                        StoredResource(
+                            {
+                                **previous.public,
+                                "status": "COMPLETED",
+                                "result_json": result,
+                                "updated_at": timestamp(await transaction.now()),
+                                "revision": previous.public["revision"] + 1,
+                            },
+                            {},
+                        ),
+                    )
+                    return {**result, "deduped": True, "reconciled": True}
                 now = timestamp(await transaction.now())
                 await transaction.insert(
                     "workflow_event",
