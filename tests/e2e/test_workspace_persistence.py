@@ -364,7 +364,10 @@ async def test_decision_http_sharing_does_not_bypass_current_source_grants(migra
 
 
 @pytest.mark.asyncio
-async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(migrated_workspace):
+@pytest.mark.parametrize("proposed_slot", [False, True])
+async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(
+    migrated_workspace, proposed_slot
+):
     """Real Workspace HTTP/PG + Core workflow logic + Flowable; source/IAM boundaries mocked."""
     from copy import deepcopy
     from datetime import UTC, datetime, timedelta
@@ -432,6 +435,15 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
     )
     cap = boundary.facts[boundary.refs["capacity"]["data_product_id"]][0]
     cap.update(capacity_date=str(tomorrow), used_dispatches=1)
+    handoff_plan = None
+    if proposed_slot:
+        scheduled = boundary.facts[boundary.refs["schedule"]["data_product_id"]][0]
+        handoff_plan = {
+            "carrier_code": scheduled["carrier_code"],
+            "scheduled_handoff_at": scheduled["scheduled_handoff_at"],
+        }
+        boundary.facts[boundary.refs["schedule"]["data_product_id"]] = []
+        cap["used_dispatches"] = 0
     prep = {"data_product_id": str(uuid4()), "contract_version_id": str(uuid4())}
     preparation = {
         "org_id": str(org),
@@ -560,6 +572,7 @@ async def test_workspace_core_flowable_bridge_restart_retry_and_stale_approval(m
                         "simulation_run_id": scenario.json()["id"],
                         "order_id": order,
                         "title": "Bổ sung cà phê cho SO-001",
+                        **({"handoff_plan": handoff_plan} if handoff_plan else {}),
                     },
                 )
                 assert response.status_code == 201, response.text

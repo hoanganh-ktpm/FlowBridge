@@ -248,6 +248,7 @@ from uuid import UUID  # noqa: E402
 from app.platform.workflow.decision_schemas import (  # noqa: E402
     DecisionHandoffCommand,
     DecisionReconcileStart,
+    DecisionReplanCommand,
     DecisionStart,
     DecisionTaskCommand,
 )
@@ -297,6 +298,14 @@ async def verify_decision_handoff(
         request.headers.get("Authorization", "").partition(" ")[2],
         request.state.correlation_id,
     )
+
+
+@workflow_router.post("/decision-runs/{instance_id}/replan", operation_id="requestDecisionReplan")
+async def replan_decision(
+    instance_id: str, body: DecisionReplanCommand, request: Request, actor: Actor
+):
+    _key(request)
+    return await decision_port(request).request_replan(actor, instance_id, body)
 
 
 @workflow_router.post("/events", operation_id="receiveWorkflowEvent", status_code=202)

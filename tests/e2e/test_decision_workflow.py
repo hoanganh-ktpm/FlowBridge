@@ -232,6 +232,7 @@ async def test_owned_engine_restart_keeps_parallel_tasks_and_timers_never_approv
     # Docker Desktop can reassign a dynamically published port on restart.
     port = int(docker("port", container, "18081/tcp").rsplit(":", 1)[1])
     engine.base_url = f"http://127.0.0.1:{port}/flowable-rest/service"
+    os.environ["FLOWBRIDGE_DECISION_FLOWABLE_TEST_URL"] = engine.base_url
     for attempt in range(90):
         try:
             await engine.request("GET", "/management/engine")
@@ -258,3 +259,63 @@ async def test_owned_engine_restart_keeps_parallel_tasks_and_timers_never_approv
     )
     assert not (await engine.get_instance(identifier)).get("completed", False)
     assert not any(t["taskDefinitionKey"] == "managerReview" for t in tasks)
+
+
+async def test_approved_process_can_replan_without_claiming_or_reverting_handoff(engine):
+    from types import SimpleNamespace
+
+    from tests.core.runtime.fakes import MemoryStore
+    from tests.core.runtime.test_decision_workflow import fixture as core_fixture
+
+    from app.platform.http.errors import CoreError, ErrorCode
+    from app.platform.workflow.decision_schemas import DecisionReplanCommand
+
+    runs, executor, body, actors = await core_fixture(SimpleNamespace(store=MemoryStore()))
+    await engine.deploy(
+        "decision-replan",
+        (ROOT / "workflows/supply_handover_exception.bpmn20.xml").read_text(encoding="utf-8"),
+    )
+    runs.engine = engine
+    started = await runs.start(executor, body, "replan-start")
+    instance = started["id"]
+    for task in await engine.list_tasks(process_instance_id=instance):
+        role = "warehouse" if task["taskDefinitionKey"] == "verifyWarehouse" else "logistics"
+        await engine.complete_task(task["id"], {role + "_outcome": "confirmed"})
+    task = (await engine.list_tasks(process_instance_id=instance))[0]
+    await engine.complete_task(task["id"], {"manager_outcome": "approved"})
+    assert await engine.awaits_message(instance, "decision.carrier_handed_over")
+    assert await engine.awaits_message(instance, "decision.replan_requested")
+    command = DecisionReplanCommand(
+        revision_id=body.revision_id,
+        actor_principal_id=actors["coordinator"],
+        note="Nguồn hàng đổi, cần xác minh lại giờ nhận",
+    )
+    with pytest.raises(CoreError) as wrong_role:
+        await runs.request_replan(
+            executor,
+            instance,
+            command.model_copy(update={"actor_principal_id": actors["warehouse"]}),
+        )
+    assert wrong_role.value.code == ErrorCode.FORBIDDEN
+    original = engine.message_event
+    sent = []
+
+    async def lost(*args, **kwargs):
+        sent.append(args)
+        await original(*args, **kwargs)
+        raise CoreError(ErrorCode.UPSTREAM_TIMEOUT)
+
+    engine.message_event = lost
+    with pytest.raises(CoreError):
+        await runs.request_replan(executor, instance, command)
+    result = await runs.request_replan(executor, instance, command)
+    assert result["kind"] == "DECISION_REPLAN_REQUESTED" and result["reconciled"] is True
+    assert len(sent) == 1
+    state = await runs.state(executor, instance, actors["coordinator"])
+    assert state["status"] == "NEEDS_REVISION"
+    assert (await engine.get_instance(instance))["endActivityId"] == "revisionRequired"
+    assert not await engine.awaits_message(instance, "decision.carrier_handed_over")
+    runs.bindings.pop(str(actors["coordinator"]))
+    with pytest.raises(CoreError) as revoked:
+        await runs.request_replan(executor, instance, command)
+    assert revoked.value.code == ErrorCode.FORBIDDEN

@@ -9,6 +9,7 @@ from pydantic import Field, field_validator, model_validator
 
 from .decision_repository import DecisionRepository
 from .decision_service import DecisionPolicy, DecisionService
+from .handoff_plan import HandoffPlan
 from .schemas import DTO
 
 
@@ -16,6 +17,7 @@ class CreateDecision(DTO):
     simulation_run_id: UUID
     order_id: UUID
     title: str = Field(min_length=1, max_length=160)
+    handoff_plan: HandoffPlan | None = None
 
     @field_validator("title")
     @classmethod
@@ -28,6 +30,7 @@ class CreateDecision(DTO):
 class ReviseDecision(DTO):
     simulation_run_id: UUID
     expected_version: int = Field(ge=1, strict=True)
+    handoff_plan: HandoffPlan | None = None
 
 
 class SubmitDecision(DTO):
@@ -37,6 +40,17 @@ class SubmitDecision(DTO):
 
 class VerifyHandoff(DTO):
     revision_id: UUID
+
+
+class ReplanDecision(VerifyHandoff):
+    note: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("note")
+    @classmethod
+    def nonblank(cls, value):
+        if not value.strip():
+            raise ValueError("Ghi lý do cần lập lại phương án")
+        return value.strip()
 
 
 class ExplainDecision(DTO):
@@ -202,6 +216,19 @@ def install_decision_routes(
 
         command_key(idempotency_key)
         return await service.verify_handoff(ctx, case_id, body, idempotency_key)
+
+    @app.post(prefix + "/decisions/{case_id}/replan")
+    async def replan(
+        case_id: UUID,
+        body: ReplanDecision,
+        ctx=actor_dependency,
+        idempotency_key: str = Header(default=""),
+    ):
+        configured()
+        from .decision_repository import command_key
+
+        command_key(idempotency_key)
+        return await service.replan(ctx, case_id, body, idempotency_key)
 
     @app.post(prefix + "/decisions/{case_id}/tasks/{task_id}/complete")
     async def complete(

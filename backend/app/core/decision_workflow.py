@@ -219,6 +219,61 @@ class CoreDecisionRuns:
             await self.inbox.finish(resource_id, "COMPLETED", record)
             return {"state": "FOUND", "outcome_certain": True, "run": record}
 
+    async def request_replan(self, actor, instance_id, body):
+        record = await self.record(actor, instance_id)
+        if str(body.revision_id) != record["revision_id"]:
+            raise CoreError(ErrorCode.VERSION_CONFLICT)
+        roles = [
+            role
+            for role, principal in record["participants"].items()
+            if principal == str(body.actor_principal_id) and role in {"coordinator", "manager"}
+        ]
+        if not roles:
+            raise CoreError(ErrorCode.FORBIDDEN)
+        for role in roles:
+            await self.assigned(
+                body.actor_principal_id, role, record["org_id"], record["warehouse_id"]
+            )
+        result = {
+            "kind": "DECISION_REPLAN_REQUESTED",
+            "instance_id": instance_id,
+            "revision_id": record["revision_id"],
+            "actor_principal_id": str(body.actor_principal_id),
+            "note": body.note,
+        }
+        key = fingerprint(
+            ["DECISION_REPLAN", actor.issuer, actor.subject, instance_id, record["revision_id"]]
+        )
+        instance = await self.engine.get_instance(instance_id)
+        if (
+            not await self.engine.awaits_message(instance_id, "decision.replan_requested")
+            and instance.get("endActivityId") != "revisionRequired"
+        ):
+            raise CoreError(ErrorCode.INVALID_STATE)
+        if instance.get("endActivityId") == "revisionRequired":
+            async with self.store.transaction(read_only=True) as tx:
+                try:
+                    await tx.get("workflow_event", uuid5(WORKFLOW_NAMESPACE, "event:" + key))
+                except CoreError as error:
+                    if error.code != ErrorCode.NOT_FOUND:
+                        raise
+                    raise CoreError(ErrorCode.INVALID_STATE) from None
+
+        async def dispatch():
+            await self.engine.message_event(
+                "decision.replan_requested",
+                record["revision_id"],
+                {"replan_reason_ref": fingerprint(result)},
+                workflow_key=KEY,
+            )
+            return result
+
+        async def recover():
+            state = await self.engine.get_instance(instance_id)
+            return result if state.get("endActivityId") == "revisionRequired" else None
+
+        return await self.inbox.once(key, fingerprint(result), dispatch, recover=recover)
+
     async def confirm_handoff(self, actor, instance_id, body, token, request_id):
         record = await self.record(actor, instance_id)
         if str(body.revision_id) != record["revision_id"] or self.handoff_reader is None:

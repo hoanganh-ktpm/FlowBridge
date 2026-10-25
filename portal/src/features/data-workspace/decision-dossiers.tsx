@@ -9,10 +9,11 @@ import type { Scenario } from './types';
 import { DecisionChecks } from './decision-checks';
 import { DecisionProgress } from './decision-progress';
 import { DecisionAssistant } from './decision-assistant';
+import { HandoffPlanFields, carrierBody, carrierDraft, validCarrierDraft, type CarrierDraft, type CarrierPlan, type CarrierOption } from './handoff-plan-fields';
 
 export type DecisionRequest = <T>(path: string, body?: unknown, signal?: AbortSignal, key?: string) => Promise<T>;
 export type DecisionCapabilities = { enabled: boolean; roles: string[]; warehouse_ids: string[]; workflow_enabled: boolean };
-type Revision = { id: string; number: number; created_at: string; payload: { scenario: Scenario; requires_revalidation: boolean; scope: { sku: string; order_id: string; warehouse_id: string } } };
+type Revision = { id: string; number: number; created_at: string; payload: { scenario: Scenario; requires_revalidation: boolean; handoff_plan?:CarrierPlan|null; scope: { sku: string; order_id: string; warehouse_id: string } } };
 type Dossier = { id: string; title: string; warehouse_id: string; order_id: string; coordinator_id: string; status: string; version: number; current_revision: number; updated_at: string; revision: Revision; participants: { principal_id: string; role: string }[]; workflow_instance_ref?: string | null; actions?: {can_revise:boolean;can_submit:boolean} };
 type Summary = Omit<Dossier, 'revision' | 'participants'>;
 type Event = { id: string; event_type: string; created_at: string; payload: { number?: number; note?:string|null;role?:string;outcome?:string;event_type?:string;producer?:string;correlation_id?:string;occurred_at?:string } };
@@ -41,18 +42,20 @@ function useCommandKey() {
   };
 }
 
-export function CreateDossier({ request, scenario, warehouse, capabilities, disabled, onCreated }: {
+export function CreateDossier({ request, scenario, warehouse, capabilities, disabled, onCreated, handoffOptions=[] }: {
   request: DecisionRequest; scenario: Scenario; warehouse: string; capabilities: DecisionCapabilities;
   disabled: boolean; onCreated: () => void;
+  handoffOptions?:CarrierOption[];
 }) {
   const orders = scenario.baseline.orders || [];
   const [order, setOrder] = useState(''), [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [handoff,setHandoff]=useState<CarrierDraft>(null);
   const key = useCommandKey();
   const allowed = capabilities.roles.includes('coordinator') && capabilities.warehouse_ids.includes(warehouse);
   async function create() {
     if (!scenario.id || disabled || !allowed) return;
-    const body = { simulation_run_id: scenario.id, order_id: order, title: title.trim() };
+    const body = { simulation_run_id: scenario.id, order_id: order, title: title.trim(),...(handoff?{handoff_plan:carrierBody(handoff)}:{}) };
     setBusy(true); setError('');
     try { await request('/decisions', body, undefined, key('/decisions', body)); onCreated(); }
     catch (e) { setError(message(e)); } finally { setBusy(false); }
@@ -65,21 +68,24 @@ export function CreateDossier({ request, scenario, warehouse, capabilities, disa
     </Select></Field>
     {!orders.length && <p>Phương án này chưa có đơn chưa phân bổ phù hợp để lập hồ sơ.</p>}
     <Field title="Tên hồ sơ"><Input value={title} maxLength={160} onChange={e => setTitle(e.target.value)} disabled={busy || disabled}/></Field>
+    <HandoffPlanFields value={handoff} options={handoffOptions} onChange={setHandoff} disabled={busy||disabled}/>
     {error && <p role="alert">{error}</p>}
-    <Button disabled={busy || disabled || !scenario.id || !order || !title.trim()} onClick={() => void create()}>{busy ? 'Đang lưu hồ sơ…' : 'Lưu hồ sơ quyết định'}</Button>
+    <Button disabled={busy || disabled || !scenario.id || !order || !title.trim() || !validCarrierDraft(handoff)} onClick={() => void create()}>{busy ? 'Đang lưu hồ sơ…' : 'Lưu hồ sơ quyết định'}</Button>
     <p className="dw-muted">Người phối hợp lấy từ phân công của doanh nghiệp. Bản nháp chưa được duyệt và chưa tạo giao dịch.</p>
   </Panel>;
 }
 
-export function DecisionDossiers({ request, capabilities, scenario, scenarioDirty, mode = 'all' }: {
+export function DecisionDossiers({ request, capabilities, scenario, scenarioDirty, mode = 'all', handoffOptions=[] }: {
   request: DecisionRequest; capabilities: DecisionCapabilities; scenario: Scenario | null; scenarioDirty: boolean;
   mode?: 'all' | 'tasks' | 'outcomes';
+  handoffOptions?:CarrierOption[];
 }) {
   const [items, setItems] = useState<Summary[]>([]), [selected, setSelected] = useState<Dossier | null>(null);
   const [history, setHistory] = useState<Revision[]>([]), [events, setEvents] = useState<Event[]>([]);
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [queue, setQueue] = useState<{case_id:string;title:string;revision_id:string;task:WorkflowTask}[]>([]);
   const [comment,setComment] = useState('');
+  const [handoff,setHandoff]=useState<CarrierDraft>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const key = useCommandKey();
   async function listing() {
@@ -102,7 +108,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
       const [detail, revisions, timeline] = await Promise.all([
         request<Dossier>('/decisions/' + id), request<{ items: Revision[]; has_more: boolean }>('/decisions/' + id + '/revisions'), request<{ items: Event[]; has_more: boolean }>('/decisions/' + id + '/timeline'),
       ]);
-      setSelected(detail); setHistory(revisions.items); setEvents(timeline.items);
+      setSelected(detail);setHandoff(carrierDraft(detail.revision.payload.handoff_plan)); setHistory(revisions.items); setEvents(timeline.items);
       if (capabilities.workflow_enabled) {
         const current = await request<WorkflowState>('/decisions/' + id + '/workflow');
         setSelected(current.case); setWorkflow(current.workflow);
@@ -114,7 +120,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
   async function revise() {
     if (!selected || !scenario?.id || scenarioDirty) return;
     const path = '/decisions/' + selected.id + '/revisions';
-    const body = { simulation_run_id: scenario.id, expected_version: selected.version };
+    const body = { simulation_run_id: scenario.id, expected_version: selected.version,handoff_plan:carrierBody(handoff) };
     setBusy(true); setError('');
     try { await request(path, body, undefined, key(path, body)); await open(selected.id); }
     catch (e) { setSelected(null); setError(message(e)); } finally { setBusy(false); }
@@ -159,6 +165,14 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     catch(e){if(e instanceof ApiError&&e.status===409)setError('Chưa xác minh được bàn giao đầy đủ từ Kho hoặc quy trình chưa được duyệt. Hồ sơ vẫn chưa hoàn tất.');else failedCommand(e);}
     finally{setBusy(false);}
   }
+  async function replan(){
+    if(!selected||!comment.trim())return;
+    const path='/decisions/'+selected.id+'/replan';
+    const body={revision_id:selected.revision.id,note:comment.trim()};
+    setBusy(true);setError('');
+    try{await request<WorkflowState>(path,body,undefined,key(path,body));await open(selected.id);}
+    catch(e){failedCommand(e);}finally{setBusy(false);}
+  }
   async function refreshTimeline(){
     if(!selected)return;
     const result=await request<{items:Event[];has_more:boolean}>('/decisions/'+selected.id+'/timeline');
@@ -166,7 +180,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
     if(result.has_more)setNotice('Lịch sử dài; đang hiển thị một phần. Cần đối soát nguồn để xác định đầy đủ bước đã thực hiện.');
   }
   const canRevise = selected && (selected.actions?.can_revise ?? capabilities.roles.includes('coordinator')) && ['DRAFT', 'NEEDS_REVISION'].includes(selected.status)
-    && !!scenario?.id && !scenarioDirty && scenario.baseline.orders?.some(o => o.order_id === selected.order_id);
+    && !!scenario?.id && !scenarioDirty && validCarrierDraft(handoff) && scenario.baseline.orders?.some(o => o.order_id === selected.order_id);
   return <div className="pw-dossiers">
     <Button variant="outline" disabled={busy} onClick={() => void listing()}>Tải lại hồ sơ</Button>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
@@ -183,6 +197,7 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
       <p>Thiếu nguồn hàng nhiều nhất của sản phẩm đang xét trong kho: {fmt(scenarioSummary(selected.revision.payload.scenario).before)} → {fmt(scenarioSummary(selected.revision.payload.scenario).after)} {unitLabel(scenarioSummary(selected.revision.payload.scenario).unit || '')}</p>
       <p>Hồ sơ lưu bằng chứng tại thời điểm tính. Cần xác minh lại dữ liệu trước khi trình duyệt hoặc thực hiện.</p>
       <p>{selected.participants.length} phân công phối hợp trong hồ sơ.</p>
+      {selected.revision.payload.handoff_plan&&<p>Lịch dự kiến của phiên bản này: {selected.revision.payload.handoff_plan.carrier_code} · {new Date(selected.revision.payload.handoff_plan.scheduled_handoff_at).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}. Đây là điều kiện để xác minh, chưa chứng minh đã đặt lịch hoặc đã bàn giao.</p>}
       <DecisionAssistant key={'assistant-'+selected.revision.id} request={request} caseId={selected.id} revisionId={selected.revision.id} onDenied={failedCommand}/>
       {capabilities.workflow_enabled && <>
         <DecisionChecks key={selected.revision.id} request={request} caseId={selected.id} disabled={busy} onDenied={failedCommand} onSynced={refreshTimeline}/>
@@ -195,10 +210,15 @@ export function DecisionDossiers({ request, capabilities, scenario, scenarioDirt
           {task.role==='coordinator'&&<Button disabled={busy} onClick={()=>void complete(task,'acknowledged')}>Đã nhắc người phụ trách</Button>}
         </>}</div>)}
         {selected.status==='APPROVED'&&<p>Đã duyệt phương án. Vẫn cần thực hiện nghiệp vụ và xác minh bàn giao thực tế; hồ sơ chưa hoàn tất.</p>}
+        {['APPROVED','EXECUTING'].includes(selected.status)&&capabilities.roles.some(role=>['coordinator','manager'].includes(role))&&<>
+          <Field title="Lý do cần lập lại phương án"><Input maxLength={2000} disabled={busy} value={comment} onChange={event=>setComment(event.target.value)}/></Field>
+          <Button variant="outline" disabled={busy||!comment.trim()} onClick={()=>void replan()}>Dừng chờ bàn giao để lập phiên bản mới</Button>
+          <p>Yêu cầu này kết thúc lượt duyệt cũ để lập lại phương án. Hàng đã giữ, phiếu nhập và giao dịch đã thực hiện vẫn còn; cần đối soát nguồn trước khi gửi phiên bản mới.</p>
+        </>}
         {selected.status!=='COMPLETED'&&(['APPROVED','EXECUTING'].includes(selected.status)||workflow?.status==='COMPLETED')&&<Button variant="outline" disabled={busy} onClick={()=>void verifyHandoff()}>Kiểm tra bàn giao thực tế</Button>}
         {selected.status==='COMPLETED'&&<p>Đã đối chiếu đủ các dòng hàng với bằng chứng Kho bàn giao cho đơn vị vận chuyển. Đây là mốc kết thúc quy trình.</p>}
       </>}
-      {capabilities.roles.includes('coordinator') && <><Button disabled={busy || !canRevise} onClick={() => void revise()}>Thêm phương án đang xem thành phiên bản mới</Button><p className="dw-muted">So sánh và lưu phương án mới cho cùng đơn trước khi thêm. Phiên bản trước vẫn được giữ lại.</p></>}
+      {capabilities.roles.includes('coordinator') && <>{selected.actions?.can_revise&&<HandoffPlanFields value={handoff} options={handoffOptions} onChange={setHandoff} disabled={busy}/>}<Button disabled={busy || !canRevise} onClick={() => void revise()}>Thêm phương án đang xem thành phiên bản mới</Button><p className="dw-muted">So sánh và lưu phương án mới cho cùng đơn trước khi thêm. Phiên bản trước vẫn được giữ lại.</p></>}
       <h3>Lịch sử phiên bản</h3>{history.map(revision => <div key={revision.id}><strong>Phiên bản {revision.number}</strong><p>{new Date(revision.created_at).toLocaleString('vi-VN')} · Thiếu nguồn {fmt(scenarioSummary(revision.payload.scenario).after)}</p></div>)}
       <DecisionProgress events={events} orderId={selected.order_id}/>
       <h3>Diễn biến</h3>{events.map(event => <div key={event.id}><p>{new Date(event.created_at).toLocaleString('vi-VN')} · {eventNames[event.event_type] || 'Cập nhật hồ sơ'}{event.payload.number ? ` · Phiên bản ${event.payload.number}` : ''}{event.payload.role?` · ${roleNames[event.payload.role]||event.payload.role}`:''}{event.payload.outcome?` · ${outcomeNames[event.payload.outcome]||event.payload.outcome}`:''}</p>{event.payload.note&&<p>{event.payload.note}</p>}</div>)}

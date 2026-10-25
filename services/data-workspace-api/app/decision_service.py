@@ -13,6 +13,7 @@ from pydantic import Field, ValidationError
 from .decision_events import validate_event
 from .decision_impact import assess_change
 from .decision_presentation import presentation, resolve_intent
+from .handoff_plan import HandoffPlan
 from .schemas import DTO, SourceRead
 
 Role = Literal["coordinator", "warehouse", "logistics", "manager"]
@@ -117,7 +118,7 @@ class DecisionService:
             ) from None
         await self.reauthorize(ctx, {"sources": validated})
 
-    async def snapshot(self, ctx, simulation_id, order_id):
+    async def snapshot(self, ctx, simulation_id, order_id, handoff_plan=None):
         run = await self.results.get("simulation", simulation_id, ctx)
         await self.permitted_payload(ctx, run)
         assumptions = run["evidence"]["assumptions"]
@@ -163,6 +164,8 @@ class DecisionService:
             },
             "requires_revalidation": True,
         }
+        if handoff_plan:
+            payload["handoff_plan"] = handoff_plan.model_dump(mode="json")
         if self.inspector:
             baseline = await self.inspector(ctx, payload)
             payload["validation_baseline"] = baseline
@@ -444,6 +447,39 @@ class DecisionService:
         )
         return await self.workflow_state(ctx, identifier)
 
+    async def replan(self, ctx, identifier, body, key):
+        case = await self.get(ctx, identifier)
+        if not self.policy.roles(ctx, case["warehouse_id"]).intersection(
+            {"coordinator", "manager"}
+        ):
+            raise HTTPException(403, "Only coordinator or manager can request a new plan")
+        if (
+            self.workflow is None
+            or not case["workflow_instance_ref"]
+            or case["revision"]["id"] != str(body.revision_id)
+        ):
+            raise HTTPException(409, "No matching approved process to replan")
+        result = await self.workflow.request(
+            "/decision-runs/" + case["workflow_instance_ref"] + "/replan",
+            {
+                "revision_id": str(body.revision_id),
+                "actor_principal_id": str(ctx.owner_id),
+                "note": body.note,
+            },
+            key,
+        )
+        if (
+            result.get("kind") != "DECISION_REPLAN_REQUESTED"
+            or result.get("instance_id") != case["workflow_instance_ref"]
+            or result.get("revision_id") != case["revision"]["id"]
+        ):
+            raise HTTPException(502, "Replan receipt belongs to another revision")
+        normalized = {k: v for k, v in result.items() if k not in {"deduped", "reconciled"}}
+        await self.repository.record_workflow_task(
+            ctx, identifier, body.revision_id, key, normalized, event_type="REPLAN_REQUESTED"
+        )
+        return await self.workflow_state(ctx, identifier)
+
     async def verify_handoff(self, ctx, identifier, body, key):
         case = await self.get(ctx, identifier)
         if (
@@ -518,7 +554,9 @@ class DecisionService:
         return await self.workflow_state(ctx, identifier)
 
     async def create(self, ctx, body, key):
-        warehouse, payload = await self.snapshot(ctx, body.simulation_run_id, body.order_id)
+        warehouse, payload = await self.snapshot(
+            ctx, body.simulation_run_id, body.order_id, body.handoff_plan
+        )
         roster = self.policy.roster(ctx, warehouse)
         value = await self.repository.create(
             ctx,
@@ -591,8 +629,12 @@ class DecisionService:
         case = await self.get(ctx, identifier)
         if "coordinator" not in self.policy.roles(ctx, case["warehouse_id"]):
             raise HTTPException(403, "Only the coordinator can revise this case")
+        handoff = body.handoff_plan
+        if "handoff_plan" not in body.model_fields_set:
+            previous = case["revision"]["payload"].get("handoff_plan")
+            handoff = HandoffPlan.model_validate(previous) if previous else None
         warehouse, payload = await self.snapshot(
-            ctx, body.simulation_run_id, UUID(case["order_id"])
+            ctx, body.simulation_run_id, UUID(case["order_id"]), handoff
         )
         if str(warehouse) != case["warehouse_id"]:
             raise HTTPException(

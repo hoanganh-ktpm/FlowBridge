@@ -4,6 +4,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:flowable="http://flowable.org/bpmn" targetNamespace="https://flowbridge.local/decisions">
   <message id="handoffProof" name="decision.carrier_handed_over"/>
+  <message id="replanRequest" name="decision.replan_requested"/>
   <process id="supply_handover_exception" name="Xử lý điều kiện bàn giao cho đơn vị vận chuyển" isExecutable="true">
     <startEvent id="submitted" name="Đã gửi một phiên bản hồ sơ"/>
     <sequenceFlow id="startChecks" sourceRef="submitted" targetRef="verifyTogether"/>
@@ -37,11 +38,16 @@
     <endEvent id="managerReminderEnd"/>
     <sequenceFlow id="managerResponded" sourceRef="managerReview" targetRef="managerDecision"/>
     <exclusiveGateway id="managerDecision" default="managerRejected"/>
-    <sequenceFlow id="managerApproved" sourceRef="managerDecision" targetRef="awaitActualHandoff"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${manager_outcome == 'approved'}]]></conditionExpression></sequenceFlow>
+    <sequenceFlow id="managerApproved" sourceRef="managerDecision" targetRef="handoffOrReplan"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${manager_outcome == 'approved'}]]></conditionExpression></sequenceFlow>
     <sequenceFlow id="managerReturned" sourceRef="managerDecision" targetRef="revisionRequired"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${manager_outcome == 'changes_required'}]]></conditionExpression></sequenceFlow>
     <sequenceFlow id="managerRejected" sourceRef="managerDecision" targetRef="stopped"/>
     <endEvent id="revisionRequired" name="Cần lập phiên bản mới và gửi lại"><terminateEventDefinition/></endEvent>
     <endEvent id="stopped" name="Không chấp thuận phương án"><terminateEventDefinition/></endEvent>
+    <eventBasedGateway id="handoffOrReplan"/>
+    <sequenceFlow id="waitForHandoff" sourceRef="handoffOrReplan" targetRef="awaitActualHandoff"/>
+    <sequenceFlow id="waitForReplan" sourceRef="handoffOrReplan" targetRef="awaitReplan"/>
+    <intermediateCatchEvent id="awaitReplan" name="Chờ yêu cầu lập lại phương án"><messageEventDefinition messageRef="replanRequest"/></intermediateCatchEvent>
+    <sequenceFlow id="replanRequested" sourceRef="awaitReplan" targetRef="revisionRequired"/>
     <intermediateCatchEvent id="awaitActualHandoff" name="Chờ bằng chứng bàn giao thực tế"><messageEventDefinition messageRef="handoffProof"/></intermediateCatchEvent>
     <sequenceFlow id="actualHandoffReceived" sourceRef="awaitActualHandoff" targetRef="handedOver"/>
     <endEvent id="handedOver" name="Đã bàn giao cho đơn vị vận chuyển"><terminateEventDefinition/></endEvent>

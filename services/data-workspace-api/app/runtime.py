@@ -19,9 +19,10 @@ from .decision_freshness import digest, input_digest, ordered
 from .decision_impact import dependency_evidence
 from .decision_workflow import DecisionWorkflowClient
 from .forecasting import Forecaster
+from .handoff_plan import assess_slot
 from .handoff_readiness import preparation_policy
 from .operations import planning_report
-from .planning import SnapshotCache, moment
+from .planning import SnapshotCache
 from .planning_options import planning_options
 from .portfolio import carrier_summary, supply_reference
 from .reports import overview, recipe
@@ -311,57 +312,18 @@ def create_app(
             _, rows = await connector.rows(ctx, ref, columns, where=where)
             facts[role] = rows
             supplementary.append({"ref": ref.model_dump(mode="json"), "columns": columns})
-        scheduled = [
-            row
-            for row in facts["schedule"]
-            if row["status"] == "ACCEPTED" and row["scheduled_handoff_at"]
-        ]
-        capacity_keys = {
-            (
-                row["carrier_code"],
-                local_day(row["scheduled_handoff_at"], config.timezone).isoformat(),
-            )
-            for row in scheduled
-        }
-        capacities = [
-            row
-            for row in facts["capacity"]
-            if (row["carrier_code"], str(row["capacity_date"])) in capacity_keys
-        ]
-        deadline = moment(selected[0].get("handoff_deadline", selected[0]["deadline"]))
-        logistics_ok = bool(scheduled) and all(
-            moment(row["scheduled_handoff_at"]) <= deadline for row in scheduled
-        )
-        for carrier, day in capacity_keys:
-            values = [
-                row
-                for row in capacities
-                if row["carrier_code"] == carrier and str(row["capacity_date"]) == day
-            ]
-            logistics_ok = (
-                logistics_ok
-                and len(values) == 1
-                and values[0]["status"] == "ACTIVE"
-                and 1
-                <= numeric(values[0]["used_dispatches"])
-                <= numeric(values[0]["max_dispatches"])
-            )
-        warehouse_ok = (
-            preparation_policy(inputs["preparation_rows"], body.warehouse_id) is not None
-            and not selected[0]["at_risk"]
-        )
         policy = preparation_policy(inputs["preparation_rows"], body.warehouse_id)
-        ready_at = moment(selected[0]["fulfilled_at"]) if selected[0].get("fulfilled_at") else None
-        logistics_ok = (
-            logistics_ok
-            and policy is not None
-            and ready_at is not None
-            and all(
-                ready_at + timedelta(minutes=policy["minutes"])
-                <= moment(row["scheduled_handoff_at"])
-                for row in scheduled
-            )
+        slot = assess_slot(
+            selected[0],
+            facts["schedule"],
+            facts["capacity"],
+            policy,
+            config.timezone,
+            payload.get("handoff_plan"),
         )
+        capacities = slot["capacities"]
+        warehouse_ok = policy is not None and not selected[0]["at_risk"]
+        logistics_ok = slot["confirmable"]
         proof = {
             "input_sha256": digest(
                 {
@@ -369,10 +331,16 @@ def create_app(
                     "history": historical["evidence"]["history_sha256"],
                     "schedule": ordered(facts["schedule"]),
                     "capacity": ordered(capacities),
+                    **(
+                        {"handoff_plan": payload["handoff_plan"]}
+                        if payload.get("handoff_plan")
+                        else {}
+                    ),
                 }
             ),
             "warehouse_confirmable": warehouse_ok,
             "logistics_confirmable": bool(logistics_ok),
+            "booking_status": slot["booking_status"],
             "order_source_id": str(body.open_orders.data_product_id),
             "order_contract_id": str(body.open_orders.contract_version_id),
             "sources": supplementary,
@@ -382,7 +350,7 @@ def create_app(
                 inputs,
                 selected[0],
                 historical["evidence"]["history_sha256"],
-                facts["schedule"],
+                slot["contract_schedule"],
                 capacities,
                 policy,
             ),

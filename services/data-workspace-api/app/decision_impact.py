@@ -38,6 +38,7 @@ def dependency_evidence(payload, inputs, selected, history_hash, schedule, capac
         "preparation_minutes": None if policy is None else policy["minutes"],
         "plan": plan,
         "schedule": scheduled,
+        "handoff_plan": payload.get("handoff_plan"),
     }
     warehouse = str(scope["warehouse_id"])
     dependencies = {}

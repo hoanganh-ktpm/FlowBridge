@@ -757,3 +757,39 @@ test('my tasks opens the assigned revision and assistant reuses the canonical ch
   await expect(page.getByRole('button', { name: 'Xác nhận điều kiện Kho', exact: true })).toHaveCount(0);
   expect(writes.every(path => path.endsWith('/assistant'))).toBe(true);
 });
+
+
+test('coordinator can replan an approved revision with a reason while preserving recorded steps', async ({ page }) => {
+  await mock(page);
+  const scenario: any = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25' });
+  scenario.baseline.orders = [{ order_id: 'order-1', order_number: 'SO-001', lines: [] }];
+  const dossier = { id: 'case-1', title: 'Lập lại SO-001', warehouse_id: warehouse, order_id: 'order-1', status: 'APPROVED', version: 4, current_revision: 1, workflow_instance_ref: 'i-1', revision: { id: 'revision-1', number: 1, created_at: evidence.executed_at, payload: { scenario, requires_revalidation: true } }, participants: [1,2,3,4], actions: { can_submit: false, can_revise: false } };
+  let changed = false;
+  const commands: unknown[] = [];
+  await page.route('**/decision-capabilities', r => r.fulfill({ json: { enabled: true, roles: ['coordinator'], warehouse_ids: [warehouse], workflow_enabled: true } }));
+  await page.route('**/decisions**', r => {
+    const path = new URL(r.request().url()).pathname;
+    const detail = { ...dossier, status: changed ? 'NEEDS_REVISION' : 'APPROVED', actions: { can_submit: false, can_revise: changed } };
+    if (r.request().method() === 'POST') {
+      expect(path.endsWith('/replan')).toBe(true);
+      const body = r.request().postDataJSON();commands.push(body);
+      expect(body).toEqual({ revision_id: 'revision-1', note: 'Nhà vận chuyển đổi lịch, cần xác minh lại.' });
+      changed = true;return r.fulfill({ json: { case: { ...detail, status: 'NEEDS_REVISION' }, workflow: { tasks: [] }, warnings: [] } });
+    }
+    if (path.endsWith('/workflow')) return r.fulfill({ json: { case: detail, workflow: { instance_id: 'i-1', revision_id: 'revision-1', status: detail.status, tasks: [] }, warnings: [] } });
+    if (path.endsWith('/revisions')) return r.fulfill({ json: { items: [dossier.revision], has_more: false } });
+    if (path.endsWith('/timeline')) return r.fulfill({ json: { items: [{ id: 'observed-1', event_type: 'SOURCE_OBSERVED', created_at: evidence.executed_at, payload: { producer: 'warehouse', event_type: 'warehouse.order_reserved', correlation_id: 'order-1', occurred_at: evidence.executed_at } }], has_more: false } });
+    if (path.endsWith('/case-1')) return r.fulfill({ json: detail });
+    return r.fulfill({ json: { items: [detail], warnings: [], has_more: false } });
+  });
+  await page.goto('/#data');await page.getByRole('button', { name: 'Theo dõi kết quả', exact: true }).click();
+  await page.getByRole('button', { name: 'Mở hồ sơ Lập lại SO-001', exact: true }).click();
+  const replan = page.getByRole('button', { name: 'Dừng chờ bàn giao để lập phiên bản mới', exact: true });
+  await expect(replan).toBeDisabled();
+  await page.getByLabel('Lý do cần lập lại phương án', { exact: true }).fill('Nhà vận chuyển đổi lịch, cần xác minh lại.');
+  await replan.click();
+  await expect(page.getByText('Kho ghi nhận giữ hàng', { exact: false })).toBeVisible();
+  await expect(replan).toHaveCount(0);
+  await expect(page.getByText('Cần sửa phương án · Phiên bản 1', { exact: true }).first()).toBeVisible();
+  expect(commands).toHaveLength(1);
+});

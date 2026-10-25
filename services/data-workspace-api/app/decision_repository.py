@@ -122,6 +122,9 @@ class DecisionRepository:
                 "warehouse_id": str(warehouse_id),
                 "title": title,
                 "roster": roster,
+                **(
+                    {"handoff_plan": payload["handoff_plan"]} if payload.get("handoff_plan") else {}
+                ),
             }
         )
         try:
@@ -206,7 +209,13 @@ class DecisionRepository:
         command_key(key)
         payload_check(payload)
         digest = fingerprint(
-            {"simulation_id": str(simulation_id), "expected_version": expected_version}
+            {
+                "simulation_id": str(simulation_id),
+                "expected_version": expected_version,
+                **(
+                    {"handoff_plan": payload["handoff_plan"]} if payload.get("handoff_plan") else {}
+                ),
+            }
         )
         async with self.engine.begin() as conn:
             case = await self.get(ctx, identifier, conn=conn, lock=True)
@@ -535,9 +544,11 @@ class DecisionRepository:
             )
             return await self.get(ctx, identifier, conn=conn)
 
-    async def record_workflow_task(self, ctx, identifier, revision_id, key, result):
+    async def record_workflow_task(
+        self, ctx, identifier, revision_id, key, result, *, event_type="TASK_COMPLETED"
+    ):
         payload_check(result)
-        event_key = "task:" + fingerprint(key)
+        event_key = ("replan:" if event_type == "REPLAN_REQUESTED" else "task:") + fingerprint(key)
         async with self.engine.begin() as conn:
             case = await self.get(ctx, identifier, conn=conn, lock=True)
             if case["revision"]["id"] != str(revision_id) or result.get(
@@ -562,9 +573,7 @@ class DecisionRepository:
                 if previous["payload_hash"] != fingerprint(result):
                     raise HTTPException(409, "Task command key conflicts with recorded outcome")
                 return
-            await self.event(
-                conn, ctx, identifier, revision_id, "TASK_COMPLETED", event_key, result
-            )
+            await self.event(conn, ctx, identifier, revision_id, event_type, event_key, result)
 
     async def complete_handoff(self, ctx, identifier, revision_id, proof):
         payload_check(proof)

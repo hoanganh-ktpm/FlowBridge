@@ -68,3 +68,14 @@ class DecisionReconcileStart(Strict):
     case_id: UUID
     revision_id: UUID
     actor_principal_id: UUID
+
+
+class DecisionReplanCommand(DecisionHandoffCommand):
+    note: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("note")
+    @classmethod
+    def nonblank(cls, value):
+        if not value.strip():
+            raise ValueError("State why a new revision is required")
+        return value.strip()

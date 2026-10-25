@@ -81,3 +81,32 @@ and revision denial, mine-only queue filtering, partial-engine warnings and an
 actual PostgreSQL/Flowable integration bridge. Browser tests use mocked services,
 including renderer reuse, source-revoke clearing and mobile width. This does not
 replace final real four-person Keycloak MFA/Hasura/owner API/Portal acceptance.
+
+
+## Pre-release integration correction — 26 October 2026
+
+A dossier may now contain an explicit proposed carrier and timezone-aware slot.
+It is checked against the published carrier/day capacity, original order deadline
+and stock-ready time plus confirmed preparation. An unbooked proposal requires
+one additional available dispatch slot; a matching committed booking must not be
+counted twice. A conflicting carrier booking, missing capacity or insufficient
+preparation blocks confirmation. This does not reserve capacity: the real native
+booking still serializes against current capacity after approval. The Portal
+collects this condition during dossier creation/revision, and the command hash
+includes it so a retry cannot silently change a carrier plan.
+
+The BPMN template now waits for either proven handoff or an explicit replan request.
+Only the assigned coordinator/manager may request replanning with a reason; Core
+rechecks current assignments and exact revision. The old process ends as
+NEEDS_REVISION, while owner transactions and historical evidence are preserved.
+A lost message response is reconciled without resending, and a completed physical
+handoff cannot be converted into a replan. Existing running definitions are not
+rewritten: deploy the new definition for new cases; old approved cases without the
+replan subscription need explicit operator handling rather than pretending it exists.
+
+Validation: eight slot-domain cases passed, 175 domain/Core cases passed, and
+13 isolated PostgreSQL/Flowable cases passed. The full-engine bridge covers both
+pre-booked and unbooked-but-feasible proposals, mine-only queues and source changes.
+The replan engine case covers role denial, lost response, exact historical end,
+removed handoff subscription and assignment revocation. The test restart fixture
+now retains Docker's changed dynamic port for following cases.

@@ -703,6 +703,69 @@
         }
       }
     },
+    "/api/v1/data-workspace/decisions/{case_id}/replan": {
+      "post": {
+        "summary": "Replan",
+        "operationId": "replan_api_v1_data_workspace_decisions__case_id__replan_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplanDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/data-workspace/decisions/{case_id}/tasks/{task_id}/complete": {
       "post": {
         "summary": "Complete",
@@ -1731,6 +1794,16 @@
             "maxLength": 160,
             "minLength": 1,
             "title": "Title"
+          },
+          "handoff_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -2058,6 +2131,29 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HandoffPlan": {
+        "properties": {
+          "carrier_code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Carrier Code"
+          },
+          "scheduled_handoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduled Handoff At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "carrier_code",
+          "scheduled_handoff_at"
+        ],
+        "title": "HandoffPlan"
       },
       "JsonValue": {},
       "OverviewRequest": {
@@ -2571,6 +2667,28 @@
         ],
         "title": "ProfileRequest"
       },
+      "ReplanDecision": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Revision Id"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision_id",
+          "note"
+        ],
+        "title": "ReplanDecision"
+      },
       "ReviseDecision": {
         "properties": {
           "simulation_run_id": {
@@ -2582,6 +2700,16 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Expected Version"
+          },
+          "handoff_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
