@@ -37,6 +37,7 @@ export interface Forecast {
   model: { method: string; kind: string; fallback_reason?: string; entities?: Record<string,{method:string;kind:string;reason:string;observations:number;gap_days:number;validation:Record<string,{mae:number;wape_percent:number|null;windows:object[]}>;p50_holdout?:Record<string,{mae:number;observations:number;training_end:string;validation_start:string;validation_end:string}>|null}> };
 }
 export interface ScenarioSide {
+  orders?: { order_id: string; order_number?: string; lines: { sku: string }[] }[];
   series: { day: string; net_position: number; physical_inventory: number; unmet_cumulative: number; demand?:number; inbound?: number; known_demand_due?: number }[];
   metrics: { first_risk_date: string | null; peak_shortage: number; peak_supply_shortage?: number | null; forecast_demand: number;
     fulfilled_quantity: number; fulfillment_percent: number | null; known_orders_at_risk: number | null };

@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+import json
+import os
+from uuid import UUID
+
+from fastapi import Header, HTTPException
+from pydantic import Field, field_validator
+
+from .decision_repository import DecisionRepository
+from .decision_service import DecisionPolicy, DecisionService
+from .schemas import DTO
+
+
+class CreateDecision(DTO):
+    simulation_run_id: UUID
+    order_id: UUID
+    title: str = Field(min_length=1, max_length=160)
+
+    @field_validator("title")
+    @classmethod
+    def nonblank_title(cls, value):
+        if not value.strip():
+            raise ValueError("A descriptive title is required")
+        return value.strip()
+
+
+class ReviseDecision(DTO):
+    simulation_run_id: UUID
+    expected_version: int = Field(ge=1, strict=True)
+
+
+def install_decision_routes(
+    app,
+    prefix,
+    actor_dependency,
+    repository,
+    reauthorize,
+    case_repository=None,
+    decision_bindings=None,
+):
+    policy = DecisionPolicy(
+        decision_bindings
+        if decision_bindings is not None
+        else json.loads(os.environ.get("FLOWBRIDGE_WORKSPACE_DECISION_BINDINGS", "{}"))
+    )
+    if case_repository is None and hasattr(repository, "engine"):
+        case_repository = DecisionRepository(repository.engine)
+    service = DecisionService(case_repository, repository, policy, reauthorize)
+
+    def configured():
+        if service.repository is None or not policy.bindings:
+            raise HTTPException(
+                503, "Decision dossiers require configured operational assignments and migrations"
+            )
+
+    @app.get(prefix + "/decision-capabilities")
+    async def capabilities(ctx=actor_dependency):
+        binding = policy.bindings.get(str(ctx.owner_id))
+        enabled = (
+            service.repository is not None and binding is not None and binding.org_id == ctx.org_id
+        )
+        return {
+            "enabled": enabled,
+            "roles": binding.roles if enabled else [],
+            "warehouse_ids": [str(value) for value in binding.warehouse_ids] if enabled else [],
+            "workflow_enabled": False,
+        }
+
+    @app.post(prefix + "/decisions", status_code=201)
+    async def create(
+        body: CreateDecision, ctx=actor_dependency, idempotency_key: str = Header(default="")
+    ):
+        configured()
+        return await service.create(ctx, body, idempotency_key)
+
+    @app.get(prefix + "/decisions")
+    async def listing(ctx=actor_dependency):
+        configured()
+        return await service.list(ctx)
+
+    @app.get(prefix + "/decisions/{case_id}")
+    async def detail(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.get(ctx, case_id)
+
+    @app.post(prefix + "/decisions/{case_id}/revisions", status_code=201)
+    async def revise(
+        case_id: UUID,
+        body: ReviseDecision,
+        ctx=actor_dependency,
+        idempotency_key: str = Header(default=""),
+    ):
+        configured()
+        return await service.revise(ctx, case_id, body, idempotency_key)
+
+    @app.get(prefix + "/decisions/{case_id}/revisions")
+    async def history(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.history(ctx, case_id)
+
+    @app.get(prefix + "/decisions/{case_id}/timeline")
+    async def timeline(case_id: UUID, ctx=actor_dependency):
+        configured()
+        return await service.timeline(ctx, case_id)

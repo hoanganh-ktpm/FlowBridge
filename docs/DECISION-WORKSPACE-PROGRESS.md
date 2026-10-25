@@ -170,3 +170,32 @@ TypeScript and production build passed; **four targeted mocked-browser tests pas
 including recovery prefill/no automatic writes/export time and matrix semantics;
 **402 contract/OpenAPI tests passed**. There is still no approval or business write
 claim from a simulation; those are separate M07–M10 milestones.
+
+## M07 — dossier persistence and governed collaboration (25 October 2026)
+
+Added additive `workspace_0002`, SQLAlchemy tables, transactional repository and
+HTTP endpoints for five dossier tables. Active cases are unique per scoped order;
+retries deduplicate, edits use expected versions and append revisions/events.
+Explicit deployment-owned operational assignments separate the proposer/verifiers
+from the manager. Current Core source authorization is checked on case/history
+reads; original forecast/simulation results remain private. Case copies filter
+orders/SKU points and retain explicitly warehouse-wide scenario metrics.
+
+Portal supports choosing an affected order, saving a draft dossier, reading its
+revision/event history and attaching another saved scenario as a new revision.
+Retries retain the command key. Feature availability depends on server assignments;
+unconfigured deployments retain the existing analytics experience. See
+`docs/DECISION-DOSSIERS.md` for configuration, bounds and user steps.
+
+Validation: **141 Workspace domain tests passed**; **3 real PostgreSQL/HTTP tests
+passed**, including upgrade from workspace_0001 containing an existing private
+result, repeated upgrade, concurrent create/edit, scoped FK, restart, private run
+isolation and revoked-source denial. The earlier broader disposable run passed
+**46 database tests** before adding the third HTTP/upgrade test. **397 contracts
+passed**, **18 frontend unit tests**, TypeScript/build and two targeted mocked
+browser tests passed (dossier retry/draft semantics and recovery regression).
+
+This is the draft persistence/collaboration part of M07. CAS-08 (process-start
+crash reconciliation), submission/approval and live multi-role Flowable acceptance
+remain dependent on M08. No draft is described as freshly validated or approved.
+No hosted/shared database was changed for this milestone.

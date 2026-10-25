@@ -88,6 +88,52 @@ async function mock(page: Page, admin = false) {
 }
 const count = (s: State, path: string) => s.calls.filter(c => c.path.endsWith(path)).length;
 
+test('decision dossier saves one order with retry key and preserves draft semantics', async ({ page }) => {
+  const state = await mock(page);
+  const order = '00000000-0000-4000-8000-000000000061';
+  const keys: string[] = [];
+  let dossier: any = null;
+  await page.route('**/decision-capabilities', route => route.fulfill({ json: { enabled: true, roles: ['coordinator'], warehouse_ids: [warehouse], workflow_enabled: false } }));
+  await page.route('**/scenarios', route => {
+    const body = route.request().postDataJSON();
+    const result: any = scenarioResult(body);
+    result.baseline.orders = [{ order_id: order, order_number: 'SO-001', lines: [{ sku: 'SKU-A' }] }];
+    return route.fulfill({ json: result });
+  });
+  await page.route('**/decisions**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === 'POST') {
+      keys.push(route.request().headers()['idempotency-key']);
+      if (keys.length === 1) return route.fulfill({ status: 503, json: {} });
+      const body = route.request().postDataJSON();
+      expect(Object.keys(body).sort()).toEqual(['order_id', 'simulation_run_id', 'title']);
+      dossier = { id: 'case-1', ...body, warehouse_id: warehouse, status: 'DRAFT', version: 1, current_revision: 1, participants: [1, 2, 3, 4],
+        revision: { id: 'revision-1', number: 1, created_at: evidence.executed_at, payload: { scenario: { ...scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 0, arrival_date: '2026-10-25' }), baseline: { ...baseline, orders: [{ order_id: order, order_number: 'SO-001' }] } }, requires_revalidation: true } } };
+      return route.fulfill({ status: 201, json: dossier });
+    }
+    if (path.endsWith('/timeline')) return route.fulfill({ json: { items: [{ id: 'event-1', event_type: 'CASE_CREATED', created_at: evidence.executed_at, payload: { number: 1 } }], has_more: false } });
+    if (path.endsWith('/revisions')) return route.fulfill({ json: { items: [dossier.revision], has_more: false } });
+    if (path.endsWith('/case-1')) return route.fulfill({ json: dossier });
+    return route.fulfill({ json: { items: dossier ? [dossier] : [], warnings: [], has_more: false } });
+  });
+  await page.goto('/#data');
+  await page.getByRole('button', { name: 'Phương án nhập hàng', exact: true }).click();
+  await page.getByRole('button', { name: 'Cập nhật dự báo ML', exact: true }).click();
+  await page.getByRole('button', { name: 'So sánh phương án', exact: true }).click();
+  const create = page.getByRole('button', { name: 'Lưu hồ sơ quyết định', exact: true });
+  await expect(create).toBeDisabled();
+  await page.getByRole('button', { name: 'Lưu phương án', exact: true }).click();
+  const form = page.locator('.dw-panel').filter({ has: page.getByRole('heading', { name: 'Lập hồ sơ quyết định', exact: true }) });
+  await form.locator('select').selectOption(order);
+  await create.click(); await expect(form.getByRole('alert')).toBeVisible();
+  await create.click();
+  await expect(page.getByRole('heading', { name: 'Hồ sơ quyết định', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mở hồ sơ Phối hợp chuẩn bị SO-001', exact: true }).click();
+  await expect(page.getByText('Hồ sơ đang ở bước lưu bản nháp.', { exact: false })).toBeVisible();
+  expect(keys).toHaveLength(2); expect(keys[0]).toBeTruthy(); expect(keys[0]).toBe(keys[1]);
+  expect(state.calls.some(c => /workflow|actions/.test(c.path))).toBe(false);
+});
+
 test('saved scenario keeps intraday physical shortage instead of a zero day-end balance', async ({ page }) => {
   await mock(page);
   const saved = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25', save: true });

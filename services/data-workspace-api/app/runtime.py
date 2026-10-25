@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .analytics import analyze, local_day, numeric, prepare
 from .connector import CoreConnector
+from .decision_api import install_decision_routes
 from .forecasting import Forecaster
 from .operations import planning_report
 from .planning import SnapshotCache
@@ -100,7 +101,14 @@ def configured_columns(config):
     ]
 
 
-def create_app(connector=None, repository=None, forecaster=None):
+def create_app(
+    connector=None,
+    repository=None,
+    forecaster=None,
+    *,
+    case_repository=None,
+    decision_bindings=None,
+):
     http = None
     if connector is None:
         http = httpx.AsyncClient()
@@ -185,6 +193,10 @@ def create_app(connector=None, repository=None, forecaster=None):
             },
             "columns": configured_columns(config),
         }
+
+    install_decision_routes(
+        app, PREFIX, actor_dependency, repository, reauthorize, case_repository, decision_bindings
+    )
 
     @app.get(PREFIX + "/products")
     async def products(ctx=actor_dependency):
