@@ -85,6 +85,28 @@ async function mock(page: Page, admin = false) {
   return state;
 }
 const count = (s: State, path: string) => s.calls.filter(c => c.path.endsWith(path)).length;
+
+test('saved scenario keeps intraday physical shortage instead of a zero day-end balance', async ({ page }) => {
+  await mock(page);
+  const saved = scenarioResult({ demand_multiplier: 1, inbound_delay_days: 0, additional_quantity: 30, arrival_date: '2026-10-25', save: true });
+  saved.baseline.metrics.peak_shortage = 0;
+  saved.proposed.metrics.peak_shortage = 0;
+  saved.decision.stressed.peak_shortage = 30;
+  saved.decision.proposed.peak_shortage = 0;
+  await page.route('**/scenarios/saved', route => route.fulfill({ json: { items: [saved] } }));
+  await page.goto('/#data');
+  await page.getByRole('button', { name: 'Đã lưu', exact: true }).click();
+  await expect(page.locator('.pw-saved-card')).toContainText('Thiếu nguồn hàng nhiều nhất: 30 → 0');
+  await expect(page.locator('.pw-saved-card')).not.toContainText('Kết quả cũ');
+});
+
+test('old saved results with ambiguous shortage ask for recalculation', async ({ page }) => {
+  await mock(page);
+  await page.goto('/#data');
+  await page.getByRole('button', { name: 'Đã lưu', exact: true }).click();
+  await expect(page.locator('.pw-saved-card')).toContainText('Cần tính lại trước khi dùng');
+});
+
 async function apply(page: Page) { if (await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).count() === 0) await page.getByRole('button', { name: 'Tổng quan', exact: true }).click(); await page.getByRole('button', { name: 'Cập nhật kế hoạch', exact: true }).click(); await expect(page.locator('.pw-applied-context')).toBeVisible(); }
 
 test('compact overview shows two governed business charts without the removed noise', async ({ page }) => {

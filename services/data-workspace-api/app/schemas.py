@@ -261,6 +261,8 @@ class SensitivityResult(DTO):
 
 class DecisionMeasure(DTO):
     peak_shortage: Number
+    shortage_basis: Literal["event_time_physical_supply", "day_end_supply"] | None = None
+    first_shortage_date: date | None = None
     shortage_days: int
     ending_inventory: Number
     new_demand: Number

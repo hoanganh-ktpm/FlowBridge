@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from .analytics import fail, local_day, numeric
 from .planning import known_orders, moment, project_orders
-from .scenario_decision import assess, measures
+from .scenario_decision import METRIC_SEMANTICS_VERSION, assess, measures
 
 
 def project(points, initial, inbound, multiplier=1, delay=0, extra=0, arrival=None):
@@ -195,15 +195,19 @@ def simulate(
         request.arrival_date,
     )
     reference = evaluate(original_points, 1, 0) if include_decision else None
+    before, after = measures(baseline), measures(proposed)
     delta = {
         key: proposed["metrics"][key] - baseline["metrics"][key]
-        for key in ("peak_shortage", "forecast_demand", "fulfilled_quantity")
+        for key in ("forecast_demand", "fulfilled_quantity")
     }
+    delta["peak_shortage"] = after["peak_shortage"] - before["peak_shortage"]
     result = {
         "baseline": baseline,
         "proposed": proposed,
         "comparison": {"metrics_delta": delta},
         "evidence": {
+            "metric_semantics_version": METRIC_SEMANTICS_VERSION,
+            "shortage_basis": before["shortage_basis"],
             "calculation_method": "deterministic supply-demand projection",
             "comparison_basis": "Both sides use the same demand and inbound-delay assumptions; "
             "only proposed adds the requested extra supply",
@@ -293,16 +297,16 @@ def simulate(
             "Physical inventory is the free physical pool; existing protected holds are excluded",
             "No product-to-dispatch conversion; carrier capacity remains an independent constraint",
         ]
-    before = baseline["metrics"]
-    after = proposed["metrics"]
     before_orders = {o["order_id"] for o in baseline.get("orders", []) if o["at_risk"]}
     after_orders = {o["order_id"] for o in proposed.get("orders", []) if o["at_risk"]}
     result["evidence"]["business_summary"] = {
         "shortage_before": before["peak_shortage"],
         "shortage_after": after["peak_shortage"],
         "reduced_shortage": before["peak_shortage"] - after["peak_shortage"],
-        "risk_date_before": before["first_risk_date"],
-        "risk_date_after": after["first_risk_date"],
+        "risk_date_before": before["first_shortage_date"],
+        "risk_date_after": after["first_shortage_date"],
+        "metric_semantics_version": METRIC_SEMANTICS_VERSION,
+        "shortage_basis": before["shortage_basis"],
         "orders_resolved": len(before_orders - after_orders),
         "orders_remaining": len(after_orders),
         "notes": [
@@ -325,7 +329,7 @@ def simulate(
             model_method,
             request.additional_quantity,
         )
-        result["evidence"]["decision_version"] = "ml_three_case_event_v1"
+        result["evidence"]["decision_version"] = "three_case_supply_deficit_v2"
         result["evidence"]["formulas"]["demand_headroom"] = (
             "100 × (min_t((opening + arrivals_through_t − known_due_through_t) / "
             "original_ML_P50_through_t) − 1); undefined for no positive forecast "

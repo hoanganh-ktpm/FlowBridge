@@ -38,7 +38,7 @@ export interface Forecast {
 }
 export interface ScenarioSide {
   series: { day: string; net_position: number; physical_inventory: number; unmet_cumulative: number; demand?:number; inbound?: number; known_demand_due?: number }[];
-  metrics: { first_risk_date: string | null; peak_shortage: number; forecast_demand: number;
+  metrics: { first_risk_date: string | null; peak_shortage: number; peak_supply_shortage?: number | null; forecast_demand: number;
     fulfilled_quantity: number; fulfillment_percent: number | null; known_orders_at_risk: number | null };
 }
 export interface Scenario {
@@ -57,7 +57,7 @@ export interface Scenario {
     cells: { quantity: number; arrival_date: string; peak_shortage: number; known_orders_at_risk: number | null; first_risk_date: string | null }[];
   } | null;
 }
-export interface DecisionMeasure {peak_shortage:number;shortage_days:number;ending_inventory:number;new_demand:number;known_orders_at_risk:number|null;demand_headroom_percent?:number|null}
+export interface DecisionMeasure {peak_shortage:number;shortage_days:number;ending_inventory:number;new_demand:number;known_orders_at_risk:number|null;demand_headroom_percent?:number|null;shortage_basis?:'event_time_physical_supply'|'day_end_supply'|null;first_shortage_date?:string|null}
 export interface Stock { warehouse_id: string; sku: string; available_quantity: number; uom: string }
 export const localToday = () => new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit",

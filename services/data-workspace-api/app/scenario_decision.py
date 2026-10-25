@@ -4,14 +4,21 @@
 from datetime import date
 from decimal import ROUND_CEILING, Decimal
 
+METRIC_SEMANTICS_VERSION = "physical_supply_deficit_v1"
+
 
 def measures(side):
     series, metrics = side["series"], side["metrics"]
+    event_based = metrics.get("peak_supply_shortage") is not None
+    daily_key = "daily_peak_supply_shortage" if event_based else "unmet_cumulative"
+    first = next((p["day"] for p in series if p[daily_key] > 1e-9), None)
     return {
-        "peak_shortage": metrics.get("peak_supply_shortage", metrics["peak_shortage"]),
-        "shortage_days": sum(
-            p.get("daily_peak_supply_shortage", p["unmet_cumulative"]) > 1e-9 for p in series
-        ),
+        "peak_shortage": metrics["peak_supply_shortage"]
+        if event_based
+        else metrics["peak_shortage"],
+        "shortage_days": sum(p[daily_key] > 1e-9 for p in series),
+        "first_shortage_date": first,
+        "shortage_basis": "event_time_physical_supply" if event_based else "day_end_supply",
         "ending_inventory": series[-1]["physical_inventory"],
         "new_demand": metrics["forecast_demand"],
         "known_orders_at_risk": metrics["known_orders_at_risk"],
@@ -28,14 +35,7 @@ def assess(reference, stressed, proposed, evaluate, method, additional):
             Decimal(".001"), rounding=ROUND_CEILING
         )
     )
-    first = next(
-        (
-            p["day"]
-            for p in stressed["series"]
-            if p.get("daily_peak_supply_shortage", p["unmet_cumulative"]) > 1e-9
-        ),
-        None,
-    )
+    first = before["first_shortage_date"]
     suggestion = evaluate(quantity, date.fromisoformat(first)) if first else stressed
     late = after["known_orders_at_risk"] or 0
     if before["peak_shortage"] <= 1e-9 and not (before["known_orders_at_risk"] or 0):

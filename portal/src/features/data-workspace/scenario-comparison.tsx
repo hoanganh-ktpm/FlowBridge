@@ -19,7 +19,7 @@ export function ScenarioComparison({ value, forecast, sku, unit, proposal, dirty
   const score=model?.validation.ridge_lag;
   const balance=(value?.baseline.series || []).map((p,i)=>({day:p.day, original:value?.reference?.series[i]?.net_position, stressed:p.net_position, supplied:value?.proposed.series[i]?.net_position}));
   const flows=(value?.baseline.series || []).map((p,i)=>({day:p.day, original:value?.reference?.series[i]?.demand, adjusted:p.demand, due:p.known_demand_due, incoming:p.inbound, added:(value?.proposed.series[i]?.inbound || 0)-(p.inbound || 0)}));
-  const rows:{key:keyof DecisionMeasure;label:string;suffix?:string}[]=[
+  const rows:{key:Exclude<keyof DecisionMeasure,'shortage_basis'|'first_shortage_date'>;label:string;suffix?:string}[]=[
     {key:'new_demand',label:'Lượng đặt mới dự báo',suffix:unitLabel(unit)},
     {key:'peak_shortage',label:'Thiếu nguồn hàng nhiều nhất',suffix:unitLabel(unit)},
     {key:'shortage_days',label:'Số ngày có thời điểm thiếu hàng',suffix:'ngày'},
