@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:flowable="http://flowable.org/bpmn" targetNamespace="https://flowbridge.local/decisions">
+  <message id="handoffProof" name="decision.carrier_handed_over"/>
+  <process id="supply_handover_exception" name="Xử lý điều kiện bàn giao cho đơn vị vận chuyển" isExecutable="true">
+    <startEvent id="submitted" name="Đã gửi một phiên bản hồ sơ"/>
+    <sequenceFlow id="startChecks" sourceRef="submitted" targetRef="verifyTogether"/>
+    <parallelGateway id="verifyTogether"/>
+    <sequenceFlow id="toWarehouse" sourceRef="verifyTogether" targetRef="verifyWarehouse"/>
+    <sequenceFlow id="toLogistics" sourceRef="verifyTogether" targetRef="verifyLogistics"/>
+    <userTask id="verifyWarehouse" name="Kho xác minh nguồn hàng và thời gian chuẩn bị" flowable:assignee="${warehouse_assignee}"/>
+    <userTask id="verifyLogistics" name="Vận chuyển xác minh lịch và lượt tiếp nhận" flowable:assignee="${logistics_assignee}"/>
+    <boundaryEvent id="warehouseOverdue" attachedToRef="verifyWarehouse" cancelActivity="false"><timerEventDefinition><timeDuration>PT24H</timeDuration></timerEventDefinition></boundaryEvent>
+    <sequenceFlow id="warehouseReminderFlow" sourceRef="warehouseOverdue" targetRef="warehouseReminder"/>
+    <userTask id="warehouseReminder" name="Nhắc xác minh Kho quá hạn" flowable:assignee="${coordinator_assignee}"/>
+    <sequenceFlow id="warehouseReminderDone" sourceRef="warehouseReminder" targetRef="warehouseReminderEnd"/>
+    <endEvent id="warehouseReminderEnd"/>
+    <boundaryEvent id="logisticsOverdue" attachedToRef="verifyLogistics" cancelActivity="false"><timerEventDefinition><timeDuration>PT24H</timeDuration></timerEventDefinition></boundaryEvent>
+    <sequenceFlow id="logisticsReminderFlow" sourceRef="logisticsOverdue" targetRef="logisticsReminder"/>
+    <userTask id="logisticsReminder" name="Nhắc xác minh Vận chuyển quá hạn" flowable:assignee="${coordinator_assignee}"/>
+    <sequenceFlow id="logisticsReminderDone" sourceRef="logisticsReminder" targetRef="logisticsReminderEnd"/>
+    <endEvent id="logisticsReminderEnd"/>
+    <sequenceFlow id="warehouseChecked" sourceRef="verifyWarehouse" targetRef="checksJoined"/>
+    <sequenceFlow id="logisticsChecked" sourceRef="verifyLogistics" targetRef="checksJoined"/>
+    <parallelGateway id="checksJoined"/>
+    <sequenceFlow id="checkResults" sourceRef="checksJoined" targetRef="checksPassed"/>
+    <exclusiveGateway id="checksPassed" default="checkChanges"/>
+    <sequenceFlow id="checkApproved" sourceRef="checksPassed" targetRef="managerReview"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${warehouse_outcome == 'confirmed' && logistics_outcome == 'confirmed'}]]></conditionExpression></sequenceFlow>
+    <sequenceFlow id="checkChanges" sourceRef="checksPassed" targetRef="revisionRequired"/>
+    <userTask id="managerReview" name="Quản lý duyệt đúng phiên bản đã xác minh" flowable:assignee="${manager_assignee}"/>
+    <boundaryEvent id="managerOverdue" attachedToRef="managerReview" cancelActivity="false"><timerEventDefinition><timeDuration>PT24H</timeDuration></timerEventDefinition></boundaryEvent>
+    <sequenceFlow id="managerReminderFlow" sourceRef="managerOverdue" targetRef="managerReminder"/>
+    <userTask id="managerReminder" name="Nhắc quản lý phản hồi quá hạn" flowable:assignee="${coordinator_assignee}"/>
+    <sequenceFlow id="managerReminderDone" sourceRef="managerReminder" targetRef="managerReminderEnd"/>
+    <endEvent id="managerReminderEnd"/>
+    <sequenceFlow id="managerResponded" sourceRef="managerReview" targetRef="managerDecision"/>
+    <exclusiveGateway id="managerDecision" default="managerRejected"/>
+    <sequenceFlow id="managerApproved" sourceRef="managerDecision" targetRef="awaitActualHandoff"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${manager_outcome == 'approved'}]]></conditionExpression></sequenceFlow>
+    <sequenceFlow id="managerReturned" sourceRef="managerDecision" targetRef="revisionRequired"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${manager_outcome == 'changes_required'}]]></conditionExpression></sequenceFlow>
+    <sequenceFlow id="managerRejected" sourceRef="managerDecision" targetRef="stopped"/>
+    <endEvent id="revisionRequired" name="Cần lập phiên bản mới và gửi lại"><terminateEventDefinition/></endEvent>
+    <endEvent id="stopped" name="Không chấp thuận phương án"><terminateEventDefinition/></endEvent>
+    <intermediateCatchEvent id="awaitActualHandoff" name="Chờ bằng chứng bàn giao thực tế"><messageEventDefinition messageRef="handoffProof"/></intermediateCatchEvent>
+    <sequenceFlow id="actualHandoffReceived" sourceRef="awaitActualHandoff" targetRef="handedOver"/>
+    <endEvent id="handedOver" name="Đã bàn giao cho đơn vị vận chuyển"><terminateEventDefinition/></endEvent>
+  </process>
+</definitions>
