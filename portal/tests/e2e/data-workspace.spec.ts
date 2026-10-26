@@ -613,7 +613,7 @@ test('navigation groups related work and shortage leads to a scoped proposal wit
   await page.route('**/all-warehouses',r=>r.fulfill({json:{items:[item],warehouse_count:1,horizon:r.request().postDataJSON().horizon,read_at:evidence.executed_at}}));
   await page.goto('/#data');
   const work=page.getByRole('navigation',{name:'Lập kế hoạch và phối hợp',exact:true}),tools=page.getByRole('navigation',{name:'Dữ liệu và công cụ',exact:true});
-  await expect(work.getByRole('button')).toHaveText(['Tổng quan kho','Dự báo nhu cầu','Thử phương án nhập hàng','Phối hợp và bàn giao']);
+  await expect(work.getByRole('button')).toHaveText(['Tổng quan kho','Dự báo nhu cầu','Đơn hàng và tác động','Thử phương án nhập hàng','Phối hợp và bàn giao']);
   await expect(tools.getByRole('button')).toHaveText(['Tra cứu dữ liệu','Phân tích lịch sử','Thiết lập cho IT']);
   await page.getByLabel('Khoảng thời gian dự báo',{exact:true}).selectOption('14');
   await page.getByRole('button',{name:'Làm mới dữ liệu',exact:true}).click();
@@ -1723,7 +1723,7 @@ test('each workspace page opens compact content and runs tools only on explicit 
   await page.route('**/decision-capabilities',r=>r.fulfill({json:{enabled:true,roles:['coordinator'],warehouse_ids:[warehouse],workflow_enabled:false}}));
   await page.route('**/decision-tasks',r=>r.fulfill({json:{items:[],has_more:false,warnings:[]}}));
   await page.goto('/#data');
-  for(const [index,name] of ['Tổng quan kho','Dự báo nhu cầu','Thử phương án nhập hàng','Phối hợp và bàn giao','Tra cứu dữ liệu','Phân tích lịch sử','Thiết lập cho IT'].entries()){
+  for(const [index,name] of ['Tổng quan kho','Dự báo nhu cầu','Đơn hàng và tác động','Thử phương án nhập hàng','Phối hợp và bàn giao','Tra cứu dữ liệu','Phân tích lịch sử','Thiết lập cho IT'].entries()){
     await page.getByRole('button',{name,exact:true}).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('.dw-content input:visible,.dw-content textarea:visible,.dw-content table:visible')).toHaveCount(0);
@@ -1753,4 +1753,46 @@ test('closing a running forecast discards a late reply and never reopens its res
   await page.goto('/#data');await beginForecast(page);await finishForecast(page,false);await expect.poll(()=>started).toBe(true);
   await page.getByRole('dialog',{name:'Tạo dự báo nhu cầu',exact:true}).getByRole('button',{name:'Đóng hộp thoại',exact:true}).click();release();await expect.poll(()=>completed).toBe(true);
   await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('button',{name:'Xem kết quả dự báo',exact:true})).toBeDisabled();
+});
+
+function insightFixture(){
+ const base={material_ready_at:'2026-10-27T08:00:00+07:00',preparation_complete_at:'2026-10-27T10:00:00+07:00',state:'on_time',slack_hours:7};
+ const late={material_ready_at:'2026-10-29T08:00:00+07:00',preparation_complete_at:'2026-10-29T10:00:00+07:00',state:'late',slack_hours:-41};
+ const orders=Array.from({length:12},(_,i)=>({order_id:`insight-${i}`,order_number:`SO-INS-${i+1}`,deadline:'2026-10-27T17:00:00+07:00',already_overdue:false,base:{...base},high_demand:{...late},delayed:i<2?{...late}:{...base},affected_by_delay:i<2,newly_late:i<2,missing_forecast_skus:[],shortages:[{sku:'SKU-A',uom:'EA',missing_quantity:5}],supply_links:[{source_id:'00000000-0000-4000-8000-000000000080',sku:'SKU-A',uom:'EA',quantity:30}],lines:[{sku:'SKU-A',name:'Cà phê rang',uom:'EA',quantity:30}],schedules:[],all_lines_held_or_dispatched:false}));
+ return {available:true,as_of:'2026-10-25T09:00:00+07:00',start:'2026-10-25',end:'2026-10-31',forecast_method:'chronos2',preparation_minutes:120,delay_days:2,delayed_plan_id:null,orders,inbound_options:[{plan_id:'00000000-0000-4000-8000-000000000080',sku:'SKU-A',uom:'EA',quantity:30,expected_at:'2026-10-27T08:00:00+07:00'}],bottlenecks:[{sku:'SKU-A',name:'Cà phê rang',uom:'EA',order_ids:orders.map(o=>o.order_id),order_count:12,cumulative_percent:100}],capacity_available:true,capacity:[{day:'2026-10-27',carrier_code:'C1',maximum:4,used:4,remaining:0,utilization_percent:100},{day:'2026-10-28',carrier_code:'C1',maximum:4,used:2,remaining:2,utilization_percent:50}],summary:{total_orders:12,on_time:12,newly_late:2,affected:2,high_demand_exposed:12},limitations:['Phân bổ giả lập, chưa giữ hàng hoặc tạo giao dịch.']};
+}
+async function configureInsights(page:Page){
+ await page.getByRole('button',{name:'Đơn hàng và tác động',exact:true}).click();await page.getByRole('button',{name:'Chọn kho và tạo phân tích',exact:true}).click();
+ const wizard=page.getByRole('dialog',{name:'Thiết lập phân tích kết quả đơn',exact:true});
+ await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();return wizard;
+}
+test('order insights require explicit confirmation and reuse their authorized snapshot across navigation',async({page})=>{
+ const state=await mock(page);let reads=0;
+ await page.route('**/planning',r=>{reads++;const body=r.request().postDataJSON();expect(body.include_fulfillment_insights).toBe(true);expect(body.forecast_model).toBe('chronos2');expect(body.warehouse_id).toBe(warehouse);return r.fulfill({json:{...plan,fulfillment_insights:insightFixture()}});});
+ await page.goto('/#data');await page.getByRole('button',{name:'Đơn hàng và tác động',exact:true}).click();expect(reads).toBe(0);await expect(page.locator('.dw-content input:visible,.dw-content table:visible')).toHaveCount(0);
+ const wizard=await configureInsights(page);expect(reads).toBe(0);await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();
+ const timeline=page.getByRole('dialog',{name:'Mốc chuẩn bị dự kiến của đơn',exact:true});await expect(timeline.getByRole('button').filter({hasText:'SO-INS-1'}).first()).toBeVisible();await timeline.getByRole('button',{name:'Trang sau',exact:true}).click();await expect(timeline).toContainText('trang 2');await timeline.getByRole('button',{name:'Trang trước',exact:true}).click();
+ await timeline.getByRole('button').filter({hasText:'SO-INS-1'}).first().click();const detail=page.getByRole('dialog',{name:'Ước tính SO-INS-1',exact:true});await expect(detail).toContainText('Cà phê rang');await expect(detail).toContainText('30 sản phẩm');await expect(detail).toContainText('Chưa có lịch lấy hàng');await detail.getByRole('button',{name:'Đóng hộp thoại',exact:true}).click();await expect(timeline).toContainText('trang 1');
+ await page.screenshot({path:'../.tmp/ui-dialog-redesign/insights-timeline-fixture.png',animations:'disabled'});await closeWorkspaceDialogs(page);
+ await page.getByRole('button',{name:'Tra cứu dữ liệu',exact:true}).click();await page.getByRole('button',{name:'Đơn hàng và tác động',exact:true}).click();expect(reads).toBe(1);
+ await page.getByRole('button',{name:'Hàng về trễ ảnh hưởng đơn nào?',exact:true}).click();const impact=page.getByRole('dialog',{name:'Tác động khi hàng về trễ',exact:true});await expect(impact).toContainText('2 đơn từ kịp thành không kịp');await expect(impact.locator('.fi-order-row')).toHaveCount(2);await closeWorkspaceDialogs(page);
+ await page.getByRole('button',{name:'Mặt hàng chặn nhiều đơn',exact:true}).click();await expect(page.getByRole('img',{name:'Pareto mặt hàng thiếu và số đơn bị chặn',exact:true})).toBeVisible();await page.getByRole('button',{name:'Xem đơn thiếu SKU-A',exact:true}).click();await expect(page.locator('.fi-order-row')).toHaveCount(6);await closeWorkspaceDialogs(page);
+ await page.getByRole('button',{name:'Ngày còn lượt lấy hàng',exact:true}).click();const heatmap=page.getByRole('dialog',{name:'Bản đồ lượt lấy hàng',exact:true});await heatmap.getByRole('button').filter({hasText:'2/4'}).click();await expect(heatmap.getByRole('status')).toContainText('còn 2 lượt');await page.setViewportSize({width:390,height:844});await page.screenshot({path:'../.tmp/ui-dialog-redesign/insights-capacity-fixture-mobile.png',animations:'disabled'});expect(await heatmap.evaluate(e=>e.getBoundingClientRect().right<=innerWidth)).toBe(true);
+ expect(reads).toBe(1);expect(state.calls.some(c=>/scenarios|decisions/.test(c.path))).toBe(false);
+});
+test('order insight delay is bounded and a stale or denied reply cannot restore private data',async({page})=>{
+ const state=await mock(page);let reads=0;
+ await page.route('**/planning',r=>{reads++;return r.fulfill({json:{...plan,fulfillment_insights:insightFixture()}});});
+ await page.goto('/#data');await page.getByRole('button',{name:'Đơn hàng và tác động',exact:true}).click();await page.getByRole('button',{name:'Chọn kho và tạo phân tích',exact:true}).click();const wizard=page.getByRole('dialog',{name:'Thiết lập phân tích kết quả đơn',exact:true});
+ await expect(wizard.getByRole('button',{name:'Xác nhận',exact:true})).toBeDisabled();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await page.getByLabel('Hàng về trễ thêm (ngày)',{exact:true}).fill('15');await expect(wizard.getByRole('button',{name:'Tiếp tục',exact:true})).toBeDisabled();await page.getByLabel('Hàng về trễ thêm (ngày)',{exact:true}).fill('2');await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();await expect(page.getByRole('dialog',{name:'Mốc chuẩn bị dự kiến của đơn',exact:true})).toBeVisible();await closeWorkspaceDialogs(page);
+ await page.getByRole('button',{name:'Đổi giả định hoặc cập nhật',exact:true}).click();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await page.getByLabel('Đợt hàng giả lập trễ',{exact:true}).selectOption('00000000-0000-4000-8000-000000000080');await closeWorkspaceDialogs(page);await expect(page.getByRole('button',{name:'Mốc chuẩn bị từng đơn',exact:true})).toBeDisabled();expect(reads).toBe(1);
+ state.revision='d';await expect(page.getByRole('alert',{name:'Thông báo thay đổi dữ liệu'})).toBeVisible({timeout:20000});await page.getByRole('button',{name:'Cập nhật dữ liệu ngay',exact:true}).click();await expect(page.getByRole('button',{name:'Mốc chuẩn bị từng đơn',exact:true})).toBeDisabled();expect(reads).toBe(1);
+});
+
+test('a denied insight refresh clears the previous result and never falls back to a different model',async({page})=>{
+ const state=await mock(page);let denied=false,reads=0;
+ await page.route('**/planning',route=>{reads++;return denied?route.fulfill({status:403,json:{detail:'Source access revoked'}}):route.fulfill({json:{...plan,fulfillment_insights:insightFixture()}});});
+ await page.goto('/#data');const wizard=await configureInsights(page);await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();await expect(page.getByRole('dialog',{name:'Mốc chuẩn bị dự kiến của đơn',exact:true})).toBeVisible();await closeWorkspaceDialogs(page);
+ denied=true;await page.getByRole('button',{name:'Đổi giả định hoặc cập nhật',exact:true}).click();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();
+ await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('button',{name:'Mốc chuẩn bị từng đơn',exact:true})).toBeDisabled();expect(reads).toBe(2);expect(state.calls.some(c=>c.path.endsWith('/scenarios'))).toBe(false);
 });

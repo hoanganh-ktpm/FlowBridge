@@ -14,6 +14,7 @@ from fastapi import HTTPException
 
 from .analytics import local_day, numeric, prepare
 from .forecasting import Forecaster
+from .fulfillment_insights import fulfillment_insights
 from .handoff_readiness import handoff_conditions, preparation_policy, shift_to_stock_ready_deadline
 from .order_supply import order_supply_checks
 from .planning import known_orders, moment, project_orders
@@ -927,5 +928,24 @@ async def planning_report(body, ctx, connector, repository, source_names=None, f
             ],
         },
     }
+    if body.include_fulfillment_insights:
+        result["fulfillment_insights"] = await asyncio.to_thread(
+            fulfillment_insights,
+            stocks=stock,
+            inbounds=inbound,
+            known=known,
+            forecasts=points,
+            headers=order_headers,
+            policy=policy,
+            start=today,
+            horizon=body.horizon,
+            snapshot=now,
+            products=list(plans.values()),
+            schedules=schedules,
+            capacity=capacity,
+            forecast_method=body.forecast_model,
+            delay_days=body.insight_delay_days,
+            plan_id=str(body.insight_plan_id) if body.insight_plan_id else None,
+        )
     # Reauthorization is supplied by the HTTP composition before returning any facts.
     return result, sources

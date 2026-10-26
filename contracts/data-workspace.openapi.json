@@ -2558,6 +2558,30 @@
       },
       "PlanningRequest": {
         "properties": {
+          "include_fulfillment_insights": {
+            "type": "boolean",
+            "title": "Include Fulfillment Insights",
+            "default": false
+          },
+          "insight_delay_days": {
+            "type": "integer",
+            "maximum": 14.0,
+            "minimum": 0.0,
+            "title": "Insight Delay Days",
+            "default": 2
+          },
+          "insight_plan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insight Plan Id"
+          },
           "demand": {
             "$ref": "#/components/schemas/ProductRef"
           },
@@ -3601,6 +3625,30 @@
             "type": "boolean",
             "title": "Include Order Analysis",
             "default": false
+          },
+          "include_fulfillment_insights": {
+            "type": "boolean",
+            "title": "Include Fulfillment Insights",
+            "default": false
+          },
+          "insight_delay_days": {
+            "type": "integer",
+            "maximum": 14.0,
+            "minimum": 0.0,
+            "title": "Insight Delay Days",
+            "default": 2
+          },
+          "insight_plan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insight Plan Id"
           },
           "analysis_sku": {
             "anyOf": [

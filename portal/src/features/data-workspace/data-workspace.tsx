@@ -15,6 +15,7 @@ import { ProductSelector } from './product-selector';
 import { OperationsDashboard } from './operations-dashboard';
 import { HandoffWorkspace } from './handoff-workspace';
 import { OrganizationRecords } from './organization-records';
+import { FulfillmentInsights } from './fulfillment-insights';
 import { AllWarehouses } from './all-warehouses';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { warehouseLabel, type PlanningDirectory, type Planning, type PlanProduct } from './planning-types';
@@ -31,7 +32,7 @@ import './workspace-navigation.css';
 import { WorkspaceDialog } from './interactive-workspace';
 import { WorkspaceSync, useWorkspaceState, useWorkspaceSync } from './workspace-sync';
 
-type View = 'analytics' | 'forecast' | 'dashboard' | 'plan' | 'orders' | 'configuration' | 'decisions' | 'tasks' | 'outcomes' | 'records' | 'all-warehouses';
+type View = 'insights' | 'analytics' | 'forecast' | 'dashboard' | 'plan' | 'orders' | 'configuration' | 'decisions' | 'tasks' | 'outcomes' | 'records' | 'all-warehouses';
 type Draft = { warehouse: string; sku: string; horizon: string; history: string; frequency: string; training: string };
 const initialDraft: Draft = { warehouse: '', sku: '', horizon: '7', history: '30', frequency: 'day', training: '180' };
 const sourceRoles = {
@@ -166,7 +167,7 @@ function DataWorkspaceContent() {
   const scenarioDirty = JSON.stringify(proposal) !== JSON.stringify(calculated);
   const scopeValid=!missing.length&&catalogLoaded&&directoryLoaded&&!!draft.warehouse&&directory.products.some(p=>p.warehouse_id===draft.warehouse&&p.sku===draft.sku);
   const blocked = !!busy || !scopeValid;
-  const title = view === 'all-warehouses' ? 'Tổng quan kho và đơn hàng' : view === 'records' ? 'Tra cứu dữ liệu' : view === 'tasks' ? 'Việc của tôi' : view === 'outcomes' ? 'Theo dõi kết quả' : view === 'decisions' ? 'Hồ sơ phối hợp' : view === 'analytics' ? 'Phân tích lịch sử' : view === 'forecast' ? 'Dự báo nhu cầu' : view === 'plan' ? 'Thử phương án nhập hàng' : view === 'orders' ? 'Đơn hàng và bàn giao' : view === 'configuration' ? 'Thiết lập cho IT' : 'Tổng quan';
+  const title = view === 'insights' ? 'Đơn hàng và tác động' : view === 'all-warehouses' ? 'Tổng quan kho và đơn hàng' : view === 'records' ? 'Tra cứu dữ liệu' : view === 'tasks' ? 'Việc của tôi' : view === 'outcomes' ? 'Theo dõi kết quả' : view === 'decisions' ? 'Hồ sơ phối hợp' : view === 'analytics' ? 'Phân tích lịch sử' : view === 'forecast' ? 'Dự báo nhu cầu' : view === 'plan' ? 'Thử phương án nhập hàng' : view === 'orders' ? 'Đơn hàng và bàn giao' : view === 'configuration' ? 'Thiết lập cho IT' : 'Tổng quan';
   function patch<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft(d => ({ ...d, [key]: value })); }
   useEffect(() => {
     if (!refreshRequested.current || !catalogLoaded || !directoryLoaded) return;
@@ -258,6 +259,7 @@ function DataWorkspaceContent() {
       <nav aria-label="Lập kế hoạch và phối hợp">{([
         ['dashboard', BarChart3, 'Tổng quan kho', ['dashboard','all-warehouses','orders']],
         ['forecast', ChartLine, 'Dự báo nhu cầu', ['forecast']],
+        ['insights', CalendarDays, 'Đơn hàng và tác động', ['insights']],
         ['plan', Package, 'Thử phương án nhập hàng', ['plan']],
         ...(decisionCapabilities?.enabled ? [['tasks', Truck, 'Phối hợp và bàn giao', ['tasks','decisions','outcomes']]] : []),
       ] as [View, typeof Package, string, View[]][]).map(([id, Icon, label, children]) => <button key={String(id)} aria-current={(children as readonly string[]).includes(view)?'page':undefined} className={(children as readonly string[]).includes(view)?'active':''} onClick={()=>setView(id==='dashboard'&&allWarehousesEnabled?'all-warehouses':id as View)}><Icon size={18}/><span>{String(label)}</span></button>)}</nav>
@@ -270,7 +272,7 @@ function DataWorkspaceContent() {
       <div className="dw-user"><span className="dw-avatar">{session.profile?.user.display_name?.[0] || 'F'}</span><span>{session.profile?.user.display_name || 'Người dùng'}<small>{admin ? 'Quản trị dữ liệu' : 'Điều hành doanh nghiệp'}</small></span></div><button className="pw-logout" onClick={() => void session.logout()}>Đăng xuất</button>
     </aside>
     <main className="dw-main" ref={mainRef}>
-      <div className="dw-content"><div className="dw-page-heading"><div><h1>{title}</h1></div>{!['configuration','records','tasks','decisions','outcomes'].includes(view) && <Button variant="outline" disabled={!!busy} onClick={() => void perform('Đang mở phương án đã lưu', async () => { const [s, f] = await Promise.all([request<{ items: Scenario[] }>('/scenarios/saved'), request<{ items: Forecast[] }>('/forecasts/saved')]); setSaved(s.items); setSavedForecasts(f.items); setSavedForecast(null); setSavedOpen(true); })}>Kết quả đã lưu</Button>}</div>
+      <div className="dw-content"><div className="dw-page-heading"><div><h1>{title}</h1></div>{!['configuration','records','tasks','decisions','outcomes','insights'].includes(view) && <Button variant="outline" disabled={!!busy} onClick={() => void perform('Đang mở phương án đã lưu', async () => { const [s, f] = await Promise.all([request<{ items: Scenario[] }>('/scenarios/saved'), request<{ items: Forecast[] }>('/forecasts/saved')]); setSaved(s.items); setSavedForecasts(f.items); setSavedForecast(null); setSavedOpen(true); })}>Kết quả đã lưu</Button>}</div>
         {error && <div className="dw-alert" role="alert">{view !== 'forecast' && <Info size={19}/>}<p>{error}</p></div>}{notice && <div className="dw-notice" role="status">{notice}</div>}
         {catalogLoaded && !products.length && !error && <div className="pw-source-setup"><Info size={24}/><div><h2>Chưa có dữ liệu được chia sẻ</h2><p>Liên hệ IT để được cấp quyền xem dữ liệu Bán hàng, Kho hoặc Vận chuyển.</p></div></div>}
         {['dashboard','all-warehouses','orders'].includes(view) && <Tabs value={view==='orders'?'orders':'overview'} onValueChange={value=>{const target=value==='orders'?'orders':allWarehousesEnabled?'all-warehouses':'dashboard';setOpenHandoffList(false);setView(target);}} className="pw-section-tabs"><TabsList variant="line" aria-label="Theo dõi kho và đơn"><TabsTrigger value="overview">Tồn kho và đơn đang chờ</TabsTrigger><TabsTrigger value="orders" disabled={allWarehousesEnabled&&!!overviewWarehouseId&&!directory.warehouses.some(w=>w.id===overviewWarehouseId)} title={allWarehousesEnabled&&!!overviewWarehouseId&&!directory.warehouses.some(w=>w.id===overviewWarehouseId)?'Kho này hiện chỉ có quyền xem tổng quan; chưa có nguồn để kiểm tra lịch bàn giao.':undefined}>Đơn hàng và bàn giao</TabsTrigger></TabsList></Tabs>}
@@ -288,9 +290,10 @@ function DataWorkspaceContent() {
           const next={...draft,warehouse:warehouseId,horizon:String(horizon||draft.horizon),sku:sku||directory.products.find(p=>p.warehouse_id===warehouseId)?.sku||''};
           setDraft(next);setView('plan');void perform('Đang tính dự báo và kiểm tra hàng trong kho',()=>load(next,'plan'));
         }}/>}
+        {view==='insights'&&<FulfillmentInsights directory={directory} sources={sources} request={request} onDenied={report} onReview={(warehouse,orderNumber,horizon)=>{const next={...draft,warehouse,horizon:String(horizon),sku:directory.products.find(p=>p.warehouse_id===warehouse)?.sku||''};setOrderQuery(orderNumber);setOpenHandoffList(true);setDraft(next);setView('orders');void perform('Đang đối chiếu đơn',()=>load(next,'orders'));}} onSupply={(warehouse,sku,horizon)=>{const next={...draft,warehouse,sku,horizon:String(horizon)};setDraft(next);setView('plan');void perform('Đang dự báo và kiểm tra nguồn hàng',()=>load(next,'plan'));}}/>}
         {view === 'records' && <OrganizationRecords request={request} onDenied={report}/>}
         {['decisions','tasks','outcomes'].includes(view) && decisionCapabilities?.enabled && <DecisionDossiers handoffOptions={plan?.capacity_calendar||[]} key={view} mode={view==='tasks'?'tasks':view==='outcomes'?'outcomes':'all'} request={request} capabilities={decisionCapabilities} scenario={scenario} scenarioDirty={dirty || scenarioDirty}/>}
-        {!['decisions','tasks','outcomes','records','all-warehouses'].includes(view) && view !== 'configuration' && view !== 'analytics' && view !== 'forecast' && <>
+        {!['decisions','tasks','outcomes','records','all-warehouses','insights'].includes(view) && view !== 'configuration' && view !== 'analytics' && view !== 'forecast' && <>
           <div className="iw-page-toolbar"><span>{directory.warehouses.find(w=>w.id===draft.warehouse)?.name||'Chưa chọn kho'} · {draft.horizon} ngày tới{dirty?' · Có lựa chọn chưa áp dụng':''}</span><Button variant="outline" disabled={!!busy} onClick={()=>setScopeOpen(true)}>Chọn kho và phạm vi</Button></div>
           <WorkspaceDialog open={scopeOpen} onClose={()=>{if(busy)cancel();setScopeOpen(false);}} title="Chọn kho và phạm vi" description="Chọn phạm vi, xác nhận rồi mới đọc dữ liệu và tính kế hoạch." wide>
             {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{busy&&<><p role="status">{busy}…</p><Button variant="outline" onClick={cancel}>Dừng chờ</Button></>}<GuidedWizard label="Các bước chọn phạm vi" busy={!!busy} finishLabel={view==='plan'?'Tính lại dự báo':'Tải dữ liệu và tính lại'} onFinish={()=>{if(!blocked)void perform('Đang đối chiếu dữ liệu các phòng ban',()=>load());}} steps={[

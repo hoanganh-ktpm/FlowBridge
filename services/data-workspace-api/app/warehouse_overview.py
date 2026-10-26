@@ -27,15 +27,20 @@ class WarehouseOverviewRequest(DTO):
     warehouse_id: UUID | None = None
     include_analysis: bool = Field(default=False, strict=True)
     include_order_analysis: bool = Field(default=False, strict=True)
+    include_fulfillment_insights: bool = Field(default=False, strict=True)
+    insight_delay_days: int = Field(default=2, ge=0, le=14, strict=True)
+    insight_plan_id: UUID | None = None
     analysis_sku: str | None = Field(default=None, min_length=1, max_length=80)
     history_days: Literal[7, 14, 30, 90, 365] = 30
     history_frequency: Literal["day", "week"] = "day"
 
     @model_validator(mode="after")
     def analysis_requires_selected_warehouse(self):
-        if (self.include_analysis or self.include_order_analysis) and (
-            not self.include_planning or not self.warehouse_id
-        ):
+        if (
+            self.include_analysis
+            or self.include_order_analysis
+            or self.include_fulfillment_insights
+        ) and (not self.include_planning or not self.warehouse_id):
             raise ValueError("Analysis requires planning and one authorized warehouse")
         return self
 
@@ -191,7 +196,9 @@ async def warehouse_overview(body, ctx, connector, repository, source_names, for
                                 # receipts or transport charts. Preparation is
                                 # still read because it changes the stock cutoff.
                                 and (
-                                    body.include_order_analysis or k not in {"schedule", "capacity"}
+                                    body.include_order_analysis
+                                    or body.include_fulfillment_insights
+                                    or k not in {"schedule", "capacity"}
                                 )
                                 and (k != "receipts" or body.include_analysis)
                             },
@@ -201,6 +208,9 @@ async def warehouse_overview(body, ctx, connector, repository, source_names, for
                             "sku": body.analysis_sku if body.include_analysis else None,
                             "history_days": body.history_days,
                             "history_frequency": body.history_frequency,
+                            "include_fulfillment_insights": body.include_fulfillment_insights,
+                            "insight_delay_days": body.insight_delay_days,
+                            "insight_plan_id": body.insight_plan_id,
                         }
                     )
                     try:
@@ -271,6 +281,9 @@ async def warehouse_overview(body, ctx, connector, repository, source_names, for
                         "planning_issue": issue,
                         "plan_read_at": plan["as_of"] if plan else None,
                         "analysis": analysis,
+                        "fulfillment_insights": plan.get("fulfillment_insights")
+                        if plan and body.include_fulfillment_insights
+                        else None,
                         "order_analysis": analyze_orders(
                             list(headers.values()), plan, products, body.horizon, datetime.now(UTC)
                         )

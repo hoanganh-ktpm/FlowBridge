@@ -814,3 +814,63 @@ Core authorized catalog, bao gồm 112 test Workspace), **24 Playwright passed**
 với API/SSO mock, **10 Vitest passed**, frontend build, Ruff, lockfile offline
 check và git diff check đều đạt. Hai lượt model thật ở trên tách riêng với mocks.
 Harness live cũ đã cập nhật assert Chronos-2 nhưng chưa chạy lại với browser MFA.
+
+## Conditional order insights — 26/10/2026
+
+Portal → **Lập kế hoạch và phối hợp → Đơn hàng và tác động**. Opening the page
+reads no business facts. The user opens the three-step setup, selects an authorized
+warehouse, horizon, and inbound delay (integer 0–14), then confirms. The existing
+`POST /planning` accepts `include_fulfillment_insights=true`, `insight_delay_days`
+and an optional `insight_plan_id`. This reuses its governed reads, pinned Chronos-2
+instance and final source reauthorization. It adds no migrations or business writes.
+The administrative `/all-warehouses` composition also supports this opt-in output
+for one explicitly selected authorized warehouse. Ordinary plans do not calculate
+these extra projections. Results are kept in the permission/source-aware Workspace
+cache; source changes invalidate them and old responses cannot reopen closed dialogs.
+
+### Research translated into features
+
+| Primary reference | Implemented interpretation | Available evidence and limits |
+|---|---|---|
+| [Microsoft Business Central Order Promising](https://learn.microsoft.com/en-us/dynamics365/business-central/sales-how-to-calculate-order-promising-dates) | Material availability plus warehouse preparation yields an indicative preparation-complete timestamp for each whole order. | Actual free stock, inbound schedule, remaining lines, held/dispatched quantities and the published preparation policy. No customer transit estimate, production lead time, or automatic promise commitment. |
+| [SAP aATP backorder processing concepts](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/f132c385e0234fe68ae9ff35b2da178c/3ea2a457ef816b10e10000000a441470.html) | A documented priority policy allocates a shared stock ledger and shows the effect of changed supply dates on individual orders. | Earliest preparation deadline first, whole orders, skip orders missing an item. No claim of commercial optimization or SAP feature parity. |
+| [Oracle supply/demand Gantt and pegging](https://docs.oracle.com/en/cloud/saas/readiness/scm/24a/scp24a/24A-sc-planning-wn-f30535.htm) | Interactive order timeline and a trace from available stock/inbound plans to simulated quantities assigned to the order. | FIFO stock/inbound attribution inside the simulation. These are explanatory planning links, not physical lot reservations or material genealogy. |
+| [Chronos-2 paper, Ansari et al., arXiv:2510.15821](https://arxiv.org/abs/2510.15821) | Existing P50 and P90 forecasts feed a multi-SKU supply ledger. | The provider still forecasts independent SKU contexts. It does not add covariates, train an order classifier or enable cross-learning. P90 is a stress assumption, not a calibrated 90% whole-order completion probability. |
+| [Forecasting: Principles and Practice, evaluation](https://otexts.com/fpp3/toolbox.html) | Preserve chronological historical forecast validation; distinguish scenario decisions from observed outcomes. | Existing holdout MAE/WAPE remain forecast validation. They do not establish accuracy for the new conditional order dates. |
+
+### Calculation and charts
+
+Three joint projections reuse the same source snapshot: P50/current supplies,
+P90/current supplies, and P50 with one or all eligible inbound plans delayed.
+Outstanding orders with handoff deadlines inside the horizon enter a single queue
+at snapshot time. Orders with earlier preparation deadlines have priority. Full
+orders consume available stock only when every remaining SKU/UOM line is available;
+blocked orders can be skipped. Future forecast demand of every eligible SKU consumes
+remaining stock at day end, with its unserved demand carried forward. This is a
+proposed allocation policy and may differ from the existing selected-SKU shortage
+screen, which introduces known orders at their cutoff. Neither policy reserves stock.
+
+- **Timeline:** dates for base/high-demand/delayed preparation, alongside each order's
+  handoff deadline. Unknown dates remain unknown; overdue dates are not backfilled
+  from current stock. Search, state filters, paging and click-through keep the page compact.
+- **Supply delay impact:** orders whose preparation moves later or out of the window;
+  separate newly late orders from orders already late. Delaying an inbound plan never
+  makes an already overdue, unreceived plan available.
+- **Bottleneck Pareto:** counts order–SKU links with shortages at the cutoff, grouped
+  by SKU/UOM. The cumulative line is a share of links; one order can occur in multiple
+  columns. Repeated shortages are not summed into a suggested purchase quantity.
+- **Carrier/day heatmap:** used vs published pickup slots. Missing schedule cells
+  mean unknown, zero capacity is distinct from absent capacity. It is not truck
+  weight utilization, route optimization or a promise of actual pickup.
+
+Missing stock for an outstanding order prevents joint allocation. Missing preparation
+policy prevents a preparation-complete estimate. Missing forecast on a required SKU
+prevents a positive "on time" classification for that order. The computation is bounded
+to 1,000 open headers and 1,000 inbound plans; excessive input fails explicitly, with
+no silent truncation. All generated scenarios are conditional, read-only and end at
+readiness for third-party handoff. A preparation duration is applied independently to each order, without claiming personnel capacity or a finite warehouse work schedule. Each scenario also checks its predicted preparation time against a single accepted pickup and that carrier/day capacity record; split shipments without line allocations stay unknown. Physical completion still requires owner evidence.
+
+Deferred: a trained late-order probability needs observed outcome timestamps, historical
+as-of feature snapshots, temporal validation and calibration. Revenue/margin prioritization,
+true inventory turnover, fleet routing and causal delay attribution are not supported by
+the currently published views and are not invented by this feature.

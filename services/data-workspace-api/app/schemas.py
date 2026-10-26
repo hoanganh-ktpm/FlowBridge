@@ -225,6 +225,9 @@ class ScenarioOutput(DTO):
 
 
 class PlanningRequest(DTO):
+    include_fulfillment_insights: bool = Field(default=False, strict=True)
+    insight_delay_days: int = Field(default=2, ge=0, le=14, strict=True)
+    insight_plan_id: UUID | None = None
     demand: ProductRef
     stock: ProductRef
     inbound: ProductRef
