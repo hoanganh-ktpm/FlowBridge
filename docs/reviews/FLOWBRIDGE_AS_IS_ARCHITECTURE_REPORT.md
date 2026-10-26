@@ -1,5 +1,7 @@
 # FlowBridge — Current Codebase & Architecture Audit (As-Is)
 
+> **Historical snapshot dated 23/10/2026.** It intentionally describes the runtime observed at that time and is not the `v0.1.0-beta.1` deployment guide. See [current Architecture](../ARCHITECTURE.md) and [Deployment](../DEPLOYMENT.md).
+
 **Ngày audit:** 23/10/2026, Asia/Saigon. Runtime snapshot lúc khoảng 20:33; đối chiếu storage trong cùng phiên audit.  
 **Source snapshot:** Git HEAD `6140445`; working tree sạch trước khi tạo báo cáo.  
 **Phương pháp:** đọc source, composition roots, contracts, models/migrations, assertions, ledger/logs cục bộ; quan sát Docker/process/listening ports; GET discovery/health/version; truy vấn Supabase bằng transaction `READ ONLY`.  

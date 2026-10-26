@@ -88,7 +88,7 @@ test('mobile activity panel uses a dismissible sheet and keeps chat context', as
   await page.getByRole('button', { name: 'Hoạt động', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Chi tiết xử lý' })).toBeVisible()
   await page.getByRole('tab', { name: 'Nguồn', exact: true }).click()
-  await expect(page.getByRole('dialog').getByText('supplier_delivery_statistics', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('Nguồn giả lập cho giao diện', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'ref/qa/mobile-activities.png', fullPage: true, animations: 'disabled' })
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', { name: 'Chi tiết xử lý' })).toHaveCount(0)

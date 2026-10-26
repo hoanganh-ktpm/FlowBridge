@@ -245,7 +245,7 @@ def test_secret_file_is_create_only(tmp_path):
 
 def test_port_preflight_detects_host_process_and_suggests_replacement(monkeypatch):
     config = yaml.safe_load(cli.EXAMPLE.read_text(encoding="utf-8"))
-    for service in ("keycloak", "hasura", "flowable"):
+    for service in ("keycloak", "hasura", "flowable", "core"):
         config["services"][service]["enabled"] = False
     monkeypatch.setattr(
         cli.subprocess, "run", lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "", "")
@@ -286,6 +286,67 @@ def test_docker_error_categories_redact_credentials(tmp_path, monkeypatch):
         cli._run(["docker", "compose", "up"], step="services", log_path=log, secret_values=[secret])
     assert secret not in log.read_text(encoding="utf-8")
     assert cli._docker_reason("Cannot connect to the Docker daemon")[0] == "Docker unavailable"
+
+
+def test_run_decodes_docker_output_as_utf8(monkeypatch):
+    captured = {}
+
+    def run(*_args, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess([], 0, "ảnh đã tải\n", "")
+
+    monkeypatch.setattr(cli.subprocess, "run", run)
+    assert cli._run(["docker", "compose", "pull"]) == "ảnh đã tải"
+    assert captured["encoding"] == "utf-8"
+    assert captured["errors"] == "replace"
+
+
+def test_reset_inventories_anonymous_volume_and_requires_exact_confirmation(
+    tmp_path, monkeypatch, capsys
+):
+    stack = tmp_path / "generated"
+    stack.mkdir()
+    (stack / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    config = {"name": "flowbridge", "volumes": {"postgres": "flowbridge_postgres"}}
+    calls = []
+
+    def run(command, **_kwargs):
+        calls.append(command)
+        if command[:3] == ["docker", "ps", "-a"]:
+            return "container-one"
+        if command[:3] == ["docker", "inspect", "--format"]:
+            return (
+                '[{"Type":"volume","Name":"anonymous-id","Destination":"/var/lib/postgresql/data"}]'
+            )
+        if command[:3] == ["docker", "volume", "ls"]:
+            return (
+                "stale-project-volume"
+                if "--filter" in command
+                else "flowbridge_postgres\nunrelated"
+            )
+        pytest.fail(f"unexpected command: {command}")
+
+    monkeypatch.setattr(cli, "_run", run)
+    monkeypatch.setattr(cli, "_compose", lambda *_args: pytest.fail("destructive call"))
+    with pytest.raises(cli.SetupError, match="--confirm-reset flowbridge"):
+        cli._reset(config, stack, confirmation="wrong")
+    output = capsys.readouterr().out
+    assert "anonymous-id [anonymous/unmodeled]" in output
+    assert "flowbridge_postgres [declared] -> not currently attached" in output
+    assert "stale-project-volume [anonymous/unmodeled] -> not currently attached" in output
+    assert "including anonymous volumes" in output
+
+
+def test_reset_executes_only_after_exact_confirmation(tmp_path, monkeypatch):
+    stack = tmp_path / "generated"
+    stack.mkdir()
+    (stack / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    config = {"name": "flowbridge", "volumes": {}}
+    compose_calls = []
+    monkeypatch.setattr(cli, "_volume_inventory", lambda _project, _declared: [])
+    monkeypatch.setattr(cli, "_compose", lambda *args: compose_calls.append(args))
+    cli._reset(config, stack, confirmation="flowbridge")
+    assert compose_calls == [(stack, "flowbridge", "down", "--volumes", "--remove-orphans")]
 
 
 def test_docker_unavailable_does_not_render(tmp_path, monkeypatch):

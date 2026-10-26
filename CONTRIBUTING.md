@@ -1,39 +1,43 @@
-# Đóng góp cho FlowBridge
+# Contributing to FlowBridge
 
-## Bắt đầu
+Thank you for helping improve FlowBridge. Keep changes focused, preserve system boundaries, and state exactly which tests were run.
 
-Đọc [README](README.md), [kiến trúc](docs/ARCHITECTURE.md) và [hướng dẫn phát triển](docs/DEVELOPMENT.md) trước khi thay đổi code. Cài đặt dependency theo manifest và lockfile đã có.
+## Development setup
 
-## Phạm vi sở hữu
+Requirements are Python 3.12, uv 0.13.1, and Docker/Compose when working on integration or deployment code.
 
-| Khối | Source | Tests |
-|---|---|---|
-| Data Core | backend/app/core | tests/core |
-| Platform | backend/app/platform | tests/platform |
-| Business APIs | services/<domain>-api/app | tests/domain |
-| Portal | portal/src | portal/src và portal/tests |
+```powershell
+uv sync --frozen --group database --group dev
+uv run pytest -q
+uv run ruff check .
+uv run ruff format --check .
+```
 
-Mỗi domain sở hữu database/migration riêng. Core DB có một migration chain do người tích hợp điều phối. Engine quản lý schema nội bộ của mình.
+The default pytest selection excludes `integration` and `e2e`. Opt in only with explicitly configured test infrastructure; see [tests/README.md](tests/README.md). Portal development has a separate locked Node environment documented in [portal/README.md](portal/README.md).
 
-## Quy trình thay đổi
+## Change workflow
 
-1. Xác định module, mục tiêu và tiêu chí hoàn thành; thống nhất contract với các consumer bị ảnh hưởng.
-2. Phát triển trên nhánh công việc, giữ thay đổi tập trung. Dùng fixtures/mocks tại boundary để kiểm thử độc lập.
-3. Chạy các kiểm tra liên quan trong README; phân biệt unit, mock integration và E2E thật.
-4. Gửi Pull Request mô tả hành vi thay đổi, validation, giới hạn và tác động đến API/database.
-5. Review cùng chủ sở hữu module liên quan khi thay đổi contracts, migration, dependency hoặc cấu hình chung.
+1. Open or reference an issue that describes the user impact and boundary.
+2. Create a focused branch; do not mix generated files or unrelated refactors.
+3. Add regression tests for behavior changes and update authoritative documentation.
+4. Run the narrow tests first, then the broader non-integration suite where practical.
+5. Run lint, format checks, Markdown-link checks, and `git diff --check`.
+6. In the pull request, list commands/results, integration requirements, migrations, security implications, and remaining limitations.
 
-## Quy ước
+Do not commit `.env` files, `deployment.yaml`, `secrets/`, generated Compose, runtime state, logs, databases, keys, `.venv`, `node_modules`, or test output. Never use real credentials in fixtures. Migrations must be additive and reviewed for rollback/operational impact.
 
-- Python giữ ranh giới router → service/policy → repository/adapter; DTO tách model database.
-- Platform không phụ thuộc schema nghiệp vụ; các ứng dụng giao tiếp qua contract/API.
-- Kiểm quyền tại receiver; không tin identity/role do client tự khai.
-- Thay đổi schema có migration, thay đổi dependency có manifest/lockfile tương ứng.
-- Giữ notice và giấy phép upstream; bổ sung provenance cho dữ liệu mẫu.
-- Không đưa secret, dữ liệu thật, dependency tải về hoặc build artifacts vào Git. Xem [repository policy](docs/REPOSITORY.md).
+## Architecture and ownership
 
-Commit nên mô tả phạm vi cụ thể, ví dụ `feat(core): add data source registration` hoặc `docs: clarify module ownership`. Không đưa kết quả test chưa chạy vào mô tả PR.
+- `backend/app/core/` owns FlowBridge domain behavior and orchestration.
+- `backend/app/platform/` owns shared adapters and boundary utilities.
+- `services/` owns example business APIs and the experimental workspace service.
+- `infra/` and `scripts/` own reproducible deployment and operations.
+- Third-party engine behavior must be attributed to PostgreSQL, Keycloak, Hasura, or Flowable rather than represented as native FlowBridge functionality.
 
-## Báo lỗi
+Preserve authentication/authorization boundaries, least-privilege database roles, idempotency, and secret redaction. Do not weaken a guard merely to make a test pass.
 
-Mô tả phiên bản/commit, bước tái hiện, kết quả mong muốn và thực tế. Loại bỏ token, mật khẩu và dữ liệu nhạy cảm khỏi log đính kèm.
+## Pull requests and reports
+
+Use clear commits once the change has been reviewed locally. Maintainers may request release notes, schema evidence, or a fresh-install rerun for deployment changes. Report security vulnerabilities privately according to [SECURITY.md](SECURITY.md); do not publish exploit details in a public issue.
+
+Contributions are accepted under the repository's [GPL-3.0-or-later license](LICENSE).

@@ -9,6 +9,7 @@ _archive
 **/.pytest_cache
 **/.ruff_cache
 **/dist
+release-output
 **/dist_keycloak
 **/test-results
 **/playwright-report

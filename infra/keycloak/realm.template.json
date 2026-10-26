@@ -52,15 +52,15 @@
       "directAccessGrantsEnabled": false,
       "redirectUris": [
         "${SSO_ORIGIN_A}/",
-        "http://127.0.0.1:5174/"
+        "http://127.0.0.1:5173/"
       ],
       "webOrigins": [
         "${SSO_ORIGIN_A}",
-        "http://127.0.0.1:5174"
+        "http://127.0.0.1:5173"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/##http://127.0.0.1:5174/"
+        "post.logout.redirect.uris": "${SSO_ORIGIN_A}/##http://127.0.0.1:5173/"
       },
       "defaultClientScopes": [
         "flowbridge-api-audience"

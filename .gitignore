@@ -6,6 +6,7 @@
 .cache/
 .tmp/
 dist/
+/release-output/
 demo_output/
 build/
 *.egg-info/

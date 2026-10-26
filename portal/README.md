@@ -11,8 +11,8 @@ npm test
 npm run dev
 ```
 
-Preview: http://127.0.0.1:5174/?preview=1. start.ps1 chỉ chạy Vite, không gọi launcher/backend/ML/RAG cũ. Có thể phát triển UI bằng fixtures mà không chờ các khối backend.
+Preview fixture mode: http://127.0.0.1:5173/?preview=1. `start.ps1` chỉ chạy Vite, không gọi launcher/backend/ML/RAG cũ. Chế độ này là DEMO và không phải bằng chứng tích hợp release.
 
-Đăng nhập giữ Keycloak SDK/PKCE. Config công khai lấy qua FLOWBRIDGE_SSO_PUBLIC_CONFIG hoặc FLOWBRIDGE_WEB_API_URL/ISSUER/CLIENT_ID và VITE_*; không đưa secret vào browser. Fallback hiện trỏ local v1, cần cấu hình deployment mới khi backend có API.
+Đăng nhập giữ Keycloak SDK/PKCE. Config công khai lấy qua `FLOWBRIDGE_SSO_PUBLIC_CONFIG` hoặc `FLOWBRIDGE_WEB_API_URL`/`ISSUER`/`CLIENT_ID` và `VITE_*`; không đưa secret vào browser. Live mode cần một backend triển khai đúng Portal API hiện tại. Layer 1 Core không cung cấp các endpoint Agent Hub/purchasing legacy đó, vì vậy Portal-to-Core SSO/data integration là **NOT CONNECTED** trong `v0.1.0-beta.1`.
 
 API client, Agent IDs và dữ liệu demo vẫn có semantics mua hàng v1. Chưa chuyển sang Data Registry/Workflow Tasks; đây là phần UI cần làm tiếp sau khi contract mới có thật. Build/unit tests không chứng minh API/SSO mới đã chạy E2E.

@@ -91,3 +91,59 @@ def seed_databases(names):
         finally:
             engine.dispose()
     return summary
+
+
+def verify_demo_rows(names):
+    """Require every deterministic fixture row to exist unchanged."""
+    validate_distinct_targets(names)
+    all_rows = demo_rows()
+    summary = {}
+    for name in names:
+        metadata = metadata_for(name)
+        engine = make_engine(name)
+        try:
+            with engine.connect() as conn:
+                _validate_existing(conn, metadata, all_rows[name])
+                expected = 0
+                present = 0
+                for table_name, records in all_rows[name].items():
+                    identifiers = [record["id"] for record in records]
+                    expected += len(identifiers)
+                    if identifiers:
+                        table = metadata.tables[f"public.{table_name}"]
+                        present += len(
+                            conn.scalars(
+                                select(table.c.id).where(table.c.id.in_(identifiers))
+                            ).all()
+                        )
+                if present != expected:
+                    raise RuntimeError(
+                        f"Demo fixture verification failed for {name}: {present}/{expected} rows"
+                    )
+                summary[name] = present
+        finally:
+            engine.dispose()
+    return summary
+
+
+def remove_demo_rows(names):
+    """Delete only unchanged deterministic fixture IDs, in reverse FK order."""
+    validate_distinct_targets(names)
+    all_rows = demo_rows()
+    for name in names:
+        metadata = metadata_for(name)
+        engine = make_engine(name)
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("SELECT pg_advisory_xact_lock(477184112)"))
+                _validate_existing(conn, metadata, all_rows[name])
+                deleted = 0
+                for table in reversed(metadata.sorted_tables):
+                    identifiers = [record["id"] for record in all_rows[name].get(table.name, [])]
+                    if identifiers:
+                        deleted += conn.execute(
+                            table.delete().where(table.c.id.in_(identifiers))
+                        ).rowcount
+            print(f"{name}: {deleted} unchanged demo rows removed")
+        finally:
+            engine.dispose()

@@ -17,6 +17,7 @@ def check(stack: Path) -> list[str]:
     for service, path in (
         ("hasura", "/healthz"),
         ("flowable", "/flowable-rest/actuator/health"),
+        ("core-api", "/healthz"),
     ):
         if service not in services:
             continue
@@ -41,7 +42,7 @@ def check(stack: Path) -> list[str]:
             with urlopen(request, timeout=5) as response:
                 body = response.read()
                 if response.status != 200 or (
-                    service == "flowable" and json.loads(body).get("status") != "UP"
+                    service in {"flowable", "core-api"} and json.loads(body).get("status") != "UP"
                 ):
                     failures.append(service)
         except (OSError, ValueError, KeyError, TypeError):

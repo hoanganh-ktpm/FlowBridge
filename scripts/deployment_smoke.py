@@ -24,8 +24,12 @@ def smoke(config_path, env_path):
         if service in compose["services"] and compose["services"][service]["image"] != image:
             raise SetupError(f"{service} image differs from pinned deployment version")
     _compose(stack, config["name"], "config", "--quiet")
-    for service in ("postgres", "keycloak"):
-        if not config["services"][service]["enabled"]:
+    for service, config_name in (
+        ("postgres", "postgres"),
+        ("keycloak", "keycloak"),
+        ("core-api", "core"),
+    ):
+        if not config["services"][config_name]["enabled"]:
             continue
         container = _compose(stack, config["name"], "ps", "-q", service)
         if not container:

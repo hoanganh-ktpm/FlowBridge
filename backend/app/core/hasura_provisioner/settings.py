@@ -32,7 +32,12 @@ class HasuraSettings(BaseSettings):
                 and parsed.path in {"", "/"}
                 and (parsed.port is None or 1 <= parsed.port <= 65535)
             )
-            if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            if parsed.scheme == "http" and parsed.hostname not in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+                "hasura",
+            }:
                 valid = False
         except ValueError:
             valid = False

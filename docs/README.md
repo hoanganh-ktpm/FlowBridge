@@ -1,16 +1,14 @@
-# Tài liệu FlowBridge
+# FlowBridge documentation
 
-| Tài liệu | Nội dung |
-|---|---|
-| [Architecture](ARCHITECTURE.md) | Ranh giới module, dữ liệu, quyền và tích hợp |
-| [Development](DEVELOPMENT.md) | Môi trường phát triển, contracts và tiêu chí tích hợp |
-| [Repository](REPOSITORY.md) | Nội dung được version-control và nội dung cục bộ |
-| [Declarative Onboarding](ONBOARDING.md) | Manifest v1, schema discovery, relationship compiler, CLI và Core/API integration contracts |
-| [API Contracts](API-CONTRACTS.md) | OpenAPI 3.1.1, P0 Data Sharing/P1 boundaries, canonical Data Contract, validation và DB alignment gaps |
-| [Core Backend P0](CORE-P0.md) | Runtime handlers, services/policy/worker, offline validation và PostgreSQL/Hasura integration checklist |
-| [Automated Onboarding](AUTOMATED-ONBOARDING.md) | PostgreSQL CoreStore, native API/worker, integration evidence và E2E blockers |
-| [Docker Integration — profile cũ](DOCKER.md) | Hướng dẫn và bằng chứng nghiệm thu Keycloak/Hasura với Supabase; demo hiện hành dùng PostgreSQL local |
-| [Database Setup](database/README.md) | Core P0 một doanh nghiệp, migrations theo ownership, guarded reset và giới hạn tích hợp runtime |
-| [Contributing](../CONTRIBUTING.md) | Quy trình phát triển, kiểm tra và review |
+- [Architecture](ARCHITECTURE.md) — layers, component responsibilities, trust boundaries, and flows.
+- [Deployment](DEPLOYMENT.md) — installation, configuration, lifecycle, persistence, cleanup, and troubleshooting.
+- [Testing](../tests/README.md) — unit, integration, smoke, doctor, and real acceptance behavior.
+- [Security](../SECURITY.md) — supported versions, vulnerability reporting, and deployment controls.
+- [API contracts](API-CONTRACTS.md) — OpenAPI and JSON Schema conventions.
+- [Automated onboarding](AUTOMATED-ONBOARDING.md) — manifest validation, planning, and imports.
+- [Workflow](WORKFLOW.md) — Flowable integration and policy boundaries.
+- [Database](database/README.md) — database design, migrations, roles, and test fixtures.
+- [Release notes](release/RELEASE_NOTES_v0.1.0-beta.1.md) — beta contents and known limitations.
+- [Release readiness](release/RELEASE_READINESS_v0.1.0-beta.1.md) — audit and test evidence.
 
-Hướng dẫn build/test tại [README gốc](../README.md); tài liệu component nằm cạnh source tương ứng. Tài liệu mô tả rõ kiến trúc đích và trạng thái implementation hiện tại.
+Some deeper design documents retain Vietnamese descriptions from earlier development. The release-level documents above are authoritative for `v0.1.0-beta.1`; conflicts should be reported and corrected rather than inferred away.

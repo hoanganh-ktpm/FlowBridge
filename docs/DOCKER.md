@@ -1,6 +1,8 @@
 # Docker integration environment
 
-Demo mới dùng [PostgreSQL 16 local](database/README.md), project `flowbridge-local`, năm DB riêng và Hasura ở 18082. Các bước dưới đây lưu lại profile Supabase cũ; không chạy chúng để dựng demo mới. Keycloak hiện có được tái sử dụng cho smoke test local mà không sửa realm.
+> **Legacy integration profiles.** Do not use this page as the `v0.1.0-beta.1` installer guide. The supported Layer 1 topology and commands are in [Deployment](DEPLOYMENT.md); this page preserves earlier isolated Keycloak/Hasura and Supabase test evidence.
+
+Legacy standalone demo used [PostgreSQL 16 local](database/README.md), project `flowbridge-local`, five databases, and Hasura on 18082. Do not use the steps below to create the release stack.
 
 ## Phạm vi
 

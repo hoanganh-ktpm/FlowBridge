@@ -1,5 +1,7 @@
 # Engine Infrastructure
 
+> The authoritative `v0.1.0-beta.1` topology is [Layer 1 deployment](deployment/README.md). Other Compose files in this directory are legacy or isolated component-development profiles and are not the release installer.
+
 Cấu hình triển khai nằm duy nhất tại đây; Python adapter nằm trong Core/Platform, BPMN nằm ở workflows.
 
 | Thư mục | Sở hữu |
@@ -14,6 +16,6 @@ Realm template đã bỏ client web-b/AI/PO của ứng dụng cũ, giữ Portal
 
 APISIX routes hiện rỗng có chủ đích: các endpoint v1 không còn được coi là API mới. Cấu hình TLS dùng /gateway-config/ca.pem và cần cấu hình cert/route từ deployment. Không chạy lại compose của v1 theo đường dẫn mới.
 
-Profile local mới ở `postgres/docker-compose.local.yml`: PostgreSQL 16, năm DB riêng, Hasura metadata riêng và volume bền vững. Xem [Database Setup](../docs/database/README.md) cho các lệnh.
+Legacy standalone profile `postgres/docker-compose.local.yml` has PostgreSQL 16, five databases, separate Hasura metadata, and a persistent volume. See [Database Setup](../docs/database/README.md); it is not the seven-database release topology.
 
 Profile test cũ ở docker-compose.yml chỉ có Keycloak HTTPS và Hasura v2 CE. Metadata Hasura dùng schema hdb_catalog trong database postgres Supabase hiện có; Core/worker chạy Windows .venv, các database ứng dụng giữ nguyên trên Supabase. Không có PostgreSQL container hoặc database mới. Secrets/realm thử được render vào file bị ignore; không sửa realm/volume ngoài project, không cần JDK trên host. Xem [Docker integration và Real E2E](../docs/DOCKER.md) cho quyền reader, fixture, cách chạy và cleanup; đây không phải production stack.

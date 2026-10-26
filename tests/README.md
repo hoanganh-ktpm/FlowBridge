@@ -1,19 +1,70 @@
-# Tests theo khối
+# Testing FlowBridge
 
-- domain/: tests cho Sales/Warehouse/Logistics, chia thư mục theo API khi có code.
-- core/: Registry, sources/products, Governance, Hasura provisioner và Workflow persistence.
-- platform/: token validation, Keycloak Directory, HTTP/OpenAPI utilities đã port và các adapter Platform sau này.
-- e2e/: quy trình xuyên các khối với engine thật khi tích hợp.
-- contracts/: kiểm tra OpenAPI/JSON Schema, refs, fixtures tổng hợp và consistency của API Contracts; không phụ thuộc database hoặc service thật. Chạy `uv run --locked pytest tests/contracts -q`; xem [API Contracts](../docs/API-CONTRACTS.md).
+Tests are separated by boundary. Mocked/unit results are not presented as proof that a live deployment works.
 
-Từ gốc: `uv run --locked pytest tests/platform tests/core/hasura -q`. Platform và Hasura unit tests chạy bằng HTTP mocks; Hasura dùng fake repositories, không đòi Core DB hoặc database nghiệp vụ. Nhóm `tests/e2e/database/` đã chạy 37 tests đạt trên PostgreSQL 17.11 local riêng sau relocation; không thay bằng chứng Core–Hasura–SSO E2E.
+## Install test dependencies
 
-Hasura payload fixtures nằm tại `tests/core/hasura/fixtures/metadata-api.json`. Live smoke test chỉ kiểm health/metadata, không mutate, mặc định bị loại bởi integration marker; xem [Hasura Integration](../backend/app/core/hasura_provisioner/README.md) để opt-in khi có engine.
+```powershell
+uv sync --frozen --group database --group dev
+```
 
-Integration/E2E cần marker và môi trường tường minh. Không lấy mock hoặc thư mục trống làm bằng chứng hệ thống đã chạy.
+## Unit and regression tests
 
-`tests/core/db/` kiểm configuration, DDL fingerprints, migration histories, Core P0/reset guards và fixtures offline. `tests/domain/test_database_models.py` kiểm import độc lập và số lượng business fixtures. `tests/e2e/database/` kiểm xuyên các database bằng server thử được chỉ định; cần cả nhóm dependency `database` và `DXOS_TEST_ADMIN_URL`. Mặc định không chạy hoặc dùng `.env` của database nhóm; xem [database testing](../docs/database/README.md).
+The default pytest configuration excludes tests marked `integration` or `e2e`:
 
-`tests/core/runtime/` kiểm vertical slice qua HTTP, verifier/policy/services/worker và Hasura clients với injected doubles; response shape/status/headers được đối chiếu baseline OpenAPI. Chạy `uv run --locked pytest tests/core/runtime -q`. Không có database hoặc upstream thật trong nhóm test này.
+```powershell
+uv run --frozen pytest -q
+uv run --frozen pytest tests/platform/test_deployment_cli.py tests/platform/test_deployment_config.py tests/platform/test_deployment_acceptance.py -q
+```
 
-`tests/core/persistence/` chạy Core HTTP với PostgreSQL thật và identity boundary override có chủ đích; không phải SSO/Hasura E2E. Windows có thể chạy `./scripts/test_postgres.ps1` để dựng/dừng cluster TLS local riêng, không Docker và không dùng database đang chạy. Test E2E opt-in ở `tests/e2e/test_automated_onboarding.py` chỉ dùng HTTP/token/Hasura thật, mặc định SKIP khi chưa cấu hình. Hướng dẫn và giới hạn tại [Automated Onboarding](../docs/AUTOMATED-ONBOARDING.md).
+Focused groups include `tests/core/`, `tests/platform/`, `tests/domain/`, and `tests/contracts/`. Contract tests validate OpenAPI/JSON Schema fixtures without running services. Runtime tests may use injected HTTP/repository doubles; their PASS does not prove Keycloak, Hasura, Flowable, or PostgreSQL integration.
+
+## Database integration and E2E
+
+Integration tests require an explicitly designated test database and the `database` dependency group. Never point them at production or an unapproved shared database.
+
+```powershell
+$env:DXOS_TEST_ADMIN_URL = 'postgresql+psycopg://.../postgres'
+uv run --frozen --group database pytest tests/e2e/database -m "integration and e2e" -q
+```
+
+The test suite creates schemas/rows and may reset its own test resources. Review each suite's environment variables before opting in. Windows contributors can use `scripts/test_postgres.ps1` for the isolated local PostgreSQL test profile.
+
+## Deployment doctor and smoke
+
+These checks are intended to be non-mutating with respect to application records:
+
+```powershell
+uv run python -m scripts.deployment_cli doctor --config deployment.yaml
+uv run python -m scripts.deployment_smoke --config deployment.yaml
+```
+
+`doctor` checks config, Docker preflight, Compose, and readiness. Smoke checks HTTP reachability and expected authentication responses. PASS means those checks succeeded at that moment; it is not a substitute for acceptance or production monitoring.
+
+## Real acceptance test
+
+Only run acceptance against an isolated development deployment where writes are authorized:
+
+```powershell
+uv run python -m scripts.deployment_acceptance --config deployment.yaml
+```
+
+The runner:
+
+1. Seeds deterministic test rows in the Sales, Warehouse, and Logistics databases.
+2. Obtains real Keycloak client-credential tokens and verifies missing, malformed, expired, and valid-token behavior.
+3. Verifies three worker-managed Hasura sources and consistent metadata.
+4. Exercises request/approve, scoped read, column projection, caller-header escalation denial, and revoke.
+5. Disables isolated test identities, revokes stale test grants, and deletes only unchanged fixture IDs in `finally` cleanup.
+
+A failure can still leave evidence requiring operator review if the process or host is terminated before cleanup. Rerun against the same isolated deployment to perform stale-grant cleanup, then inspect records before disposal. Acceptance is disabled outside `development` configuration.
+
+## Cleanup and PASS/FAIL meaning
+
+- Unit PASS: asserted code paths passed in the current process, often with doubles.
+- Integration PASS: the named external boundary and configuration were exercised.
+- Acceptance `8/8 PASS`: all eight live Layer 1 scenarios passed and the runner completed cleanup.
+- SKIP/NOT RUN: no evidence for that scenario; do not reinterpret it as PASS.
+- A timeout or interrupted suite is FAIL/INCOMPLETE until its root cause is resolved or disclosed.
+
+Run `uv run ruff check .`, `uv run ruff format --check .`, archive verification, Markdown-link checks, and `git diff --check` for a release candidate.

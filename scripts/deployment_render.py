@@ -1,6 +1,8 @@
 """Render the Phase B Compose stack; this does not start Docker or rotate secrets."""
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
 import stat
@@ -37,6 +39,17 @@ OWNERS = {
     "keycloak": "keycloak_owner",
 }
 READERS = ("sales_reader", "warehouse_reader", "logistics_reader")
+PRODUCT_VIEWS = {
+    "sales": ("v_confirmed_demand_daily", "v_open_orders", "v_planning_demand_daily"),
+    "warehouse": (
+        "v_stock_availability",
+        "v_inbound_schedule",
+        "v_order_commitments",
+        "v_planning_catalog",
+        "v_receipts_daily",
+    ),
+    "logistics": ("v_handoff_capacity", "v_accepted_shipments_daily", "v_handoff_schedule"),
+}
 
 
 def _role_keys(config):
@@ -136,6 +149,16 @@ def _db_url(user, password, name):
     return f"postgresql://{quote(user, safe='')}:{quote(password, safe='')}@postgres:5432/{name}"
 
 
+def _driver_db_url(user, password, name, driver="psycopg"):
+    return _db_url(user, password, name).replace("postgresql://", f"postgresql+{driver}://", 1)
+
+
+def _source_name(application_key, source_key="pg"):
+    encoded = json.dumps([application_key, source_key], separators=(",", ":"))
+    suffix = hashlib.sha256(encoded.encode()).hexdigest()[:10]
+    return f"{application_key}_{source_key}_{suffix}"
+
+
 def render(config, env, output):
     errors = validate(config, env, output)
     if errors:
@@ -195,7 +218,7 @@ def render(config, env, output):
                     raise ValueError("existing credentials differ; rotate them explicitly")
         descriptor, temporary = tempfile.mkstemp(prefix=".render-", dir=output)
         try:
-            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
                 stream.write(content)
             os.replace(temporary, path)
         finally:
@@ -231,6 +254,24 @@ def render(config, env, output):
         protected=("POSTGRES_PASSWORD",),
     )
     write("provision.sql", provision_sql(config))
+    write(
+        "postgres-start.sh",
+        """#!/usr/bin/env bash
+set -Eeuo pipefail
+# Keep the generated launcher LF-only so it is executable from Windows checkouts.
+certdir=/run/postgres-certs
+mkdir -p \"$certdir\"
+if [ ! -s \"$certdir/server.key\" ]; then
+  openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj /CN=postgres \\
+    -addext subjectAltName=DNS:postgres -keyout \"$certdir/server.key\" \\
+    -out \"$certdir/server.crt\" >/dev/null 2>&1
+fi
+chown postgres:postgres \"$certdir/server.key\" \"$certdir/server.crt\"
+chmod 600 \"$certdir/server.key\"
+exec docker-entrypoint.sh postgres -c ssl=on \\
+  -c ssl_cert_file=\"$certdir/server.crt\" -c ssl_key_file=\"$certdir/server.key\"
+""",
+    )
 
     services = config["services"]
     compose = {
@@ -238,9 +279,13 @@ def render(config, env, output):
         "services": {
             "postgres": {
                 "image": IMAGES["postgres"],
+                "entrypoint": ["bash", "/run/postgres-start.sh"],
                 "env_file": [{"path": "./postgres.env", "format": "raw"}],
                 "ports": [f"127.0.0.1:{services['postgres']['port']}:5432"],
-                "volumes": [f"{config['volumes']['postgres']}:/var/lib/postgresql/data"],
+                "volumes": [
+                    f"{config['volumes']['postgres']}:/var/lib/postgresql/data",
+                    "./postgres-start.sh:/run/postgres-start.sh:ro",
+                ],
                 "networks": ["internal"],
                 "healthcheck": {
                     "test": ["CMD-SHELL", f"pg_isready -U {database['user']} -d postgres"],
@@ -259,7 +304,26 @@ def render(config, env, output):
                     'exec psql -h postgres -U "$$PGUSER" -d postgres -f /run/provision.sql',
                 ],
                 "volumes": ["./provision.sql:/run/provision.sql:ro"],
+                # The upstream image declares /var/lib/postgresql/data as VOLUME.
+                # Override it for this stateless client job so Docker does not
+                # create an unlabeled anonymous volume that `compose down -v`
+                # would later remove without appearing in the Compose model.
+                "tmpfs": ["/var/lib/postgresql/data"],
                 "depends_on": {"postgres": {"condition": "service_healthy"}},
+                "networks": ["internal"],
+                "restart": "no",
+            },
+            "migrate": {
+                "build": {"context": "../../..", "dockerfile": "infra/deployment/Dockerfile.core"},
+                "image": "flowbridge-core:local",
+                "env_file": [{"path": "./migration.env", "format": "raw"}],
+                "command": [
+                    "sh",
+                    "-ec",
+                    "python -m scripts.database bootstrap && "
+                    "python -m scripts.database grant-readers",
+                ],
+                "depends_on": {"provision": {"condition": "service_completed_successfully"}},
                 "networks": ["internal"],
                 "restart": "no",
             },
@@ -268,9 +332,32 @@ def render(config, env, output):
         "volumes": {config["volumes"]["postgres"]: {}},
     }
     provisioned = {"provision": {"condition": "service_completed_successfully"}}
+    migrated = {"migrate": {"condition": "service_completed_successfully"}}
+    migration_env = {"DXOS_LAYOUT": "databases"}
+    for key in ("core", "sales", "warehouse", "logistics"):
+        migration_env[f"DXOS_{key.upper()}_URL"] = _driver_db_url(
+            OWNERS[key], password(key), names[key]
+        )
+    migration_env["DXOS_ADMIN_URL"] = _driver_db_url(
+        database["user"], env[database["password_env"]], "postgres"
+    )
+    write("migration.env", _env_text(migration_env), protected=tuple(migration_env), allow_new=True)
     if services["keycloak"]["enabled"]:
         identity = config["identity"]
         claims = "https://hasura\\.io/jwt/claims."
+        acceptance_clients = (
+            ("flowbridge-e2e-it", "flowbridge-e2e-consumer", "flowbridge-e2e-outsider")
+            if config["environment"] == "development"
+            else ()
+        )
+        acceptance_secrets = {
+            client: hmac.new(
+                env[identity["client_secret_env"]].encode(),
+                ("flowbridge/acceptance-client/" + client).encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            for client in acceptance_clients
+        }
         realm = {
             "realm": identity["realm"],
             "enabled": True,
@@ -283,6 +370,7 @@ def render(config, env, output):
                     "protocol": "openid-connect",
                     "publicClient": False,
                     "standardFlowEnabled": False,
+                    "serviceAccountsEnabled": True,
                     "secret": env[identity["client_secret_env"]],
                     "protocolMappers": [
                         {
@@ -335,7 +423,45 @@ def render(config, env, output):
                             },
                         },
                     ],
-                }
+                },
+                {
+                    "clientId": identity.get("web_client_id", "flowbridge-web"),
+                    "enabled": True,
+                    "protocol": "openid-connect",
+                    "publicClient": True,
+                    "standardFlowEnabled": True,
+                    "directAccessGrantsEnabled": False,
+                    "redirectUris": identity.get("web_redirect_uris", []),
+                    "webOrigins": [
+                        uri.removesuffix("/*") for uri in identity.get("web_redirect_uris", [])
+                    ],
+                    "attributes": {"pkce.code.challenge.method": "S256"},
+                },
+                *[
+                    {
+                        "clientId": client,
+                        "enabled": True,
+                        "protocol": "openid-connect",
+                        "publicClient": False,
+                        "standardFlowEnabled": False,
+                        "directAccessGrantsEnabled": False,
+                        "serviceAccountsEnabled": True,
+                        "secret": acceptance_secrets[client],
+                        "protocolMappers": [
+                            {
+                                "name": "flowbridge-api-audience",
+                                "protocol": "openid-connect",
+                                "protocolMapper": "oidc-audience-mapper",
+                                "config": {
+                                    "included.client.audience": identity["client_id"],
+                                    "access.token.claim": "true",
+                                    "id.token.claim": "false",
+                                },
+                            }
+                        ],
+                    }
+                    for client in acceptance_clients
+                ],
             ],
         }
         realm_text = json.dumps(realm, indent=2) + "\n"
@@ -343,6 +469,13 @@ def render(config, env, output):
         if existing_realm.exists() and existing_realm.read_text(encoding="utf-8") != realm_text:
             raise ValueError("existing realm import differs; update Keycloak realm manually")
         write("realm.json", realm_text, sensitive=True)
+        if acceptance_secrets:
+            write(
+                "acceptance.env",
+                _env_text(acceptance_secrets),
+                protected=tuple(acceptance_secrets),
+                allow_new=True,
+            )
         keycloak_env = {
             "KC_DB": "postgres",
             "KC_DB_URL": f"jdbc:postgresql://postgres:5432/{names['keycloak']}",
@@ -391,40 +524,52 @@ def render(config, env, output):
 
     if services["hasura"]["enabled"]:
         identity = config["identity"]
+        service_clients = [identity["client_id"]]
+        if config["environment"] == "development":
+            service_clients.extend(
+                ["flowbridge-e2e-it", "flowbridge-e2e-consumer", "flowbridge-e2e-outsider"]
+            )
+        allowed_clients = [*service_clients, identity.get("web_client_id", "flowbridge-web")]
         keycloak_internal = services["keycloak"]["internal_url"].rstrip("/")
+        signing_key = hmac.new(
+            env[identity["client_secret_env"]].encode(),
+            b"flowbridge/hasura-governed-jwt/v1",
+            hashlib.sha256,
+        ).hexdigest()
         jwt = {
-            "type": "RS256",
-            "jwk_url": (
-                f"{keycloak_internal}/realms/{identity['realm']}/protocol/openid-connect/certs"
-            ),
-            "issuer": identity["issuer"],
-            "audience": identity["client_id"],
+            "type": "HS256",
+            "key": signing_key,
+            "issuer": "flowbridge-core",
+            "audience": "flowbridge-data",
         }
+        hasura_env = {
+            "HASURA_GRAPHQL_METADATA_DATABASE_URL": _db_url(
+                OWNERS["hasura_metadata"],
+                password("hasura_metadata"),
+                names["hasura_metadata"],
+            ),
+            "HASURA_GRAPHQL_ADMIN_SECRET": env[config["secrets"]["hasura_admin_secret_env"]],
+            "HASURA_GRAPHQL_JWT_SECRET": json.dumps(jwt, separators=(",", ":")),
+            "HASURA_GRAPHQL_ENABLE_CONSOLE": "false",
+            "HASURA_GRAPHQL_ENABLE_TELEMETRY": "false",
+        }
+        for domain in PRODUCT_VIEWS:
+            hasura_env[f"{domain.upper()}_READ_DATABASE_URL"] = (
+                _db_url(f"{domain}_reader", password(f"{domain}_reader"), names[domain])
+                + "?sslmode=require"
+            )
         write(
             "hasura.env",
-            _env_text(
-                {
-                    "HASURA_GRAPHQL_METADATA_DATABASE_URL": _db_url(
-                        OWNERS["hasura_metadata"],
-                        password("hasura_metadata"),
-                        names["hasura_metadata"],
-                    ),
-                    "HASURA_GRAPHQL_ADMIN_SECRET": env[
-                        config["secrets"]["hasura_admin_secret_env"]
-                    ],
-                    "HASURA_GRAPHQL_JWT_SECRET": json.dumps(jwt, separators=(",", ":")),
-                    "HASURA_GRAPHQL_ENABLE_CONSOLE": "false",
-                    "HASURA_GRAPHQL_ENABLE_TELEMETRY": "false",
-                }
-            ),
-            protected=("HASURA_GRAPHQL_ADMIN_SECRET",),
+            _env_text(hasura_env),
+            protected=tuple(hasura_env),
+            allow_new=True,
         )
         compose["services"]["hasura"] = {
             "image": IMAGES["hasura"],
             "env_file": [{"path": "./hasura.env", "format": "raw"}],
             "ports": [f"127.0.0.1:{services['hasura']['port']}:8080"],
             "depends_on": {
-                **provisioned,
+                **migrated,
                 "keycloak": {"condition": "service_healthy"},
             },
             "networks": ["internal"],
@@ -462,6 +607,108 @@ def render(config, env, output):
             "depends_on": provisioned,
             "networks": ["internal"],
             "restart": "unless-stopped",
+        }
+
+    if services["core"]["enabled"]:
+        identity = config["identity"]
+        signing_key = hmac.new(
+            env[identity["client_secret_env"]].encode(),
+            b"flowbridge/hasura-governed-jwt/v1",
+            hashlib.sha256,
+        ).hexdigest()
+        scopes = {
+            f"{domain}-reader": [{"schema": "public", "name": view} for view in views]
+            for domain, views in PRODUCT_VIEWS.items()
+        }
+        from scripts.database.products import view_keys
+
+        secret_bindings = {
+            f"{domain}-reader": f"{domain.upper()}_READ_DATABASE_URL" for domain in PRODUCT_VIEWS
+        }
+        core_env = {
+            "FLOWBRIDGE_CORE_DATABASE_URL": _driver_db_url(
+                OWNERS["core"], password("core"), names["core"], "asyncpg"
+            )
+            + "?sslmode=require",
+            "FLOWBRIDGE_OIDC_ISSUER": identity["issuer"],
+            "FLOWBRIDGE_OIDC_AUDIENCE": identity["client_id"],
+            "FLOWBRIDGE_OIDC_INTROSPECTION_URL": (
+                f"{keycloak_internal}/realms/{identity['realm']}/protocol/openid-connect/token/introspect"
+            ),
+            "FLOWBRIDGE_OIDC_CLIENT_ID": identity["client_id"],
+            "FLOWBRIDGE_OIDC_CLIENT_SECRET": env[identity["client_secret_env"]],
+            "FLOWBRIDGE_OIDC_ALLOWED_CLIENTS": json.dumps(allowed_clients),
+            "FLOWBRIDGE_OIDC_SERVICE_CLIENTS": json.dumps(service_clients),
+            "FLOWBRIDGE_OIDC_MFA_CLIENTS": "[]",
+            "FLOWBRIDGE_HASURA_ENDPOINT": services["hasura"]["internal_url"],
+            "FLOWBRIDGE_HASURA_ADMIN_SECRET": env[config["secrets"]["hasura_admin_secret_env"]],
+            "FLOWBRIDGE_HASURA_ALLOWED_SOURCES": json.dumps(
+                [_source_name(domain) for domain in PRODUCT_VIEWS]
+            ),
+            "FLOWBRIDGE_HASURA_ALLOWED_DATABASE_HOSTS": json.dumps(["postgres"]),
+            "FLOWBRIDGE_HASURA_SECRET_BINDINGS": json.dumps(secret_bindings),
+            "FLOWBRIDGE_CORE_SOURCE_SCOPES": json.dumps(scopes),
+            "FLOWBRIDGE_CORE_SOURCE_VIEW_KEYS": json.dumps(view_keys()),
+            "FLOWBRIDGE_CORE_VERIFIED_HASURA_AUTH_PROFILE": "true",
+            "FLOWBRIDGE_CORE_HASURA_JWT_SIGNING_KEY": signing_key,
+            "FLOWBRIDGE_CORE_HASURA_JWT_ISSUER": "flowbridge-core",
+            "FLOWBRIDGE_CORE_HASURA_JWT_AUDIENCE": "flowbridge-data",
+            "FLOWBRIDGE_WORKFLOW_ENABLED": "true",
+            "FLOWBRIDGE_FLOWABLE_BASE_URL": services["flowable"]["internal_url"],
+            "FLOWBRIDGE_FLOWABLE_USERNAME": config["credentials"]["flowable_admin_user"],
+            "FLOWBRIDGE_FLOWABLE_PASSWORD": env[config["secrets"]["flowable_admin_password_env"]],
+        }
+        for domain in PRODUCT_VIEWS:
+            core_env[f"{domain.upper()}_READ_DATABASE_URL"] = (
+                _db_url(f"{domain}_reader", password(f"{domain}_reader"), names[domain])
+                + "?sslmode=require"
+            )
+        write(
+            "core.env",
+            _env_text(core_env),
+            protected=tuple(core_env),
+            allow_new=True,
+        )
+        common = {
+            "image": "flowbridge-core:local",
+            "env_file": [{"path": "./core.env", "format": "raw"}],
+            "depends_on": {
+                **migrated,
+                "keycloak": {"condition": "service_healthy"},
+                "hasura": {"condition": "service_started"},
+                "flowable": {"condition": "service_started"},
+            },
+            "networks": ["internal"],
+            "restart": "unless-stopped",
+        }
+        compose["services"]["core-api"] = {
+            **common,
+            "command": [
+                "uvicorn",
+                "app.core.runtime:create_app",
+                "--factory",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8080",
+            ],
+            "ports": [f"127.0.0.1:{services['core']['port']}:8080"],
+            "healthcheck": {
+                "test": [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import urllib.request; "
+                    "urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)",
+                ],
+                "interval": "10s",
+                "timeout": "5s",
+                "retries": 20,
+            },
+        }
+        compose["services"]["core-worker"] = {
+            **common,
+            "command": ["python", "-m", "app.core.runtime", "worker"],
         }
 
     write("compose.yaml", yaml.safe_dump(compose, sort_keys=False))

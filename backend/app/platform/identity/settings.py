@@ -69,7 +69,7 @@ class IdentitySettings(BaseSettings):
         if value is not None:
             parts = urlsplit(value)
             if (
-                parts.scheme != "https"
+                parts.scheme not in {"http", "https"}
                 or not parts.netloc
                 or parts.username
                 or parts.password
@@ -77,6 +77,13 @@ class IdentitySettings(BaseSettings):
                 or parts.fragment
             ):
                 raise ValueError("Identity URLs must be HTTPS without credentials/query/fragment")
+            if parts.scheme == "http" and parts.hostname not in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+                "keycloak",
+            }:
+                raise ValueError("Plain HTTP identity URLs are limited to local deployment hosts")
         return value
 
     @field_validator("cors_origins")

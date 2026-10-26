@@ -1,7 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Flowable Integration Runtime
 
-## Current Local Business Workflow
+> The official Layer 1 beta runs Flowable, Core API, and Core Worker in the generated stack documented in [Layer 1 deployment](../deployment/README.md). The profiles below are preserved for isolated workflow development and historical acceptance only.
+
+## Standalone local business-workflow profile
 
 Use `docker-compose.local.yml` for the verified local Business Workflow. It runs Flowable OSS
 7.2.0 on port **18083**, with its own `flowable_db` in the existing local PostgreSQL 16 container.

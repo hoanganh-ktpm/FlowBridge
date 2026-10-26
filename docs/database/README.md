@@ -1,6 +1,8 @@
 # Database setup và ownership
 
-## PostgreSQL 16 local (mặc định cho demo mới)
+> **Legacy standalone database profile.** The official Layer 1 beta provisions seven databases through [the deployment CLI](../DEPLOYMENT.md). The five-database commands below remain for isolated database development and must not be mixed with the generated release stack.
+
+## PostgreSQL 16 local (isolated legacy development profile)
 
 Compose `infra/postgres/docker-compose.local.yml` dùng project `flowbridge-local`, named volume `flowbridge-local_postgres_data`, loopback `127.0.0.1:55432`, healthcheck và TLS. `sales_db`, `warehouse_db`, `logistics_db`, `dxos_core_db`, `hasura_metadata_db` là **năm database riêng**. Mỗi chủ sở hữu có LOGIN riêng; ba reader chỉ SELECT sáu view được chỉ định. Không tạo `intelligence_db` khi chưa có implementation, không FDW hoặc FK xuyên DB. Các đoạn Supabase/schema-layout bên dưới là hướng dẫn tương thích cũ, không cần cho local.
 

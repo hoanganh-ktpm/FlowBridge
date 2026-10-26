@@ -1,5 +1,6 @@
 -- Idempotent bootstrap, also run explicitly on existing local volumes.
 \set ON_ERROR_STOP on
+\getenv postgres_password POSTGRES_PASSWORD
 \getenv sales_password SALES_PASSWORD
 \getenv warehouse_password WAREHOUSE_PASSWORD
 \getenv logistics_password LOGISTICS_PASSWORD
@@ -10,6 +11,7 @@ SELECT format('CREATE ROLE %I LOGIN', role_name)
 FROM unnest(ARRAY['sales_owner','warehouse_owner','logistics_owner','core_owner',
                  'hasura_owner','sales_reader','warehouse_reader','logistics_reader']) AS role_name
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = role_name) \gexec
+ALTER ROLE flowbridge_admin PASSWORD :'postgres_password';
 ALTER ROLE sales_owner PASSWORD :'sales_password';
 ALTER ROLE warehouse_owner PASSWORD :'warehouse_password';
 ALTER ROLE logistics_owner PASSWORD :'logistics_password';

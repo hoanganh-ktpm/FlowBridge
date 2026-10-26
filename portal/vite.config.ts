@@ -9,7 +9,7 @@ import { keycloakify } from "keycloakify/vite-plugin";
 
 export default defineConfig(async ({ command }) => {
   const backend = command === "serve" ? await publicConfig() : undefined;
-  const devOrigin = "http://127.0.0.1:5174";
+  const devOrigin = "http://127.0.0.1:5173";
   return {
     plugins: [
       react(),
@@ -21,12 +21,14 @@ export default defineConfig(async ({ command }) => {
       }),
       {
         name: "flowbridge-public-config",
-      configureServer(server: ViteDevServer) {
+        configureServer(server: ViteDevServer) {
           server.middlewares.use("/config.json", async (_request, response) => {
             response.setHeader("Content-Type", "application/json");
             response.setHeader("Cache-Control", "no-store");
             try {
-              response.end(JSON.stringify({ ...await publicConfig(), apiUrl: devOrigin }));
+              response.end(
+                JSON.stringify({ ...(await publicConfig()), apiUrl: devOrigin }),
+              );
             } catch {
               response.statusCode = 503;
               response.end('{"error":"Public configuration unavailable"}');
@@ -38,11 +40,19 @@ export default defineConfig(async ({ command }) => {
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
     server: {
       host: "127.0.0.1",
-      port: 5174,
+      port: 5173,
       strictPort: true,
-      proxy: backend ? {
-        "/api/v1": { target: backend.apiUrl, changeOrigin: true },
-      } : undefined,
+      proxy: backend
+        ? {
+            "/api/v1/data-workspace": {
+              target:
+                process.env.FLOWBRIDGE_WORKSPACE_API_URL ||
+                "http://127.0.0.1:18090",
+              changeOrigin: true,
+            },
+            "/api/v1": { target: backend.apiUrl, changeOrigin: true },
+          }
+        : undefined,
     },
     build: {
       rollupOptions: {

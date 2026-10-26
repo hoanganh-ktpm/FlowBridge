@@ -57,7 +57,7 @@ test('SSO login uses PKCE and a same-origin callback', async ({ page }) => {
   const state = await page.evaluate(() => ({ config: (window as any).__oidcConfig, init: (window as any).__oidcInit, redirect: (window as any).__loginRedirect }))
   expect(state.config.clientId).toBe('flowbridge-web-a')
   expect(state.init).toMatchObject({ pkceMethod: 'S256', checkLoginIframe: false, onLoad: 'check-sso' })
-  expect(state.redirect).toBe('http://127.0.0.1:5174/')
+  expect(state.redirect).toBe('http://127.0.0.1:5173/')
   expect(await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].some(key => /token/i.test(key)))).toBe(false)
 })
 

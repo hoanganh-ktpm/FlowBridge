@@ -77,6 +77,22 @@ def run_migrations(names, revision="head"):
         print(f"{name}: migrated to {revision}")
 
 
+def grant_readers():
+    """Grant only the approved Data Product views to each domain reader."""
+    from scripts.database.local import PRODUCT_VIEWS
+
+    for name, views in PRODUCT_VIEWS.items():
+        engine = make_engine(name)
+        try:
+            with engine.begin() as connection:
+                connection.execute(text(f"GRANT USAGE ON SCHEMA public TO {name}_reader"))
+                for view in views:
+                    connection.execute(text(f"GRANT SELECT ON public.{view} TO {name}_reader"))
+            print(f"{name}: reader can SELECT {len(views)} approved views")
+        finally:
+            engine.dispose()
+
+
 def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -89,7 +105,15 @@ def main(argv=None):
         help="Create missing databases or schemas according to DXOS_LAYOUT",
     )
     sub.add_parser("init-schemas", help="Create the four namespaces in schema layout")
-    for operation in ("upgrade", "status", "check", "seed", "verify", "sql"):
+    for operation in (
+        "upgrade",
+        "status",
+        "check",
+        "seed",
+        "clean-fixtures",
+        "verify",
+        "sql",
+    ):
         child = sub.add_parser(operation)
         child.add_argument("--database", choices=(*DATABASES, "all"), default="all")
         if operation in ("upgrade", "sql"):
@@ -101,6 +125,7 @@ def main(argv=None):
         help="Initialize targets, run migrations, optionally load demo fixtures",
     )
     bootstrap.add_argument("--demo", action="store_true")
+    sub.add_parser("grant-readers", help="Grant least-privilege access to approved product views")
     realign = sub.add_parser(
         "realign-core",
         help="Back up and discard legacy Core metadata; never targets domain databases",
@@ -113,6 +138,9 @@ def main(argv=None):
             from scripts.database.realign import realign_core
 
             print(json.dumps(realign_core(args.confirm_database), ensure_ascii=True))
+            return 0
+        if args.operation == "grant-readers":
+            grant_readers()
             return 0
         if args.operation in ("init-databases", "init-schemas", "bootstrap"):
             if args.operation == "init-schemas" and layout() != "schemas":
@@ -141,6 +169,10 @@ def main(argv=None):
             from scripts.database.seed import seed_databases
 
             seed_databases(names)
+        elif args.operation == "clean-fixtures":
+            from scripts.database.seed import remove_demo_rows
+
+            remove_demo_rows(names)
         elif args.operation == "verify":
             from scripts.database.verify import verify_demo
 

@@ -3,6 +3,7 @@
 import json
 import os
 import secrets
+import shutil
 import subprocess
 from pathlib import Path
 from uuid import uuid4
@@ -27,9 +28,12 @@ def prepare():
         return
     if env_file.exists():
         raise ValueError("Refusing to overwrite an existing .env.docker")
-    openssl = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/usr/bin/openssl.exe"
-    if not openssl.is_file():
-        raise ValueError("Git OpenSSL is required to prepare the local HTTPS certificate")
+    git_openssl = (
+        Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/usr/bin/openssl.exe"
+    )
+    openssl = git_openssl if git_openssl.is_file() else shutil.which("openssl")
+    if not openssl:
+        raise ValueError("OpenSSL is required to prepare the local HTTPS certificate")
     values = {**dotenv_values(root / ".env"), **os.environ}
     core_url = values.get("DXOS_CORE_URL")
     if not core_url:

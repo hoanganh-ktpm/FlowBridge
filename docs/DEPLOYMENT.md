@@ -1,47 +1,107 @@
-# Deployment configuration (Phase A)
+# Layer 1 deployment
 
-Copy `deployment.example.yaml` to `deployment.yaml` and customize the name, environment, domain, published host ports, database names/user, admin user names, URLs, TLS, and named volumes. `database.names` lists Core, Sales, Warehouse, Logistics, Hasura metadata, Flowable, and Keycloak databases. `database.role_password_env` supplies separate owner/reader credentials without placing values in YAML. The old single `database.name` remains accepted for Phase A validation only; Phase B rendering requires `database.names`. Legacy PostgreSQL bootstrap is unchanged.
+This document describes the `v0.1.0-beta.1` source-based deployment. The supported beta topology is one Docker Compose project with PostgreSQL 16, Keycloak, Hasura, Flowable, Core API, Core Worker, and one-shot provisioning/migration jobs.
 
-Keep `public_url` (browser-facing) distinct from `internal_url` (Docker network). By default, an internal URL must use the matching Docker service name; set `external: true` on that service only when its internal endpoint is externally managed. `identity.issuer` must equal the public Keycloak URL plus `/realms/<realm>`. For Flowable, `port` is the host-published port, `container_port` is the listener port, and `internal_url` ends in `/flowable-rest/service`. Enabled Keycloak, Hasura, and Flowable currently require enabled PostgreSQL.
+## Prerequisites
 
-Put the referenced secret variables in the ignored `.env` file or process environment. Existing process variables take precedence; validation never generates or replaces secrets. Do not commit `deployment.yaml`, `.env`, or `secrets/`. A minimal `.env` needs `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `HASURA_ADMIN_SECRET`, `FLOWABLE_ADMIN_PASSWORD`, and `OIDC_CLIENT_SECRET` when all services are enabled. Use distinct strong values outside development.
+- Python 3.12 (installed by uv from `.python-version`).
+- uv `0.13.1`, enforced by `pyproject.toml`.
+- Docker Engine and Docker Compose v2; Docker Desktop Linux containers were used for Windows verification.
+- At least 4 GiB Docker memory and 5 GiB free disk.
+- Loopback ports `55432`, `18443`, `18080`, `18083`, and `18084`, unless customized.
 
-Validate without Docker: `python -m scripts.deployment_config --config deployment.yaml --env .env`. The example is a development template with reserved example domains and no credentials; it is not a deployable production configuration. For production, set TLS enabled, configure certificate termination (`external` or existing `files`), use HTTPS public URLs, real DNS, persistent volumes, and provision secrets securely. Validation checks structure and local inputs only; it does not deploy services or verify remote identity settings. Phase B must consume this config when generating/launching the deployment.
+## Fresh installation
 
-## Clean source installation (C3)
-
-### Standalone Windows installer (F2)
-
-Build on Windows with `python -m scripts.build_deployment_installer` after installing PyInstaller 6.22.3 into the build environment. The result is `dist/flowbridge-setup.exe` plus `dist/flowbridge-setup.exe.sha256`. On another Windows machine, copy only the executable, verify its SHA-256, ensure Docker Engine/Compose is running, then run `./flowbridge-setup.exe` to open the wizard. No Python, uv or repository checkout is needed there. By default, config and secrets live under `%LOCALAPPDATA%/FlowBridge/deployments/default/`, not beside the executable. Use `--config <path>` for another deployment; `status`, `start`, `stop`, `validate` and `doctor` are subcommands. The existing `flowbridge` Core entrypoint is unchanged. Build Linux separately on Linux; the Windows binary cannot run there. Encrypted backup/restore still requires separate `age` acceptance before release.
-
-Use Python 3.12, uv 0.13.1, Docker Desktop/Engine with Compose, at least 4 GiB Docker memory and 5 GiB free disk. On Windows, open PowerShell in the extracted source directory:
+Run from an extracted source archive or repository root:
 
 ```powershell
-uv sync --frozen
-uv run python -m scripts.deployment_cli setup
+uv sync --frozen --group database
+uv run python -m scripts.deployment_cli init --config deployment.yaml
+uv run python -m scripts.deployment_cli setup --config deployment.yaml --non-interactive
+```
+
+`init` is interactive. It writes ignored `deployment.yaml` plus `secrets/deployment.env`, generates strong values, and refuses to overwrite an existing secret file. `setup` validates ports and resources, renders ignored files under `infra/deployment/generated/`, pulls/builds images, provisions seven databases and scoped roles, applies migrations, bootstraps Keycloak, and waits for readiness. Rerunning setup with unchanged inputs is supported.
+
+Do not copy credentials from another deployment to make installation pass. Do not commit `deployment.yaml`, `secrets/`, generated Compose files, or state files.
+
+## Configuration
+
+Start from `deployment.example.yaml`. Important fields are:
+
+- `name`: Compose project/deployment identity.
+- `environment`: `development`, `staging`, or `production`.
+- `services.*.port`: loopback host port; change conflicts instead of stopping unrelated processes.
+- `public_url`: browser/client-facing URL.
+- `internal_url`: Docker service URL; it must not be confused with the public URL.
+- `database.names` and `role_password_env`: seven databases and separate owner/reader credentials.
+- `identity`: realm, issuer, API/browser clients, and redirect URIs.
+- `tls`: external or file termination. Staging/production require HTTPS configuration.
+- `volumes.postgres`: persistent PostgreSQL volume name.
+
+Validate without changing Docker:
+
+```powershell
 uv run python -m scripts.deployment_cli validate --config deployment.yaml
-uv run python -m scripts.deployment_smoke --config deployment.yaml
+uv run python -m scripts.deployment_cli setup --config deployment.yaml --non-interactive --dry-run
+```
+
+## Secrets
+
+The initializer stores secrets in `secrets/deployment.env` with restricted permissions. Process environment variables take precedence where supported. Use unique, externally managed secrets for non-development deployments. Generated env files and `setup.log` are private; review logs before sharing even though known values are redacted.
+
+Changing a database role password in the secret input does not rotate the existing PostgreSQL role. Rotation requires a backup, an authenticated database change, an atomic secret update, recreation of only affected services, and verification. `start` is not a rotation operation.
+
+## Lifecycle
+
+```powershell
 uv run python -m scripts.deployment_cli status --config deployment.yaml
 uv run python -m scripts.deployment_cli stop --config deployment.yaml
 uv run python -m scripts.deployment_cli start --config deployment.yaml
+uv run python -m scripts.deployment_cli doctor --config deployment.yaml
+uv run python -m scripts.deployment_smoke --config deployment.yaml
 ```
 
-The wizard creates ignored `deployment.yaml` and `secrets/deployment.env`, asks only relevant Quick/Advanced questions and checks ports before startup. The Docker network is internal; published ports bind to loopback. If a port is occupied, choose a suggested free port or enter another. If startup later races with another process, retry after changing the port with **Edit**. The setup error names the failed step and category; inspect private `infra/deployment/generated/setup.log` for filtered diagnostics. Never post this log without reviewing it. `setup --non-interactive --config deployment.yaml` never prompts; `--dry-run` validates without Docker writes. On Linux, use the same commands in a shell. Run `stop` and `start` with the same `--config` to restart without removing volumes. The `flowbridge` console command remains reserved for Core; use the Python module for deployment.
+- **Stop** uses `docker compose stop`; containers and all data remain.
+- **Start/restart** recreates no database and retains the PostgreSQL volume.
+- **Uninstall while retaining data** is an operator action: after backup and review, run Compose `down --remove-orphans` against the generated file without `--volumes`. Containers/network are removed; declared volumes remain.
+- **Destructive reset** removes containers, the project network, and all attached/declared volumes. Use only for a disposable deployment as described below.
 
-Production/staging need public DNS, an external TLS reverse proxy and manually prepared Flowable schema before setup; no development defaults are silently accepted. External PostgreSQL, automated upgrades and rollback are **UNSUPPORTED**. Before any manual image/schema upgrade, take an encrypted backup, verify image/schema compatibility in a separate test deployment, then schedule the upgrade; never point a new image at production volumes speculatively.
+## Health and persistence
 
-### Backup/restore safety
+`doctor` validates configuration, Docker availability/resources/ports, Compose syntax, and deployed readiness. `deployment_smoke` checks service endpoints and expected authentication behavior without modifying application records. A healthy container alone is not full integration evidence; the real acceptance runner verifies token, publication, grant/read/revoke, and cleanup flows.
 
-All persistent application state (Keycloak realm, Hasura metadata and Flowable data) resides in the seven PostgreSQL databases. Keep `deployment.yaml` and `secrets/deployment.env` in a separate secure secret store; never add them to an unencrypted archive. `python -m scripts.deployment_backup backup --config deployment.yaml --output <private-directory> --recipient <age-recipient>` streams all seven database dumps directly into `age`-encrypted files and records pinned image versions; it refuses to overwrite an existing destination. Restore requires `age`, a distinct development project and volumes, empty provisioned databases, an identity file, and exact `--confirm-target <deployment-name>`; run `python -m scripts.deployment_backup restore --config <test-deployment.yaml> --archive <private-directory> --identity <private-key-file> --confirm-target <test-deployment-name>`. Do not restore into production or an existing project. The `age` tool is absent on the current host, so encrypted backup and restore are **BLOCKED/NOT RUN**, not a verified recovery procedure.
+All durable Layer 1 state is in PostgreSQL: Core, example business databases, Keycloak, Hasura metadata, and Flowable. Back up all seven databases together with the matching configuration and protected secrets. The encrypted `age` backup/restore command exists, but recovery remains experimental until exercised on the target operator environment.
 
-### Source archive and fresh-machine checklist
+## Cleanup safety
+
+Never use global Docker prune commands for FlowBridge. Docker images may declare their own anonymous volumes; those volumes can be attached to a Compose-owned container even though the volume itself has no Compose project label. Absence of a label is not evidence that `docker compose down --volumes` will preserve it.
+
+The renderer mounts `tmpfs` over the PostgreSQL image's data directory for the stateless provision job to prevent new anonymous data volumes. Before an intentional reset, first print the exact attached-volume inventory:
 
 ```powershell
-uv build --sdist
-$archive = (Get-ChildItem dist\flowbridge-*.tar.gz | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-uv run python -m scripts.verify_source_archive $archive
-uv run python -m scripts.create_source_archive $archive dist\flowbridge-clean.zip
-uv run python -m scripts.verify_source_archive dist\flowbridge-clean.zip
+uv run python -m scripts.deployment_cli reset --config deployment.yaml --dry-run
 ```
 
-Share the archive only after the verifier reports PASS. The archive includes deployment scripts, lockfile, example, tests and license; it must not include `.git`, `.venv`, `node_modules`, `.tmp`, secrets, certificates or generated Compose. On a new Windows/Linux machine, extract it, run `uv sync --frozen`, then the setup and smoke commands above. Check that Docker daemon/Compose are available, port ownership is clear, `secrets/deployment.env` is private, services are healthy, and the browser-facing Keycloak/Hasura/Flowable URLs are reachable through the configured TLS proxy. Linux installation and full clean-machine JWT acceptance remain **NOT RUN** unless performed on that host.
+After reviewing the list and a verified backup, repeat with the exact deployment name:
+
+```powershell
+uv run python -m scripts.deployment_cli reset --config deployment.yaml --confirm-reset flowbridge-example
+```
+
+The reset command refuses a missing/mismatched confirmation and reports declared as well as anonymous/unmodeled attached volumes. It does not infer safety from labels. This command is destructive and cannot restore a deleted volume.
+
+## Troubleshooting
+
+- **Port occupied:** edit that service's host port; do not terminate the existing owner automatically.
+- **Docker unavailable/resource check:** start Docker Desktop/Engine and allocate the required memory/disk.
+- **Password failure after prior install:** restore matching secrets or perform deliberate credential rotation; repeated setup will not silently rotate roles.
+- **Keycloak:** verify realm bootstrap and issuer/public URL consistency.
+- **Hasura:** `/healthz` is necessary but not sufficient; inspect metadata consistency and run acceptance in an isolated development deployment.
+- **Flowable:** authenticated actuator access should succeed while incorrect credentials should fail.
+- **Core:** inspect private Core API/Worker logs and confirm migrations, Keycloak, Hasura, and Flowable are ready.
+
+## Environment limitations
+
+The default development template binds published ports to loopback and uses development schema policies. Production/staging require real DNS, HTTPS through an external reverse proxy, production secret storage, observability, backup/restore drills, manually prepared Flowable schema, and explicit upgrade/rollback procedures. External PostgreSQL, automated upgrades, automated rollback, and production ingress are unsupported by this beta installer.
+
+See [Testing](../tests/README.md), [Security](../SECURITY.md), and the [fresh-install evidence](deployment/FRESH_INSTALL_VERIFICATION.md).

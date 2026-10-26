@@ -24,6 +24,11 @@ services:
     container_port: 18081
     public_url: https://workflow.example.invalid
     internal_url: http://flowable:18081/flowable-rest/service
+  core:
+    enabled: true
+    port: 18084
+    public_url: https://core.example.invalid
+    internal_url: http://core-api:8080
 
 database:
   names:
@@ -53,6 +58,9 @@ identity:
   issuer: https://auth.example.invalid/realms/flowbridge
   client_id: flowbridge-api
   client_secret_env: OIDC_CLIENT_SECRET
+  web_client_id: flowbridge-web
+  web_redirect_uris:
+    - https://portal.example.invalid/*
   hasura_default_role_attribute: hasura_default_role
 
 credentials:

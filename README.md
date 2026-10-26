@@ -1,153 +1,167 @@
-<p align="center">
-  <img src="portal/src/assets/logo-flowbridge.png" alt="FlowBridge" width="112">
-</p>
+# FlowBridge
 
-<h1 align="center">FlowBridge</h1>
+**Nền tảng liên thông dữ liệu và điều phối quy trình giữa các hệ thống độc lập**
 
-<p align="center">
-  <strong>DX-OS Open-Core Platform</strong><br>
-  Nền tảng tích hợp dữ liệu và điều phối nghiệp vụ cho các ứng dụng doanh nghiệp.
-</p>
+FlowBridge là nền tảng DX-OS mã nguồn mở, giúp doanh nghiệp kết nối các ứng dụng hiện có, chia sẻ dữ liệu theo chính sách rõ ràng và phối hợp quy trình liên hệ thống mà không phải thay thế phần mềm nghiệp vụ.
 
-<p align="center">
-  Data Governance · Business APIs · BPMN Workflows
-</p>
+> **Trạng thái:** `v0.1.0-beta.1` là bản tiền phát hành phục vụ đánh giá và triển khai phát triển có kiểm soát. **Tầng 1** đang ở mức Beta; **Tầng 2** đang được phát triển. Đây chưa phải tuyên bố sẵn sàng cho môi trường production.
 
-<p align="center">
-  <a href="LICENSE">GPL-3.0-or-later</a> ·
-  <a href="docs/ARCHITECTURE.md">Kiến trúc</a> ·
-  <a href="docs/DEVELOPMENT.md">Phát triển</a> ·
-  <a href="CONTRIBUTING.md">Đóng góp</a>
-</p>
+## Mục lục
 
-## Tổng quan
+- [Bài toán](#bài-toán)
+- [Giải pháp và điểm nổi bật](#giải-pháp-và-điểm-nổi-bật)
+- [Kiến trúc hai tầng](#kiến-trúc-hai-tầng)
+- [Phạm vi bản Beta](#phạm-vi-bản-beta)
+- [Bắt đầu nhanh](#bắt-đầu-nhanh)
+- [Kiểm chứng hệ thống](#kiểm-chứng-hệ-thống)
+- [Kịch bản minh họa](#kịch-bản-minh-họa)
+- [Cấu trúc dự án](#cấu-trúc-dự-án)
+- [Tài liệu](#tài-liệu)
+- [Đóng góp và giấy phép](#đóng-góp-và-giấy-phép)
 
-FlowBridge hướng tới một nền tảng dùng chung để đăng ký ứng dụng, công bố dữ liệu có quản trị và phối hợp quy trình giữa các phòng ban. Dữ liệu nghiệp vụ được giữ tại ứng dụng sở hữu; nền tảng quản lý metadata, hợp đồng dữ liệu, quyền truy cập và các năng lực tích hợp.
+## Bài toán
 
-Sales, Warehouse và Logistics là ba ứng dụng mẫu cho quy trình Order Fulfillment. Workflow sử dụng các giao diện được cấp quyền để khai thác dữ liệu và thực hiện hành động nghiệp vụ.
+Trong một tổ chức, hệ thống bán hàng, kho vận và logistics thường có dữ liệu, tài khoản và quy trình riêng. Khi số lượng hệ thống tăng, các kết nối API điểm-điểm trở nên khó quản trị: ai sở hữu dữ liệu, trường nào được chia sẻ, quyền truy cập có còn hiệu lực và thay đổi nào đã xảy ra?
 
-Ba lớp quyền độc lập: IT/PLATFORM_ADMIN quản trị DX-OS (gồm publish và cấp/thu quyền); Core + Hasura kiểm quyền đọc dữ liệu theo grant; từng Business API kiểm quyền nghiệp vụ riêng. Vai trò nhân viên/phụ trách phòng ban không tự cấp quyền quản trị nền tảng. Chi tiết tại [API Contracts](docs/API-CONTRACTS.md#authorization-model-three-independent-layers).
+FlowBridge cung cấp một lớp điều khiển dùng chung để đăng ký ứng dụng, công bố dữ liệu có chọn lọc, cấp hoặc thu hồi quyền và điều phối workflow. Dữ liệu nghiệp vụ vẫn thuộc quyền sở hữu của hệ thống nguồn.
 
-## Phạm vi và trạng thái
+## Giải pháp và điểm nổi bật
 
-Dự án đang trong giai đoạn xây dựng nền tảng kiến trúc. Các module được tách theo trách nhiệm để phát triển và kiểm thử độc lập.
+Tầng 1 hiện thực hóa các khả năng:
 
-| Thành phần | Vai trò | Trạng thái |
-|---|---|---|
-| Data Core | Registry, Data Products, Governance, Hasura Provisioner | Core HTTP/worker và PostgreSQL adapter; đã kiểm luồng onboarding, publish, đọc theo grant và revoke với Keycloak/Hasura/PostgreSQL thật |
-| Platform | Identity, Gateway, Workflow, Audit và HTTP utilities | Identity/HTTP adapters và Workflow Layer 1 đã có live E2E; các tích hợp còn lại đang phát triển |
-| Business APIs | Đơn hàng, tồn kho và vận chuyển | Có vertical slice Workflow thật xuyên 3 DB: reservation/packing/handoff/delivery; chưa phải ERP đầy đủ |
-| Portal | Giao diện, SSO browser, chat và hiển thị kết quả | Đã có UI, PKCE/theme và preview; API client cần thích nghi với Core mới |
-| Infrastructure | PostgreSQL, Hasura, Keycloak, APISIX, Flowable | PostgreSQL 16 local có năm DB ứng dụng/metadata và flowable_db; Hasura/Keycloak/Flowable Docker; Core/worker native |
+- Đăng ký ứng dụng bằng API hoặc cấu hình khai báo, kèm kiểm tra và lập kế hoạch thay đổi.
+- Đăng ký nguồn PostgreSQL và khám phá schema.
+- Công bố data product và data contract có phiên bản.
+- Chiếu cột dữ liệu và kiểm soát quyền đọc thông qua Hasura.
+- Xác thực OIDC/JWT bằng Keycloak và phân quyền tại FlowBridge Core.
+- Quản lý vòng đời yêu cầu truy cập: gửi, phê duyệt, cấp quyền, hết hạn và thu hồi.
+- Điều phối workflow và hành động nằm trong danh sách cho phép qua Flowable.
+- Cài đặt Docker có thể tái lập, kèm doctor, smoke test và acceptance test có dọn fixture.
 
-Native factory `app.core.runtime:create_app` ghép Core HTTP với PostgreSQL thật; worker chạy thành process riêng, không có persistence memory fallback hoặc migration khi startup. Models hiện có 45 bảng ứng dụng/14 revision files: Core 15 bảng và nghiệp vụ 30 bảng. Head `core_0006` bổ sung persistence Workflow trên mô hình principal/phòng ban/Data Product/grant. Manifest v1 đăng ký draft và discovery nguồn thật, không sửa schema Core theo tên ứng dụng. [Workflow](docs/WORKFLOW.md) ghi nhận Flowable 7.2.0 trên PostgreSQL local, quy trình Sales → Warehouse → Logistics đến End và event Hasura thật; Core/worker giữ native. Demo dùng [PostgreSQL Docker local](docs/database/README.md), generator 365 ngày và sáu Data Product views; checksum lịch sử được bảo toàn qua E2E. Các profile Supabase trong [Docker Integration](docs/DOCKER.md) là tài liệu môi trường cũ. Xem [Relationship Queries](docs/RELATIONSHIP-QUERIES.md), [Automated Onboarding](docs/AUTOMATED-ONBOARDING.md), [Core Backend P0](docs/CORE-P0.md) và [Database Setup](docs/database/README.md).
+FlowBridge xây dựng lớp quản trị và tích hợp quanh các engine mã nguồn mở; dự án không tái hiện thực PostgreSQL, Keycloak, Hasura hay Flowable.
 
-## Kiến trúc định hướng
+## Kiến trúc hai tầng
 
-```mermaid
-flowchart LR
-    User[Người dùng] --> Portal[Portal]
-    Portal --> IAM[Keycloak]
-    Portal --> Gateway[APISIX]
-    Gateway --> Backend[Core & Platform APIs]
-    Backend --> Metadata[(Core Metadata)]
-    Backend --> Hasura[Hasura]
-    Backend --> Flowable[Flowable]
-    Hasura --> DomainDB[(Business Databases)]
-    Flowable --> APIs[Sales · Warehouse · Logistics APIs]
-    APIs --> DomainDB
-```
+### Tầng 1 — Nền tảng dịch vụ lõi số (Beta)
 
-Core quản lý dữ liệu được chia sẻ và quyền khai thác. Business APIs sở hữu thay đổi nghiệp vụ và transaction. Flowable điều phối quy trình; mỗi receiver chịu trách nhiệm xác thực và kiểm quyền phù hợp. Chi tiết tại [tài liệu kiến trúc](docs/ARCHITECTURE.md).
+![Sơ đồ kiến trúc định hướng Tầng 1 của FlowBridge](docs/assets/flowbridge-layer-1.png)
 
-## Cấu trúc repository
+Sơ đồ trên mô tả kiến trúc định hướng của Tầng 1. Bản `v0.1.0-beta.1` đã tích hợp PostgreSQL, Keycloak, Hasura, Flowable, Core API và Worker. **Apache APISIX/API Gateway là thành phần đang được hoàn thiện, chưa nằm trong cấu hình cài đặt và acceptance đã xác nhận của bản Beta này.**
+
+| Thành phần | Vai trò |
+|---|---|
+| FlowBridge Core API & Worker | Đăng ký, data contract, chính sách, cấp quyền, đồng bộ cấu hình và tác vụ nền |
+| PostgreSQL | Lưu trạng thái Core và dữ liệu của các dịch vụ minh họa; hệ thống nguồn vẫn sở hữu dữ liệu nghiệp vụ |
+| Keycloak | Xác thực người dùng và service client bằng OIDC/JWT |
+| Hasura | Cung cấp data plane GraphQL theo metadata và quyền được FlowBridge quản trị |
+| Flowable | Thực thi BPMN workflow và các hành động được cho phép |
+| Apache APISIX | API Gateway trong kiến trúc định hướng; đang phát triển cho luồng ingress thống nhất |
+
+Luồng khái quát:
 
 ```text
-FlowBridge/
-├── backend/app/
-│   ├── core/                   Registry, Data Products, Governance, Core DB
-│   └── platform/               Identity, Gateway, Workflow, Audit, HTTP
-├── services/
-│   ├── sales-api/              app/ và migrations/
-│   ├── warehouse-api/          app/ và migrations/
-│   └── logistics-api/          app/ và migrations/
-├── portal/                     Giao diện và cấu hình frontend
-├── contracts/                  Schema, giao diện chung và fixtures
-├── workflows/                  Quy trình BPMN nghiệp vụ
-├── infra/                      Cấu hình triển khai engine
-├── scripts/database/           Công cụ quản trị, Alembic bootstrap và demo fixtures
-├── tests/                      Domain, Core, Platform và E2E
-└── docs/                       Tài liệu kỹ thuật
+Sales / Warehouse / Logistics
+              │
+              ▼
+       FlowBridge Core
+       ├── Keycloak
+       ├── Hasura
+       ├── Flowable
+       └── PostgreSQL
+              │
+              ▼
+       Data Workspace
 ```
 
-Các thư mục chưa có implementation được giữ trong Git bằng file package hoặc `.gitkeep`. Xem [Backend](backend/README.md), [Business APIs](services/README.md), [Portal](portal/README.md) và [Infrastructure](infra/README.md).
+Xem thêm [kiến trúc và ranh giới tin cậy](docs/ARCHITECTURE.md).
 
-## Công nghệ
+### Tầng 2 — Data Workspace (Đang phát triển)
 
-| Phạm vi | Công nghệ |
+Tầng 2 hướng tới không gian khai thác dữ liệu đã được Tầng 1 quản trị, phục vụ phân tích, dự báo, mô phỏng và hỗ trợ ra quyết định. Portal/Data Workspace hiện là giao diện thử nghiệm; API legacy của Chat/Agent chưa được xem là đã kết nối ổn định với FlowBridge Core và không thuộc phạm vi phát hành ổn định của bản Beta.
+
+## Phạm vi bản Beta
+
+| Trạng thái | Thành phần |
 |---|---|
-| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
-| Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui |
-| Identity và Gateway | Keycloak, OIDC/PKCE, Apache APISIX |
-| Data và Workflow | PostgreSQL, Hasura, Flowable BPMN |
-| Kiểm thử | pytest, Ruff, Vitest, Playwright |
+| **Có trong Tầng 1 Beta** | Core API và Worker, PostgreSQL 16, Keycloak, Hasura, Flowable, cấp phát bảy database, migration, doctor/smoke/acceptance tooling |
+| **Thử nghiệm** | Portal UI, bộ cài Windows độc lập, backup/restore mã hóa, tích hợp Data Workspace tùy chọn |
+| **Đang phát triển** | Tầng 2, APISIX/API Gateway, ingress/TLS production, nâng cấp và rollback tự động, mô hình PostgreSQL bên ngoài |
 
-Dependency Python được khóa tại `pyproject.toml` và `uv.lock`; dependency frontend tại `portal/package.json` và `portal/package-lock.json`.
+Các giới hạn hiện tại được ghi rõ trong [release notes](docs/release/RELEASE_NOTES_v0.1.0-beta.1.md).
 
-## Phát triển từ mã nguồn
+## Bắt đầu nhanh
 
-Yêu cầu: Python 3.12, uv 0.13.1, Node.js >=22.12 và npm.
+### Yêu cầu
 
-```sh
-git clone https://github.com/hoanganh-ktpm/FlowBridge.git
-cd FlowBridge
-uv sync --locked --group dev --group build
+- Windows 11 và Docker Desktop chạy Linux containers (môi trường đã được kiểm chứng), hoặc Docker Engine tương thích.
+- Docker Compose v2, tối thiểu 4 GiB RAM cho Docker và 5 GiB dung lượng trống.
+- [uv](https://docs.astral.sh/uv/) `0.13.1`; công cụ này cài môi trường Python 3.12 đã khóa phiên bản.
+- Các cổng loopback mặc định còn trống, hoặc được thay đổi trong `deployment.yaml`.
+
+Chạy tại thư mục gốc của repository bằng PowerShell:
+
+```powershell
+uv sync --frozen --group database
+uv run python -m scripts.deployment_cli init --config deployment.yaml
+uv run python -m scripts.deployment_cli setup --config deployment.yaml --non-interactive
 ```
 
-Các lệnh sau chạy từ gốc repository:
+Lệnh `init` tạo `deployment.yaml` và `secrets/deployment.env` (đều bị Git bỏ qua). Hãy kiểm tra cấu hình trước khi chạy `setup`; quy trình setup sẽ build hoặc pull image, cấp phát database, chạy migration, bootstrap Keycloak và khởi động Tầng 1.
 
-```sh
-uv run --locked pytest tests/platform -q
-uv run --locked ruff check backend tests
-uv build --no-build-isolation
+### Endpoint phát triển mặc định
+
+| Dịch vụ | URL / cổng |
+|---|---|
+| Core API và OpenAPI | `http://127.0.0.1:18084` / `/docs` |
+| Keycloak | `http://127.0.0.1:18443` |
+| Hasura | `http://127.0.0.1:18080` |
+| Flowable REST | `http://127.0.0.1:18083/flowable-rest/service` |
+| PostgreSQL | `127.0.0.1:55432` |
+
+Portal là ứng dụng phát triển riêng và không được khởi động bởi bộ cài Tầng 1. Xem [hướng dẫn Portal](portal/README.md).
+
+## Kiểm chứng hệ thống
+
+Hai lệnh sau chỉ đọc trạng thái, không thay đổi dữ liệu ứng dụng:
+
+```powershell
+uv run python -m scripts.deployment_cli doctor --config deployment.yaml
+uv run python -m scripts.deployment_smoke --config deployment.yaml
 ```
 
-Chạy Portal trong terminal riêng:
+Acceptance runner thực hiện kiểm tra ghi/đọc/cấp/thu hồi quyền thật trên deployment phát triển được chỉ định. Công cụ tạo fixture có kiểm soát và dọn chúng trong khối `finally`. Hãy đọc [hướng dẫn kiểm thử](tests/README.md) trước khi chạy.
 
-```sh
-cd portal
-npm ci
-npm run dev
-```
+## Kịch bản minh họa
 
-Portal development tại `http://127.0.0.1:5174`; chế độ preview tại `http://127.0.0.1:5174/?preview=1`. Preview sử dụng dữ liệu tổng hợp. Đăng nhập và API thật cần deployment tương thích; xem [Portal README](portal/README.md).
+Giả sử Sales cần tồn kho hiện tại trước khi xác nhận đơn hàng. Warehouse đăng ký nguồn dữ liệu và chỉ công bố view tồn kho đã duyệt thành một data product. Sales gửi yêu cầu; chủ sở hữu có thẩm quyền phê duyệt; FlowBridge tạo grant theo phạm vi và quyền Hasura tương ứng. Sales chỉ truy vấn được các cột đã cấp. Khi grant bị thu hồi hoặc hết hạn, quyền truy cập cũng được gỡ bỏ. Logistics có thể tham gia qua một data product riêng hoặc workflow nằm trong danh sách cho phép mà không cần chia sẻ tài khoản chủ sở hữu database.
 
-Kiểm tra frontend:
+## Cấu trúc dự án
 
-```sh
-cd portal
-npm test
-npm run build
-```
-
-`.env.example` chỉ chứa tên cấu hình và giá trị mẫu. Tạo `.env` cục bộ khi tích hợp Identity vào ứng dụng; không đưa credential vào source.
+| Đường dẫn | Nội dung |
+|---|---|
+| `backend/app/core/` | Core API, domain service, persistence, governance và worker runtime |
+| `backend/app/platform/` | Adapter dùng chung cho identity, HTTP và workflow |
+| `services/` | Dịch vụ mẫu Sales, Warehouse, Logistics và Data Workspace |
+| `infra/` | PostgreSQL, render deployment, bootstrap Keycloak và hạ tầng tích hợp |
+| `scripts/` | Công cụ deployment, migration, smoke, acceptance, backup và đóng gói |
+| `contracts/` | API contract và data contract |
+| `portal/` | Portal frontend thử nghiệm |
+| `tests/` | Unit, contract, integration, E2E và deployment regression test |
+| `docs/` | Tài liệu kiến trúc, triển khai, API, workflow, database và phát hành |
 
 ## Tài liệu
 
-- [Kiến trúc và ranh giới module](docs/ARCHITECTURE.md)
-- [Môi trường phát triển và tiêu chí tích hợp](docs/DEVELOPMENT.md)
-- [Quản lý nội dung repository](docs/REPOSITORY.md)
-- [Hasura Integration và hướng dẫn phát triển không Docker](backend/app/core/hasura_provisioner/README.md)
-- [Declarative onboarding: JSON → Core Contracts → Hasura plan](docs/ONBOARDING.md)
-- [Automated onboarding: PostgreSQL runtime, native setup và bằng chứng kiểm thử](docs/AUTOMATED-ONBOARDING.md)
-- [Docker integration: Keycloak/Hasura và Supabase hiện có](docs/DOCKER.md)
-- [API Contracts và hướng dẫn triển khai contract-first](docs/API-CONTRACTS.md)
-- [Core Backend P0 và database integration checklist](docs/CORE-P0.md)
-- [Database ownership, migrations và khác biệt schema cần tích hợp](docs/database/README.md)
-- [Giấy phép thành phần Hasura Integration](THIRD_PARTY_LICENSES.md)
+- [Kiến trúc](docs/ARCHITECTURE.md)
+- [Triển khai](docs/DEPLOYMENT.md)
+- [Kiểm thử](tests/README.md)
+- [API contracts](docs/API-CONTRACTS.md)
+- [Chính sách bảo mật](SECURITY.md)
+- [Phát triển](docs/DEVELOPMENT.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
-- [Lịch sử thay đổi](CHANGELOG.md)
+- [Mức độ sẵn sàng phát hành](docs/release/RELEASE_READINESS_v0.1.0-beta.1.md)
 
-## Giấy phép
+## Đóng góp và giấy phép
 
-Mã nguồn và cấu hình do dự án phát triển được cấp phép theo **GPL-3.0-or-later**, xem [LICENSE](LICENSE). Các thành phần bên thứ ba giữ giấy phép và attribution riêng, bao gồm [thành phần giao diện](portal/THIRD-PARTY-NOTICES.md). Dữ liệu, tài liệu và model bên ngoài có điều kiện sử dụng riêng.
+FlowBridge hoan nghênh issue có phạm vi rõ ràng và pull request tập trung. Hãy cài nhóm dependency phát triển và đọc [CONTRIBUTING.md](CONTRIBUTING.md) trước khi gửi thay đổi. Báo cáo lỗ hổng cần tuân theo [SECURITY.md](SECURITY.md), không tạo issue công khai.
+
+Dự án được cấp phép theo [GNU GPL-3.0-or-later](LICENSE). Các dịch vụ và dependency tích hợp giữ giấy phép riêng; xem [thông báo bên thứ ba](THIRD_PARTY_LICENSES.md) và [thông báo của Portal](portal/THIRD-PARTY-NOTICES.md).

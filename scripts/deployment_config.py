@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import yaml
 
-SERVICES = ("postgres", "keycloak", "hasura", "flowable")
+SERVICES = ("postgres", "keycloak", "hasura", "flowable", "core")
 SECRET_KEYS = {
     "postgres": ("database", "password_env"),
     "keycloak": ("secrets", "keycloak_admin_password_env"),
@@ -112,6 +112,12 @@ def validate(config, env=None, base_dir=None):
             errors.append(f"services.{name} requires services.postgres")
         if name == "hasura" and not enabled.get("keycloak"):
             errors.append("services.hasura requires services.keycloak for JWT keys")
+        if name == "core" and any(
+            not enabled.get(dependency) for dependency in ("keycloak", "hasura", "flowable")
+        ):
+            errors.append(
+                "services.core requires services.keycloak, services.hasura and services.flowable"
+            )
         external = service.get("external", False)
         if not isinstance(external, bool):
             errors.append(f"services.{name}.external must be a boolean")
@@ -136,9 +142,11 @@ def validate(config, env=None, base_dir=None):
             if parsed_port is not None and not 1 <= parsed_port <= 65535:
                 errors.append(f"services.{name}.{kind} has an invalid port")
             if kind == "internal_url" and not external:
-                if hostname != name:
+                expected_hostname = "core-api" if name == "core" else name
+                if hostname != expected_hostname:
                     errors.append(
-                        f"services.{name}.internal_url must use Docker service DNS '{name}'"
+                        f"services.{name}.internal_url must use Docker service DNS "
+                        f"'{expected_hostname}'"
                     )
                 if parsed_port is None:
                     errors.append(f"services.{name}.internal_url needs a container port")

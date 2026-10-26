@@ -88,6 +88,11 @@ def dependencies():
 def create_app():
     bundle, engine, http, _, _ = dependencies()
     app = compose_app(bundle)
+
+    @app.get("/healthz", include_in_schema=False)
+    async def healthz():
+        return {"status": "UP"}
+
     workflow = WorkflowApiSettings()
     if workflow.enabled:
         from app.core.workflow import (

@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import secrets
+import shutil
 import socket
 import subprocess
 from pathlib import Path
@@ -23,7 +24,7 @@ PRODUCT_VIEWS = {
 }
 
 
-def configure(port=55432):
+def configure(port=None):
     RUNTIME.mkdir(parents=True, exist_ok=True)
     target = RUNTIME / "compose.env"
     values = (
@@ -44,7 +45,7 @@ def configure(port=55432):
             )
         }
     )
-    port = int(values.get("POSTGRES_PORT", port))
+    port = int(port if port is not None else values.get("POSTGRES_PORT", 55432))
     values["POSTGRES_PORT"] = str(port)
     values["HASURA_JWT_CONFIG"] = json.dumps(
         {
@@ -59,9 +60,12 @@ def configure(port=55432):
     tls = RUNTIME / "tls"
     tls.mkdir(exist_ok=True)
     if not (tls / "server.key").exists():
-        openssl = (
+        git_openssl = (
             Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/usr/bin/openssl.exe"
         )
+        openssl = git_openssl if git_openssl.is_file() else shutil.which("openssl")
+        if not openssl:
+            raise ValueError("OpenSSL is required to prepare the local TLS certificate")
         subprocess.run(
             [
                 str(openssl),
@@ -181,7 +185,7 @@ def main():
             "verify",
         ),
     )
-    parser.add_argument("--port", type=int, default=55432)
+    parser.add_argument("--port", type=int)
     args = parser.parse_args()
     if args.operation == "configure":
         configure(args.port)

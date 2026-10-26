@@ -214,8 +214,18 @@ def test_rendered_stack_has_private_ports_volumes_and_no_inline_secrets(tmp_path
     path = render(SAMPLE, ENV, tmp_path)
     compose_text = path.read_text(encoding="utf-8")
     compose = yaml.safe_load(compose_text)
-    assert set(compose["services"]) == {"postgres", "provision", "keycloak", "hasura", "flowable"}
+    assert set(compose["services"]) == {
+        "postgres",
+        "provision",
+        "migrate",
+        "keycloak",
+        "hasura",
+        "flowable",
+        "core-api",
+        "core-worker",
+    }
     assert compose["services"]["postgres"]["volumes"][0].endswith(":/var/lib/postgresql/data")
+    assert compose["services"]["provision"]["tmpfs"] == ["/var/lib/postgresql/data"]
     assert compose["services"]["postgres"]["restart"] == "unless-stopped"
     assert all(
         port.startswith("127.0.0.1:")
@@ -245,6 +255,7 @@ def test_render_does_not_silently_rotate_existing_database_passwords(tmp_path):
 def test_disabled_flowable_is_not_deployed(tmp_path):
     config = deepcopy(SAMPLE)
     config["services"]["flowable"]["enabled"] = False
+    config["services"]["core"]["enabled"] = False
     compose = yaml.safe_load(render(config, ENV, tmp_path).read_text(encoding="utf-8"))
     assert "flowable" not in compose["services"]
     assert "flowable_db" not in (tmp_path / "provision.sql").read_text(encoding="utf-8")
@@ -300,9 +311,14 @@ def test_keycloak_claim_mappers_and_jwt_match(tmp_path):
         if "=" in line
     )
     jwt = yaml.safe_load(hasura["HASURA_GRAPHQL_JWT_SECRET"])
-    assert jwt["issuer"] == SAMPLE["identity"]["issuer"]
-    assert jwt["audience"] == SAMPLE["identity"]["client_id"]
-    assert jwt["jwk_url"].startswith(SAMPLE["services"]["keycloak"]["internal_url"])
+    assert jwt["type"] == "HS256"
+    assert jwt["issuer"] == "flowbridge-core"
+    assert jwt["audience"] == "flowbridge-data"
+    assert "jwk_url" not in jwt
+    assert all(
+        f"{domain.upper()}_READ_DATABASE_URL=" in (tmp_path / "hasura.env").read_text()
+        for domain in ("sales", "warehouse", "logistics")
+    )
     with pytest.raises(ValueError, match="existing realm import differs"):
         changed = deepcopy(SAMPLE)
         changed["identity"]["hasura_default_role_attribute"] = "other_role"
@@ -352,7 +368,7 @@ def test_application_readiness_probes(tmp_path, monkeypatch):
         raise OSError("unavailable")
 
     monkeypatch.setattr("infra.deployment.readiness.urlopen", unavailable)
-    assert check(tmp_path) == ["hasura", "flowable"]
+    assert check(tmp_path) == ["hasura", "flowable", "core-api"]
 
 
 @pytest.mark.skipif(shutil.which("docker") is None, reason="Docker CLI unavailable")

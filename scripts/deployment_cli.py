@@ -22,12 +22,11 @@ from scripts.deployment_config import DATABASES, READERS, SERVICES, _env_file, v
 from scripts.deployment_render import render
 
 EXAMPLE = (
-    Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
-    / "deployment.example.yaml"
+    Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1])) / "deployment.example.yaml"
 )
 MIN_MEMORY = 4 * 1024**3
 MIN_DISK = 5 * 1024**3
-VERSION = "0.2.0.dev0"
+VERSION = "0.1.0-beta.1"
 
 
 def _default_config_path():
@@ -316,9 +315,7 @@ def wizard(existing=None, credential_values=None):
     )
     mode = _ask(ui.select("Setup mode", choices=["Quick", "Advanced"]))
     if existing is None and mode == "Quick" and name != "flowbridge":
-        config["volumes"] = {
-            key: f"{name.replace('-', '_')}_{key}" for key in config["volumes"]
-        }
+        config["volumes"] = {key: f"{name.replace('-', '_')}_{key}" for key in config["volumes"]}
     selected = _ask(
         ui.checkbox(
             "Services (Space to toggle)",
@@ -427,7 +424,13 @@ def wizard(existing=None, credential_values=None):
 def _run(command, *, timeout=180, step=None, log_path=None, secret_values=()):
     try:
         result = subprocess.run(
-            command, capture_output=True, text=True, timeout=timeout, check=False
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         reason = "timeout" if isinstance(exc, subprocess.TimeoutExpired) else "command unavailable"
@@ -462,6 +465,89 @@ def _compose(stack, name, *args):
         log_path=stack / "setup.log",
         secret_values=values,
     )
+
+
+def _volume_inventory(project, declared_names=()):
+    """Return attached, Compose-labelled, and configured existing project volumes."""
+    container_ids = _run(
+        [
+            "docker",
+            "ps",
+            "-a",
+            "--filter",
+            f"label=com.docker.compose.project={project}",
+            "--format",
+            "{{.ID}}",
+        ],
+        step="Reset volume inventory",
+    ).splitlines()
+    volumes = {}
+    for container_id in container_ids:
+        mounts = json.loads(
+            _run(
+                ["docker", "inspect", "--format", "{{json .Mounts}}", container_id],
+                step="Reset volume inventory",
+            )
+        )
+        for mount in mounts:
+            if mount.get("Type") != "volume" or not mount.get("Name"):
+                continue
+            item = volumes.setdefault(
+                mount["Name"],
+                {"name": mount["Name"], "destinations": set(), "containers": set()},
+            )
+            item["destinations"].add(mount.get("Destination", "unknown"))
+            item["containers"].add(container_id)
+    labelled = _run(
+        [
+            "docker",
+            "volume",
+            "ls",
+            "--filter",
+            f"label=com.docker.compose.project={project}",
+            "--format",
+            "{{.Name}}",
+        ],
+        step="Reset volume inventory",
+    ).splitlines()
+    existing = set(
+        _run(
+            ["docker", "volume", "ls", "--format", "{{.Name}}"],
+            step="Reset volume inventory",
+        ).splitlines()
+    )
+    for name in set(labelled) | (set(declared_names) & existing):
+        volumes.setdefault(name, {"name": name, "destinations": set(), "containers": set()})
+    return [volumes[name] for name in sorted(volumes)]
+
+
+def _reset(config, stack, *, confirmation=None, dry_run=False):
+    """Show the full attached-volume impact before an explicit destructive reset."""
+    if not (stack / "compose.yaml").is_file():
+        raise SetupError("Generated Compose stack missing; nothing was reset")
+    declared = set(config.get("volumes", {}).values())
+    inventory = _volume_inventory(config["name"], declared)
+    print("Destructive reset volume inventory:")
+    if not inventory:
+        print("  (no attached Docker volumes found)")
+    for item in inventory:
+        kind = "declared" if item["name"] in declared else "anonymous/unmodeled"
+        destinations = ", ".join(sorted(item["destinations"])) or "not currently attached"
+        print(f"  - {item['name']} [{kind}] -> {destinations}")
+    print(
+        "WARNING: Docker Compose may delete every volume listed above, including "
+        "anonymous volumes without a Compose project label."
+    )
+    if dry_run:
+        print("DRY RUN: reset plan only; no Docker resources were changed")
+        return
+    if confirmation != config["name"]:
+        raise SetupError(
+            "Destructive reset refused; rerun with "
+            f"--confirm-reset {config['name']} after reviewing the inventory"
+        )
+    _compose(stack, config["name"], "down", "--volumes", "--remove-orphans")
+    print("reset complete; containers, project network and listed volumes were removed")
 
 
 def _preflight(config, stack):
@@ -510,22 +596,23 @@ def _setup(config, env, stack, *, dry_run=False, secret_path=None):
         return
     if secret_path is not None and secret_path.exists():
         _secure_existing_secret(secret_path)
-    print("[0/6] Preflight Docker, resources and ports")
+    print("[0/7] Preflight Docker, resources and ports")
     _preflight(config, stack)
-    print("[1/6] Rendering private stack")
+    print("[1/7] Rendering private stack")
     _private_directory(stack)
     render(config, env, stack)
     _compose(stack, config["name"], "config", "--quiet")
-    print("[2/6] Starting PostgreSQL")
+    print("[2/7] Starting PostgreSQL")
     _compose(stack, config["name"], "up", "-d", "postgres")
     _wait_health(stack, config["name"], "postgres")
-    print("[3/6] Provisioning databases")
+    print("[3/7] Provisioning databases and applying migrations")
     _compose(stack, config["name"], "run", "--rm", "provision")
-    print("[4/6] Starting services")
+    _compose(stack, config["name"], "run", "--rm", "migrate")
+    print("[4/7] Starting services")
     if config["services"]["keycloak"]["enabled"]:
         _compose(stack, config["name"], "up", "-d", "--no-deps", "keycloak")
         _wait_health(stack, config["name"], "keycloak", timeout=240)
-        print("[5/6] Bootstrapping Keycloak")
+        print("[5/7] Bootstrapping Keycloak")
         bootstrap(
             config, stack, base_url=f"http://127.0.0.1:{config['services']['keycloak']['port']}"
         )
@@ -534,7 +621,10 @@ def _setup(config, env, stack, *, dry_run=False, secret_path=None):
     ]
     if remaining:
         _compose(stack, config["name"], "up", "-d", "--no-deps", *remaining)
-    print("[6/6] Verifying application readiness")
+    if config["services"]["core"]["enabled"]:
+        _compose(stack, config["name"], "up", "-d", "--no-deps", "core-api", "core-worker")
+        _wait_health(stack, config["name"], "core-api", timeout=240)
+    print("[7/7] Verifying application readiness")
     until = time.monotonic() + 180
     while time.monotonic() < until:
         failures = check_readiness(stack)
@@ -547,7 +637,7 @@ def _setup(config, env, stack, *, dry_run=False, secret_path=None):
         "DONE: "
         + ", ".join(
             f"{service}={config['services'][service]['public_url']}"
-            for service in ("keycloak", "hasura", "flowable")
+            for service in ("keycloak", "hasura", "flowable", "core")
             if config["services"][service]["enabled"]
         )
     )
@@ -556,13 +646,20 @@ def _setup(config, env, stack, *, dry_run=False, secret_path=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="flowbridge-setup")
     parser.add_argument(
-        "command", nargs="?", default="setup",
-        choices=("init", "setup", "validate", "status", "start", "stop", "doctor"),
+        "command",
+        nargs="?",
+        default="setup",
+        choices=("init", "setup", "validate", "status", "start", "stop", "doctor", "reset"),
     )
     parser.add_argument("--config", type=Path, default=_default_config_path())
     parser.add_argument("--env", type=Path)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--non-interactive", action="store_true")
+    parser.add_argument(
+        "--confirm-reset",
+        metavar="DEPLOYMENT_NAME",
+        help="required exact deployment name for destructive reset",
+    )
     args = parser.parse_args(argv)
     config_path = args.config.resolve()
     env_path = (args.env or config_path.parent / "secrets" / "deployment.env").resolve()
@@ -702,6 +799,10 @@ def main(argv=None):
             print("PASS: Docker, configuration, ports and deployed readiness")
         elif args.command == "status":
             print(_compose(stack, config["name"], "ps") if not args.dry_run else "DRY RUN: status")
+        elif args.command == "reset":
+            _reset(config, stack, confirmation=args.confirm_reset, dry_run=args.dry_run)
+            if not args.dry_run:
+                _record_state(config_path, config, "reset")
         else:
             if not args.dry_run:
                 _compose(

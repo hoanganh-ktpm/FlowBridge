@@ -1,5 +1,7 @@
 # Declarative Application Onboarding
 
+> **Component design and milestone history.** Current release deployment/status is defined by [Architecture](ARCHITECTURE.md), [Deployment](DEPLOYMENT.md), and [Testing](../tests/README.md). Statements below that say an integration was pending describe the earlier milestone, not the Layer 1 beta stack.
+
 **Application Manifest v1 -> PostgreSQL schema discovery -> validation -> Core drafts/contracts -> Hasura operation preview.**
 
 **Authorization:** IT/PLATFORM_ADMIN quản trị onboarding, cấu hình, publish và grant/revoke; không bắt buộc department OWNER hoặc consumer read grant để cấu hình. Compiler dùng `admin_verified`; affiliation resolver chỉ resolve phòng ban, không cấp quyền. Consumer đọc theo grant, Business API kiểm quyền độc lập. HTTP runtime và điều kiện PostgreSQL/Hasura integration được mô tả tại [Core Backend P0](CORE-P0.md).
@@ -148,7 +150,7 @@ Kết quả kiểm tra cục bộ của thay đổi này:
 | CLI console entry point | `validate` hợp lệ; offline `plan` trả `ready_for_dispatch=false` đúng blockers |
 | Build và kiểm nội dung wheel/sdist | Passed; có code, CLI entry point, schema/examples/docs; không có cache, secret runtime hoặc reference cục bộ |
 
-Pending integration: PostgreSQL/Core adapters, durable registry/audit/job transactions, trusted uniqueness evidence và credential provider production, relationship dispatch, live capability checks và concurrent-worker/timeout E2E. Scalar P0 HTTP/policy/worker đã có offline tests; không triển khai Docker/Portal/Keycloak deployment. OSS inventory tại [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES.md).
+Historical milestone pending list: PostgreSQL/Core adapters, durable registry/audit/job transactions, trusted uniqueness evidence và credential provider production, relationship dispatch, live capability checks và concurrent-worker/timeout E2E. At that milestone, Scalar P0 HTTP/policy/worker had offline tests and did not deploy Docker/Portal/Keycloak; this is not the current beta status. OSS inventory tại [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES.md).
 
 ## Tài liệu chính thức
 

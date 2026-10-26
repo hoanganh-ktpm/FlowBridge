@@ -49,6 +49,7 @@ class FlowableSettings(BaseSettings):
                 "127.0.0.1",
                 "::1",
                 "host.docker.internal",
+                "flowable",
             }:
                 valid = False
         except ValueError:

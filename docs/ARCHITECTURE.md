@@ -1,58 +1,93 @@
-# Khối công việc và ranh giới
+# FlowBridge architecture
 
-## Thành phần
+## Product boundary
 
-| Khối | Trách nhiệm | Kiểm thử độc lập |
+FlowBridge follows a two-layer DX-OS open-core architecture:
+
+- **Layer 1 — FlowBridge Core** is the reusable interoperability and orchestration platform. It owns application registration, source and product metadata, contracts, authorization policy, access lifecycles, integration provisioning, and workers.
+- **Layer 2 — Data Workspace** consumes Layer 1 services for analytics, forecasting, simulation, and decision support. It is experimental and is not part of the stable `v0.1.0-beta.1` scope.
+
+```mermaid
+flowchart TB
+    subgraph Business systems
+      SALES[Sales]
+      WH[Warehouse]
+      LOG[Logistics]
+    end
+
+    subgraph Layer 1: FlowBridge Core
+      API[Core API]
+      WORKER[Core Worker]
+      PG[(PostgreSQL)]
+      KC[Keycloak]
+      HA[Hasura]
+      FL[Flowable]
+    end
+
+    WS[Layer 2: Data Workspace]
+
+    SALES --> API
+    WH --> API
+    LOG --> API
+    KC -->|verified JWT identity| API
+    API <--> PG
+    API -->|desired metadata and grants| WORKER
+    WORKER <--> HA
+    API <--> FL
+    HA -->|governed reads| SALES
+    HA -->|governed reads| WH
+    HA -->|governed reads| LOG
+    API --> WS
+    HA --> WS
+```
+
+## Responsibilities
+
+| Component | Responsibility | Ownership |
 |---|---|---|
-| services | Nghiệp vụ và transaction của từng ứng dụng | Database fixture, identity/API mock |
-| core | Registry, chia sẻ dữ liệu và governance | Metadata DB fixture, mock IdP/Hasura và sources thử nghiệm |
-| platform | Identity, HTTP và adapter hạ tầng | IdP/HTTP mock, Flowable và mock Business APIs |
-| portal | Giao diện và truy cập API | Fixtures và contracts frontend |
+| Core API | Domain commands, registry, contracts, policies, grants, query boundary | FlowBridge |
+| Core Worker | Reconciles publication and Hasura metadata/permissions | FlowBridge |
+| Deployment CLI | Validates config, renders a private stack, provisions and verifies Layer 1 | FlowBridge |
+| PostgreSQL | Transactional storage for Core and the example systems; seven isolated databases | Third-party engine, FlowBridge schema/migrations |
+| Keycloak | OIDC authentication, token issuance, realm/client management | Third-party engine, FlowBridge bootstrap/profile |
+| Hasura | GraphQL execution and metadata permission enforcement | Third-party engine, FlowBridge provisioning/policy model |
+| Flowable | BPMN process execution | Third-party engine, FlowBridge allow-list/adapters |
+| Portal / Data Workspace | Human-facing consumers of Layer 1 | FlowBridge, experimental in this beta |
 
-Core quản lý tích hợp dữ liệu, Platform cung cấp năng lực kỹ thuật dùng chung, Services sở hữu nghiệp vụ. Backend dùng package app, chia app.core và app.platform theo trách nhiệm. Mỗi Business API có package app và môi trường chạy độc lập. Module Core được tổ chức trong cùng backend để đơn giản hóa composition và quản lý dependency.
+FlowBridge's contribution is the common domain model and lifecycle that coordinates these engines. Engine-native authentication, SQL execution, GraphQL execution, and BPMN execution remain upstream capabilities.
 
-## Quy tắc giao tiếp
+## Data and control flows
 
-- Platform không import Core/domain. Core dùng interface công khai của Platform; giữa module Core không tùy tiện đọc repository của nhau.
-- Services giao tiếp bằng API/contract, không import source hoặc truy vấn DB của nhau.
-- Portal gọi API qua boundary; fixtures chỉ hỗ trợ phát triển độc lập.
-- Contracts giữ schema/interface chung. Infra giữ engine config. Workflows giữ quy trình nghiệp vụ.
-- Test tập trung theo khối, không rải thêm tests/README ở mỗi module con.
+1. An administrator onboards an application and registers a PostgreSQL source.
+2. FlowBridge discovers source structure under a least-privilege credential and stores metadata in Core.
+3. An owner defines and publishes a versioned data contract. Publication work is processed asynchronously.
+4. The Core Worker reconciles the approved source/view and Hasura metadata.
+5. A consumer requests access. Core policy authorizes approval and records a bounded grant.
+6. Hasura receives the generated role/column permissions; the consumer queries with verified identity context.
+7. Revocation or expiry removes effective permission and is reconciled to the data plane.
+8. Allow-listed workflow operations may be delegated to Flowable; outbound workflow actions pass through FlowBridge policy and host allow-lists.
 
-## Database và thực thi
+Business writes stay behind business APIs. The beta's governed data-product path is read-oriented and does not grant database-owner credentials to consumers.
 
-Demo local dùng PostgreSQL 16 với năm database độc lập (ba domain, Core, Hasura metadata), mỗi DB có owner riêng. Migration `_0002` chỉ thêm inbound planning, capacity calendar và sáu view. Generator điều phối timeline bằng ba kết nối quản trị độc lập, không phải coupling runtime giữa các service. Không có shared business DB, cross-DB FK hoặc FDW. Xem [Database Setup](database/README.md).
+## Trust boundaries
 
-Core sở hữu dxos_core_db và một migration history trong backend/app/core/db/migrations. Mỗi domain sở hữu migration riêng trong services/<domain>-api/migrations. Engine tự quản lý Flowable/Keycloak/Hasura metadata DB. Core chỉ lưu metadata, không gom dữ liệu nghiệp vụ về một kho trung tâm.
+- Public clients authenticate with Keycloak. Core verifies signature, issuer, audience, time claims, and identity mappings before authorization.
+- Hasura's admin secret and PostgreSQL owner credentials are infrastructure secrets, never client credentials.
+- Core policy decides who can onboard, publish, approve, grant, revoke, and read; Hasura permissions enforce the resulting read scope.
+- Database roles are separated by owner and reader purpose. Provisioning denies superuser, replication, and row-security bypass attributes.
+- Published host ports bind to `127.0.0.1` in the development topology. Container traffic uses the private Compose network.
+- Production needs external TLS termination, DNS, secret management, monitoring, backup validation, and an operator-controlled upgrade process.
 
-Hasura đọc dữ liệu được công bố; Business APIs thực hiện ghi có transaction và quyền. Provisioner xác nhận metadata/quyền đã áp dụng trước khi ACTIVE, có retry/reconcile. Workflow adapter quản lý giao tiếp engine, BPMN Sales → Warehouse → Logistics đặt trong workflows khi triển khai.
+## Deployment topology and state
 
-SSO xác minh danh tính, không tự cấp quyền nghiệp vụ. Core/Hasura/Business API/Workflow Adapter kiểm quyền tại receiver. Reservation phải nguyên tử, idempotent và có giải phóng/bù khi bước sau lỗi; không dựa riêng vào lần đọc tồn kho trước đó.
+The supported beta installation is one Compose project containing PostgreSQL, one-shot provision/migration jobs, Keycloak, Hasura, Flowable, Core API, and Core Worker. Persistent application state resides in seven PostgreSQL databases:
 
-## Ba lớp phân quyền
+`dxos_core_db`, `sales_db`, `warehouse_db`, `logistics_db`, `hasura_metadata_db`, `flowable_db`, and `keycloak_db`.
 
-| Lớp | Quyền | Nơi thực thi |
-|---|---|---|
-| Quản trị DX-OS | IT có PLATFORM_ADMIN quản trị toàn bộ registry, nguồn, contracts, validate/plan, publish, cấp/thu quyền, cấu hình và audit; không cần OWNER của phòng ban duyệt riêng | Core API/backend sau xác thực và resolve principal role đáng tin cậy |
-| Đọc dữ liệu dùng chung | Consumer đọc đúng Data Product/cột theo grant IT cấp; kiểm hiệu lực tại mỗi request | Core kiểm grant, Hasura thực thi read permissions |
-| Nghiệp vụ từng phần mềm | Tạo đơn, giữ hàng, cập nhật tồn kho/vận chuyển theo quyền riêng của ứng dụng | Business API Sales/Warehouse/Logistics |
+Only the PostgreSQL data directory is a declared persistent volume in the generated stack. Keycloak, Hasura, and Flowable persist through their databases. The Portal and Data Workspace are not members of this Compose release topology.
 
-Phòng ban là thông tin tổ chức/nhóm consumer, không phải nguồn quyền quản trị DX-OS. STAFF/OWNER trong thiết kế DB cũ không cho phép cấu hình, publish, duyệt hoặc cấp quyền. owner_department_id là metadata liên kết, không phải role. Consumer là nhóm sử dụng, không thêm enum role vào DB; principal hiện dùng NONE hoặc PLATFORM_ADMIN.
+## Beta boundaries
 
-IT toàn quyền quản trị không bỏ qua schema/state/revision/verification và không biến token quản trị thành quyền ghi nghiệp vụ hay quyền đọc hàng dữ liệu bằng Hasura admin secret. Khi dùng endpoint dữ liệu/execute thông thường, IT vẫn theo grant/execute/receiver policy tương ứng; IT có thể cấp quyền đó qua thao tác quản trị có audit. Service account không tự có quyền chỉ vì là service. Chi tiết normative tại [API Contracts](API-CONTRACTS.md).
+Validated on Windows 11 with Docker Desktop: cold installation, database provisioning/migrations, Keycloak bootstrap, doctor, smoke, real acceptance 8/8, repeated acceptance, stop/start, persistence, and setup rerun. Linux installation, production ingress/TLS, disaster-recovery restore, automated upgrades/rollback, and stable Layer 2 behavior are not established by that evidence.
 
-## Mã đã chuyển và phần còn thiếu
-
-Đã port: IdentitySettings độc lập, token introspection, Keycloak Directory, generic HTTP utilities và test tương ứng; UI/theme/PKCE; template Keycloak/config APISIX.
-
-Hasura provisioner đã có Metadata Client và services đăng ký nguồn, publish table/view, reconcile SELECT permissions; fake repositories và HTTP mock cho phép phát triển không cần database/engine. Source tại app/core/hasura_provisioner, cấu hình baseline duy nhất ở infra/hasura. Core DB models/migrations và authorization adapters được ghép qua Protocols, không bị module Hasura định nghĩa lại.
-
-Core P0 có FastAPI composition, HTTP handlers cho vertical slice Data Sharing, canonical onboarding, trusted principal/grant policy và worker claim/lease/retry/revision verification. PostgreSQL CoreStore và native HTTP/worker composition đã được kiểm trên cluster thử riêng; identity boundary trong integration tests được override có chủ đích, không thay bằng chứng SSO/Hasura E2E. Chi tiết tại [Automated Onboarding](AUTOMATED-ONBOARDING.md).
-
-Database models/migrations của Core và ba domain được đặt tại module sở hữu; CLI quản trị/seed ở scripts/database không được import từ runtime nghiệp vụ. Head core_0006 bổ sung registry quan hệ và Workflow definition/dispatch metadata vào Core một doanh nghiệp; đã được áp dụng trên Supabase theo phê duyệt nghiệm thu riêng. Các khối principals, phòng ban/memberships, applications/sources, products/contracts, department grants, jobs/audit/receipts giữ nguyên mô hình. Adapter nằm trong app/core/db, không đọc schema nội bộ nghiệp vụ. Ba history nghiệp vụ giữ nguyên. Xem [Database Setup](database/README.md).
-
-Nested reads dùng Relationship Registry do IT quản trị và Hasura local/remote relationships; Core không tự JOIN dữ liệu trong Python. Mỗi cây truy vấn phải có grants bao phủ toàn bộ Products/cột/key dưới cùng một department role; kiểm trạng thái trước và sau khi đọc, không dùng admin secret cho dữ liệu. Chi tiết phạm vi, giới hạn và trạng thái E2E tại [Relationship Queries](RELATIONSHIP-QUERIES.md).
-
-Profile Data Sharing Docker hóa Keycloak/Hasura v2 CE; profile [Workflow](WORKFLOW.md) bổ sung riêng Flowable 7.2.0 để nghiệm thu engine. Core/worker chạy native, PostgreSQL local phục vụ workflow nghiệp vụ; profile Supabase cũ được ghi lại tại [Docker Integration](DOCKER.md). Hasura và Flowable sở hữu metadata/runtime riêng, không dùng bảng Core làm execution store. Đã kiểm onboarding → publication → grant → đọc catalog → revoke bằng token Keycloak và Hasura thật. Workflow router/ports tái sử dụng chính sách Core, không tạo quyền ghi qua Hasura. Vertical slice Business APIs và Order Fulfillment đã được kiểm trong profile local; production stack còn cần hoàn thiện. Backend AI cũ chỉ còn trong lưu trữ lịch sử, không thuộc chức năng hiện hành.
-
-Mã active không import source lưu trữ cục bộ. Template cấu hình được quản lý trong Git; credentials và runtime state được cung cấp riêng khi triển khai.
+See [Deployment](DEPLOYMENT.md), [Security](../SECURITY.md), [Testing](../tests/README.md), and [release readiness](release/RELEASE_READINESS_v0.1.0-beta.1.md).

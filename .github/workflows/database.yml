@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:16
         env:
           POSTGRES_PASSWORD: local-ci-only
           POSTGRES_DB: postgres
@@ -28,5 +28,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install uv==0.13.1
-      - run: uv sync --locked --group dev --group database
-      - run: uv run --locked --group database pytest tests/e2e/database -m "integration and e2e" -q
+      - run: uv sync --frozen --group dev --group database
+      - run: uv run --frozen --group database pytest tests/e2e/database -m "integration and e2e" -q

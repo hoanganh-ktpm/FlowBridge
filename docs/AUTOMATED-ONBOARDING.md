@@ -1,6 +1,8 @@
 # Automated onboarding — native PostgreSQL integration
 
-**Runtime hiện hành:** [Docker Integration & Real E2E](DOCKER.md) dùng đúng hai container Keycloak/Hasura, Core/worker native Windows và Supabase hiện có. Không cần JDK portable hoặc database mới. Tài liệu này ghi nhận milestone native và harness database cô lập trước đó; các blocker/matrix lịch sử bên dưới không mô tả trạng thái profile hiện hành. Evidence mỗi lượt tích hợp được lưu trong ledger local, không suy PASS từ kết quả lịch sử.
+> **Historical milestone record.** This document describes the earlier native/Supabase onboarding milestone. For the `v0.1.0-beta.1` release topology and current evidence, use [Architecture](ARCHITECTURE.md), [Deployment](DEPLOYMENT.md), and [Testing](../tests/README.md).
+
+The profile below used two Keycloak/Hasura containers with native Windows Core/worker and an existing Supabase instance. Its blockers and test matrix are preserved as historical evidence, not as current deployment instructions.
 
 ## Phạm vi
 
