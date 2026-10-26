@@ -38,6 +38,33 @@ def test_stop_refuses_mismatched_resource_ownership_before_process_operations(
         runtime.stop()
 
 
+def test_demo_workspace_loads_only_model_settings_and_preserves_private_overrides(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(runtime, "ROOT", tmp_path)
+    monkeypatch.setattr(runtime, "DIRECTORY", tmp_path / "demo")
+    runtime.DIRECTORY.mkdir()
+    (tmp_path / ".tmp/data-workspace").mkdir(parents=True)
+    write_env(
+        runtime.DIRECTORY / "workspace.env",
+        {"FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION": "private-revision"},
+    )
+    write_env(
+        tmp_path / ".tmp/data-workspace/chronos.env",
+        {
+            "FLOWBRIDGE_WORKSPACE_CHRONOS_PATH": "local-model",
+            "FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION": "default-revision",
+            "FLOWBRIDGE_WORKSPACE_CORE_URL": "must-not-override-core",
+        },
+    )
+    values = runtime.process_environment("workspace")
+    assert values["FLOWBRIDGE_WORKSPACE_CHRONOS_PATH"] == "local-model"
+    assert values["FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION"] == "private-revision"
+    assert "FLOWBRIDGE_WORKSPACE_CORE_URL" not in values
+    write_env(runtime.DIRECTORY / "sales.env", {})
+    assert "FLOWBRIDGE_WORKSPACE_CHRONOS_PATH" not in runtime.process_environment("sales")
+
+
 def test_runtime_rejects_hosted_owner_database_before_reading_local_credentials(monkeypatch):
     from scripts.database import config, local
     from sqlalchemy.engine import make_url

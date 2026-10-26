@@ -1,8 +1,62 @@
 # Forecast methods and model provenance
 
-## Active forecast selection, version 2.0.0
+## Active pretrained model: Chronos-2
 
-`auto`, `ridge_lag` and the statistical baseline are FlowBridge-authored code under
+Operational Portal forecasts, planning and new API defaults use `chronos2`.
+The `auto` provider also resolves to Chronos-2. Explicit `ridge_lag` and
+`seasonal_mean` remain available for compatibility and comparison. Saved runs
+retain their actual method. New requests default to no statistical fallback.
+
+| Item | Provisioned artifact |
+|---|---|
+| Model | `amazon/chronos-2`, official pretrained weights |
+| Immutable model revision | `29ec3766d36d6f73f0696f85560a422f50e8498c` |
+| Provider | `chronos-forecasting==2.3.2` |
+| Runtime | PyTorch `2.8.0+cpu` on Windows/Linux, Transformers `4.57.6`, pandas `2.3.3` |
+| Code license | [Apache-2.0](https://github.com/amazon-science/chronos-forecasting/blob/main/LICENSE) |
+| Weights license declaration | Apache-2.0 in the [pinned official model card](https://huggingface.co/amazon/chronos-2/blob/29ec3766d36d6f73f0696f85560a422f50e8498c/README.md) |
+| Use | Local CPU zero-shot inference, no local training/fine-tuning, no business-data upload |
+
+Install the optional forecasting dependency group with
+`uv sync --locked --group dev --group database --group forecasting`.
+Run `python -m scripts.provision_chronos` once to download the pinned official
+artifact into ignored `.cache/models/chronos-2/<revision>`. The script verifies
+the weights against the official LFS SHA256 and records SHA256 values for every
+provisioned file in `model_provenance.json`. Weights are not shipped in source.
+
+The model repository declares Apache-2.0 in README metadata and does not contain
+a separate LICENSE file at this revision. The provisioner preserves that model
+card and bundles the [canonical Apache-2.0 text](https://www.apache.org/licenses/LICENSE-2.0.txt)
+as LICENSE, recording its actual source separately. It does not claim that the
+license text was fetched from the model repository. Preserve these files and
+applicable upstream notices when redistributing an artifact.
+
+The local CLI loads the generated `.tmp/data-workspace/chronos.env` when serving
+Workspace. The guarded `scripts.decision_demo_runtime` launcher also reads only
+the two model settings from that file for Workspace; its private service profile
+takes precedence. It does not pass model settings to other services or the browser.
+Other deployments explicitly set `FLOWBRIDGE_WORKSPACE_CHRONOS_PATH`
+and `FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION`. Runtime verifies the manifest and
+hashes before loading, uses `local_files_only=True` and reuses one CPU instance.
+Requests never download or fine-tune a model. Unavailable/incompatible models
+produce `503 CHRONOS_UNAVAILABLE` on the active UI paths.
+
+P10/P50/P90 are native model quantiles, clipped at zero for nonnegative series.
+They are not calibrated service-level guarantees for this enterprise. Two
+chronological historical blocks evaluate P50 MAE/WAPE when enough context exists.
+No validation score is invented for shorter series. The held-out values are
+excluded from each inference context. Evaluation does not update weights.
+
+Real local inference was verified on 25/10/2026, including calendar gaps and
+planning to saved scenario comparison using fixture Core/repository boundaries.
+The API evidence therefore verifies real model execution, not live SSO/Core/
+Hasura/PostgreSQL integration or accuracy gains on enterprise data. Safe local
+evidence is in `.tmp/data-workspace/chronos-real-inference.json` and
+`.tmp/data-workspace/chronos-planning-inference.json` (ignored).
+
+## Legacy Ridge and statistical methods, version 2.0.0
+
+`ridge_lag` and the statistical baseline are FlowBridge-authored code under
 GPL-3.0-or-later, implemented with Python's standard library. No new runtime library,
 pretrained weights or external inference endpoint is used. Ridge inference has been
 run on the authorized local data; this is separate from the optional Chronos provider.
@@ -10,12 +64,12 @@ run on the authorized local data; this is separate from the optional Chronos pro
 `ridge_lag` fits a supervised L2-regularized regression from the caller's authorized
 series: lags 1/7/14, mean of the last 7 values, a time index and weekday indicators.
 Features and target are centered, features scaled, intercept unpenalized, lambda=1.
-The fitted context is bounded to 180 days and future lags are recursively predicted.
+The fitted context follows the requested lookback and future lags are recursively predicted.
 The implementation is original; the standard objective is documented in
 [Ridge regression](https://scikit-learn.org/stable/modules/linear_model.html#ridge-regression-and-classification).
 scikit-learn itself is not installed or redistributed by this feature.
 
-Auto compares two chronological, unseen blocks of the requested horizon. Both
+The legacy selector compares two chronological, unseen blocks of the requested horizon. Both
 methods use the same source-to-origin gap as the real request. ML is eligible only
 with at least `56 + 2*horizon + gap` complete daily periods and is selected only if
 its MAE is over 5% lower. Otherwise statistics remain active. That 5% is an explicit
@@ -50,37 +104,3 @@ and monthly forecasts average recent periods. Empirical residual quantiles are a
 to that base for ordered P10/P50/P90 estimates, not calibrated probabilities. Runs
 retain their own method version (earlier 1.0.0 runs used the mean as the central point).
 No model artifact is downloaded or redistributed.
-
-## Optional Chronos-2 provider
-
-| Item | Recorded status |
-|---|---|
-| Model | `amazon/chronos-2` |
-| Official model card | [Amazon model card](https://huggingface.co/amazon/chronos-2) |
-| Code | [amazon-science/chronos-forecasting](https://github.com/amazon-science/chronos-forecasting) |
-| Code license | [Apache-2.0](https://github.com/amazon-science/chronos-forecasting/blob/main/LICENSE) |
-| Weights license declaration | Apache-2.0 in the official model-card metadata, checked 2026-10-24 |
-| Installed code version | Not installed in this environment |
-| Artifact revision/hash | None provisioned; no weights were downloaded or executed |
-| Verification | Fallback/strict-unavailable behavior tested. Real **Chronos-2** inference is not verified; the local ridge model above is separately verified. |
-
-The model-card declaration and code license are distinct evidence. The weights
-LICENSE URL was not retrievable during this audit; the provider therefore requires
-an audited local artifact before use. Installing an optional provider does not
-turn the statistical forecast into ML evidence.
-
-Provisioning must record an immutable 40-character model repository commit and a
-`model_provenance.json` in the local model directory containing `repository`,
-`revision`, `weights_license`, and a `sha256` mapping. That mapping must cover
-`config.json`, `LICENSE`, and all local `.safetensors` weights. Preserve the model
-card, license, applicable notices and attribution with any redistributed artifact;
-verify the exact revision's conditions before distributing it. Weights stay outside
-the repository. There is no external inference/data upload in this implementation.
-
-Set `FLOWBRIDGE_WORKSPACE_CHRONOS_PATH` and `FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION`
-only after that audit and pin the installed provider and its dependencies in the
-project lockfile. The provider uses local files only, reuses one CPU instance, checks
-the installed `predict_df` signature, and rejects missing/misaligned/nonfinite
-quantiles. Provenance stores installed code version, model revision and manifest
-SHA256. Failure either returns the labelled statistical fallback or HTTP 503 when
-`allow_statistical_fallback=false`. No fine-tuning is performed.

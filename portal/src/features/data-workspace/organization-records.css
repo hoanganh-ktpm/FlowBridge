@@ -1,0 +1,51 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+.or-workspace { display: grid; gap: 22px; }
+.or-intro { max-width: 760px; }
+.or-eyebrow { color: var(--fb-brand-blue); font-size: 10px; letter-spacing: 1px; }
+.or-intro h2 { font-size: 22px; font-weight: 600; margin: 10px 0; }
+.or-intro p,.or-guide p { color: var(--fb-text-muted); line-height: 1.9; font-size: 12px; }
+.or-quick-search { display: grid; grid-template-columns: minmax(180px,1fr) minmax(220px,2fr) auto; gap: 16px; align-items: end; padding: 20px; border: 1px solid var(--fb-border); border-radius: 12px; background: var(--fb-surface); }
+.or-collections { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.or-collection { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 14px; padding: 22px; border-radius: 12px; border: 1px solid var(--fb-border); background: var(--fb-surface); }
+.or-collection:hover { border-color: var(--fb-brand-blue); background: var(--fb-info-bg); }
+.or-collection:focus-visible { outline: 3px solid var(--fb-focus-ring); outline-offset: 3px; }
+.or-collection > svg,.or-collection b { color: var(--fb-brand-blue); }
+.or-collection strong { font-size: 14px; }
+.or-collection span { color: var(--fb-text-muted); font-size: 12px; line-height: 1.8; flex: 1; }
+.or-collection b { font-size: 11px; font-weight: 500; }
+.or-guide { border-left: 3px solid var(--fb-brand-blue); padding: 4px 0 4px 18px; }
+.or-guide h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.or-list-filters { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.or-list-filters > .dw-field:first-child { flex: 1; min-width: 200px; }
+.or-page-info { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0; color: var(--fb-text-muted); font-size: 11px; }
+.or-page-info input { max-width: 300px; }
+.or-note,.or-source,.or-scope { display: block; color: var(--fb-text-muted); font-size: 11px; line-height: 1.8; margin-top: 12px; }
+.or-table td { font-variant-numeric: tabular-nums; }
+.or-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.or-empty { padding: 18px 0; color: var(--fb-text-muted); }
+.or-order-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-bottom: 20px; }
+.or-order-facts span { font-size: 11px; color: var(--fb-text-muted); }
+.or-order-facts strong { display: block; color: var(--fb-text); font-size: 13px; margin-top: 4px; }
+@media(max-width:1100px) { .or-collections { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .or-quick-search { grid-template-columns: minmax(0,1fr); padding: 16px; } .or-collections { gap: 10px; } .or-collection { padding: 14px; gap: 10px; } .or-page-info { flex-direction: column; align-items: stretch; } .or-page-info input { max-width: 100%; } .or-order-facts { grid-template-columns: minmax(0,1fr); } }
+
+.or-stock-cards { display: none; }
+.or-order-lines table { min-width: 0; table-layout: fixed; }
+.or-order-lines th:first-child { width: 48px; }
+.or-order-lines th:last-child { width: 34%; }
+.or-order-lines td { overflow-wrap: anywhere; }
+.or-order-lines td:last-child { font-variant-numeric: tabular-nums; }
+@media(max-width:600px) {
+  .or-inventory-table { display: none; }
+  .or-stock-cards { display: grid; gap: 12px; }
+  .or-stock-cards article { padding: 14px; border: 1px solid var(--fb-border); border-radius: 10px; }
+  .or-stock-cards article > strong { display: block; font-size: 13px; }
+  .or-stock-cards article > span { display: block; margin-top: 6px; font-size: 11px; color: var(--fb-text-muted); }
+  .or-stock-cards dl { margin-top: 12px; display: grid; gap: 8px; }
+  .or-stock-cards dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+  .or-stock-cards dt { color: var(--fb-text-muted); }
+  .or-stock-cards dd { font-weight: 600; }
+  .or-order-facts { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .or-order-lines th,.or-order-lines td { padding: 10px 7px; font-size: 11px; }
+  .or-order-lines th:first-child { width: 38px; }
+}

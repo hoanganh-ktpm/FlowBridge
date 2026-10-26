@@ -31,8 +31,10 @@ Report composition dùng `reports.py` cho chuỗi cùng đơn vị và mapping r
 `portfolio.py` cho ngữ nghĩa Sales/Warehouse và lịch Logistics. Các phép đối chiếu
 chỉ dùng facts từ Core, không JOIN SQL các database nghiệp vụ. Kết quả thiếu quyền
 là unknown; trước khi trả báo cáo tổng hợp kiểm lại mọi nguồn đã dùng. Lineage được
-tách theo từng biểu đồ. Ridge/rolling validation ở `learning.py` dùng chung dữ liệu
-chuẩn hóa, không đọc tồn kho tương lai hoặc gọi model ngoài để học nhu cầu.
+tách theo từng biểu đồ. Chronos-2 ở `forecasting.py` chạy trọng số huấn luyện sẵn
+cục bộ trên dữ liệu chuẩn hóa được cấp quyền, không fine-tune hoặc gửi dữ liệu
+nghiệp vụ ra ngoài. Hai đoạn kiểm chứng theo thời gian chỉ đánh giá sai số. Ridge
+ở `learning.py` được giữ để đọc/tái hiện phương pháp cũ khi được yêu cầu rõ.
 
 `/planning` ở `operations.py` đối chiếu lượng đặt theo kho, tồn và phần đã giữ,
 đơn chưa phân bổ, hàng sẽ về và lịch bàn giao qua các Data Product đã cấp quyền.

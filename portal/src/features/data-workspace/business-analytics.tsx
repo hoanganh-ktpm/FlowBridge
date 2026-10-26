@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { InteractiveFlow, InspectChart, WorkspaceDialog } from './interactive-workspace';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Card, CardContent } from '@/components/ui/card';
+import { GuidedWizard } from './guided-wizard';
 import { Input } from '@/components/ui/input';
 import { Bars, Field, Panel, Plot, Select, dateLabel, fmt, unitLabel, withCalendarGap } from './components';
 import { ProductSelector } from './product-selector';
@@ -25,9 +26,10 @@ function ForecastHelp({ label, children }: { label: string; children: ReactNode 
   </TooltipTrigger><TooltipContent sideOffset={8} className="max-w-72 text-xs leading-6">{children}</TooltipContent></Tooltip>;
 }
 
-export function BusinessAnalytics({ products, busy, request, perform, onEvidence, onPlan, canPlan, mode, names }: {
+export function BusinessAnalytics({ products, busy, request, perform, onEvidence, onPlan, canPlan, mode, names, error }: {
   products: Product[]; busy: boolean; request: WorkspaceRequest; mode: 'history' | 'forecast';
   names: Record<string, string>;
+  error: string;
   perform: (label: string, work: () => Promise<void>) => Promise<void>;
   onEvidence: (value: Explanation) => void; onPlan: (sku: string, horizon: number, training?: number) => void; canPlan: boolean;
 }) {
@@ -39,6 +41,11 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
   const [result, setResult] = useState<Overview | null>(null);
   const [applied, setApplied] = useState({ topic: '', days: '', entity: '', compared: [] as string[] });
   const [startDate, setStartDate] = useState(''), [endDate, setEndDate] = useState(''), [training, setTraining] = useState('180');
+  const [wizardOpen,setWizardOpen]=useState(false),[resultOpen,setResultOpen]=useState(false);
+  const requestEpoch=useRef(0),pending=useRef<AbortController|null>(null);
+  useEffect(()=>()=>{requestEpoch.current++;pending.current?.abort();},[]);
+  function closeWizard(){requestEpoch.current++;pending.current?.abort();setWizardOpen(false);setSourceOpen(false);}
+  const [sourceOpen,setSourceOpen]=useState(false),[historyTab,setHistoryTab]=useState('trend');
   const [forecast, setForecast] = useState<Forecast | null>(null), [forecastSettings, setForecastSettings] = useState('');
   const product = topics.find(p => p.id === topic);
   const sales = result?.config.entity_column === 'sku';
@@ -64,33 +71,37 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
   const future = forecast?.points.filter(p => p.item_id === result?.entity).map(p => ({ day: p.timestamp, predicted: p.p50, band: [p.p10, p.p90] })) || [];
   const forecastTotal = future.reduce((sum, p) => sum + p.predicted, 0);
   const model = result ? forecast?.model.entities?.[result.entity] : undefined;
-  const score = model?.validation.ridge_lag;
+  const score = model?.validation[model.method];
 
   async function apply() {
     if (!product) return;
+    const ticket=++requestEpoch.current;pending.current?.abort();pending.current=new AbortController();
     setResult(null); setForecast(null);
     const catalog = products.find(p => p.name === (names.catalog || 'warehouse.planning_catalog'));
-    const report = await request<Overview>('/overview', { ...ref(product), days: Number(days), entity: entity || null, compare_entities: mode === 'history' ? compared : [], ...(product.name === salesName && catalog ? { catalog: ref(catalog) } : {}) });
+    const report = await request<Overview>('/overview', { ...ref(product), days: Number(days), entity: entity || null, compare_entities: mode === 'history' ? compared : [], ...(product.name === salesName && catalog ? { catalog: ref(catalog) } : {}) },pending.current.signal,undefined,true);
+    if(ticket!==requestEpoch.current)return;
     setResult(report); setEntity(report.entity);
     const reportToday = addDays(report.source_end, report.source_age_days);
     if (!startDate || startDate < reportToday) { setStartDate(reportToday); setEndDate(addDays(reportToday, 6)); }
     const choices = report.comparison_entities || [report.entity]; setCompared(choices);
-    setApplied({ topic, days, entity: report.entity, compared: choices });
+    setApplied({ topic, days, entity: report.entity, compared: choices }); if(mode==='history')setSourceOpen(false);
   }
   async function predict() {
-    if (!result || !validWindow) return;
+    if (!result || !validWindow || dirty || result.source_age_days>90) return;
+    const ticket=++requestEpoch.current;pending.current?.abort();pending.current=new AbortController();
     setForecast(null);
-    const next = await request<Forecast>('/forecasts', { config: { ...result.config, entities: [result.entity], forecast_model: 'ridge_lag' }, start_date: startDate, end_date: endDate, training_days: Number(training), allow_statistical_fallback: false });
-    setForecast(next); setForecastSettings(JSON.stringify({ startDate, endDate, training }));
+    const next = await request<Forecast>('/forecasts', { config: { ...result.config, entities: [result.entity], forecast_model: 'chronos2' }, start_date: startDate, end_date: endDate, training_days: Number(training), allow_statistical_fallback: false },pending.current.signal);
+    if(ticket!==requestEpoch.current)return;
+    setForecast(next);setWizardOpen(false);setResultOpen(true); setForecastSettings(JSON.stringify({ startDate, endDate, training }));
   }
   function explain(kind: 'history' | 'rhythm' | 'forecast') {
     if (!result) return;
     const evidence = kind === 'forecast' && forecast ? forecast.evidence : result.analytics.evidence;
-    onEvidence({ title: kind === 'forecast' ? 'Nguồn dữ liệu và phương pháp dự báo' : kind === 'rhythm' ? 'Nhịp trong tuần' : 'Số liệu đã ghi nhận',
+    onEvidence({ title: kind === 'forecast' ? 'Nguồn dữ liệu và phương pháp dự báo' : kind === 'rhythm' ? 'Mức đặt hàng theo từng thứ trong tuần' : 'Số liệu đã ghi nhận',
       meaning: kind === 'forecast' ? 'Ước tính nhu cầu mới để tham khảo khi lập kế hoạch. Cần đối chiếu với các cam kết đã có.' : sales ? 'Lượng khách đặt đã được xác nhận. Số liệu này chưa phản ánh hàng đã giao hoặc doanh thu ròng.' : 'Số lượt vận chuyển đã tiếp nhận. Số liệu này chưa phản ánh số lượt giao thành công.',
       applications: sourceNames(evidence),
-      formula: kind === 'forecast' ? 'ML học từ lượng đặt các ngày trước, nhịp tuần và xu hướng. Kiểm chứng trên hai đoạn lịch sử theo đúng thứ tự thời gian.' : kind === 'rhythm' ? 'Tổng lượng phát sinh cùng thứ ÷ số ngày thuộc thứ đó.' : 'Tổng hợp các sự kiện đã ghi nhận theo ngày, đúng quyền nguồn.',
-      notes: [ ...(kind === 'forecast' ? ['Mô hình Ridge chỉ tạo dự báo khi có đủ lịch sử để học và kiểm chứng.', 'Vùng nhạt thể hiện mức dao động tham khảo từ sai lệch trong quá khứ. Kết quả thực tế có thể nằm ngoài vùng này.', 'Dữ liệu học phải đủ 56 ngày và hai kỳ kiểm chứng, cộng khoảng trống đến ngày dự báo.'] : []), `Dữ liệu được ghi nhận đến ${dateLabel(result.source_end)}. Thời điểm này cách ngày tạo kết quả ${result.source_age_days} ngày.`, 'Chỉ điền 0 cho ngày không có sự kiện trong nguồn tổng hợp đầy đủ đã đọc thành công.'],
+      formula: kind === 'forecast' ? 'Chronos-2 dùng trọng số huấn luyện sẵn để dự báo từ lịch sử được cấp quyền. Sai số được kiểm tra trên hai đoạn lịch sử khi đủ dữ liệu.' : kind === 'rhythm' ? 'Tổng lượng phát sinh cùng thứ ÷ số ngày thuộc thứ đó.' : 'Tổng hợp các sự kiện đã ghi nhận theo ngày, đúng quyền nguồn.',
+      notes: [ ...(kind === 'forecast' ? ['Chronos-2 đã được huấn luyện sẵn, chạy trên máy chủ với lịch sử của bạn làm ngữ cảnh.', 'Vùng nhạt thể hiện khoảng dự báo của Chronos-2, chưa được hiệu chỉnh xác suất trên doanh nghiệp. Thực tế có thể nằm ngoài vùng này.', 'Cần ít nhất 14 kỳ lịch sử hoàn chỉnh. Chỉ hiển thị sai số kiểm chứng khi đủ lịch sử cho hai kỳ đối chiếu.'] : []), `Dữ liệu được ghi nhận đến ${dateLabel(result.source_end)}. Thời điểm này cách ngày tạo kết quả ${result.source_age_days} ngày.`, 'Chỉ điền 0 cho ngày không có sự kiện trong nguồn tổng hợp đầy đủ đã đọc thành công.'],
       start: kind === 'forecast' ? future[0]?.day : result.config.start, end: kind === 'forecast' ? future.at(-1)?.day : result.config.end,
       last_observation: result.source_end, read_at: forecast?.created_at, technical: evidence });
   }
@@ -98,45 +109,59 @@ export function BusinessAnalytics({ products, busy, request, perform, onEvidence
   if (!topics.length) return <div className="pw-source-setup"><p>Chưa có dữ liệu lịch sử được chia sẻ. Liên hệ IT để kết nối nguồn đặt hàng hoặc vận chuyển.</p></div>;
   const filters = <>
     <section className="dw-filterbar pw-analytics-filters">
-      <Field title="Nội dung"><Select value={topic} disabled={busy} onChange={v => { setTopic(v); setEntity(''); setCompared([]); }}>{topics.map(p => <option key={p.id} value={p.id}>{p.name === salesName ? 'Lượng khách đặt hàng' : 'Lượt vận chuyển tiếp nhận'}</option>)}</Select></Field>
-      <Field title={mode === 'forecast' ? 'Khoảng xem lịch sử' : 'Xem số liệu đã ghi nhận trong'} hint="Khoảng số liệu quá khứ hiển thị trên biểu đồ. Dữ liệu học ML được chọn riêng ở bước tạo dự báo."><Select value={days} disabled={busy} onChange={setDays}>{['7', '14', '30', '90', '365'].map(n => <option key={n} value={n}>{n === '365' ? '12 tháng' : n + ' ngày'}</option>)}</Select></Field>
+      <Field title="Nội dung"><Select value={topic} disabled={busy} onChange={v => { setTopic(v); setEntity(''); setCompared([]); }}>{topics.map(p => <option key={p.id} value={p.id}>{p.name === salesName ? 'Lượng khách đặt hàng' : 'Số lịch lấy hàng đã được xác nhận'}</option>)}</Select></Field>
+      <Field title={mode === 'forecast' ? 'Khoảng xem lịch sử' : 'Xem số liệu đã ghi nhận trong'} hint="Khoảng số liệu quá khứ hiển thị trên biểu đồ. Lịch sử tham chiếu cho Chronos-2 được chọn riêng ở bước tạo dự báo."><Select value={days} disabled={busy} onChange={setDays}>{['7', '14', '30', '90', '365'].map(n => <option key={n} value={n}>{n === '365' ? '12 tháng' : n + ' ngày'}</option>)}</Select></Field>
       <Field title={product?.name === salesName ? 'Sản phẩm' : 'Nhà vận chuyển'}>{product?.name === salesName ? <ProductSelector items={(result?.entities || []).map(sku => ({ sku, name: labels[sku] }))} value={entity} onChange={v => { setEntity(v); setCompared([v, ...compared.filter(e => e !== v)].slice(0, 3)); }} disabled={busy || !result || topic !== applied.topic}/> : <Select value={entity} disabled={busy || !result || topic !== applied.topic} onChange={v => { setEntity(v); setCompared([v]); }}><option value="">Chọn sau khi cập nhật</option>{result?.entities.map(e => <option key={e}>{e}</option>)}</Select>}</Field>
       <Button disabled={busy} onClick={() => void perform('Đang cập nhật dữ liệu', apply)}>{mode === 'history' ? 'Cập nhật biểu đồ' : 'Cập nhật dữ liệu'}</Button>
       {dirty && <span className="pw-draft-note">Lựa chọn đã thay đổi. Cập nhật dữ liệu để tiếp tục.</span>}
     </section>
     {mode === 'forecast' && result && !dirty && <p className="pw-forecast-ready" role="status">Đã cập nhật dữ liệu đến {dateLabel(result.source_end)}.</p>}
   </>;
-  return <div className={`pw-analysis-view${mode === 'forecast' ? ' pw-forecast-view' : ''}`}>
-    {mode === 'forecast' ? <Panel title="Bước 1. Cập nhật dữ liệu" subtitle="Chọn nội dung và khoảng thời gian cần xem.">{filters}</Panel> : filters}
-    {!result && mode === 'history' && <Card className="pw-empty-state"><CardContent><h2>Chưa có biểu đồ</h2><p>Chọn nội dung và khoảng xem, sau đó cập nhật dữ liệu để bắt đầu.</p></CardContent></Card>}
-    {result && mode === 'history' && <>
-      <Panel title={sales ? 'Diễn biến lượng đặt hàng' : 'Diễn biến lượt vận chuyển tiếp nhận'} action={evidence('history')}>
+
+  return <section className="iw-page-home" aria-label={mode==='forecast'?'Dự báo nhu cầu':'Phân tích lịch sử'}>
+    <p className="iw-page-intro">{mode==='forecast'?'Chọn dữ liệu, xác nhận kỳ cần dự báo rồi xem kết quả Chronos-2. Chỉ tính khi bạn yêu cầu.':'Khám phá lượng đặt hàng và lượt vận chuyển đã ghi nhận. Mở biểu đồ để xem chi tiết.'}</p>
+    <InteractiveFlow connected={mode==='forecast'} label={mode==='forecast'?'Chức năng dự báo nhu cầu':'Chức năng phân tích lịch sử'} onSelect={id=>{
+      if(id==='source')setSourceOpen(true);else if(id==='create')setWizardOpen(true);else if(id==='result')setResultOpen(true);else{setHistoryTab(id);setResultOpen(true);}
+    }} nodes={mode==='forecast'?[
+      {id:'create',title:'Tạo dự báo',description:'Ba bước: dữ liệu → kỳ dự báo → xác nhận'},
+      {id:'result',title:'Xem kết quả dự báo',description:'Biểu đồ, sai số và chuyển sang lập phương án',disabled:!forecast||dirty||forecastDirty},
+    ]:[
+      {id:'source',title:'Chọn dữ liệu phân tích',description:'Chọn nội dung, đối tượng và khoảng lịch sử'},
+      {id:'trend',title:'Xu hướng theo thời gian',description:'Biểu đồ và trung bình trượt',disabled:!result||dirty},
+      {id:'rhythm',title:'Nhịp trong tuần',description:'Đối chiếu các ngày trong tuần',disabled:!result||dirty},
+    ]}/>
+    <div className="iw-page-status">{result?<><strong>{label(result.entity)}</strong><span>Dữ liệu đến {dateLabel(result.source_end)} · {dirty?'Lựa chọn đã đổi, cần cập nhật lại':'Đã cập nhật dữ liệu'}{forecast&&!dirty&&!forecastDirty?' · Đã có kết quả dự báo':''}</span></>:<span>Chưa đọc dữ liệu. Chọn một chức năng để bắt đầu.</span>}</div>
+    <WorkspaceDialog open={sourceOpen} onClose={closeWizard} title="Chọn dữ liệu và phạm vi phân tích" description="Cập nhật dữ liệu sau khi chọn phạm vi. Đóng hộp thoại giữ lựa chọn đang sửa." wide>{error&&<p role="alert">{error}</p>}<fieldset disabled={busy}>{filters}</fieldset></WorkspaceDialog>
+    <WorkspaceDialog open={wizardOpen} onClose={closeWizard} title="Tạo dự báo nhu cầu" description="Hoàn tất từng bước. Kết quả chỉ được tính sau khi xác nhận bước cuối." wide>
+      {error&&<p role="alert">{error}</p>}<GuidedWizard label="Các bước tạo dự báo" busy={busy} finishLabel="Tạo dự báo" onFinish={()=>void perform('Đang dự báo bằng Chronos-2',predict)} steps={[
+        {id:'data',title:'Chọn và đọc dữ liệu',description:'Xác nhận nguồn trước khi chọn kỳ dự báo',valid:!!result&&!dirty&&result.source_age_days<=90,signature:JSON.stringify([applied,topic,days,entity,compared]),issue:result?.source_age_days&&result.source_age_days>90?'Lịch sử quá cũ. Cần cập nhật nguồn trước khi dự báo.':'Chọn phạm vi rồi bấm Cập nhật dữ liệu để mở bước tiếp theo.',content:<fieldset disabled={busy}>{filters}</fieldset>},
+        {id:'window',title:'Chọn kỳ dự báo',description:'Lịch sử tham chiếu và các ngày cần ước tính',valid:validWindow,signature:JSON.stringify([startDate,endDate,training]),issue:'Chọn khoảng ngày từ hôm nay, ngày kết thúc không trước ngày bắt đầu và trong 90 ngày tới.',content:<fieldset disabled={busy}><div className="pw-forecast-controls">
+          <Field title="Dữ liệu tham chiếu" hint="Khoảng lịch sử làm ngữ cảnh cho mô hình huấn luyện sẵn và đối chiếu sai số. Không huấn luyện lại mô hình."><Select value={training} disabled={busy} onChange={setTraining}><option value="90">3 tháng gần nhất</option><option value="180">6 tháng gần nhất</option><option value="365">12 tháng gần nhất</option></Select></Field>
+          <Field title="Ngày bắt đầu dự báo" hint="Ngày đầu tiên cần ước tính lượng đặt mới. Chọn từ hôm nay trở đi."><Input type="date" min={today} max={lastDate} value={startDate} disabled={busy} onChange={e => setStartDate(e.target.value)}/></Field>
+          <Field title="Ngày kết thúc dự báo" hint="Tính cả ngày kết thúc. Khoảng dự báo phải nằm trong 90 ngày tới. Sai số kiểm chứng chỉ hiện khi đủ lịch sử."><Input type="date" min={startDate || today} max={lastDate} value={endDate} disabled={busy} onChange={e => setEndDate(e.target.value)}/></Field>
+
+        </div>
+<ForecastHelp label="Giải thích cách tạo dự báo">Chronos-2 đã được huấn luyện sẵn. Lịch sử được dùng làm ngữ cảnh dự báo; sai số được kiểm tra khi có đủ dữ liệu.</ForecastHelp></fieldset>},
+        {id:'review',title:'Xác nhận và tính',description:'Kiểm tra phạm vi trước khi chạy mô hình',valid:!!result&&!dirty&&validWindow,signature:JSON.stringify([applied,startDate,endDate,training]),content:<dl className="iw-summary"><div><dt>Đối tượng</dt><dd>{result?label(result.entity):'Chưa chọn'}</dd></div><div><dt>Mô hình</dt><dd>Chronos-2 · huấn luyện sẵn</dd></div><div><dt>Kỳ dự báo</dt><dd>{dateLabel(startDate)} – {dateLabel(endDate)}</dd></div><div><dt>Lịch sử tham chiếu</dt><dd>{training} ngày, trong phạm vi nguồn có dữ liệu</dd></div></dl>},
+      ]}/>
+    </WorkspaceDialog>
+    <WorkspaceDialog open={resultOpen} onClose={()=>setResultOpen(false)} title={mode==='forecast'?'Kết quả dự báo nhu cầu':'Biểu đồ phân tích lịch sử'} description="Kết quả theo phạm vi đã cập nhật. Mở nguồn và cách tính để đối chiếu." wide>
+      {dirty||forecastDirty&&mode==='forecast'?<p role="status">Lựa chọn đã đổi. Cập nhật hoặc tính lại trước khi sử dụng kết quả.</p>:result&&mode==='history'?<>      <div className="dw-actions"><Button variant={historyTab==='trend'?'default':'outline'} onClick={()=>setHistoryTab('trend')}>Xu hướng theo thời gian</Button><Button variant={historyTab==='rhythm'?'default':'outline'} onClick={()=>setHistoryTab('rhythm')}>Nhịp trong tuần</Button></div>
+      <div hidden={historyTab!=='trend'}><Panel title={sales ? 'Diễn biến lượng đặt hàng' : 'Diễn biến lượt vận chuyển tiếp nhận'} action={evidence('history')}>
         <div className="pw-chart-options"><DropdownMenu modal={false}><DropdownMenuTrigger asChild><Button size="sm" variant="outline">Tùy chọn biểu đồ</Button></DropdownMenuTrigger><DropdownMenuContent className="pw-chart-menu" align="start" sideOffset={8} collisionPadding={12}>
-          <DropdownMenuCheckboxItem checked={average} onSelect={e => e.preventDefault()} onCheckedChange={setAverage}>Làm mượt theo bình quân 7 ngày</DropdownMenuCheckboxItem>
-          <DropdownMenuSeparator/><DropdownMenuLabel>So sánh tối đa 3 đối tượng</DropdownMenuLabel>
+          <DropdownMenuCheckboxItem checked={average} onSelect={e => e.preventDefault()} onCheckedChange={setAverage}>Xem trung bình 7 ngày để nhận ra xu hướng</DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator/><DropdownMenuLabel>Chọn tối đa 3 mặt hàng hoặc nhà vận chuyển</DropdownMenuLabel>
           {result.entities.map(e => <DropdownMenuCheckboxItem key={e} disabled={busy || e === entity || !compared.includes(e) && compared.length >= 3} checked={compared.includes(e)} onSelect={e => e.preventDefault()} onCheckedChange={checked => setCompared(c => checked ? [...c, e] : c.filter(v => v !== e))}>{label(e)}</DropdownMenuCheckboxItem>)}
           <DropdownMenuSeparator/><p className="px-2 py-1 text-xs text-muted-foreground">Cập nhật biểu đồ để áp dụng đối tượng so sánh.</p>
         </DropdownMenuContent></DropdownMenu></div>
-        <Plot data={history} unit={unit} lines={(result.comparison_entities || [result.entity]).map((name, i) => ({ key: `item${i}`, name: label(name), color: palette[i] }))}/>
-      </Panel>
-      <Panel title={sales ? 'Lượng đặt hàng theo thứ trong tuần' : 'Lượt vận chuyển theo thứ trong tuần'} subtitle={`${label(result.entity)} · ${unit}/ngày`} action={evidence('rhythm')}><Bars data={rhythm} category="day" unit={unit} lines={[{ key: 'quantity', name: sales ? 'Lượng đặt bình quân' : 'Lượt tiếp nhận bình quân', color: blue }]}/></Panel>
-    </>}
-    {result && !dirty && mode === 'forecast' && <>
-      <Panel title="Bước 2. Tạo dự báo" subtitle="Chọn dữ liệu tham chiếu và thời gian cần dự báo." action={<ForecastHelp label="Giải thích cách tạo dự báo">Mô hình học từ lịch sử và kiểm tra lại trên dữ liệu đã ghi nhận trước khi tạo dự báo. Nếu chưa đủ dữ liệu, hệ thống sẽ thông báo để bạn bổ sung.</ForecastHelp>}>
-        <div className="pw-forecast-controls">
-          <Field title="Dữ liệu tham chiếu" hint="Khoảng lịch sử dùng để học và kiểm chứng ML. Chọn khoảng dài hơn nếu kỳ dự báo xa hoặc dài."><Select value={training} disabled={busy} onChange={setTraining}><option value="90">3 tháng gần nhất</option><option value="180">6 tháng gần nhất</option><option value="365">12 tháng gần nhất</option></Select></Field>
-          <Field title="Ngày bắt đầu dự báo" hint="Ngày đầu tiên cần ước tính lượng đặt mới. Chọn từ hôm nay trở đi."><Input type="date" min={today} max={lastDate} value={startDate} disabled={busy} onChange={e => setStartDate(e.target.value)}/></Field>
-          <Field title="Ngày kết thúc dự báo" hint="Tính cả ngày kết thúc. Khoảng dự báo phải nằm trong 90 ngày tới và cần đủ lịch sử để kiểm chứng."><Input type="date" min={startDate || today} max={lastDate} value={endDate} disabled={busy} onChange={e => setEndDate(e.target.value)}/></Field>
-          <Button disabled={busy || dirty || !validWindow || result.source_age_days > 90} onClick={() => void perform('Đang học và kiểm chứng dự báo', predict)}>Tạo dự báo</Button>
-        </div>
-        {!validWindow && <p className="pw-panel-note">Chọn ngày bắt đầu từ hôm nay và ngày kết thúc không trước ngày bắt đầu, trong 90 ngày tới.</p>}
-        {result.source_age_days > 90 && <p className="pw-panel-note">Dữ liệu nguồn đã quá cũ. Cần bổ sung dữ liệu mới trước khi tạo dự báo.</p>}
-      </Panel>
-      {forecast && <Panel title={sales ? 'Lượng đặt dự báo' : 'Lượt tiếp nhận dự báo'} subtitle={`${label(result.entity)} · ${dateLabel(future[0]?.day)} – ${dateLabel(future.at(-1)?.day)}`} action={evidence('forecast')}>
+        <InspectChart title="Xu hướng theo thời gian" description="So sánh đối tượng trên cùng đơn vị và khoảng dữ liệu đã áp dụng."><Plot data={history} unit={unit} lines={(result.comparison_entities || [result.entity]).map((name, i) => ({ key: `item${i}`, name: label(name), color: palette[i] }))}/></InspectChart>
+      </Panel></div>
+      <div hidden={historyTab!=='rhythm'}><Panel title={sales ? 'Lượng đặt hàng theo thứ trong tuần' : 'Lượt vận chuyển theo thứ trong tuần'} subtitle={`${label(result.entity)} · ${unit}/ngày`} action={evidence('rhythm')}><Bars data={rhythm} category="day" unit={unit} lines={[{ key: 'quantity', name: sales ? 'Lượng đặt bình quân' : 'Lượt tiếp nhận bình quân', color: blue }]}/></Panel></div>
+</>:result&&forecast?<><Panel title={sales ? 'Lượng đặt dự báo' : 'Lượt tiếp nhận dự báo'} subtitle={`${label(result.entity)} · ${dateLabel(future[0]?.day)} – ${dateLabel(future.at(-1)?.day)}`} action={evidence('forecast')}>
         <div className="pw-forecast-summary"><div><span>{sales ? 'Tổng lượng đặt mới dự kiến' : 'Tổng lượt tiếp nhận dự kiến'} <ForecastHelp label="Giải thích lượng dự kiến">Đây là ước tính cho kỳ đã chọn. Kết quả chưa phải đơn hàng đã nhận hoặc lịch vận chuyển đã xác nhận.</ForecastHelp></span><strong>{fmt(forecastTotal)} <small>{unit}</small></strong></div><div><span>Sai lệch trung bình <ForecastHelp label="Giải thích sai lệch trung bình">Mức chênh lệch bình quân mỗi ngày khi kiểm tra dự báo trên dữ liệu lịch sử. Sai lệch trong tương lai có thể khác.</ForecastHelp></span><strong>{score ? fmt(score.mae) : 'Chưa có kiểm chứng'} <small>{score ? unit + '/ngày' : ''}</small></strong></div></div>
         <Plot data={withCalendarGap(actual, future)} unit={unit} future={future[0]?.day} lines={[{ key: 'actual', name: 'Đã ghi nhận', color: blue }, { key: 'band', name: 'Khoảng dao động tham khảo', color: blue }, { key: 'predicted', name: 'Lượng đặt mới dự báo', color: purple, dash: '5 4' }]}/>
-        <div className="pw-forecast-footer"><p>{forecastDirty ? 'Thiết lập đã thay đổi. Tạo lại dự báo để cập nhật kết quả.' : 'Khi đối chiếu kế hoạch, hệ thống tính từ hôm nay đến ngày kết thúc để không bỏ sót đơn và nhu cầu trước kỳ đã chọn.'}</p><Button variant="outline" disabled={!canPlan || busy || dirty || forecastDirty} onClick={() => onPlan(sales ? result.entity : '', calendarDays(today, future.at(-1)!.day), Number(training))}>{sales ? 'Đối chiếu nguồn hàng' : 'Xem kế hoạch giao nhận'}</Button></div>
-      </Panel>}
-    </>}
-  </div>;
+        <div className="pw-forecast-footer"><p>{forecastDirty ? 'Thiết lập đã thay đổi. Tạo lại dự báo để cập nhật kết quả.' : 'Khi đối chiếu kế hoạch, hệ thống tính từ hôm nay đến ngày kết thúc để không bỏ sót đơn và nhu cầu trước kỳ đã chọn.'}</p><Button variant="outline" disabled={!canPlan || busy || dirty || forecastDirty} onClick={() => {setResultOpen(false);onPlan(sales ? result!.entity : '', calendarDays(today, future.at(-1)!.day), Number(training));}}>{sales ? 'Đối chiếu nguồn hàng' : 'Xem kế hoạch giao nhận'}</Button></div>
+      </Panel></>:<p>Chưa có kết quả.</p>}
+    </WorkspaceDialog>
+  </section>;
 }

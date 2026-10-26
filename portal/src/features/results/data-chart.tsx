@@ -493,6 +493,9 @@ export function DataChart({
           {dataset.context.denominator_definition}
         </p>
       )}
+      {dataset.context.metric_definition && (
+        <p className="metric-definition">{dataset.context.metric_definition}</p>
+      )}
     </Card>
   );
 }

@@ -143,7 +143,7 @@ async def test_http_planning_and_scenario_share_the_owner_preparation_cutoff():
         response = await client.post(
             PREFIX + "/planning",
             headers=headers,
-            json={**boundary.refs, "warehouse_id": boundary.wh},
+            json={**boundary.refs, "warehouse_id": boundary.wh, "forecast_model": "seasonal_mean"},
         )
         assert response.status_code == 200, response.text
         plan = response.json()

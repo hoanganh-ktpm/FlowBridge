@@ -182,12 +182,15 @@ def test_real_products_forecast_simulation_persistence_and_revoke(live_workspace
             "start": profile["start"],
             "end": profile["end"],
             "forecast_horizon": 14,
+            "forecast_model": "chronos2",
             "forecast_start": datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date().isoformat(),
         }
         analytical = call(workspace, "POST", PREFIX + "/analytics", json=config)
         assert len(analytical["series"]) > 100
         forecast = call(workspace, "POST", PREFIX + "/forecasts", 201, json={"config": config})
-        assert forecast["model"]["kind"] == "statistical"
+        assert forecast["model"]["method"] == "chronos2"
+        assert forecast["model"]["pretrained"] is True
+        assert forecast["model"]["fine_tuning"] is False
         assert len(forecast["points"]) == len(profile["entities"]) * 14
         assert call(workspace, "GET", PREFIX + "/forecasts/" + forecast["id"]) == forecast
         results[name] = forecast

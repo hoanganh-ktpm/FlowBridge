@@ -10,16 +10,20 @@ Mở `http://127.0.0.1:5174/#data`, đăng nhập SSO. Tài khoản `minhhung` �
 làm người điều phối trong profile local này. Các vai trò Kho, Vận chuyển và Quản lý
 là ba tài khoản độc lập. Không dùng tài khoản điều phối để xác nhận thay họ.
 
-Tài khoản quản trị `minhhung` hiện mở **Cần xử lý · Tất cả kho** theo cấu hình đã
-duyệt: Bình Dương và TP.HCM đều được đọc từ database. Nút **Cập nhật toàn bộ kho**
+Tài khoản quản trị `minhhung` hiện mở **Tổng quan kho và đơn hàng** theo cấu hình đã
+duyệt: Bình Dương và TP.HCM đều được đọc từ database. Nút **Làm mới dữ liệu**
 đọc lại cả hai; kho thiếu lịch sử vẫn hiện tồn/đơn nguồn và lý do chưa tính được
-dự báo. Chọn **Phân tích chi tiết kho đang chọn** để dùng màn phân tích Bình Dương
-theo các bước dưới. Đây là tổng quan quản trị đã cấu hình, không mở rộng phạm vi
+dự báo. Mỗi kho có thẻ tóm tắt và nút **Xem tồn kho / Xem đơn hàng**. Vùng chi tiết
+chỉ hiển thị kho đang chọn; có tìm kiếm, lọc mặt hàng có thể thiếu và phân trang đơn.
+Nút **Thử phương án nhập hàng** chỉ hiện cho kho thuộc phạm vi phân tích được cấp.
+Đây là tổng quan quản trị đã cấu hình, không mở rộng phạm vi
 cho tài khoản Kho/Vận chuyển thông thường. Xem ORGANIZATION-REGISTERS.md.
 
-1. **Cần xử lý:** chọn Kho trung tâm Bình Dương, sản phẩm KB-K120 và cập nhật kế hoạch.
-   Bảng và biểu đồ đối chiếu đơn đã nhận, tồn kho, hàng về và lịch bàn giao.
-2. **Chi tiết & phương án:** cập nhật dự báo ML, nhập lượng và ngày/giờ bổ sung,
+1. **Tổng quan kho:** ở thẻ Bình Dương chọn **Xem tồn kho**, lọc **Có thể thiếu**.
+   Bấm **Thử bổ sung** ở dòng bàn phím KB-K120 để mở đúng kho và mặt hàng.
+   Muốn xem đơn, chọn **Xem đơn hàng**, tìm mã đơn hoặc tên mặt hàng.
+2. **Kiểm tra hàng và thử phương án:** bấm **Tính lại dự báo** khi đổi lựa chọn,
+   nhập lượng và ngày/giờ bổ sung,
    so sánh rồi lưu phương án. Số thiếu của SKU toàn kho khác số lượng của một đơn.
    Mức thiếu giảm về 0 không đảm bảo mọi đơn, mặt hàng khác và lịch xe đều đạt.
 3. Chọn `SO-PHOIHOP-001` để thử đơn một mặt hàng, hoặc `SO-PHOIHOP-002` để thử
@@ -201,3 +205,77 @@ nguồn thêm 7 quan sát vào lịch sử. Đây là giao dịch API/DB local t
 không phải hàng hóa thực ngoài đời. Đợt nhập 40 cái không được coi là thực hiện
 đủ giả định thêm 1.000 cái trong scenario đã duyệt. Còn kiểm thử live thay đổi
 nguồn/thu hồi quyền và đo tải/trình diễn trước khi đánh dấu M12 hoàn tất.
+
+### Giữ dữ liệu trong phiên và thông báo thay đổi
+
+Portal lưu các kết quả đọc trong `sessionStorage`, tách theo tài khoản và chế độ
+live/preview. Tải lại trang vẫn kiểm tra SSO/quyền và manifest `/changes` trước khi
+phục hồi kết quả; không chạy lại bảng/dự báo chỉ vì chuyển trang. Nút làm mới bỏ
+qua cache. Đăng xuất, đổi quyền, đổi ngày hoặc thay đổi nguồn làm mất hiệu lực
+kết quả cũ. Không lưu token hay lệnh ghi trong cache.
+
+Manifest kiểm tra khoảng 8 giây sau mỗi phản hồi, chỉ đọc revision của outbox
+đã commit tại Sales/Kho/Logistics và revision hồ sơ thuộc người tham gia hiện tại.
+Đây là kiểm tra nhẹ định kỳ, không phải WebSocket/push và không tự chạy lại dự báo.
+Nguồn đổi sẽ tạo thông báo trong Portal của những người được phân công cùng kho;
+thao tác trên màn hình cũ bị chặn tới khi bấm **Cập nhật dữ liệu ngay**. Trang đang
+xem được đọc lại, lựa chọn kho/kỳ và giả định nhập thử được giữ. Không tự duyệt hay
+tạo giao dịch. Các bước kiểm tra điều kiện/quy trình luôn đọc mới.
+
+Phạm vi theo dõi là tổ chức và kho đã được cấp quyền `operations.events.read`;
+không tự mở rộng quyền. Tổng quan khác tổ chức chưa có quyền theo dõi tương ứng
+không được lưu cache lâu. Khi manifest lỗi/thiếu nguồn, bỏ cache và báo rõ giới
+hạn theo dõi. Sửa trực tiếp bằng SQL hoặc luồng ghi không tạo native outbox event
+chưa được phát hiện; phải bấm làm mới hoặc bổ sung bộ phát sự kiện tại hệ nguồn.
+Thông báo lưu trong phiên trình duyệt, chưa phải hộp thư thông báo trên server.
+
+### Biểu đồ theo đơn hàng
+
+Trong **Tổng quan kho → Biểu đồ phân tích → Theo đơn hàng**, hai góc nhìn được
+tách khỏi biểu đồ mặt hàng và chỉ tải khi mở:
+
+- **Hạn bàn giao:** thanh xếp chồng đếm đơn có vướng mắc/chưa xác minh/đáp ứng
+  theo kế hoạch. Nhóm riêng đơn đang mở đã quá hạn; kỳ trên 14 ngày gộp 7 ngày.
+  Chọn thanh để xem đúng nhóm đơn. Mỗi đơn chỉ được tính một lần.
+- **Điều kiện từng đơn:** ma trận hàng trong Kho, thời gian chuẩn bị, lịch lấy
+  hàng, lượt nhận của nhà vận chuyển. Lọc theo hạn/điều kiện, ưu tiên hạn sớm,
+  phân trang 10 đơn. Chọn mã đơn hoặc ô điều kiện để xem món thiếu, lượng thiếu,
+  hạn chuẩn bị và lịch lấy hàng; có đường dẫn mở kế hoạch đúng đơn.
+
+Request `/all-warehouses` thêm `include_order_analysis=true`, bắt buộc chọn một
+kho được phép và `include_planning=true`. Chỉ chế độ này đọc thêm schedule và
+capacity; không đọc lịch sử receipts chỉ để phân tích đơn. Nếu thiếu lịch sử dự
+báo, giữ được hạn các đơn với điều kiện chưa biết; không tạo số liệu thay thế.
+Quyền nguồn vẫn được kiểm tra lại sau tính toán. Không tạo schema hay quyền mới.
+
+Điều kiện hàng của một đơn lấy từ `order_supply` xét tất cả SKU, không dùng một
+SKU đại diện để kết luận toàn đơn. Số lượng khác đơn vị không cộng chung. Đơn có
+hạn sau kỳ được đếm riêng và không dùng làm mẫu số của biểu đồ. Số vướng từng
+điều kiện có thể trùng đơn; không cộng thành tổng. Kết quả chỉ là đánh giá kế
+hoạch tại thời điểm đọc, không phải tỷ lệ trễ thực tế, xác suất, hoặc bằng chứng
+đã giữ hàng/đóng gói/bàn giao. Đơn đã quá hạn không tự quy lỗi cho một bộ phận.
+
+### Thao tác theo sơ đồ và Dialog
+
+Các trang giữ hai nhóm điều hướng hiện có. Khối có mũi tên là điểm mở nội dung,
+không phải lệnh tự động chạy nghiệp vụ:
+
+- Tổng quan kho: chọn Bán hàng/Kho/Vận chuyển để mở dữ liệu đúng kho trong Dialog,
+  rồi đi tiếp tới đơn, thử bổ sung hoặc đọc lịch bàn giao. Mở khối dùng dữ liệu đã
+  tải; không gọi lại nguồn chỉ để xem. Chi tiết đơn và nguồn tính mở ở giữa màn hình.
+- Phương án bổ sung: sơ đồ dẫn tới dữ liệu đầu vào, hộp thoại nhập thử, kết quả và
+  hồ sơ phối hợp. Đóng hộp thoại giữ giả định đã nhập. Chỉ So sánh mới tính lại;
+  lưu/gửi vẫn là hành động riêng. Dialog hiển thị lỗi ngay trong vùng đang thao tác.
+- Hồ sơ phối hợp: mở hồ sơ trong Dialog; chọn đối chiếu, phản hồi, tiến độ hoặc
+  lịch sử. Các ô bằng chứng mở thời điểm và nguồn của bản ghi đã tải. Chưa có bản
+  ghi không được suy ra đã xong; các loại bằng chứng không phải chuỗi bắt buộc.
+- Tra cứu dữ liệu: chọn nhóm kho/mặt hàng/đơn; mở dòng hàng trong Dialog, giữ bộ
+  lọc và trang danh sách khi quay lại.
+- Phân tích và dự báo: chọn phạm vi qua Dialog hoặc sơ đồ; xu hướng và nhịp tuần
+  hiển thị luân phiên. Mở rộng biểu đồ không chạy lại dự báo hay đọc thêm nguồn.
+- Thiết lập IT: chia chọn nguồn, ghép cột, quy tắc kiểm tra thành ba bước. Xem
+  trước và bảng cột ở Dialog; kết quả xem trước trả muộn bị bỏ nếu cấu hình đã sửa.
+
+Dialog dùng giới hạn chiều cao, cuộn trong vùng nội dung và hỗ trợ Escape/focus
+trở về điểm mở. Khi workspace nhận thay đổi nguồn, các Dialog đang mở đóng để
+hiện thông báo yêu cầu cập nhật; người dùng không tiếp tục trên kết quả cũ.

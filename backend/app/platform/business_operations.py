@@ -59,6 +59,17 @@ def event_feed(runtime, table, actor, body):
             sa.tuple_(table.c.occurred_at, table.c.id) > sa.tuple_(body.after_time, body.after_id)
         )
     with runtime.engine.connect() as conn:
+        # Committed outbox membership, not occurred_at, is the freshness marker.
+        # A late commit/backdated business event still changes this token.
+        revision = conn.execute(
+            sa.select(sa.func.count(), sa.func.max(sa.cast(table.c.id, sa.String)))
+            .select_from(table)
+            .where(
+                table.c.org_id == body.org_id,
+                table.c.payload["warehouse_id"].astext == str(body.warehouse_id),
+                table.c.event_type.like(runtime.domain + ".%"),
+            )
+        ).one()
         rows = (
             conn.execute(query.order_by(table.c.occurred_at, table.c.id).limit(body.limit + 1))
             .mappings()
@@ -86,7 +97,18 @@ def event_feed(runtime, table, actor, body):
         )
         summary["summary_hash"] = canonical(summary)
         items.append(summary)
-    return {"items": items, "has_more": len(rows) > body.limit}
+    return {
+        "items": items,
+        "has_more": len(rows) > body.limit,
+        "source_revision": {
+            "org_id": str(body.org_id),
+            "warehouse_id": str(body.warehouse_id),
+            "producer": runtime.domain,
+            "token": canonical(
+                [str(body.org_id), str(body.warehouse_id), runtime.domain, *revision]
+            ),
+        },
+    }
 
 
 def install_event_feed(app, runtime, tables, actor):

@@ -460,6 +460,13 @@ def process_environment(name):
         and k not in {"DATABASE_URL", "PGPASSWORD", "PGHOST", "PGPORT", "PGDATABASE"}
     }
     env.update(values)
+    if name == "workspace":
+        # Share the provisioned local artifact with the guarded demo launcher.
+        # Only model settings are allowed in; identity and source grants stay private.
+        model = dotenv_values(ROOT / ".tmp/data-workspace/chronos.env")
+        for key in ("FLOWBRIDGE_WORKSPACE_CHRONOS_PATH", "FLOWBRIDGE_WORKSPACE_CHRONOS_REVISION"):
+            if not env.get(key) and model.get(key):
+                env[key] = model[key]
     paths = [str(ROOT / "backend"), str(ROOT)]
     if name in {"sales", "warehouse", "logistics"}:
         paths.insert(0, str(ROOT / "services" / (name + "-api")))

@@ -11,6 +11,7 @@ import {
 import Keycloak from "keycloak-js";
 import { createApi, ApiError, type Api } from "@/lib/api";
 import type { Profile } from "@/lib/types";
+import { clearWorkspaceCache } from "@/lib/workspace-cache";
 
 export interface PublicConfig {
   apiUrl: string;
@@ -89,6 +90,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [generation, setGeneration] = useState(0);
   const keycloak = useRef<Keycloak | null>(null);
   const invalidate = useCallback(() => {
+    clearWorkspaceCache();
     if (keycloak.current) keycloak.current.loginRequired = false;
     keycloak.current?.clearToken?.();
     setAuthenticated(false);
@@ -157,6 +159,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
     keycloak.current = kc;
     kc.onAuthLogout = () => {
+      clearWorkspaceCache();
       // clearToken() otherwise starts another login-required redirect, racing logout
       // and hiding callback/nonce failures behind a new authentication request.
       kc.loginRequired = false;
@@ -227,6 +230,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   };
   const logout = async () => {
+    clearWorkspaceCache();
     const kc = keycloak.current;
     try {
       if (kc) kc.loginRequired = false;

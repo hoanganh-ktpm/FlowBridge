@@ -56,7 +56,10 @@ def presentation(case, intent, workflow=None):
     if intent not in CHOICES:
         result.update(
             status="needs_input",
-            answer="Chọn nội dung cần xem. Phần này chỉ đọc, không duyệt hoặc ghi nghiệp vụ.",
+            answer=(
+                "Chọn một câu hỏi gợi ý bên dưới. Phần này giải thích số liệu đã lưu "
+                "và không thực hiện thao tác thay bạn."
+            ),
             questions=[
                 {
                     "id": "workspace-intent",
@@ -79,16 +82,16 @@ def presentation(case, intent, workflow=None):
             "id": source_id,
             "kind": "tool",
             "tool": "workspace.decision.read",
-            "title": "Hồ sơ quyết định · phiên bản " + str(revision["number"]),
+            "title": "Hồ sơ phối hợp · phiên bản " + str(revision["number"]),
         }
     ]
     result["warnings"].append(
         {
             "code": "SAVED_EVIDENCE",
             "message": (
-                "Số liệu mô phỏng là bằng chứng lúc lập phiên bản; "
-                "kiểm tra hiệu lực trước khi quyết định. "
-                "Hoàn tất phản hồi không có nghĩa hồ sơ đã bàn giao."
+                "Số liệu được tính lúc lưu phiên bản này; "
+                "hãy kiểm tra dữ liệu hiện tại trước khi quyết định. "
+                "Có câu trả lời không có nghĩa là hàng đã được bàn giao."
             ),
         }
     )
@@ -99,16 +102,18 @@ def presentation(case, intent, workflow=None):
             result["warnings"].append(
                 {
                     "code": "RECOMPUTE_REQUIRED",
-                    "message": "Chưa có chỉ tiêu thiếu nguồn hàng theo thời điểm.",
+                    "message": (
+                        "Kết quả cũ chưa xác định được lượng thiếu ở từng thời điểm. Cần tính lại."
+                    ),
                 }
             )
             return result
         unit = evidence["unit"]
         rows = []
         for name, side in (
-            ("Kế hoạch gốc", scenario.get("reference", scenario["baseline"])),
-            ("Sau giả định", scenario["baseline"]),
-            ("Có bổ sung", scenario["proposed"]),
+            ("1. Kế hoạch ban đầu", scenario.get("reference", scenario["baseline"])),
+            ("2. Đổi nhu cầu hoặc ngày về", scenario["baseline"]),
+            ("3. Nhập thêm hàng", scenario["proposed"]),
         ):
             value = measures(side)
             rows.append(
@@ -123,9 +128,12 @@ def presentation(case, intent, workflow=None):
             "as_of": evidence.get("snapshot_at"),
             "complete": True,
             "metric_definition": (
-                "Thiếu nguồn hàng vật lý lớn nhất theo sự kiện "
-                "của SKU đang chọn, trong toàn kho; "
-                "không phải xác suất trễ hoặc tỷ lệ toàn đơn."
+                "Lượng hàng thiếu lớn nhất tại một thời điểm trong kỳ của mặt hàng "
+                + payload["scope"]["sku"]
+                + " tại kho, tính cả đơn đang chờ và lượng khách có thể đặt thêm. "
+                "Không cộng lượng thiếu của các ngày. "
+                "Số lẻ xuất hiện vì nhu cầu dự báo là ước tính; "
+                "đây không phải lượng thiếu riêng của một đơn hoặc xác suất giao trễ."
             ),
             "filters": {"warehouse_id": case["warehouse_id"], "sku": payload["scope"]["sku"]},
         }
@@ -133,22 +141,27 @@ def presentation(case, intent, workflow=None):
             {"field": "scenario", "label": "Phương án", "type": "string"},
             {
                 "field": "peak_shortage",
-                "label": "Thiếu nguồn nhiều nhất",
+                "label": "Lượng hàng thiếu lớn nhất trong kỳ",
                 "type": "number",
                 "unit": unit,
             },
             {
                 "field": "shortage_days",
-                "label": "Ngày có lúc thiếu",
+                "label": "Số ngày có thời điểm thiếu hàng",
                 "type": "integer",
                 "unit": "ngày",
             },
-            {"field": "ending_inventory", "label": "Tồn cuối kỳ", "type": "number", "unit": unit},
+            {
+                "field": "ending_inventory",
+                "label": "Hàng còn lại cuối kỳ",
+                "type": "number",
+                "unit": unit,
+            },
         ]
         result["datasets"] = [
             {
                 "id": "scenario-supply",
-                "title": "So sánh nguồn hàng của SKU trong kho",
+                "title": "So sánh lượng thiếu và hàng còn lại của mặt hàng trong kho",
                 "columns": columns,
                 "rows": rows,
                 "context": context,
@@ -158,7 +171,7 @@ def presentation(case, intent, workflow=None):
         result["tables"] = [
             {
                 "id": "scenario-table",
-                "title": "Nguồn hàng trước và sau",
+                "title": "So sánh ba phương án đủ hàng",
                 "dataset_id": "scenario-supply",
                 "fields": [c["field"] for c in columns],
             }
@@ -166,22 +179,29 @@ def presentation(case, intent, workflow=None):
         result["charts"] = [
             {
                 "id": "scenario-shortage",
-                "title": "Thiếu nguồn theo thời điểm · cùng SKU và kho",
+                "title": "Lượng hàng thiếu của " + payload["scope"]["sku"] + " tại kho trong kỳ",
                 "dataset_id": "scenario-supply",
                 "type": "bar",
                 "orientation": "vertical",
                 "stacking": "none",
                 "x_field": "scenario",
                 "x_label": "Phương án",
-                "y_label": "Thiếu nguồn nhiều nhất",
+                "y_label": "Lượng hàng thiếu lớn nhất trong kỳ",
                 "y_unit": unit,
-                "series": [{"field": "peak_shortage", "label": "Thiếu nguồn nhiều nhất"}],
+                "series": [
+                    {"field": "peak_shortage", "label": "Lượng hàng thiếu lớn nhất trong kỳ"}
+                ],
             }
         ]
         result["answer"] += (
-            "So sánh dưới đây dùng cùng dữ liệu nguồn và phiên bản tính. "
-            "Đủ nguồn theo mô phỏng vẫn cần xác nhận chuẩn bị, lịch nhận "
-            "và đối chiếu bàn giao thực tế."
+            "Bảng dưới so sánh lượng thiếu của mặt hàng trong toàn kho, "
+            "không phải riêng đơn của hồ sơ. "
+            "Phương án 1 dùng nhu cầu và lịch hàng về ban đầu; phương án 2 áp dụng thay đổi "
+            "nhu cầu hoặc ngày hàng về; phương án 3 thêm lượng hàng bạn đề xuất. "
+            "Nếu chưa đổi giả định nhu cầu và ngày về thì phương án 1 và 2 sẽ giống nhau. "
+            "Số lẻ là kết quả ước tính nhu cầu, không phải số hàng đã kiểm đếm. "
+            "Dù tính toán đủ hàng, Kho và Vận chuyển vẫn phải xác nhận thời gian chuẩn bị "
+            "và lịch lấy hàng trước khi thực hiện."
         )
         original = [
             o for o in scenario["baseline"].get("orders", []) if o["order_id"] == case["order_id"]
@@ -203,16 +223,20 @@ def presentation(case, intent, workflow=None):
             columns = [
                 {"field": "sku", "label": "Sản phẩm", "type": "string"},
                 {"field": "uom", "label": "Đơn vị", "type": "string"},
-                {"field": "quantity", "label": "Chờ phân bổ khi lập phương án", "type": "number"},
+                {
+                    "field": "quantity",
+                    "label": "Lượng chưa được giữ đủ khi lập phương án",
+                    "type": "number",
+                },
                 {
                     "field": "before_shortage",
-                    "label": "Thiếu trước hạn · trước",
+                    "label": "Thiếu trước giờ chuẩn bị · trước bổ sung",
                     "type": "number",
                     "nullable": True,
                 },
                 {
                     "field": "after_shortage",
-                    "label": "Thiếu trước hạn · sau",
+                    "label": "Thiếu trước giờ chuẩn bị · sau bổ sung",
                     "type": "number",
                     "nullable": True,
                 },
@@ -226,8 +250,8 @@ def presentation(case, intent, workflow=None):
                     "context": {
                         **context,
                         "metric_definition": (
-                            "Từng SKU/đơn vị của đúng đơn; lượng chưa phân bổ "
-                            "và thiếu tại hạn chuẩn bị khi lập phiên bản. "
+                            "Từng mặt hàng của đúng đơn này: lượng chưa được giữ đủ "
+                            "và lượng thiếu trước giờ Kho cần chuẩn bị tại lần tính đã lưu. "
                             "Không cộng các đơn vị khác nhau."
                         ),
                         "filters": {
@@ -257,9 +281,7 @@ def presentation(case, intent, workflow=None):
             )
     elif intent == "tasks":
         if workflow is None:
-            result["answer"] += (
-                "Chưa có lượt quy trình được xác nhận; chưa thể kết luận đang chờ người nào."
-            )
+            result["answer"] += "Chưa đọc được tiến độ quy trình; chưa biết đang chờ người nào."
         else:
             names = [task["name"] for task in workflow["tasks"]]
             result["answer"] += (

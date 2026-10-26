@@ -22,7 +22,7 @@ export function DecisionAssistant({ request, caseId, revisionId, onDenied }: { r
   }
   return <section aria-label="Trợ lý hồ sơ">
     <h3>Hỏi dữ liệu hồ sơ</h3>
-    <p>Câu trả lời và biểu đồ lấy từ bằng chứng có cấu trúc của phiên bản đang mở. Có thể dùng khi chưa kết nối mô hình ngôn ngữ; phần này chỉ đọc và giải thích dữ liệu.</p>
+    <p>Chọn một câu hỏi gợi ý hoặc hỏi về lý do thiếu hàng, so sánh phương án, người đang xử lý hay kết quả bàn giao. Câu trả lời dùng số liệu đã lưu của phiên bản đang mở.</p>
     <div className="dw-actions">{choices.map(([intent, label]) => <Button key={intent} variant="outline" disabled={busy} onClick={() => void ask(intent)}>{label}</Button>)}</div>
     <form className="dw-actions" onSubmit={event => { event.preventDefault(); if (question.trim()) void ask(); }}>
       <Input aria-label="Câu hỏi về hồ sơ" maxLength={500} value={question} disabled={busy} onChange={event => setQuestion(event.target.value)} placeholder="Ví dụ: Hồ sơ đang chờ ai?"/>

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Only Layer 2-owned configuration and bounded results; no business history mirror."""
 
+import hashlib
 import json
 from uuid import uuid4
 
@@ -43,6 +44,21 @@ class PostgresRepository:
 
     async def close(self):
         await self.engine.dispose()
+
+    async def change_revision(self, ctx):
+        async with self.engine.connect() as conn:
+            row = (
+                await conn.execute(
+                    text(
+                        "SELECT count(*), coalesce(sum(c.version),0), max(c.updated_at) "
+                        "FROM data_workspace.decision_cases c WHERE c.org_id=:org AND EXISTS "
+                        "(SELECT 1 FROM data_workspace.decision_participants p "
+                        "WHERE p.org_id=c.org_id AND p.case_id=c.id AND p.principal_id=:owner)"
+                    ),
+                    {"org": ctx.org_id, "owner": ctx.owner_id},
+                )
+            ).one()
+        return hashlib.sha256(json.dumps(list(row), default=str).encode()).hexdigest()
 
     async def save(self, kind, ctx, payload):
         identifier = str(uuid4())

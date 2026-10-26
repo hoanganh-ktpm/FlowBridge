@@ -117,6 +117,69 @@ def warehouse_owner(databases):
     )
 
 
+def test_event_revision_detects_backdated_commits_without_cross_scope_or_publish_noise(
+    warehouse_owner,
+):
+    from app.platform.business_operations import EventQuery, event_feed
+
+    owner = warehouse_owner
+    grants = owner.runtime.settings.actor_bindings[owner.actor.subject]
+    grants["permissions"].append("operations.events.read")
+    table = owner.tables["outbox_events"]
+    query = EventQuery(
+        org_id=owner.org, warehouse_id=owner.wh, since=owner.now + timedelta(days=1), limit=1
+    )
+
+    def read():
+        result = event_feed(owner.runtime, table, owner.actor, query)
+        assert result["items"] == []
+        return result["source_revision"]["token"]
+
+    before = read()
+    operations = service("warehouse").WarehouseOperations(owner.runtime, owner.tables)
+    command = PreparationCommand(
+        org_id=owner.org, warehouse_id=owner.wh, preparation_minutes=120, expected_revision=0
+    )
+    operations.preparation(owner.actor, command, "revision-policy")
+    after = read()
+    assert before != after
+    operations.preparation(owner.actor, command, "revision-policy")
+    assert read() == after  # An idempotent retry does not create another change.
+    with owner.engine.begin() as conn:
+        conn.execute(
+            table.update()
+            .where(table.c.org_id == owner.org)
+            .values(
+                occurred_at=owner.now - timedelta(days=30),
+                status="PUBLISHED",
+                published_at=owner.now,
+            )
+        )
+    assert read() == after  # Publish/replay bookkeeping cannot trigger a reload.
+    other = uuid4()
+    with owner.engine.begin() as conn:
+        conn.execute(
+            owner.tables["warehouses"]
+            .insert()
+            .values(
+                id=other,
+                org_id=owner.org,
+                warehouse_code="WH-UNRELATED",
+                name="Kho khác",
+                status="ACTIVE",
+            )
+        )
+    grants["warehouse_ids"].append(str(other))
+    operations.preparation(
+        owner.actor, command.model_copy(update={"warehouse_id": other}), "other-policy"
+    )
+    assert read() == after
+    grants["warehouse_ids"] = []
+    with pytest.raises(CoreError) as denied:
+        read()
+    assert denied.value.code == ErrorCode.FORBIDDEN
+
+
 def test_preparation_and_eta_use_scoped_permissions_versions_and_atomic_outbox(warehouse_owner):
     owner = warehouse_owner
     operations = service("warehouse").WarehouseOperations(owner.runtime, owner.tables)

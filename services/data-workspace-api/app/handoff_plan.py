@@ -65,17 +65,20 @@ def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
     for slot in slots:
         at = moment(slot["scheduled_handoff_at"])
         if at > deadline:
-            missing("AFTER_DEADLINE", "Lịch bàn giao dự kiến sau hạn của đơn.")
+            missing(
+                "AFTER_DEADLINE",
+                "Đơn vị vận chuyển dự kiến đến lấy hàng sau hạn phải bàn giao của đơn.",
+            )
         if ready is not None and policy is not None:
             prepared = ready + timedelta(minutes=policy["minutes"])
             if prepared > at:
                 label = prepared.astimezone(ZoneInfo(timezone)).strftime("%H:%M %d/%m/%Y")
                 missing(
                     "BEFORE_PREPARATION_COMPLETE",
-                    "Lịch dự kiến sớm hơn mốc đủ hàng cộng thời gian chuẩn bị mà mô phỏng "
-                    f"đang chứng minh: {label} (giờ Việt Nam). "
-                    "Đây là mốc phân bổ theo hạn trong mô phỏng, chưa phải thời điểm "
-                    "chuẩn bị sớm nhất có thể.",
+                    "Lịch lấy hàng sớm hơn thời điểm mà phương án tính là có thể chuẩn bị xong: "
+                    f"{label} (giờ Việt Nam). "
+                    "Đây là kết quả tính theo hạn của đơn; Kho cần xác nhận có thể "
+                    "chuẩn bị sớm hơn hay không.",
                 )
         feasible = (
             feasible and at <= deadline and ready + timedelta(minutes=policy["minutes"]) <= at
@@ -86,7 +89,10 @@ def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
         ]
         if len(values) != 1:
             feasible = False
-            missing("CAPACITY_UNKNOWN", "Chưa có một bản năng lực vận chuyển hợp lệ cho ngày chọn.")
+            missing(
+                "CAPACITY_UNKNOWN",
+                "Chưa có số lượt đến lấy hàng hợp lệ được công bố cho ngày đã chọn.",
+            )
             continue
         value = values[0]
         used, maximum = numeric(value["used_dispatches"]), numeric(value["max_dispatches"])
@@ -95,12 +101,16 @@ def assess_slot(selected, schedule, calendar, policy, timezone, planned=None):
         needed = 1 if proposal and not booked else 0
         if value["status"] != "ACTIVE" or not 0 <= used <= maximum:
             missing(
-                "CAPACITY_INVALID", "Năng lực vận chuyển chưa hoạt động hoặc số lượt không hợp lệ."
+                "CAPACITY_INVALID",
+                "Lịch nhận hàng chưa được mở hoặc số lượt đến lấy hàng đã công bố không hợp lệ.",
             )
         elif used + needed > maximum:
             missing("CAPACITY_FULL", "Ngày đã chọn không còn đủ lượt để nhận thêm đơn.")
         elif needed == 0 and used < 1:
-            missing("BOOKING_UNPROVEN", "Lượt đã đặt chưa đối chiếu được với số lượt sử dụng.")
+            missing(
+                "BOOKING_UNPROVEN",
+                "Đã có lịch đặt nhưng số lượt đã dùng chưa khớp. Cần bộ phận Vận chuyển kiểm tra.",
+            )
         feasible = (
             feasible
             and value["status"] == "ACTIVE"

@@ -13,9 +13,9 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 
 from .analytics import local_day, numeric, prepare
-from .forecasting import statistical_forecast
+from .forecasting import Forecaster
 from .handoff_readiness import handoff_conditions, preparation_policy, shift_to_stock_ready_deadline
-from .learning import validated_forecast
+from .order_supply import order_supply_checks
 from .planning import known_orders, moment, project_orders
 from .schemas import AnalysisConfig
 from .source_integrity import validate_planning_facts
@@ -23,7 +23,7 @@ from .source_integrity import validate_planning_facts
 logger = logging.getLogger(__name__)
 
 
-async def planning_report(body, ctx, connector, repository, source_names=None):
+async def planning_report(body, ctx, connector, repository, source_names=None, forecaster=None):
     now = datetime.now(UTC)
     zone = ZoneInfo("Asia/Ho_Chi_Minh")
     today = now.astimezone(zone).date()
@@ -293,7 +293,9 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
     runs, points = {}, {}
     jobs = []
     for unit, skus in groups.items():
-        if body.forecast_model == "ridge_lag" and selected in skus:
+        if body.forecast_model == "chronos2":
+            jobs.append((unit, skus, "chronos2"))
+        elif body.forecast_model == "ridge_lag" and selected in skus:
             jobs.append((unit, [selected], "ridge_lag"))
             if others := [sku for sku in skus if sku != selected]:
                 jobs.append((unit, others, "seasonal_mean"))
@@ -333,7 +335,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             known_event_entities={r["sku"] for r in history if r["uom"] == unit},
         )
         forecast, model = await asyncio.to_thread(
-            validated_forecast if method == "ridge_lag" else statistical_forecast, dataset, config
+            (forecaster or Forecaster()).run, dataset, config, False
         )
         payload = {
             "status": "SUCCEEDED",
@@ -711,13 +713,13 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
     card = plans[selected]
     explainers = {
         "stock": explain(
-            "Hàng còn có thể phân bổ",
+            "Hàng chưa giữ cho đơn khác",
             "Phần hàng chưa giữ cho đơn khác tại kho đang chọn.",
             ["stock"],
             [
                 {"label": "Đang có trong kho", "value": card["on_hand"], "unit": card["uom"]},
                 {"label": "Đã giữ cho đơn", "value": card["reserved"], "unit": card["uom"]},
-                {"label": "Còn có thể phân bổ", "value": card["available"], "unit": card["uom"]},
+                {"label": "Chưa giữ cho đơn khác", "value": card["available"], "unit": card["uom"]},
             ],
             f"{card['on_hand']:g} − {card['reserved']:g} = {card['available']:g}",
             ["Không trừ hàng đã giữ thêm lần nữa khi tính nhu cầu mới."],
@@ -725,7 +727,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
         "balance": explain(
             "Nguy cơ thiếu hàng",
             "Đối chiếu nguồn hàng theo thời điểm về và hạn từng đơn. "
-            "nhu cầu mới được xét cuối mỗi ngày.",
+            "Nhu cầu mới được xét cuối mỗi ngày.",
             ["demand", "stock", "inbound", "open_orders", "commitments"],
             [
                 {
@@ -734,7 +736,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
                     "unit": card["uom"],
                 },
                 {
-                    "label": "Đơn đã nhận, chưa phân bổ",
+                    "label": "Số lượng còn cần cho đơn đã nhận",
                     "value": card["known_quantity"],
                     "unit": card["uom"],
                 },
@@ -744,7 +746,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
                     "unit": card["uom"],
                 },
                 {
-                    "label": "Thiếu nhiều nhất trong kỳ",
+                    "label": "Lượng hàng thiếu lớn nhất trong kỳ",
                     "value": card["shortage"],
                     "unit": card["uom"],
                 },
@@ -753,10 +755,12 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             [
                 "Kế hoạch nhập chưa phải hàng đã nhận.",
                 "Đơn chưa phân bổ được xét khi đến hạn. "
-                "trong ngày ưu tiên đơn đến hạn trước nhu cầu mới dự kiến.",
-                "Lượng thiếu là lớn nhất qua từng ngày. Không suy ra chỉ từ tổng cuối kỳ.",
+                "Trong ngày ưu tiên đơn đến hạn trước nhu cầu mới dự kiến.",
+                "Lượng thiếu là mức lớn nhất tại một thời điểm trong kỳ, "
+                "gồm cả giờ cần chuẩn bị của từng đơn. "
+                "Không cộng lượng thiếu của các ngày với nhau.",
                 "Đơn chỉ được đáp ứng khi tất cả các dòng đều đủ hàng. "
-                "hàng về sau hạn không xóa rủi ro đã trễ.",
+                "Hàng về sau hạn không xóa rủi ro đã trễ.",
             ],
         ),
         "history": explain(
@@ -805,18 +809,22 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
             },
         ],
         "formula": "Tính hai lần trên cùng dữ liệu và lịch hàng về: chỉ đơn đã nhận. "
-        "sau đó thêm nhu cầu dự báo. Cột dự báo là phần thiếu tăng thêm giữa hai lần tính.",
+        "Sau đó thêm nhu cầu dự báo. Cột dự báo là phần thiếu tăng thêm giữa hai lần tính.",
         "notes": [
             "Phần đơn đã nhận xét cả thời điểm đến hạn trong ngày. Hàng về muộn không bù "
             "cho việc đã thiếu trước hạn.",
             "Mỗi lần lấy mức thiếu lớn nhất trong kỳ và tại hạn đơn. Không cộng các ngày thiếu.",
-            "Hàng còn phân bổ = tồn thực tế trừ hàng đã giữ. Đơn chờ đã trừ hàng giữ và bàn giao.",
+            "Hàng chưa giữ cho đơn khác = hàng đang trong kho trừ hàng đã giữ. "
+            "Lượng còn cần cho đơn đã trừ phần đã giữ và phần đã bàn giao.",
             (
-                "Mặt hàng đang chọn dùng Machine Learning học đúng kho và đơn vị. "
-                "các mặt hàng khác vẫn dùng nhịp cùng thứ trong tuần."
+                "Dự báo dùng Chronos-2 huấn luyện sẵn với lịch sử của từng sản phẩm, kho "
+                "và đơn vị tính. Không huấn luyện lại mô hình."
+                if body.forecast_model == "chronos2"
+                else "Mặt hàng đang chọn dùng mô hình học từ lịch sử của đúng kho và đơn vị tính. "
+                "Các mặt hàng khác vẫn dùng nhịp cùng thứ trong tuần."
                 if body.forecast_model == "ridge_lag"
                 else "Dự báo trên Tổng quan dùng nhịp cùng thứ trong tuần để lập kế hoạch. "
-                "mở Phương án nhập hàng để học Machine Learning theo kho."
+                "Mở Kiểm tra hàng và thử phương án để tạo dự báo riêng theo kho."
             ),
             "Không xếp chung sản phẩm khác đơn vị. Chỉ hiển thị tối đa 8 sản phẩm, "
             "ưu tiên ngày cần xử lý gần nhất.",
@@ -845,6 +853,7 @@ async def planning_report(body, ctx, connector, repository, source_names=None):
     result = {
         "explanations": explainers,
         "as_of": now.isoformat(),
+        "order_supply": order_supply_checks(baselines, known, order_headers, policy, end, now),
         "source_end": last.isoformat(),
         "source_age_days": (today - last).days,
         "start": today.isoformat(),

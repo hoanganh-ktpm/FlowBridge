@@ -14,7 +14,7 @@ async function operator(page: Page) {
     return r.fulfill({ status: state.status, json: state.status === 200 ? { result: { id: 'receipt-test', version: 2 } } : { detail: { message: 'Owner từ chối thao tác.' } } });
   });
   await page.goto('/?native-operator=1');
-  await expect(page.getByRole('heading', { name: 'Kiểm thử nghiệp vụ local bằng SSO' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Kiểm thử nghiệp vụ trên máy bằng tài khoản đã đăng nhập' })).toBeVisible();
   return { calls, state };
 }
 
@@ -23,11 +23,11 @@ test('native operator validates input, retains retry key and discards stale succ
   const submit = page.getByRole('button', { name: 'Thực hiện bước kiểm thử', exact: true });
   const input = page.getByLabel('Nội dung lệnh JSON');
   await input.fill('[]'); await submit.click();
-  await expect(page.getByRole('alert')).toContainText('object JSON'); expect(calls).toHaveLength(0);
+  await expect(page.getByRole('alert')).toContainText('JSON dạng {...}'); expect(calls).toHaveLength(0);
   await input.fill('{'); await submit.click();
   await expect(page.getByRole('alert')).toContainText('JSON chưa hợp lệ'); expect(calls).toHaveLength(0);
   await page.getByLabel('Thao tác nghiệp vụ').selectOption('warehouse.operations.post_receipt');
-  const key = await page.getByLabel('Mã lệnh để đối soát').inputValue();
+  const key = await page.getByLabel('Mã để kiểm tra lại thao tác').inputValue();
   await input.fill('{"accepted_quantity":"40.000"}'); await submit.click();
   await expect(page.getByLabel('Kết quả nghiệp vụ')).toContainText('receipt-test');
   state.status = 403; await submit.click();
@@ -47,15 +47,15 @@ test('physical handoff requires explicit synthetic acceptance and preview cannot
   await page.getByLabel('Thao tác nghiệp vụ').selectOption('warehouse.operations.record_carrier_handoff');
   await expect(page.getByRole('checkbox')).not.toBeChecked(); await expect(submit).toBeDisabled();
   await page.goto('/?preview=1&native-operator=1');
-  await expect(page.getByRole('heading', { name: 'Kiểm thử nghiệp vụ local bằng SSO' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Kiểm thử nghiệp vụ trên máy bằng tài khoản đã đăng nhập' })).toHaveCount(0);
   expect(calls).toHaveLength(1);
 });
 
 test('leaving native operator restores the Workspace without replacing the SSO session', async ({ page }) => {
   await operator(page);
-  await page.getByRole('button', { name: 'Về Workspace', exact: true }).click();
+  await page.getByRole('button', { name: 'Về trang dữ liệu', exact: true }).click();
   await expect(page).toHaveURL(/\/#data$/);
-  await expect(page.getByRole('heading', { name: 'Kiểm thử nghiệp vụ local bằng SSO' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Kiểm thử nghiệp vụ trên máy bằng tài khoản đã đăng nhập' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Thực hiện bước kiểm thử', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem('flowbridge.dev.native-owner'))).toBeNull();
 });

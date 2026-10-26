@@ -46,7 +46,7 @@ def recovery_options(result, request, evaluate, snapshot_at, timezone):
         options.append(
             {
                 "kind": "additional_supply",
-                "title": "Bổ sung nguồn hàng trước giờ cần",
+                "title": "Bổ sung hàng trước giờ Kho cần chuẩn bị",
                 "quantity": quantity,
                 "unit": unit,
                 "arrival_at": deadline.isoformat(),
@@ -55,11 +55,11 @@ def recovery_options(result, request, evaluate, snapshot_at, timezone):
                 "affected_order_ids": [order["order_id"] for order in selected],
                 "requires_confirmation": [
                     "Kho xác nhận nguồn hàng và giờ sẵn sàng",
-                    "Logistics xác nhận lịch tiếp nhận",
+                    "Bộ phận Vận chuyển xác nhận lịch tiếp nhận",
                 ],
                 "assumptions": [
                     "Lượng bổ sung là nguồn thêm trong mô phỏng, chưa phải hàng nhận thật.",
-                    "Chưa xét giá, MOQ hoặc khả năng giao của nhà cung cấp.",
+                    "Chưa xét giá, số lượng mua tối thiểu hoặc khả năng giao của nhà cung cấp.",
                     "Cần xác minh thời gian chuẩn bị của Kho."
                     if policy is None
                     else "Đã tính thời gian chuẩn bị theo chính sách Kho được công bố.",
@@ -82,11 +82,12 @@ def recovery_options(result, request, evaluate, snapshot_at, timezone):
                     "order_id": order["order_id"],
                     "suggested_handoff_at": at.isoformat(),
                     "requires_confirmation": [
-                        "Sales thống nhất cam kết mới và cập nhật nguồn",
-                        "Logistics xác nhận một lịch phù hợp",
+                        "Bộ phận Bán hàng thống nhất cam kết mới và cập nhật dữ liệu đơn hàng",
+                        "Bộ phận Vận chuyển xác nhận một lịch phù hợp",
                     ],
                     "assumptions": [
-                        "Mốc tham khảo từ giờ có thể đủ hàng trong mô phỏng; chưa có lịch carrier.",
+                        "Mốc tham khảo từ giờ có thể đủ hàng trong mô phỏng; "
+                        "chưa có lịch đến lấy hàng của đơn vị vận chuyển.",
                         "Không tự đổi hạn đơn, chưa kết luận phương án mới khả thi.",
                     ],
                     "can_fill_simulation": False,

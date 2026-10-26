@@ -81,4 +81,4 @@ def test_early_slot_explains_the_proven_preparation_time_without_claiming_earlie
     assert result["confirmable"] is False
     assert result["reasons"][0]["code"] == "BEFORE_PREPARATION_COMPLETE"
     assert "09:30 27/10/2026" in result["reasons"][0]["message"]
-    assert "sớm nhất" in result["reasons"][0]["message"]
+    assert "Kho cần xác nhận có thể chuẩn bị sớm hơn hay không" in result["reasons"][0]["message"]

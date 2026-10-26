@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription } from '@/components/ui/sheet';
+import { WorkspaceModal as Sheet } from './interactive-workspace';
+import { DialogContent as SheetContent, DialogHeader as SheetHeader, DialogTitle as SheetTitle, DialogDescription as SheetDescription } from '@/components/ui/dialog';
 import { Database,Clock,Calculator } from 'lucide-react';
 import { dateLabel,fmt,unitLabel } from './components';
 import type { Evidence } from './types';

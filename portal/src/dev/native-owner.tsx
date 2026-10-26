@@ -6,14 +6,14 @@ import { ApiError } from '@/lib/api';
 
 const actions = [
   ['sales.operations.order_read', 'Bán hàng · Đọc đơn gốc'],
-  ['warehouse.operations.inventory_read', 'Kho · Đọc tồn và phiên bản'],
+  ['warehouse.operations.inventory_read', 'Kho · Xem tồn kho và phiên bản dữ liệu'],
   ['warehouse.operations.inbound_read', 'Kho · Đọc kế hoạch hàng về'],
   ['warehouse.operations.post_receipt', 'Kho · Ghi phiếu nhận hàng'],
   ['warehouse.operations.reserve_order', 'Kho · Giữ đủ hàng cho đơn'],
   ['warehouse.operations.reservation_read', 'Kho · Đọc lượng đã giữ'],
   ['warehouse.operations.prepare_dispatch', 'Kho · Chuẩn bị phiếu xuất'],
   ['warehouse.operations.dispatch_read', 'Kho · Đọc bản kê xuất hàng'],
-  ['logistics.operations.capacity_read', 'Vận chuyển · Đọc năng lực'],
+  ['logistics.operations.capacity_read', 'Vận chuyển · Xem số lượt có thể đến lấy hàng'],
   ['logistics.operations.book_carrier', 'Vận chuyển · Xác nhận lịch tiếp nhận'],
   ['logistics.operations.shipment_read', 'Vận chuyển · Đọc vận đơn'],
   ['warehouse.operations.record_carrier_handoff', 'Kho · Ghi nhận bàn giao cho đơn vị vận chuyển'],
@@ -39,7 +39,7 @@ export default function NativeOwner({ onExit }: { onExit: () => void }) {
     let body:unknown;
     try{body=JSON.parse(payload);}catch{setError('Nội dung JSON chưa hợp lệ.');return;}
     if(!body||typeof body!=='object'||Array.isArray(body)||!key.trim()||(physical&&!attested)){
-      setError('Cần object JSON, mã lệnh và xác nhận cho bước bàn giao.');return;
+      setError('Cần nhập nội dung JSON dạng {...}, mã để kiểm tra lại thao tác và xác nhận bàn giao.');return;
     }
     setBusy(true);
     try {
@@ -53,12 +53,12 @@ export default function NativeOwner({ onExit }: { onExit: () => void }) {
     } finally{setBusy(false);}
   }
   return <main style={{padding:24,maxWidth:1050,margin:'auto',fontFamily:'sans-serif'}}>
-    <h1>Kiểm thử nghiệp vụ local bằng SSO</h1>
+    <h1>Kiểm thử nghiệp vụ trên máy bằng tài khoản đã đăng nhập</h1>
     <p>Chỉ dùng dữ liệu thử nghiệm đã thống nhất. Đây là thao tác của người kiểm thử;
-      không phải công cụ tự ghi dữ liệu của Agent. API chủ sở hữu quyết định quyền thực hiện.</p>
+      không phải công cụ tự ghi dữ liệu của Agent. Hệ thống của từng bộ phận kiểm tra quyền thực hiện.</p>
     <p>Tài khoản: <strong>{session.profile?.user.display_name}</strong></p>
     <div style={{display:'flex',gap:16,marginBottom:20}}>
-      <button onClick={onExit} disabled={busy}>Về Workspace</button>
+      <button onClick={onExit} disabled={busy}>Về trang dữ liệu</button>
       <button onClick={()=>void session.logout()} disabled={busy}>Đổi tài khoản SSO</button>
     </div>
     <label>Thao tác nghiệp vụ<select aria-label="Thao tác nghiệp vụ" value={action} disabled={busy}
@@ -66,9 +66,9 @@ export default function NativeOwner({ onExit }: { onExit: () => void }) {
       onChange={e=>{setAction(e.target.value);setKey(crypto.randomUUID());setResult(null);setError('');setAttested(false);}}>
       {actions.map(([id,label])=><option key={id} value={id}>{label}</option>)}
     </select></label>
-    <label>Mã lệnh để đối soát<input aria-label="Mã lệnh để đối soát" value={key} disabled={busy}
+    <label>Mã để kiểm tra lại thao tác<input aria-label="Mã để kiểm tra lại thao tác" value={key} disabled={busy}
       style={{display:'block',width:'100%',padding:10,margin:'8px 0'}} onChange={e=>setKey(e.target.value)}/></label>
-    <p>Giữ nguyên mã và nội dung khi thử lại một lệnh mất phản hồi. Đọc kết quả lệnh ở owner
+    <p>Giữ nguyên mã và nội dung khi thử lại một lệnh mất phản hồi. Xem kết quả tại bộ phận thực hiện
       trước khi tạo lệnh mới nếu chưa rõ giao dịch đã chạy hay chưa.</p>
     <label>Nội dung lệnh JSON<textarea aria-label="Nội dung lệnh JSON" value={payload} disabled={busy}
       style={{display:'block',width:'100%',minHeight:250,padding:12,fontFamily:'monospace'}}
@@ -81,7 +81,7 @@ export default function NativeOwner({ onExit }: { onExit: () => void }) {
       {busy?'Đang kiểm tra và gửi lệnh…':'Thực hiện bước kiểm thử'}
     </button>
     {error&&<p role="alert">{error}</p>}
-    {result!==null&&<><h2>Kết quả API chủ sở hữu</h2><pre aria-label="Kết quả nghiệp vụ"
+    {result!==null&&<><h2>Kết quả bộ phận thực hiện trả về</h2><pre aria-label="Kết quả nghiệp vụ"
       style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',background:'#f1f5f9',color:'#111',padding:16}}>{JSON.stringify(result,null,2)}</pre></>}
   </main>;
 }

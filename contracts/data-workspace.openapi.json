@@ -5,6 +5,27 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/data-workspace/changes": {
+      "get": {
+        "summary": "Changes",
+        "operationId": "changes_api_v1_data_workspace_changes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/data-workspace/decision-capabilities": {
       "get": {
         "summary": "Capabilities",
@@ -1729,7 +1750,7 @@
               "chronos2"
             ],
             "title": "Forecast Model",
-            "default": "seasonal_mean"
+            "default": "chronos2"
           }
         },
         "additionalProperties": false,
@@ -2085,7 +2106,7 @@
           "allow_statistical_fallback": {
             "type": "boolean",
             "title": "Allow Statistical Fallback",
-            "default": true
+            "default": false
           },
           "start_from_request_date": {
             "type": "boolean",
@@ -2660,10 +2681,11 @@
             "type": "string",
             "enum": [
               "seasonal_mean",
-              "ridge_lag"
+              "ridge_lag",
+              "chronos2"
             ],
             "title": "Forecast Model",
-            "default": "seasonal_mean"
+            "default": "chronos2"
           },
           "training_days": {
             "type": "integer",
@@ -2778,7 +2800,8 @@
               "warehouses",
               "products",
               "orders",
-              "order_lines"
+              "order_lines",
+              "inventory"
             ],
             "title": "Collection"
           },
@@ -2825,6 +2848,18 @@
               }
             ],
             "title": "Order Id"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
           }
         },
         "additionalProperties": false,
@@ -3539,6 +3574,67 @@
             "minimum": 1.0,
             "title": "Horizon",
             "default": 7
+          },
+          "include_planning": {
+            "type": "boolean",
+            "title": "Include Planning",
+            "default": true
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "include_analysis": {
+            "type": "boolean",
+            "title": "Include Analysis",
+            "default": false
+          },
+          "include_order_analysis": {
+            "type": "boolean",
+            "title": "Include Order Analysis",
+            "default": false
+          },
+          "analysis_sku": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Sku"
+          },
+          "history_days": {
+            "type": "integer",
+            "enum": [
+              7,
+              14,
+              30,
+              90,
+              365
+            ],
+            "title": "History Days",
+            "default": 30
+          },
+          "history_frequency": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week"
+            ],
+            "title": "History Frequency",
+            "default": "day"
           }
         },
         "additionalProperties": false,

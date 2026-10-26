@@ -31,7 +31,7 @@ export function DecisionChecks({ request, caseId, disabled, onDenied, onSynced }
       if (operation === 'sync-events') {
         const result = await request<{ new_observations: number; warnings: string[] }>(prefix + '/sync-events', {});
         await onSynced();
-        setNotice(`Đã ghi nhận ${result.new_observations} sự kiện mới. ${result.warnings.length ? 'Lịch sử còn thiếu; cần đối soát tiếp. ' : ''}Sự kiện chỉ giúp phát hiện thay đổi; vẫn phải kiểm tra nguồn trước khi quyết định.`);
+        setNotice(`Đã tải ${result.new_observations} bước mới từ các bộ phận. ${result.warnings.length ? 'Chưa tải đủ lịch sử; cần kiểm tra lại. ' : ''}Lịch sử giúp biết ai đã làm bước nào. Bấm Kiểm tra dữ liệu hiện tại để kiểm tra lại điều kiện của phương án.`);
       } else {
         if (operation === 'revalidate') await request(prefix + '/revalidate', {});
         const result = await request<{ items: Check[]; has_more: boolean }>(prefix + '/checks');
@@ -47,13 +47,13 @@ export function DecisionChecks({ request, caseId, disabled, onDenied, onSynced }
       } else setNotice('Chưa xác minh được dữ liệu hiện tại. Không thể coi phương án là còn hiệu lực; kiểm tra dịch vụ và quyền nguồn rồi thử lại.');
     } finally { setBusy(false); }
   }
-  return <section aria-label="Hiệu lực phương án">
-    <h3>Hiệu lực phương án</h3>
+  return <section aria-label="Phương án còn phù hợp không?">
+    <h3>Phương án còn phù hợp không?</h3>
     <p>Kiểm tra lại dữ liệu nguồn để biết phương án còn dùng được hay cần lập phiên bản mới. Việc kiểm tra không tự duyệt hoặc thực hiện giao dịch.</p>
     <div className="dw-actions">
       <Button variant="outline" disabled={disabled || busy} onClick={() => void run('revalidate')}>Kiểm tra dữ liệu hiện tại</Button>
       <Button variant="outline" disabled={disabled || busy} onClick={() => void run('checks')}>Xem lịch sử kiểm tra</Button>
-      <Button variant="outline" disabled={disabled || busy} onClick={() => void run('sync-events')}>Đối soát sự kiện nguồn</Button>
+      <Button variant="outline" disabled={disabled || busy} onClick={() => void run('sync-events')}>Tải các bước đã thực hiện</Button>
     </div>
     {notice && <p role="status">{notice}</p>}
     {checks.map(check => <details key={check.id} className="pw-saved-card">

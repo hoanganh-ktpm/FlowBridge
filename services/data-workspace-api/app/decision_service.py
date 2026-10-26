@@ -188,7 +188,10 @@ class DecisionService:
                     409,
                     {
                         "code": "DECISION_REQUIRES_REVISION",
-                        "message": "Source conditions changed; create and verify a new revision",
+                        "message": (
+                            "Dữ liệu đã thay đổi điều kiện của phương án. "
+                            "Cần lập phiên bản mới và gửi kiểm tra lại."
+                        ),
                         "impact": impact,
                     },
                 )
@@ -265,11 +268,13 @@ class DecisionService:
                     if error.status_code == 401:
                         raise
                     warnings.append(
-                        "Some workflow states are unconfirmed; do not assume no tasks remain"
+                        "Chưa đọc đủ tiến độ của một số hồ sơ; chưa thể kết luận đã hết việc."
                     )
                     return []
             if state["workflow"] is None:
-                warnings.append("Some workflow starts remain unconfirmed")
+                warnings.append(
+                    "Chưa xác nhận được một số hồ sơ đã bắt đầu chạy quy trình hay chưa."
+                )
                 return []
             return [
                 {
@@ -339,7 +344,10 @@ class DecisionService:
             "new_observations": count,
             "warnings": warnings,
             "requires_source_revalidation": True,
-            "message": "Events are hints; current source checks remain mandatory",
+            "message": (
+                "Lịch sử chỉ cho biết bước đã ghi nhận; "
+                "vẫn cần kiểm tra dữ liệu hiện tại trước khi quyết định."
+            ),
         }
 
     async def submit(self, ctx, identifier, body, key):
@@ -390,7 +398,7 @@ class DecisionService:
             return {
                 "case": case,
                 "workflow": None,
-                "warnings": ["Not submitted or awaiting start reconciliation"],
+                "warnings": ["Hồ sơ chưa gửi hoặc đang chờ kiểm tra kết quả lần gửi trước."],
             }
         state = await self.workflow.request(
             "/decision-runs/" + case["workflow_instance_ref"],
@@ -408,7 +416,7 @@ class DecisionService:
         return {
             "case": case,
             "workflow": state,
-            "warnings": ["Actual handoff still requires source proof"]
+            "warnings": ["Cần đối chiếu dữ liệu Kho để xác nhận đã bàn giao hàng thực tế."]
             if state["status"] == "COMPLETED" and case["status"] != "COMPLETED"
             else [],
         }
@@ -436,7 +444,10 @@ class DecisionService:
             return {
                 "case": case,
                 "workflow": None,
-                "warnings": ["Start remains UNCONFIRMED; do not dispatch a replacement"],
+                "warnings": [
+                    "Chưa xác nhận được quy trình đã bắt đầu. "
+                    "Hãy kiểm tra lần gửi trước, không tạo lượt mới thay thế."
+                ],
             }
         run = result["run"]
         if (
@@ -527,11 +538,13 @@ class DecisionService:
         ):
             missing = []
             if "warehouse" in verifier_roles and not proof["warehouse_confirmable"]:
-                missing.append("Kho chưa đủ điều kiện nguồn hàng và thời gian chuẩn bị.")
+                missing.append("Kho chưa xác nhận đủ hàng và đủ thời gian chuẩn bị cho đơn.")
             if "logistics" in verifier_roles and not proof["logistics_confirmable"]:
                 missing.extend(item["message"] for item in proof.get("logistics_reasons", []))
                 if not missing:
-                    missing.append("Vận chuyển chưa đủ điều kiện lịch nhận và năng lực tiếp nhận.")
+                    missing.append(
+                        "Vận chuyển chưa xác nhận được lịch lấy hàng và số lượt còn có thể nhận."
+                    )
             raise HTTPException(
                 409,
                 {
@@ -643,7 +656,7 @@ class DecisionService:
         return {
             "items": items,
             "has_more": len(ids) > 100,
-            "warnings": ["Some case sources/assignments are no longer authorized"]
+            "warnings": ["Một số nguồn dữ liệu hoặc phân công không còn được cấp quyền truy cập."]
             if limited
             else [],
         }

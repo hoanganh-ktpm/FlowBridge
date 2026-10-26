@@ -18,6 +18,7 @@ class Boundary:
         self.reads = []
         self.revoked = self.foreign = self.duplicate = False
         self.missing = False
+        self.identities = {}
         for kind, (_, fields) in DEFINITIONS.items():
             identifier, contract = str(uuid4()), str(uuid4())
             grain = {
@@ -25,13 +26,18 @@ class Boundary:
                 "products": "product_id",
                 "orders": "order_id",
                 "order_lines": "order_line_id",
+                "inventory": "warehouse_id",
             }[kind]
             self.products.append(
                 dict(
                     id=identifier,
                     contract_version_id=contract,
-                    name=DEFAULT_SOURCE_NAMES["records_" + kind],
-                    business_key=["org_id", grain],
+                    name=DEFAULT_SOURCE_NAMES[
+                        "stock" if kind == "inventory" else "records_" + kind
+                    ],
+                    business_key=["org_id", grain, "sku", "uom"]
+                    if kind == "inventory"
+                    else ["org_id", grain],
                     fields=[{"name": f} for f in ["org_id", *fields]],
                 )
             )
@@ -51,8 +57,18 @@ class Boundary:
                     row.update(
                         sku=f"SKU-{i}", product_name=f"Sản phẩm {i}", uom="cái", status="ACTIVE"
                     )
+                if kind == "inventory":
+                    row.update(
+                        warehouse_id=self.identities["warehouses"][i],
+                        sku=f"SKU-{i}",
+                        uom="cái",
+                        on_hand_quantity="12.125" if i == 0 else "0.000",
+                        reserved_quantity="2.000" if i == 0 else "0.000",
+                        available_quantity="10.125" if i == 0 else "0.000",
+                    )
                 records.append(row)
             self.data[identifier] = records
+            self.identities[kind] = [row[grain] for row in records]
 
     def respond(self, request):
         import json
@@ -76,7 +92,10 @@ class Boundary:
             rows = [
                 r
                 for r in rows
-                if all(op == "_eq" and r.get(key) == value for op, value in terms.items())
+                if all(
+                    (op == "_eq" and r.get(key) == value) or (op == "_in" and r.get(key) in value)
+                    for op, value in terms.items()
+                )
             ]
         rows = [dict(r) for r in rows[body["offset"] : body["offset"] + body["limit"]]]
         if rows and self.foreign:
@@ -145,7 +164,68 @@ async def test_register_discards_missing_permission_revocation_foreign_and_dupli
         {"collection": "order_lines"},
         {"collection": "orders", "offset": -1},
         {"collection": "orders", "order_id": str(uuid4())},
+        {"collection": "products", "warehouse_id": str(uuid4())},
+        {"collection": "inventory", "status": "ACTIVE"},
+        {"collection": "order_lines", "order_id": str(uuid4()), "warehouse_id": str(uuid4())},
+        {"collection": "inventory", "code": "   "},
     ],
 )
 async def test_register_scope_and_filters_are_bounded(body):
     assert (await call(Boundary(), body)).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_inventory_reads_actual_quantities_and_names_through_granted_catalogs():
+    b = Boundary()
+    response = await call(b, {"collection": "inventory"})
+    assert response.status_code == 200, response.text
+    rows = response.json()["items"]
+    assert rows[0]["on_hand_quantity"] == "12.125"
+    assert rows[0]["reserved_quantity"] == "2.000"
+    assert rows[0]["available_quantity"] == "10.125"
+    assert rows[0]["warehouse_name"] == "Kho 0"
+    assert rows[0]["product_name"] == "Sản phẩm 0"
+    assert rows[1]["on_hand_quantity"] == "0.000"
+    assert {q["where"]["org_id"]["_eq"] for q in b.reads} == {str(ORG)}
+    assert not any("day" in q["select"] for q in b.reads)
+    filtered = await call(
+        b,
+        {
+            "collection": "inventory",
+            "warehouse_id": b.identities["warehouses"][0],
+            "code": "SKU-0",
+        },
+    )
+    assert len(filtered.json()["items"]) == 1
+    absent = await call(b, {"collection": "inventory", "code": "NEVER-STOCKED"})
+    assert absent.json()["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_inventory_names_recheck_permissions_and_do_not_cross_organization():
+    b = Boundary()
+    b.products = [p for p in b.products if p["name"] != DEFAULT_SOURCE_NAMES["records_products"]]
+    response = await call(b, {"collection": "inventory"})
+    assert response.status_code == 403
+    assert "items" not in response.json()
+    b = Boundary()
+    b.revoked = True
+    assert (await call(b, {"collection": "inventory"})).status_code == 403
+    b = Boundary()
+    b.foreign = True
+    assert (await call(b, {"collection": "inventory"})).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_order_register_filters_warehouse_and_keeps_historical_states():
+    b = Boundary()
+    source = next(p for p in b.products if p["name"] == DEFAULT_SOURCE_NAMES["records_orders"])
+    b.data[source["id"]][1]["warehouse_id"] = b.identities["warehouses"][0]
+    response = await call(
+        b, {"collection": "orders", "warehouse_id": b.identities["warehouses"][0]}
+    )
+    assert response.status_code == 200, response.text
+    assert [(r["order_number"], r["status"]) for r in response.json()["items"]] == [
+        ("SO-001", "COMPLETED")
+    ]
+    assert response.json()["items"][0]["warehouse_name"] == "Kho 0"

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import asyncio
+import json
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -13,6 +14,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 
 from .analytics import analyze, local_day, numeric, prepare
+from .changes import change_manifest
 from .connector import CoreConnector
 from .decision_api import install_decision_routes
 from .decision_freshness import digest, input_digest, ordered
@@ -28,6 +30,7 @@ from .portfolio import carrier_summary, supply_reference
 from .records import RecordsRequest, records_page
 from .reports import overview, recipe
 from .repository import PostgresRepository
+from .request_lifetime import bounded_overview
 from .schemas import (
     AnalysisConfig,
     AnalyticsResult,
@@ -179,6 +182,13 @@ def create_app(
         return await connector.context(values[0][7:])
 
     actor_dependency = Depends(actor)
+
+    @app.get(PREFIX + "/changes")
+    async def changes(ctx=actor_dependency):
+        bindings = decision_bindings if decision_bindings is not None else json.loads(
+            os.environ.get("FLOWBRIDGE_WORKSPACE_DECISION_BINDINGS", "{}")
+        )
+        return await change_manifest(ctx, connector, repository, bindings)
 
     async def dataset(ctx, config):
         product, rows = await connector.rows(
@@ -527,9 +537,9 @@ def create_app(
     @app.post(PREFIX + "/planning")
     async def merchandise_plan(body: PlanningRequest, ctx=actor_dependency):
         try:
-            async with asyncio.timeout(60):
+            async with asyncio.timeout(180):
                 result, sources = await planning_report(
-                    body, ctx, connector, repository, source_names
+                    body, ctx, connector, repository, source_names, forecaster
                 )
                 await reauthorize(ctx, {"sources": sources})
         except TimeoutError:
@@ -557,8 +567,14 @@ def create_app(
         return {"all_warehouses_enabled": ctx.admin}
 
     @app.post(PREFIX + "/all-warehouses")
-    async def all_warehouses(body: WarehouseOverviewRequest, ctx=actor_dependency):
-        return await warehouse_overview(body,ctx,connector,repository,source_names)
+    async def all_warehouses(
+        body: WarehouseOverviewRequest, request: Request, ctx=actor_dependency
+    ):
+        return await bounded_overview(
+            request,
+            warehouse_overview(body, ctx, connector, repository, source_names, forecaster),
+            timeout=180,
+        )
 
     @app.post(PREFIX + "/configurations", status_code=201)
     async def save_configuration(body: AnalysisConfig, ctx=actor_dependency):

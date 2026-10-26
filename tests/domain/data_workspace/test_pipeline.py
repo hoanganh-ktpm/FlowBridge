@@ -22,6 +22,7 @@ def config(**kw):
             "unit": "EA",
             "start": "2026-01-01",
             "end": "2026-01-28",
+            "forecast_model": "seasonal_mean",
             **kw,
         }
     )
@@ -179,10 +180,10 @@ def test_month_complete_and_short_history():
 def test_chronos_absent_is_labelled_and_strict_request_fails():
     cfg = config(forecast_model="chronos2")
     data = prepare(cfg, rows(cfg), product(cfg))
-    _, model = Forecaster().run(data, cfg)
+    _, model = Forecaster().run(data, cfg, True)
     assert model["method"] == "seasonal_mean" and "fallback_reason" in model
     with pytest.raises(HTTPException) as error:
-        Forecaster().run(data, cfg, False)
+        Forecaster().run(data, cfg)
     assert error.value.status_code == 503
 
 
