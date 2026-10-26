@@ -177,13 +177,17 @@ function DataWorkspaceContent() {
       void perform('Đang cập nhật dữ liệu liên quan và tính lại kế hoạch', () => load(draft, undefined, true));
     }
   }, [catalogLoaded, directoryLoaded]);
-  async function load(next = draft, nextView?: View, preserveProposal = false) {
+  async function load(next = draft, nextView?: View, preserveProposal = false, fresh = true) {
+    // Navigation reuses the current snapshot; only an explicit update forces a source read.
+    if(!fresh && plan && applied && JSON.stringify(next)===JSON.stringify(applied)){
+      setDraft(applied);setScopeOpen(false);if(nextView)setView(nextView);return;
+    }
     generation.current++; controllers.current.forEach(c => c.abort());
     setInputsOpen(false); setPlan(null); setScenario(null); setCalculated(null); setExplanation(null); snapshot.current = null;
     const result = await request<Planning>('/planning', {
       ...Object.fromEntries(Object.entries(sources).filter(([, p]) => !!p).map(([k, p]) => [k, productRef(p!)])),
       warehouse_id: next.warehouse || null, sku: next.sku || null, horizon: Number(next.horizon), history_days: Number(next.history), history_frequency: next.frequency, forecast_model: 'chronos2', training_days: Number(next.training),
-    }, undefined, undefined, true);
+    }, undefined, undefined, fresh);
     setPlan(result);
     const resolved = { ...next, warehouse: result.warehouse_id, sku: result.selected_sku };
     setDraft(resolved); setApplied(resolved);
@@ -191,7 +195,7 @@ function DataWorkspaceContent() {
     setScopeOpen(false);
     if (nextView) setView(nextView);
   }
-  function inspect(p: PlanProduct) { void perform('Đang tính dự báo và kiểm tra hàng trong kho', () => load({ ...applied!, sku: p.sku }, 'plan')); }
+  function inspect(p: PlanProduct) { void perform('Đang mở kế hoạch mặt hàng', () => load({ ...applied!, sku: p.sku }, 'plan', false, false)); }
   function showEvidence(key: string) {
     if (key === 'scenario' && plan) {
       setExplanation({title:'So sánh ba phương án đủ hàng', meaning:'Tách tác động của nhu cầu/lịch hàng thay đổi với tác động của bổ sung hàng, với cùng dữ liệu đã đọc ở lần so sánh này.', applications:plan.explanations.balance?.applications,
@@ -277,20 +281,20 @@ function DataWorkspaceContent() {
         {catalogLoaded && !products.length && !error && <div className="pw-source-setup"><Info size={24}/><div><h2>Chưa có dữ liệu được chia sẻ</h2><p>Liên hệ IT để được cấp quyền xem dữ liệu Bán hàng, Kho hoặc Vận chuyển.</p></div></div>}
         {['dashboard','all-warehouses','orders'].includes(view) && <Tabs value={view==='orders'?'orders':'overview'} onValueChange={value=>{const target=value==='orders'?'orders':allWarehousesEnabled?'all-warehouses':'dashboard';setOpenHandoffList(false);setView(target);}} className="pw-section-tabs"><TabsList variant="line" aria-label="Theo dõi kho và đơn"><TabsTrigger value="overview">Tồn kho và đơn đang chờ</TabsTrigger><TabsTrigger value="orders" disabled={allWarehousesEnabled&&!!overviewWarehouseId&&!directory.warehouses.some(w=>w.id===overviewWarehouseId)} title={allWarehousesEnabled&&!!overviewWarehouseId&&!directory.warehouses.some(w=>w.id===overviewWarehouseId)?'Kho này hiện chỉ có quyền xem tổng quan; chưa có nguồn để kiểm tra lịch bàn giao.':undefined}>Đơn hàng và bàn giao</TabsTrigger></TabsList></Tabs>}
         {['tasks','decisions','outcomes'].includes(view) && decisionCapabilities?.enabled && <Tabs value={view} onValueChange={value=>setView(value as View)} className="pw-section-tabs"><TabsList variant="line" aria-label="Phối hợp và bàn giao"><TabsTrigger value="tasks">Việc của tôi</TabsTrigger><TabsTrigger value="decisions">Hồ sơ phối hợp</TabsTrigger><TabsTrigger value="outcomes">Theo dõi kết quả</TabsTrigger></TabsList></Tabs>}
-        {products.length > 0 && <div hidden={view !== 'analytics' && view !== 'forecast'}><BusinessAnalytics error={error} mode={view === 'forecast' ? 'forecast' : 'history'} products={products} busy={!!busy} request={request} perform={perform} onEvidence={setExplanation} canPlan={!missing.length} names={sourceNames} onPlan={(sku, horizon, training = 180) => { const nextView = sku ? 'plan' : 'orders'; if (!draft.warehouse) { setDraft(d => ({ ...d, sku, horizon: String(horizon), training: String(training) })); setView(nextView); return; } void perform('Đang đối chiếu kế hoạch', () => load({ ...draft, sku, horizon: String(horizon), training: String(training) }, nextView)); }}/></div>}
-        {view === 'all-warehouses' && allWarehousesEnabled && <AllWarehouses request={request} onEvidence={setExplanation} onDenied={report} initialWarehouseId={overviewWarehouseId} onSelectWarehouse={warehouseId=>{
+        {products.length > 0 && <div hidden={view !== 'analytics' && view !== 'forecast'}><BusinessAnalytics error={error} mode={view === 'forecast' ? 'forecast' : 'history'} products={products} busy={!!busy} request={request} perform={perform} onEvidence={setExplanation} canPlan={!missing.length} names={sourceNames} onPlan={(sku, horizon, training = 180) => { const nextView = sku ? 'plan' : 'orders'; if (!draft.warehouse) { setDraft(d => ({ ...d, sku, horizon: String(horizon), training: String(training) })); setView(nextView); return; } void perform('Đang mở kế hoạch', () => load({ ...draft, sku, horizon: String(horizon), training: String(training) }, nextView, false, false)); }}/></div>}
+        {allWarehousesEnabled && products.length > 0 && <div hidden={view!=='all-warehouses'}><AllWarehouses active={view==='all-warehouses'} request={request} onEvidence={setExplanation} onDenied={report} initialWarehouseId={overviewWarehouseId} onSelectWarehouse={warehouseId=>{
           setOverviewWarehouseId(warehouseId);
           if(directory.warehouses.some(w=>w.id===warehouseId))setDraft(previous=>previous.warehouse===warehouseId?previous:{...previous,warehouse:warehouseId,sku:directory.products.find(p=>p.warehouse_id===warehouseId)?.sku||''});
         }} onReviewOrder={(warehouseId,orderNumber,horizon)=>{
           if(!directory.warehouses.some(w=>w.id===warehouseId))return;
           const next={...draft,warehouse:warehouseId,horizon:String(horizon),sku:directory.products.find(p=>p.warehouse_id===warehouseId)?.sku||''};
-          setOrderQuery(orderNumber);setDraft(next);setView('orders');void perform('Đang kiểm tra đơn và lịch bàn giao',()=>load(next,'orders'));
+          setOrderQuery(orderNumber);setDraft(next);setView('orders');void perform('Đang mở đơn và lịch bàn giao',()=>load(next,'orders',false,false));
         }} analysisWarehouseIds={!missing.length?directory.warehouses.map(w=>w.id):[]} onLocal={(warehouseId,sku,horizon)=>{
           if(!directory.warehouses.some(w=>w.id===warehouseId))return;
           const next={...draft,warehouse:warehouseId,horizon:String(horizon||draft.horizon),sku:sku||directory.products.find(p=>p.warehouse_id===warehouseId)?.sku||''};
-          setDraft(next);setView('plan');void perform('Đang tính dự báo và kiểm tra hàng trong kho',()=>load(next,'plan'));
-        }}/>}
-        {view==='insights'&&<FulfillmentInsights directory={directory} sources={sources} request={request} onDenied={report} onReview={(warehouse,orderNumber,horizon)=>{const next={...draft,warehouse,horizon:String(horizon),sku:directory.products.find(p=>p.warehouse_id===warehouse)?.sku||''};setOrderQuery(orderNumber);setOpenHandoffList(true);setDraft(next);setView('orders');void perform('Đang đối chiếu đơn',()=>load(next,'orders'));}} onSupply={(warehouse,sku,horizon)=>{const next={...draft,warehouse,sku,horizon:String(horizon)};setDraft(next);setView('plan');void perform('Đang dự báo và kiểm tra nguồn hàng',()=>load(next,'plan'));}}/>}
+          setDraft(next);setView('plan');void perform('Đang mở kế hoạch mặt hàng',()=>load(next,'plan',false,false));
+        }}/></div>}
+        {view==='insights'&&<FulfillmentInsights directory={directory} sources={sources} request={request} onDenied={report} onReview={(warehouse,orderNumber,horizon)=>{const next={...draft,warehouse,horizon:String(horizon),sku:directory.products.find(p=>p.warehouse_id===warehouse)?.sku||''};setOrderQuery(orderNumber);setOpenHandoffList(true);setDraft(next);setView('orders');void perform('Đang mở điều kiện đơn',()=>load(next,'orders',false,false));}} onSupply={(warehouse,sku,horizon)=>{const next={...draft,warehouse,sku,horizon:String(horizon)};setDraft(next);setView('plan');void perform('Đang mở kế hoạch mặt hàng',()=>load(next,'plan',false,false));}}/>}
         {view === 'records' && <OrganizationRecords request={request} onDenied={report}/>}
         {['decisions','tasks','outcomes'].includes(view) && decisionCapabilities?.enabled && <DecisionDossiers handoffOptions={plan?.capacity_calendar||[]} key={view} mode={view==='tasks'?'tasks':view==='outcomes'?'outcomes':'all'} request={request} capabilities={decisionCapabilities} scenario={scenario} scenarioDirty={dirty || scenarioDirty}/>}
         {!['decisions','tasks','outcomes','records','all-warehouses','insights'].includes(view) && view !== 'configuration' && view !== 'analytics' && view !== 'forecast' && <>

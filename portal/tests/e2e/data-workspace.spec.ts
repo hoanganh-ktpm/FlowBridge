@@ -141,6 +141,41 @@ test('a warehouse covered by source revisions reuses its overview until explicit
   await page.getByRole('button',{name:'Làm mới dữ liệu',exact:true}).click();
   await expect.poll(()=>reads).toBe(2);
 });
+
+test('navigation retains a non-persisted warehouse snapshot and lets its first forecast finish once',async({page})=>{
+  await mock(page);
+  await page.route('**/warehouse-coverage',r=>r.fulfill({json:{all_warehouses_enabled:true}}));
+  let reads=0,started=false,release=()=>{};
+  const waiting=new Promise<void>(resolve=>{release=resolve;});
+  // This overview has no complete event coverage for persistent browser storage.
+  const item={organization_id:'another-authorized-org',warehouse_id:warehouse,warehouse_name:'Kho giữ trong phiên',warehouse_code:'SESSION',products:[{sku:'SKU-A',name:'Cà phê rang',uom:'EA',on_hand:25,reserved:5,available:20,shortage:null as number|null}],open_orders:[],planning_status:'pending',planning_issue:null,plan_read_at:null};
+  await page.route('**/all-warehouses',async route=>{
+    reads++;const body=route.request().postDataJSON();
+    if(body.include_planning){started=true;await waiting;}
+    await route.fulfill({json:{items:[body.include_planning?{...item,planning_status:'calculated',products:[{...item.products[0],shortage:7}]}:item],warehouse_count:1,horizon:body.horizon,read_at:evidence.executed_at}});
+  });
+  await page.goto('/#data');await expect.poll(()=>started).toBe(true);expect(reads).toBe(2);
+  await page.getByRole('button',{name:'Tra cứu dữ liệu',exact:true}).click();release();
+  await page.getByRole('button',{name:'Dự báo nhu cầu',exact:true}).click();
+  await page.getByRole('button',{name:'Tổng quan kho',exact:true}).click();await openInventory(page);
+  await expect(page.getByRole('table',{name:'Tồn và kế hoạch SESSION'})).toContainText('7 sản phẩm');expect(reads).toBe(2);
+  await closeWorkspaceDialogs(page);await page.getByRole('button',{name:'Đơn hàng và tác động',exact:true}).click();await page.getByRole('button',{name:'Tổng quan kho',exact:true}).click();expect(reads).toBe(2);
+  const persisted=await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('flowbridge.workspace.v1:')).flatMap(k=>JSON.parse(sessionStorage.getItem(k)!).entries).filter(([key]:[string])=>JSON.parse(key)[0]==='/all-warehouses'));
+  expect(persisted).toEqual([]);
+  await page.getByLabel('Khoảng thời gian dự báo',{exact:true}).selectOption('14');expect(reads).toBe(2);
+  await page.getByRole('button',{name:'Làm mới dữ liệu',exact:true}).click();await expect.poll(()=>reads).toBe(4);
+  await openInventory(page);await expect(page.getByRole('table',{name:'Tồn và kế hoạch SESSION'})).toContainText('7 sản phẩm');
+});
+
+test('opening an existing product plan reuses its snapshot until the user updates it',async({page})=>{
+  const state=await mock(page);await page.goto('/#data');await apply(page);
+  expect(count(state,'/planning')).toBe(1);
+  await openPriority(page);await page.getByRole('button',{name:'Thử bổ sung hàng',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Thử phương án nhập hàng',exact:true})).toBeVisible();expect(count(state,'/planning')).toBe(1);
+  await page.getByRole('button',{name:'Tra cứu dữ liệu',exact:true}).click();await page.getByRole('button',{name:'Tổng quan kho',exact:true}).click();
+  await openPriority(page);await page.getByRole('button',{name:'Thử bổ sung hàng',exact:true}).click();expect(count(state,'/planning')).toBe(1);
+  await refreshPlan(page);await expect.poll(()=>count(state,'/planning')).toBe(2);
+});
 const config = { name: 'Kế hoạch hàng hóa', data_product_id: products[0].id, contract_version_id: products[0].contract_version_id, time_column: 'day', entity_column: 'sku', target_column: 'confirmed_quantity', unit: 'EA', unit_column: 'uom', metric_type: 'FLOW', aggregation: 'SUM', frequency: 'D', timezone: 'Asia/Ho_Chi_Minh', missing_policy: 'zero', duplicate_policy: 'error', start: '2026-10-01', end: '2026-10-24', entities: ['SKU-A'], forecast_horizon: 7, forecast_start: '2026-10-25', forecast_model: 'seasonal_mean', filters: { warehouse_id: warehouse } };
 function side(quantity = 0, arrival = '', daily = 10, delay = 0, opening = 20) {
   let balance = opening, atRisk = 0, supply = opening, capacity = Infinity, impossible = false;
@@ -1664,7 +1699,8 @@ test('record warehouse links keep the warehouse scope on filters pages and relat
   const stock=page.getByRole('dialog',{name:'Tồn kho thực tế',exact:true});
   await expect(stock).toContainText('12,125 ram');
   await stock.getByRole('button',{name:'Trang sau',exact:true}).click();
-  expect(calls.at(-1)).toMatchObject({collection:'inventory',warehouse_id:warehouse,offset:50});
+  await expect.poll(()=>calls.at(-1)).toMatchObject({collection:'inventory',warehouse_id:warehouse,offset:50});
+  await expect(stock.locator('.iw-list-pagination')).toContainText('Trang 2');
   await stock.getByLabel('Mã mặt hàng chính xác',{exact:true}).fill('CHUA-NHAP');
   await expect(stock.getByRole('button',{name:'Trang trước',exact:true})).toBeDisabled();
   await stock.getByRole('button',{name:'Lọc và tải dữ liệu',exact:true}).click();
@@ -1776,7 +1812,7 @@ test('order insights require explicit confirmation and reuse their authorized sn
  await page.screenshot({path:'../.tmp/ui-dialog-redesign/insights-timeline-fixture.png',animations:'disabled'});await closeWorkspaceDialogs(page);
  await page.getByRole('button',{name:'Tra cứu dữ liệu',exact:true}).click();await page.getByRole('button',{name:'Đơn hàng và tác động',exact:true}).click();expect(reads).toBe(1);
  await page.getByRole('button',{name:'Hàng về trễ ảnh hưởng đơn nào?',exact:true}).click();const impact=page.getByRole('dialog',{name:'Tác động khi hàng về trễ',exact:true});await expect(impact).toContainText('2 đơn từ kịp thành không kịp');await expect(impact.locator('.fi-order-row')).toHaveCount(2);await closeWorkspaceDialogs(page);
- await page.getByRole('button',{name:'Mặt hàng chặn nhiều đơn',exact:true}).click();await expect(page.getByRole('img',{name:'Pareto mặt hàng thiếu và số đơn bị chặn',exact:true})).toBeVisible();await page.getByRole('button',{name:'Xem đơn thiếu SKU-A',exact:true}).click();await expect(page.locator('.fi-order-row')).toHaveCount(6);await closeWorkspaceDialogs(page);
+ await page.getByRole('button',{name:'Mặt hàng chặn nhiều đơn',exact:true}).click();await expect(page.getByRole('img',{name:'Pareto mặt hàng thiếu và số đơn bị chặn',exact:true})).toBeVisible();await page.getByRole('button',{name:'Xem đơn thiếu SKU-A',exact:true}).click();await expect(page.locator('.fi-order-row')).toHaveCount(3);await closeWorkspaceDialogs(page);
  await page.getByRole('button',{name:'Ngày còn lượt lấy hàng',exact:true}).click();const heatmap=page.getByRole('dialog',{name:'Bản đồ lượt lấy hàng',exact:true});await heatmap.getByRole('button').filter({hasText:'2/4'}).click();await expect(heatmap.getByRole('status')).toContainText('còn 2 lượt');await page.setViewportSize({width:390,height:844});await page.screenshot({path:'../.tmp/ui-dialog-redesign/insights-capacity-fixture-mobile.png',animations:'disabled'});expect(await heatmap.evaluate(e=>e.getBoundingClientRect().right<=innerWidth)).toBe(true);
  expect(reads).toBe(1);expect(state.calls.some(c=>/scenarios|decisions/.test(c.path))).toBe(false);
 });
@@ -1795,4 +1831,37 @@ test('a denied insight refresh clears the previous result and never falls back t
  await page.goto('/#data');const wizard=await configureInsights(page);await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();await expect(page.getByRole('dialog',{name:'Mốc chuẩn bị dự kiến của đơn',exact:true})).toBeVisible();await closeWorkspaceDialogs(page);
  denied=true;await page.getByRole('button',{name:'Đổi giả định hoặc cập nhật',exact:true}).click();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await wizard.getByRole('button',{name:'Tiếp tục',exact:true}).click();await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('button',{name:'Mốc chuẩn bị từng đơn',exact:true})).toBeDisabled();expect(reads).toBe(2);expect(state.calls.some(c=>c.path.endsWith('/scenarios'))).toBe(false);
+});
+
+test('order timeline exposes expired deadlines, policy-derived identical dates and missing delay inputs',async({page})=>{
+ await mock(page);
+ const fixture=insightFixture();fixture.as_of='2026-10-26T18:22:00+07:00';fixture.start='2026-10-26';fixture.end='2026-11-01';fixture.inbound_options=[];
+ const estimate={material_ready_at:fixture.as_of,preparation_complete_at:'2026-10-26T20:22:00+07:00',state:'late',slack_hours:-3.3667};
+ fixture.orders=fixture.orders.slice(0,3).map(order=>({...order,deadline:'2026-10-26T17:00:00+07:00',already_overdue:true,base:{...estimate},high_demand:{...estimate},delayed:{...estimate},affected_by_delay:false,newly_late:false,supply_links:[{source_id:'stock',sku:'SKU-A',uom:'EA',quantity:30}]}));
+ fixture.summary={total_orders:3,on_time:0,newly_late:0,affected:0,high_demand_exposed:0};
+ await page.route('**/planning',r=>r.fulfill({json:{...plan,fulfillment_insights:fixture}}));
+ await page.goto('/#data');const wizard=await configureInsights(page);await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();
+ const timeline=page.getByRole('dialog',{name:'Mốc chuẩn bị dự kiến của đơn',exact:true});
+ await expect(timeline).toContainText('3/3 đơn đang xem có cùng mốc');
+ const row=timeline.locator('.fi-order-row').first();await expect(row).toContainText('Đã quá hạn lúc tra cứu');await expect(row).toContainText('Hạn bàn giao');await expect(row).toContainText('17:00');await expect(row).toContainText('giờ đọc cộng');await expect(row).toContainText('Không phải số giờ trễ thực tế');
+ const positions=await row.evaluate(element=>{
+   const track=element.querySelector('.fi-track')!.getBoundingClientRect();
+   const deadline=element.querySelector('.fi-deadline')!.getBoundingClientRect();
+   const base=element.querySelector('.fi-base')!.getBoundingClientRect();
+   return {deadline:deadline.x-track.x,gap:base.x-deadline.x,width:track.width};
+ });
+ expect(positions.deadline).toBeGreaterThan(0);expect(positions.gap/positions.width).toBeGreaterThan(0.6);
+ await page.getByLabel('Lọc ước tính đơn',{exact:true}).selectOption('overdue');await expect(timeline.locator('.fi-order-row')).toHaveCount(3);
+ await page.screenshot({path:'../.tmp/ui-dialog-redesign/insights-readable-deadlines.png',animations:'disabled'});
+ await row.click();const detail=page.getByRole('dialog',{name:'Ước tính SO-INS-1',exact:true});await expect(detail).toContainText('không dùng số liệu hiện tại để kết luận kết quả quá khứ');await expect(detail).toContainText('giờ đọc cộng');await detail.getByRole('button',{name:'Đóng hộp thoại',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});expect(await timeline.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
+ await page.screenshot({path:'../.tmp/ui-dialog-redesign/insights-readable-deadlines-mobile.png',animations:'disabled'});
+ await closeWorkspaceDialogs(page);await page.getByRole('button',{name:'Hàng về trễ ảnh hưởng đơn nào?',exact:true}).click();await expect(page.getByRole('dialog',{name:'Tác động khi hàng về trễ',exact:true})).toContainText('Không có đợt hàng chưa quá hạn trong kỳ để dịch lịch');
+});
+
+test('impact state filter uses delayed scenario rather than the baseline',async({page})=>{
+ await mock(page);await page.route('**/planning',r=>r.fulfill({json:{...plan,fulfillment_insights:insightFixture()}}));
+ await page.goto('/#data');const wizard=await configureInsights(page);await wizard.getByRole('button',{name:'Tạo phân tích',exact:true}).click();await expect(page.getByRole('dialog',{name:'Mốc chuẩn bị dự kiến của đơn',exact:true})).toBeVisible();await closeWorkspaceDialogs(page);
+ await page.getByRole('button',{name:'Hàng về trễ ảnh hưởng đơn nào?',exact:true}).click();const impact=page.getByRole('dialog',{name:'Tác động khi hàng về trễ',exact:true});
+ await page.getByLabel('Lọc ước tính đơn',{exact:true}).selectOption('late');await expect(impact.locator('.fi-order-row')).toHaveCount(2);await expect(impact.locator('.fi-order-row').first()).toContainText('29/10/2026');
 });

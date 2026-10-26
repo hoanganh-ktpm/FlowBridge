@@ -37,7 +37,8 @@ function Coverage({ warehouse }: { warehouse: Warehouse }) {
   </div>;
 }
 
-export function WarehouseOverviewView({ result, busy, error, horizon, onHorizon, onReload, onRetry, onAnalyze, analysisWarehouseIds = [], initialWarehouseId = '', onSelectWarehouse, onReviewOrder, request, onDenied, onEvidence }: {
+export function WarehouseOverviewView({ result, busy, error, horizon, onHorizon, onReload, onRetry, onAnalyze, analysisWarehouseIds = [], initialWarehouseId = '', onSelectWarehouse, onReviewOrder, request, onDenied, onEvidence, active=true }: {
+  active?: boolean;
   request?: DecisionRequest; onDenied?: (e:unknown)=>void; onEvidence?: (e:Explanation)=>void;
   result: WarehouseOverview | null; busy: boolean; error: string; horizon: string;
   onHorizon: (value: string) => void; onReload: () => void; onRetry: (warehouse: Warehouse) => void;
@@ -55,6 +56,9 @@ export function WarehouseOverviewView({ result, busy, error, horizon, onHorizon,
   const [orderPage,setOrderPage]=useState(0);
   const horizonId = useId();
   const [directoryOpen,setDirectoryOpen]=useState(false);
+  useEffect(()=>{
+    if(!active){setDirectoryOpen(false);setAllOrdersOpen(false);setFocusNode(null);setExpandedOrder(null);setTab('summary');}
+  },[active]);
   const detailRef = useRef<HTMLElement | null>(null);
   const items = result?.items || [];
   const selected = items.find(w => w.warehouse_id === selectedId) || items[0];

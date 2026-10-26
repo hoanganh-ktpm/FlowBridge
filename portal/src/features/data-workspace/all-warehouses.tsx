@@ -7,7 +7,7 @@ import type { DecisionRequest } from './decision-dossiers';
 import type { Warehouse, WarehouseOverview as Overview } from './warehouse-overview-types';
 import { WarehouseOverviewView } from './warehouse-overview-view';
 
-export function AllWarehouses({request,onDenied,onLocal,analysisWarehouseIds=[],initialWarehouseId='',onSelectWarehouse,onReviewOrder,onEvidence}: {request:DecisionRequest;onDenied:(e:unknown)=>void;onLocal:(warehouseId:string,sku?:string,horizon?:number)=>void;analysisWarehouseIds?:string[];initialWarehouseId?:string;onSelectWarehouse?:(warehouseId:string)=>void;onReviewOrder?:(warehouseId:string,orderNumber:string,horizon:number)=>void;onEvidence?:(value:Explanation)=>void}) {
+export function AllWarehouses({request,onDenied,onLocal,analysisWarehouseIds=[],initialWarehouseId='',onSelectWarehouse,onReviewOrder,onEvidence,active=true}: {request:DecisionRequest;onDenied:(e:unknown)=>void;onLocal:(warehouseId:string,sku?:string,horizon?:number)=>void;analysisWarehouseIds?:string[];initialWarehouseId?:string;onSelectWarehouse?:(warehouseId:string)=>void;onReviewOrder?:(warehouseId:string,orderNumber:string,horizon:number)=>void;onEvidence?:(value:Explanation)=>void;active?:boolean}) {
   const [horizon,setHorizon]=useWorkspaceState('overview-horizon','7'),[result,setResult]=useState<Overview|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const generation=useRef(0);
@@ -54,6 +54,6 @@ export function AllWarehouses({request,onDenied,onLocal,analysisWarehouseIds=[],
     setResult(current=>current?{...current,items:current.items.map(w=>w.warehouse_id===warehouse.warehouse_id?{...w,planning_status:'pending',planning_issue:null}:w)}:null);
     void calculate(warehouse,generation.current,signal,result.horizon,true);
   }
-  return <WarehouseOverviewView request={request} onEvidence={onEvidence} onDenied={e=>{controller.current?.abort();setResult(null);setError('Quyền xem dữ liệu đã thay đổi. Tải lại trang sau khi quản trị viên kiểm tra.');onDenied(e);}} result={result} busy={busy} error={error} horizon={horizon} onHorizon={setHorizon}
+  return <WarehouseOverviewView active={active} request={request} onEvidence={onEvidence} onDenied={e=>{controller.current?.abort();setResult(null);setError('Quyền xem dữ liệu đã thay đổi. Tải lại trang sau khi quản trị viên kiểm tra.');onDenied(e);}} result={result} busy={busy} error={error} horizon={horizon} onHorizon={setHorizon}
     initialWarehouseId={initialWarehouseId} onSelectWarehouse={onSelectWarehouse} onReviewOrder={onReviewOrder} onReload={()=>void load(true)} onRetry={retry} onAnalyze={onLocal} analysisWarehouseIds={analysisWarehouseIds}/>;
 }

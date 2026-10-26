@@ -25,3 +25,26 @@ export function timelinePosition(value:string|null,start:string,end:string):numb
   const at=Date.parse(value),a=Date.parse(start),b=Date.parse(end);
   return Number.isFinite(at)&&Number.isFinite(a)&&Number.isFinite(b)&&b>a?Math.max(0,Math.min(100,(at-a)/(b-a)*100)):null;
 }
+
+// Zoom to the displayed orders, including expired deadlines rather than clipping them to "now".
+export function timelineWindow(orders:FulfillmentOrder[],asOf:string):{start:string;end:string}{
+  const times=[asOf,...orders.flatMap(o=>[o.deadline,o.base.preparation_complete_at,o.high_demand.preparation_complete_at,o.delayed.preparation_complete_at])]
+    .filter((v):v is string=>!!v).map(Date.parse).filter(Number.isFinite);
+  const first=Math.min(...times),last=Math.max(...times);
+  if(!times.length)return {start:'',end:''};
+  const padding=Math.max(30*60*1000,(last-first)*0.08);
+  return {start:new Date(first-padding).toISOString(),end:new Date(last+padding).toISOString()};
+}
+
+export function samePreparationTimes(order:FulfillmentOrder):boolean{
+  const times=[order.base,order.high_demand,order.delayed].map(e=>e.preparation_complete_at?Date.parse(e.preparation_complete_at):NaN);
+  return times.every(Number.isFinite)&&times.every(t=>t===times[0]);
+}
+
+export function preparationBasis(order:FulfillmentOrder,estimate:Estimate,asOf:string):string{
+  if(order.all_lines_held_or_dispatched)return 'Hàng đã giữ hoặc đã xuất được loại khỏi phần cần phân bổ. Chưa xác nhận đơn đã soạn xong.';
+  if(estimate.material_ready_at&&Math.abs(Date.parse(estimate.material_ready_at)-Date.parse(asOf))<1000)
+    return 'Giả lập có đủ nguồn từ lúc đọc dữ liệu; mốc này bằng giờ đọc cộng thời gian chuẩn bị của Kho.';
+  if(estimate.material_ready_at)return 'Mốc này tính từ lúc giả lập đủ mọi món, cộng thời gian chuẩn bị của Kho.';
+  return 'Chưa tìm được thời điểm đủ mọi món trong kỳ kiểm tra.';
+}
